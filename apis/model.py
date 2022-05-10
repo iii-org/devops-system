@@ -135,9 +135,6 @@ class Release(db.Model):
     create_at = Column(DateTime)
     update_at = Column(DateTime)
     image_paths = Column(postgresql.ARRAY(String))
-    extra_image_path = Column(String)
-    tags = Column(postgresql.ARRAY(String))
-    custom_paths = Column(postgresql.ARRAY(String))
 
 
 class PluginSoftware(db.Model):
@@ -887,3 +884,10 @@ class ProjectIssueCheck(db.Model):
     need_fatherissue_trackers = Column(postgresql.ARRAY(Integer))
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+
+
+class ReleaseRepoTag(db.Model):
+    id = Column(Integer, primary_key=True)
+    release_id = Column(Integer, ForeignKey(Release.id, ondelete='CASCADE'), nullable=False)
+    tag = Column(String)
+    custom_path = Column(String)
