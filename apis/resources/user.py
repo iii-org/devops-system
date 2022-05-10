@@ -28,7 +28,7 @@ from resources.logger import logger
 from resources.redmine import redmine
 from resources.project import get_project_list
 import resources
-from sqlalchemy import desc
+from sqlalchemy import desc, nullslast
 
 # Make a regular expression
 default_role_id = 3
@@ -702,7 +702,7 @@ def create_user(args):
 def user_list(filters):
     per_page = 10
     page_dict = None
-    query = model.User.query.filter(model.User.id != 1).order_by(desc(model.User.last_login))
+    query = model.User.query.filter(model.User.id != 1).order_by(nullslast(model.User.last_login.desc()))
     if 'role_ids' in filters:
         filtered_user_ids = model.ProjectUserRole.query.filter(
             model.ProjectUserRole.role_id.in_(filters['role_ids'])
