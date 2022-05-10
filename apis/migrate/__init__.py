@@ -37,7 +37,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.14.0.1', '1.14.0.2', '1.14.0.3', '1.14.0.4', '1.14.0.5', '1.14.0.6', '1.14.0.7', '1.14.0.8', '1.14.0.9', '1.14.0.10', '1.15.0.1',
             '1.15.0.2', '1.15.0.3', '1.15.0.4', '1.15.0.5', '1.15.0.6', '1.15.0.7', '1.15.0.8', '1.15.0.9', '1.15.0.10', '1.15.0.11', '1.15.0.12',
             '1.15.0.13', '1.15.0.14', '1.15.0.15', '1.15.0.16', '1.15.1.0', '1.15.1.1', '1.15.2.0', '1.15.2.1', '1.15.2.2', '1.15.2.3', '1.15.2.4',
-            '1.16.0.1', '1.16.1.0', '1.16.1.1', '1.16.1.2', '1.16.1.3', '1.16.1.4']
+            '1.16.0.1', '1.16.1.0', '1.16.1.1', '1.16.1.2', '1.16.1.3', '1.16.1.4', '1.16.1.5']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -188,6 +188,25 @@ def upgrade(version):
         del_k8s_cronjob(wrong_name_cronjob_list)
     elif version == '1.16.1.1':
         add_update_at_in_release()
+    elif version == '1.16.1.5':
+        transfer_release_image_paths_to_release_tag_repo()
+
+
+def transfer_release_image_paths_to_release_tag_repo():
+    for release in model.Release.query.all():
+        if release.image_paths is not None:
+            for image_path in release.image_paths:
+                image_path = image_path.split("/")[-1].split(":")
+                tag, custom_path = image_path[1], image_path[0]
+                if model.ReleaseRepoTag.query.filter_by(
+                    release_id=release.id, tag=tag, custom_path=custom_path).first() is None:
+                    new = model.ReleaseRepoTag(
+                        release_id=release.id,
+                        tag=tag,
+                        custom_path=custom_path
+                    )
+                    db.session.add(new)
+                    db.session.commit()
 
 
 def add_update_at_in_release():
