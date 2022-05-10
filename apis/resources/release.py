@@ -486,6 +486,7 @@ class Releases(Resource):
         # Delete Gitlab Tags
         if 'gitlab' in self.valid_info['errors']:
             self.delete_gitlab_tag(release_name)
+            self.gitlab_info["check"] = True
         # Delete Harbor Tags
         if self.valid_info['targets'].get('harbor', None) is not None:
             self.delete_harbor_tag(branch_name)

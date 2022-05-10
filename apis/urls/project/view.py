@@ -1602,7 +1602,6 @@ class ReleasesV2(MethodResource):
         release_name = release_obj.versions_by_key[kwargs['main']]['name']
 
         # Check tag is exist in repos or not 
-        # repo_list = [repo["name"].split("/")[-1] for repo in hb_list_repositories(release_obj.project.name)]
         extra_image_path_split = kwargs.get("extra_image_path", ":").split(":")
         if len(extra_image_path_split) > 1:
             extra_image_repo, extra_image_tag = extra_image_path_split[0], extra_image_path_split[1]
@@ -1639,16 +1638,16 @@ class ReleasesV2(MethodResource):
                 closed_version = True
             
             # check  Gitalb Release
-            # if release_obj.gitlab_info.get('check') == True:
-            gitlab_data = {
-                'tag_name': release_name,
-                'ref': gitlab_ref,
-                'description': kwargs['note']
-            }
-            if kwargs.get('released_at') is not None:
-                gitlab_data['release_at'] = kwargs['released_at']
-            gitlab.gl_create_release(
-                release_obj.plugin_relation.git_repository_id, gitlab_data)
+            if release_obj.gitlab_info.get('check') == True:
+                gitlab_data = {
+                    'tag_name': release_name,
+                    'ref': gitlab_ref,
+                    'description': kwargs['note']
+                }
+                if kwargs.get('released_at') is not None:
+                    gitlab_data['release_at'] = kwargs['released_at']
+                gitlab.gl_create_release(
+                    release_obj.plugin_relation.git_repository_id, gitlab_data)
             check_gitlab_release = True
             #  Create Harbor Release
             image_path = [f"{release_obj.project.name}/{branch_name}:{release_name}"]
