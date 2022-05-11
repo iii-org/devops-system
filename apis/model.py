@@ -891,3 +891,12 @@ class ReleaseRepoTag(db.Model):
     release_id = Column(Integer, ForeignKey(Release.id, ondelete='CASCADE'), nullable=False)
     tag = Column(String)
     custom_path = Column(String)
+
+
+class TemplateProject(db.Model):
+    id = Column(Integer, primary_key=True)
+    template_repository_id = Column(Integer, nullable=False)
+    from_project_id = Column(Integer, nullable=False)
+    creator_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
