@@ -822,6 +822,7 @@ def update_issue(issue_id, args, operator_id=None):
     issue = redmine_lib.redmine.issue.get(issue_id, include=['children'])
     pj_id = get_project_id(issue.project.id)
     before_status_id = issue.status.id
+    origin_parent_id = None
 
     # Issue can not be updated when its tracker is in its force tracker checking setting' tracker.
     check_issue_project_id = args.get("project_id") or pj_id
@@ -867,9 +868,9 @@ def update_issue(issue_id, args, operator_id=None):
         if len(args['parent_id']) > 0:
             parent_id_is_changed = int(origin_parent_id) != int(
                 args['parent_id']) if origin_parent_id is not None else True
-            args['parent_issue_id'] = removed_project_id = int(args['parent_id'])
+            args['parent_issue_id'] = removed_parent_id = int(args['parent_id'])
         else:
-            removed_project_id = origin_parent_id
+            removed_parent_id = origin_parent_id
             args['parent_issue_id'] = None
         args.pop('parent_id', None)
 
@@ -901,9 +902,9 @@ def update_issue(issue_id, args, operator_id=None):
             add_issue_relation(
                 str(args['parent_issue_id']), str(issue_id))
         else:
-            if removed_project_id is not None:
+            if removed_parent_id is not None:
                 remove_issue_relation(
-                    str(removed_project_id), str(issue_id))
+                    str(removed_parent_id), str(issue_id))
     if before_status_id == 6 and args.get("status_id", 6) != 6:
         update_pj_issue_calc(pj_id, closed_count=-1)
     if args.get("status_id", 1) == 6 and before_status_id != 6:
@@ -911,9 +912,11 @@ def update_issue(issue_id, args, operator_id=None):
 
     main_output = ws_common_response(
         issue_id, point=point, tags=tags, plan_operator_id=plan_operator_id)
+    if origin_parent_id is not None:
+        main_output["origin_parent_id"] = origin_parent_id     
     ws_output_list = [main_output]
-    if update_cache_issue_family and removed_project_id is not None and parent_id_is_changed:
-        ws_output_list.append(ws_common_response(removed_project_id))
+    if update_cache_issue_family and removed_parent_id is not None and parent_id_is_changed:
+        ws_output_list.append(ws_common_response(removed_parent_id))
         if origin_parent_id is not None:
             ws_output_list.append(ws_common_response(origin_parent_id))
 
