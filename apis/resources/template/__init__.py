@@ -14,7 +14,7 @@ import resources.role as role
 import resources.yaml_OO as pipeline_yaml_OO
 import util
 import yaml
-from flask_jwt_extended import get_jwt_identity,jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 from gitlab import Gitlab
 from gitlab.exceptions import GitlabGetError
@@ -22,6 +22,7 @@ from model import PluginSoftware, Project, TemplateListCache, db
 from resources import logger
 from resources.apiError import DevOpsError
 from resources.gitlab import gitlab as rs_gitlab
+
 
 template_replace_dict = {
     "registry": config.get("HARBOR_EXTERNAL_BASE_URL").replace("https://", ""),
@@ -35,6 +36,7 @@ template_replace_dict = {
 gitlab_private_token = config.get("GITLAB_PRIVATE_TOKEN")
 gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token, ssl_verify=False)
 support_software_json = util.read_json_file("apis/resources/template/supported_software.json")
+TEMPLATE_FOLDER_NAME = "pj_push_template"
 
 
 def __tm_get_tag_info(pj, tag_name):
@@ -123,7 +125,7 @@ def __tm_read_pipe_set_json(pj, tag_name=None):
         return {"description": "", "name": pj.name}
 
 
-def __set_git_username_config(path):
+def set_git_username_config(path):
     git_user_email_proc = subprocess.Popen(['git', 'config', 'user.email'],
                                            stdout=subprocess.PIPE,
                                            shell=False)
@@ -350,20 +352,21 @@ def get_projects_detail(template_repository_id):
     return gl.projects.get(template_repository_id)
 
 
+def tm_get_secret_url(pj):
+    http_url = pj.http_url_to_repo
+    protocol = 'https' if http_url[:5] == "https" else 'http'
+    if protocol == "https":
+        secret_http_url = http_url[:8] + f"root:{gitlab_private_token}@" + http_url[8:]
+    else:
+        secret_http_url = http_url[:7] + f"root:{gitlab_private_token}@" + http_url[7:]
+    return secret_http_url
+
+
 def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                  tag_name, arguments, uuids):
     __add_plugin_soft_status_json()
     template_pj = gl.projects.get(template_repository_id)
-    temp_http_url = template_pj.http_url_to_repo
-    protocol = 'https' if temp_http_url[:5] == "https" else 'http'
-    if protocol == "https":
-        secret_temp_http_url = temp_http_url[:
-                                             8] + f"root:{gitlab_private_token}@" + temp_http_url[
-            8:]
-    else:
-        secret_temp_http_url = temp_http_url[:
-                                             7] + f"root:{gitlab_private_token}@" + temp_http_url[
-            7:]
+    secret_temp_http_url = tm_get_secret_url(template_pj)
     pipe_json = __tm_get_git_pipline_json(template_pj, tag_name=tag_name)
     tag_info_dict = __tm_get_tag_info(template_pj, tag_name)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(template_pj,
@@ -371,23 +374,14 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
     pip_set_json = __tm_read_pipe_set_json(template_pj, tag_name)
 
     pj = gl.projects.get(user_repository_id)
-    pj_http_url = pj.http_url_to_repo
-    protocol = 'https' if pj_http_url[:5] == "https" else 'http'
-    if protocol == "https":
-        secret_pj_http_url = pj_http_url[:
-                                         8] + f"root:{gitlab_private_token}@" + pj_http_url[
-            8:]
-    else:
-        secret_pj_http_url = pj_http_url[:
-                                         7] + f"root:{gitlab_private_token}@" + pj_http_url[
-            7:]
-    Path("pj_push_template").mkdir(exist_ok=True)
+    secret_pj_http_url = tm_get_secret_url(pj)
+    Path(TEMPLATE_FOLDER_NAME).mkdir(exist_ok=True)
     subprocess.call([
         'git', 'clone', '--branch', tag_info_dict["tag_name"],
-        secret_temp_http_url, f"pj_push_template/{pj.path}"
+        secret_temp_http_url, f"{TEMPLATE_FOLDER_NAME}/{pj.path}"
     ])
     pipe_json = None
-    with open(f'pj_push_template/{pj.path}/{pipe_yaml_file_name}') as file:
+    with open(f'{TEMPLATE_FOLDER_NAME}/{pj.path}/{pipe_yaml_file_name}') as file:
         pipe_json = yaml.safe_load(file)
         for stage in pipe_json["stages"]:
             if "steps" in stage:
@@ -432,27 +426,31 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                         parm_key] = template_replace_dict[
                                             parm_key]
             stage = __update_stage_when_plugin_disable(stage)
-    with open(f'pj_push_template/{pj.path}/{pipe_yaml_file_name}',
+    with open(f'{TEMPLATE_FOLDER_NAME}/{pj.path}/{pipe_yaml_file_name}',
               'w') as file:
         yaml.dump(pipe_json, file, sort_keys=False)
-    __set_git_username_config(f"pj_push_template/{pj.path}")
-    subprocess.call(['git', 'branch'], cwd=f"pj_push_template/{pj.path}")
+    set_git_username_config(f"{TEMPLATE_FOLDER_NAME}/{pj.path}")
+    tm_git_commit_push(pj, secret_pj_http_url, TEMPLATE_FOLDER_NAME, "範本 commit")
+
+
+def tm_git_commit_push(pj_path, secret_pj_http_url, folder_name, commit_message):
+    subprocess.call(['git', 'branch'], cwd=f"{folder_name}/{pj_path}")
     # Too lazy to handle file deleting issue on Windows, just keep the garbage there
     try:
-        shutil.rmtree(f'pj_push_template/{pj.path}/.git')
+        shutil.rmtree(f'{folder_name}/{pj_path}/.git')
     except PermissionError:
         pass
-    subprocess.call(['git', 'init'], cwd=f"pj_push_template/{pj.path}")
+    subprocess.call(['git', 'init'], cwd=f"{folder_name}/{pj_path}")
     subprocess.call(['git', 'remote', 'add', 'origin', secret_pj_http_url],
-                    cwd=f"pj_push_template/{pj.path}")
-    subprocess.call(['git', 'add', '.'], cwd=f"pj_push_template/{pj.path}")
-    subprocess.call(['git', 'commit', '-m', '"範本 commit"'],
-                    cwd=f"pj_push_template/{pj.path}")
+                    cwd=f"{folder_name}/{pj_path}")
+    subprocess.call(['git', 'add', '.'], cwd=f"{folder_name}/{pj_path}")
+    subprocess.call(['git', 'commit', '-m', f'"{commit_message}"'],
+                    cwd=f"{folder_name}/{pj_path}")
     subprocess.call(['git', 'push', '-u', 'origin', 'master'],
-                    cwd=f"pj_push_template/{pj.path}")
+                    cwd=f"{folder_name}/{pj_path}")
     # Too lazy to handle file deleting issue on Windows, just keep the garbage there
     try:
-        shutil.rmtree(f"pj_push_template/{pj.path}", ignore_errors=True)
+        shutil.rmtree(f"{folder_name}/{pj_path}", ignore_errors=True)
     except PermissionError:
         pass
 

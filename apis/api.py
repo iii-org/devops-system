@@ -55,7 +55,7 @@ from urls.router import router_url
 from urls import monitoring
 from urls.system_parameter import sync_system_parameter_url
 from urls.notification_message import notification_message_url
-
+from urls.template import template_url
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -250,6 +250,7 @@ project_url(api, add_resource)
 
 # Tag
 tag_url(api, add_resource)
+template_url(api, add_resource)
 
 
 api.add_resource(template.TemplateList, '/template_list')
