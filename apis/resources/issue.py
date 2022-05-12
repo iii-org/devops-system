@@ -911,11 +911,10 @@ def update_issue(issue_id, args, operator_id=None):
 
     main_output = ws_common_response(
         issue_id, point=point, tags=tags, plan_operator_id=plan_operator_id)
+    main_output["origin_parent_id"] = removed_parent_id     
     ws_output_list = [main_output]
     if update_cache_issue_family and removed_parent_id is not None and parent_id_is_changed:
-        remove_parent_id_info = ws_common_response(removed_parent_id)
-        remove_parent_id_info["origin_parent_id"] = removed_parent_id
-        ws_output_list.append(remove_parent_id_info)
+        ws_output_list.append(ws_common_response(removed_parent_id))
         if origin_parent_id is not None:
             ws_output_list.append(ws_common_response(origin_parent_id))
 
