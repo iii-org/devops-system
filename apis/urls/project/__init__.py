@@ -247,5 +247,5 @@ def project_url(api, add_resource):
     add_resource(view.ProjectErrorMessageV2, 'public')
 
     # Issue's force tracker
-    api.add_resource(view.IssueForceTrackerV2, '/v2/project/<int:project_id>/force_trackers')
+    api.add_resource(view.IssueForceTrackerV2, '/v2/project/<sint:project_id>/force_trackers')
     add_resource(view.IssueForceTrackerV2, 'public')
