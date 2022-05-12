@@ -1,12 +1,16 @@
-import subprocess
-from pathlib import Path
 import json
 import os
-import nexus
-
+import subprocess
 import time
+from datetime import datetime
+from pathlib import Path
 
-from . import gl, tm_get_secret_url, set_git_username_config, tm_git_commit_push
+import nexus
+from flask_jwt_extended import get_jwt_identity
+from model import TemplateProject, db
+
+from . import (gl, set_git_username_config, tm_get_secret_url,
+               tm_git_commit_push)
 
 TEMPLATE_FOLDER_NAME = "template_from_pj"
 
@@ -23,7 +27,6 @@ def create_template_from_project(from_project_id, name, description):
 
     old_project = gl.projects.get(nexus.nx_get_project_plugin_relation(
         nexus_project_id=from_project_id).git_repository_id)
-
     '''
     # for test
     local_template_group = gl.groups.list(search='local-templates')[0]
@@ -40,8 +43,6 @@ def create_template_from_project(from_project_id, name, description):
     for member in members:
         if 'project_bot' in member.username or 'root' in member.username:
             continue
-        print(member)
-        # template_project.members.create(member)
         template_project.members.create({'user_id': member.id, 'access_level': member.access_level})
 
     old_secret_http_url = tm_get_secret_url(old_project)
@@ -53,6 +54,11 @@ def create_template_from_project(from_project_id, name, description):
     set_git_username_config(f'{TEMPLATE_FOLDER_NAME}/{template_project.path}')
     tm_git_commit_push(template_project.path, temp_pj_secret_http_url,
                        TEMPLATE_FOLDER_NAME, f"專案 {old_project.path} 轉範本commit")
+    tm = TemplateProject(template_repository_id=template_project.id, from_project_id=old_project.id,
+                         creator_id=get_jwt_identity()["user_id"], created_at=datetime.utcnow(),
+                         updated_at=datetime.utcnow())
+    db.session.add(tm)
+    db.session.commit()
 
 
 def tm_update_pipe_set_json_from_local(pj_path, name, description):
