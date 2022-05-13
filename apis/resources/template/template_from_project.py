@@ -17,6 +17,7 @@ TEMPLATE_FOLDER_NAME = "template_from_pj"
 
 def create_template_from_project(from_project_id, name, description):
     '''
+    *. compare name and description, if it was been edit, edit old project.
     1. Create a empty project in local-template group\
     2. Add old project user join to this template project
     3. Git clone old project in to local folder
@@ -27,6 +28,8 @@ def create_template_from_project(from_project_id, name, description):
 
     old_project = gl.projects.get(nexus.nx_get_project_plugin_relation(
         nexus_project_id=from_project_id).git_repository_id)
+    tm_update_pipe_set_json_from_api(old_project, name, description)
+
     '''
     # for test
     local_template_group = gl.groups.list(search='local-templates')[0]
@@ -49,8 +52,6 @@ def create_template_from_project(from_project_id, name, description):
     temp_pj_secret_http_url = tm_get_secret_url(template_project)
     Path(TEMPLATE_FOLDER_NAME).mkdir(exist_ok=True)
     subprocess.call(['git', 'clone', old_secret_http_url, f"{TEMPLATE_FOLDER_NAME}/{old_project.path}"])
-    if name is not None or description is not None:
-        tm_update_pipe_set_json_from_local(template_project.path, name, description)
     set_git_username_config(f'{TEMPLATE_FOLDER_NAME}/{template_project.path}')
     tm_git_commit_push(template_project.path, temp_pj_secret_http_url,
                        TEMPLATE_FOLDER_NAME, f"專案 {old_project.path} 轉範本commit")
@@ -61,6 +62,7 @@ def create_template_from_project(from_project_id, name, description):
     db.session.commit()
 
 
+'''
 def tm_update_pipe_set_json_from_local(pj_path, name, description):
     Path(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops').mkdir(exist_ok=True)
     pipeline_settings_json = None
@@ -73,3 +75,21 @@ def tm_update_pipe_set_json_from_local(pj_path, name, description):
                 pipeline_settings_json['description'] = description
         with open(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops/pipeline_settings.json', 'w') as f:
             json.dump(pipeline_settings_json, f)
+'''
+
+
+def tm_update_pipe_set_json_from_api(pj, name, description):
+    if pj.empty_repo:
+        return
+    f = pj.files.get(file_path="iiidevops/pipeline_settings.json", ref=pj.default_branch)
+    pip_set_json = json.loads(f.decode())
+    if pip_set_json['name'] != name or pip_set_json['description'] != description:
+        pip_set_json['name'] = name
+        pip_set_json['description'] = description
+        f.content = json.dumps(pip_set_json)
+        f.save(
+            branch=pj.default_branch,
+            author_email='system@iiidevops.org.tw',
+            author_name='iiidevops',
+            commit_message=f"{get_jwt_identity()['user_account']} 編輯 {pj.default_branch} 分支 \
+                iiidevops/pipeline_settings.json")
