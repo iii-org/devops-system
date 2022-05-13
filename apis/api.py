@@ -51,6 +51,7 @@ from urls.user import user_url
 from urls.tag import tag_url
 from urls.lock import lock_url
 from urls.sync_projects import sync_projects_url
+from urls.sync_users import sync_users_url
 from urls.router import router_url
 from urls import monitoring
 from urls.system_parameter import sync_system_parameter_url
@@ -557,9 +558,8 @@ api.add_resource(quality.Report, '/quality/<int:project_id>/report')
 api.add_resource(NexusVersion, '/system_versions')
 
 sync_projects_url(api, add_resource)
+sync_users_url(api, add_resource)
 
-# Sync Users
-api.add_resource(sync_user.SyncUser, '/sync_users')
 
 # Centralized version check
 api.add_resource(devops_version.DevOpsVersion, '/devops_version')
