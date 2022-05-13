@@ -11,7 +11,7 @@ from resources.redmine import redmine
 from resources.gitlab import gitlab
 from resources.rancher import rancher
 from resources import logger
-from resources.notification_message import create_notification_message, get_not_alive_notification_message_list, close_notification_message
+from resources.notification_message import create_notification_message, get_unread_notification_message_list, close_notification_message
 from resources.kubernetesClient import ApiK8sClient as k8s_client
 from resources.kubernetesClient import list_namespace_services, list_namespace_pods_info
 from datetime import datetime
@@ -85,7 +85,7 @@ class Monitoring:
             self.send_notification()
             self.store_in_monitoring_record()
         else:
-            not_alive_messages = get_not_alive_notification_message_list(self.alert_service_id)
+            not_alive_messages = get_unread_notification_message_list(alert_service_id=self.alert_service_id)
             if not_alive_messages != []:
                 for not_alive_message in not_alive_messages:
                     close_notification_message(not_alive_message["id"])
@@ -106,7 +106,7 @@ class Monitoring:
         previous_server_notification = NotificationMessage.query.filter_by(title=title) \
             .order_by(desc(NotificationMessage.created_at)).all()
         if previous_server_notification == [] or \
-                get_not_alive_notification_message_list(self.alert_service_id) == []:
+                get_unread_notification_message_list(alert_service_id=self.alert_service_id) == []:
             args = {
                 "alert_level": 102,
                 "title": title,
