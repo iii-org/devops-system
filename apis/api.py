@@ -67,12 +67,20 @@ for key in ['JWT_SECRET_KEY',
             ]:
     app.config[key] = config.get(key)
 
+security_definitions = {
+    "bearer": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+    }
+}
 # setting swagger config
 app.config.update({
     'APISPEC_SPEC': APISpec(
         title='Devops API Project',
         version='v1',
         plugins=[MarshmallowPlugin()],
+        securityDefinitions=security_definitions,
         openapi_version='2.0.0'
     ),
     'APISPEC_SWAGGER_URL': '/swagger/',  # URI to access API Doc JSON

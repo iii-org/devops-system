@@ -10,8 +10,9 @@ from resources import harbor, role
 from . import router_model
 import json
 
+security_params = [{"bearer": []}]
 # --------------------- Resources ---------------------
-@doc(tags=['User'],description='Login API')
+@doc(tags=['User'],description='Login API', security=security_params)
 @use_kwargs(router_model.LoginSchema, location=('json'))
 @marshal_with(router_model.LoginResponse)  # marshalling
 class LoginV2(MethodResource):
@@ -139,7 +140,7 @@ class UserList(Resource):
         return util.success(user_list(filters))
 
 
-@doc(tags=['User'],description='SingleUser API') 
+@doc(tags=['User'],description='SingleUser API', security=security_params) 
 class UserListV2(MethodResource):
     @use_kwargs(router_model.UserListSchema, location="query")
     @marshal_with(router_model.GetUserListResponse)  # marshalling   
