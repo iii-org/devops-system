@@ -8,12 +8,24 @@ from pathlib import Path
 from nexus import nx_get_project_plugin_relation, nx_get_user_plugin_relation, nx_get_user
 from flask_jwt_extended import get_jwt_identity
 from resources import role, apiError
-from model import TemplateProject, db, Project
+from model import db, TemplateProject, Project
 
 from . import (gl, set_git_username_config, tm_get_secret_url,
                tm_git_commit_push)
 
 TEMPLATE_FOLDER_NAME = "template_from_pj"
+
+
+def verify_user_in_template_project(id):
+    repo_id = TemplateProject.query.filter_by(id=id).first().template_repository_id
+    repo_user_id = nx_get_user_plugin_relation(user_id=get_jwt_identity()['user_id']).repository_user_id
+    repo = gl.projects.get(repo_id)
+    for member in repo.members.list(all=True):
+        if member.id == repo_user_id:
+            return True
+    raise apiError.DevOpsError(401, "User not in this template gitlab repository",
+                               error=apiError.template_user_not_in_template_gitlab_repo(repo_id,
+                                                                                        get_jwt_identity()['user_id']))
 
 
 def template_from_project_list():
@@ -81,7 +93,7 @@ def create_template_from_project(from_project_id, name, description):
                          created_at=datetime.utcnow(), updated_at=datetime.utcnow())
     db.session.add(tm)
     db.session.commit()
-    return {"template_id": template_project.id}
+    return {"id": template_project.id}
 
 
 '''
@@ -98,6 +110,13 @@ def tm_update_pipe_set_json_from_local(pj_path, name, description):
         with open(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops/pipeline_settings.json', 'w') as f:
             json.dump(pipeline_settings_json, f)
 '''
+
+
+def delete_template(id):
+    row = TemplateProject.query.filter_by(id=id).one()
+    gl.projects.delete(row.template_repository_id)
+    db.session.delete(row)
+    db.session.commit()
 
 
 def tm_update_pipe_set_json_from_api(pj, name, description):
