@@ -51,6 +51,7 @@ from urls.user import user_url
 from urls.tag import tag_url
 from urls.lock import lock_url
 from urls.sync_projects import sync_projects_url
+from urls.sync_users import sync_users_url
 from urls.router import router_url
 from urls import monitoring
 from urls.system_parameter import sync_system_parameter_url
@@ -66,12 +67,20 @@ for key in ['JWT_SECRET_KEY',
             ]:
     app.config[key] = config.get(key)
 
+security_definitions = {
+    "bearer": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+    }
+}
 # setting swagger config
 app.config.update({
     'APISPEC_SPEC': APISpec(
         title='Devops API Project',
         version='v1',
         plugins=[MarshmallowPlugin()],
+        securityDefinitions=security_definitions,
         openapi_version='2.0.0'
     ),
     'APISPEC_SWAGGER_URL': '/swagger/',  # URI to access API Doc JSON
@@ -557,9 +566,8 @@ api.add_resource(quality.Report, '/quality/<int:project_id>/report')
 api.add_resource(NexusVersion, '/system_versions')
 
 sync_projects_url(api, add_resource)
+sync_users_url(api, add_resource)
 
-# Sync Users
-api.add_resource(sync_user.SyncUser, '/sync_users')
 
 # Centralized version check
 api.add_resource(devops_version.DevOpsVersion, '/devops_version')
