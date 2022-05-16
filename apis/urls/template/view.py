@@ -17,4 +17,4 @@ class CreateTemplateFromProject(Resource):
 class TemplateFromProjectList(Resource):
     @jwt_required
     def get(self):
-        template_from_project.template_from_project_list()
+        return util.success(template_from_project.template_from_project_list())

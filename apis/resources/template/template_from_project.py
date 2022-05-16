@@ -5,10 +5,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from nexus import nx_get_project_plugin_relation, nx_get_user_plugin_relation
+from nexus import nx_get_project_plugin_relation, nx_get_user_plugin_relation, nx_get_user
 from flask_jwt_extended import get_jwt_identity
-from resources import role
-from model import TemplateProject, db
+from resources import role, apiError
+from model import TemplateProject, db, Project
 
 from . import (gl, set_git_username_config, tm_get_secret_url,
                tm_git_commit_push)
@@ -18,7 +18,22 @@ TEMPLATE_FOLDER_NAME = "template_from_pj"
 
 def template_from_project_list():
     all_templates = get_tm_filter_by_tm_member()
-    print(all_templates)
+    out_list = []
+    for template in all_templates:
+        template = json.loads(str(template))
+        gl_template = gl.projects.get(template['template_repository_id'])
+        template['template_repository_name'] = gl_template.name
+        if template['creator_id'] is not None:
+            template['creator_name'] = nx_get_user(id=template['creator_id']).name
+        template['times_cited'] = Project.query.filter_by(base_example=gl_template.path).count()
+        try:
+            gl_from_pj = gl.projects.get(nx_get_project_plugin_relation(
+                nexus_project_id=template['from_project_id']).git_repository_id)
+            template['the_last_update_time'] = gl_from_pj.commits.list()[0].created_at
+        except apiError.DevOpsError:
+            template['the_last_update_time'] = None
+        out_list.append(template)
+    return out_list
 
 
 def create_template_from_project(from_project_id, name, description):
@@ -61,7 +76,7 @@ def create_template_from_project(from_project_id, name, description):
     set_git_username_config(f'{TEMPLATE_FOLDER_NAME}/{template_project.path}')
     tm_git_commit_push(template_project.path, temp_pj_secret_http_url,
                        TEMPLATE_FOLDER_NAME, f"專案 {old_project.path} 轉範本commit")
-    tm = TemplateProject(template_repository_id=template_project.id, from_project_id=old_project.id,
+    tm = TemplateProject(template_repository_id=template_project.id, from_project_id=from_project_id,
                          from_project_name=old_project.name, creator_id=get_jwt_identity()["user_id"],
                          created_at=datetime.utcnow(), updated_at=datetime.utcnow())
     db.session.add(tm)

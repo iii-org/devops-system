@@ -901,3 +901,16 @@ class TemplateProject(db.Model):
     creator_id = Column(Integer, nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            data = self.__getattribute__(field)
+            try:
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
+                fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)
