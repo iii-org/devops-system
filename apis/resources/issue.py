@@ -569,12 +569,9 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
     project_list = project_module.get_project_by_plan_project_id(
         redmine_output['project']['id'])
     if project_list is not None:
-        project_name = nexus.nx_get_project(id=project_list['project_id']).name
-        redmine_output['project']['id'] = project_list['project_id']
-        redmine_output['project']['name'] = project_name
+        redmine_output['project'] = json.loads(str(nexus.nx_get_project(id=project_list['project_id'])))
     else:
-        redmine_output['project']['id'] = None
-        redmine_output['project']['name'] = None
+        redmine_output['project'] = None
     if 'assigned_to' in redmine_output:
         user_info = user.get_user_id_name_by_plan_user_id(
             redmine_output['assigned_to']['id'])
@@ -2106,7 +2103,8 @@ def check_issue_closable(issue_id):
                 # 若 issue 的 children 存在，將 children issue id 放入未完成 issues 中
                 elif issue.children.total_count != 0:
                     # 消除重複的 issue_id
-                    unfinished_issues += [str(children_issue.id) for children_issue in issue.children if children_issue.id not in unfinished_issues]
+                    unfinished_issues += [str(children_issue.id)
+                                          for children_issue in issue.children if children_issue.id not in unfinished_issues]
                 # 將上述動作完成的 issue 從未完成-->已完成
                 unfinished_issues.remove(id)
                 finished_issues.append(id)
