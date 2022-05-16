@@ -897,6 +897,7 @@ class TemplateProject(db.Model):
     id = Column(Integer, primary_key=True)
     template_repository_id = Column(Integer, nullable=False)
     from_project_id = Column(Integer, nullable=False)
+    from_project_name = Column(String)
     creator_id = Column(Integer, nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
