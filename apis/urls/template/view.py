@@ -12,3 +12,9 @@ class CreateTemplateFromProject(Resource):
         parser.add_argument('description', type=str)
         args = parser.parse_args()
         return util.success(template_from_project.create_template_from_project(project_id, args["name"], args["description"]))
+
+
+class TemplateFromProjectList(Resource):
+    @jwt_required
+    def get(self):
+        template_from_project.template_from_project_list()
