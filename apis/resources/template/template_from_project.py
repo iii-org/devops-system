@@ -62,8 +62,8 @@ def create_template_from_project(from_project_id, name, description):
     tm_git_commit_push(template_project.path, temp_pj_secret_http_url,
                        TEMPLATE_FOLDER_NAME, f"專案 {old_project.path} 轉範本commit")
     tm = TemplateProject(template_repository_id=template_project.id, from_project_id=old_project.id,
-                         creator_id=get_jwt_identity()["user_id"], created_at=datetime.utcnow(),
-                         updated_at=datetime.utcnow())
+                         from_project_name=old_project.name, creator_id=get_jwt_identity()["user_id"],
+                         created_at=datetime.utcnow(), updated_at=datetime.utcnow())
     db.session.add(tm)
     db.session.commit()
     return {"template_id": template_project.id}
