@@ -343,6 +343,10 @@ def tm_get_template(repository_id, tag_name):
     tag_info_dict = __tm_get_tag_info(pj, tag_name)
     pip_set_json = __tm_read_pipe_set_json(pj, tag_name)
     output = {"id": int(repository_id), "tag_name": tag_info_dict["tag_name"]}
+    if 'name' in pip_set_json:
+        output['name'] = pip_set_json['name']
+    if 'description' in pip_set_json:
+        output['description'] = pip_set_json['description']
     if "arguments" in pip_set_json:
         output["arguments"] = pip_set_json["arguments"]
     return output

@@ -34,6 +34,11 @@ def template_file_not_found(template_id, template_name):
                  {'template_id': template_id, 'template_name': template_name})
 
 
+def template_user_not_in_template_gitlab_repo(template_repository_id, user_id):
+    return build(5003, f'User not in this template gitlab repository',
+                 {'template_repository_id': template_repository_id, 'user_id': user_id})
+
+
 # Notification message error
 def not_enough_authorization(message_id, user_id):
     return build(6001, 'Not enough authorization to get message.',
@@ -345,7 +350,7 @@ def redmine_error(response):
     try:
         error_message_list = response.json().get("errors")
         if isinstance(error_message_list, list):
-        # Parent id error
+            # Parent id error
             if error_message_list[0] == "Parent task is invalid":
                 return parent_issue_error()
     except:
@@ -353,10 +358,12 @@ def redmine_error(response):
     return error_3rd_party_api('Redmine', response)
 
 # Harbor
+
+
 def harbor_tag_already_exist(tag, repo_name):
     return build(
-        9001, 
-        f'Harbor repository: {repo_name} already have tag: {tag}.', 
+        9001,
+        f'Harbor repository: {repo_name} already have tag: {tag}.',
         {'tag': tag, 'repo_name': repo_name}
     )
 
@@ -365,6 +372,8 @@ def parent_issue_error():
     return build(8101, f"Parent issue setting error! Please confirm that the setting issue is not a sub-issue or related issue of this issue.")
 
 # GitLab
+
+
 def gitlab_error(response):
     return error_3rd_party_api('Gitlab', response)
 

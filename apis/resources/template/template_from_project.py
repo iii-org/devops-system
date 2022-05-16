@@ -5,9 +5,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import nexus
+from nexus import nx_get_project_plugin_relation, nx_get_user_plugin_relation, nx_get_user
 from flask_jwt_extended import get_jwt_identity
-from model import TemplateProject, db
+from resources import role, apiError
+from model import db, TemplateProject, Project
 
 from . import (gl, set_git_username_config, tm_get_secret_url,
                tm_git_commit_push)
@@ -15,8 +16,41 @@ from . import (gl, set_git_username_config, tm_get_secret_url,
 TEMPLATE_FOLDER_NAME = "template_from_pj"
 
 
+def verify_user_in_template_project(id):
+    repo_id = TemplateProject.query.filter_by(id=id).first().template_repository_id
+    repo_user_id = nx_get_user_plugin_relation(user_id=get_jwt_identity()['user_id']).repository_user_id
+    repo = gl.projects.get(repo_id)
+    for member in repo.members.list(all=True):
+        if member.id == repo_user_id:
+            return True
+    raise apiError.DevOpsError(401, "User not in this template gitlab repository",
+                               error=apiError.template_user_not_in_template_gitlab_repo(repo_id,
+                                                                                        get_jwt_identity()['user_id']))
+
+
+def template_from_project_list():
+    all_templates = get_tm_filter_by_tm_member()
+    out_list = []
+    for template in all_templates:
+        template = json.loads(str(template))
+        gl_template = gl.projects.get(template['template_repository_id'])
+        template['template_repository_name'] = gl_template.name
+        if template['creator_id'] is not None:
+            template['creator_name'] = nx_get_user(id=template['creator_id']).name
+        template['times_cited'] = Project.query.filter_by(base_example=gl_template.path).count()
+        try:
+            gl_from_pj = gl.projects.get(nx_get_project_plugin_relation(
+                nexus_project_id=template['from_project_id']).git_repository_id)
+            template['the_last_update_time'] = gl_from_pj.commits.list()[0].created_at
+        except apiError.DevOpsError:
+            template['the_last_update_time'] = None
+        out_list.append(template)
+    return out_list
+
+
 def create_template_from_project(from_project_id, name, description):
     '''
+    *. compare name and description, if it was been edit, edit old project.
     1. Create a empty project in local-template group\
     2. Add old project user join to this template project
     3. Git clone old project in to local folder
@@ -25,8 +59,10 @@ def create_template_from_project(from_project_id, name, description):
     6. Update template_project table.
     '''
 
-    old_project = gl.projects.get(nexus.nx_get_project_plugin_relation(
+    old_project = gl.projects.get(nx_get_project_plugin_relation(
         nexus_project_id=from_project_id).git_repository_id)
+    tm_update_pipe_set_json_from_api(old_project, name, description)
+
     '''
     # for test
     local_template_group = gl.groups.list(search='local-templates')[0]
@@ -49,18 +85,18 @@ def create_template_from_project(from_project_id, name, description):
     temp_pj_secret_http_url = tm_get_secret_url(template_project)
     Path(TEMPLATE_FOLDER_NAME).mkdir(exist_ok=True)
     subprocess.call(['git', 'clone', old_secret_http_url, f"{TEMPLATE_FOLDER_NAME}/{old_project.path}"])
-    if name is not None or description is not None:
-        tm_update_pipe_set_json_from_local(template_project.path, name, description)
     set_git_username_config(f'{TEMPLATE_FOLDER_NAME}/{template_project.path}')
     tm_git_commit_push(template_project.path, temp_pj_secret_http_url,
                        TEMPLATE_FOLDER_NAME, f"專案 {old_project.path} 轉範本commit")
-    tm = TemplateProject(template_repository_id=template_project.id, from_project_id=old_project.id,
-                         creator_id=get_jwt_identity()["user_id"], created_at=datetime.utcnow(),
-                         updated_at=datetime.utcnow())
+    tm = TemplateProject(template_repository_id=template_project.id, from_project_id=from_project_id,
+                         from_project_name=old_project.name, creator_id=get_jwt_identity()["user_id"],
+                         created_at=datetime.utcnow(), updated_at=datetime.utcnow())
     db.session.add(tm)
     db.session.commit()
+    return {"id": template_project.id}
 
 
+'''
 def tm_update_pipe_set_json_from_local(pj_path, name, description):
     Path(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops').mkdir(exist_ok=True)
     pipeline_settings_json = None
@@ -73,3 +109,45 @@ def tm_update_pipe_set_json_from_local(pj_path, name, description):
                 pipeline_settings_json['description'] = description
         with open(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops/pipeline_settings.json', 'w') as f:
             json.dump(pipeline_settings_json, f)
+'''
+
+
+def delete_template(id):
+    row = TemplateProject.query.filter_by(id=id).one()
+    gl.projects.delete(row.template_repository_id)
+    db.session.delete(row)
+    db.session.commit()
+
+
+def tm_update_pipe_set_json_from_api(pj, name, description):
+    if pj.empty_repo:
+        return
+    f = pj.files.get(file_path="iiidevops/pipeline_settings.json", ref=pj.default_branch)
+    pip_set_json = json.loads(f.decode())
+    if pip_set_json['name'] != name or pip_set_json['description'] != description:
+        pip_set_json['name'] = name
+        pip_set_json['description'] = description
+        f.content = json.dumps(pip_set_json)
+        f.save(
+            branch=pj.default_branch,
+            author_email='system@iiidevops.org.tw',
+            author_name='iiidevops',
+            commit_message=f"{get_jwt_identity()['user_account']} 編輯 {pj.default_branch} 分支 \
+                iiidevops/pipeline_settings.json")
+
+
+def get_tm_filter_by_tm_member():
+    if get_jwt_identity()['role_id'] != role.ADMIN.id:
+        belong_to_me_pj_ids = []
+        git_user_id = nx_get_user_plugin_relation(user_id=get_jwt_identity()['user_id']).repository_user_id
+        user = gl.users.get(git_user_id)
+        memberships = user.memberships.list(type='Project')
+        for membership in memberships:
+            pj = gl.projects.get(membership.source_id)
+            if pj.namespace['path'] == "local-templates":
+                belong_to_me_pj_ids.append(pj.id)
+        all_templates = TemplateProject.query.filter(
+            TemplateProject.template_repository_id.in_(belong_to_me_pj_ids)).all()
+    else:
+        all_templates = TemplateProject.query.all()
+    return all_templates
