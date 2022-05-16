@@ -60,6 +60,7 @@ def create_template_from_project(from_project_id, name, description):
                          updated_at=datetime.utcnow())
     db.session.add(tm)
     db.session.commit()
+    return {"template_id": template_project.id}
 
 
 '''

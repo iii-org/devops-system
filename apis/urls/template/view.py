@@ -11,5 +11,4 @@ class CreateTemplateFromProject(Resource):
         parser.add_argument('name', type=str)
         parser.add_argument('description', type=str)
         args = parser.parse_args()
-        template_from_project.create_template_from_project(project_id, args["name"], args["description"])
-        return util.success()
+        return util.success(template_from_project.create_template_from_project(project_id, args["name"], args["description"]))
