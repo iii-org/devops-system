@@ -430,7 +430,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
               'w') as file:
         yaml.dump(pipe_json, file, sort_keys=False)
     set_git_username_config(f"{TEMPLATE_FOLDER_NAME}/{pj.path}")
-    tm_git_commit_push(pj, secret_pj_http_url, TEMPLATE_FOLDER_NAME, "範本 commit")
+    tm_git_commit_push(pj.path, secret_pj_http_url, TEMPLATE_FOLDER_NAME, "範本 commit")
 
 
 def tm_git_commit_push(pj_path, secret_pj_http_url, folder_name, commit_message):
