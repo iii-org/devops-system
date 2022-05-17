@@ -35,6 +35,7 @@ def template_from_project_list():
         template = json.loads(str(template))
         gl_template = gl.projects.get(template['template_repository_id'])
         template['template_repository_name'] = gl_template.name
+        template['template_repository_url'] = gl_template.http_url_to_repo
         if template['creator_id'] is not None:
             template['creator_name'] = nx_get_user(id=template['creator_id']).name
         template['times_cited'] = Project.query.filter_by(base_example=gl_template.path).count()
@@ -42,6 +43,7 @@ def template_from_project_list():
             gl_from_pj = gl.projects.get(nx_get_project_plugin_relation(
                 nexus_project_id=template['from_project_id']).git_repository_id)
             template['the_last_update_time'] = gl_from_pj.commits.list()[0].created_at
+            template['from_project_repo_url'] = gl_from_pj.http_url_to_repo
         except apiError.DevOpsError:
             template['the_last_update_time'] = None
         out_list.append(template)
