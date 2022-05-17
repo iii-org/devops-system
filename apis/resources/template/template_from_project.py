@@ -1,12 +1,14 @@
 import json
 import subprocess
+import time
 from datetime import datetime
 from pathlib import Path
 
-from nexus import nx_get_project_plugin_relation, nx_get_user_plugin_relation, nx_get_user
 from flask_jwt_extended import get_jwt_identity
-from resources import role, apiError
-from model import db, TemplateProject, Project
+from model import Project, TemplateProject, db
+from nexus import (nx_get_project_plugin_relation, nx_get_user,
+                   nx_get_user_plugin_relation)
+from resources import apiError, role
 
 from . import (gl, set_git_username_config, tm_get_secret_url,
                tm_git_commit_push)
@@ -53,7 +55,11 @@ def update_template(id, name, description):
     *. update table
     '''
     row = TemplateProject.query.filter_by(id=id).one()
-    gl.projects.delete(row.template_repository_id)
+    try:
+        gl.projects.delete(row.template_repository_id)
+        time.sleep(2)
+    except:
+        pass
     new_template_project, old_project = update_pipe_set_and_push_to_new_project(row.from_project_id, name, description)
     row.template_repository_id = new_template_project.id
     row.creator_id = get_jwt_identity()['user_id']
