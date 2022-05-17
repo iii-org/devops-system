@@ -1,7 +1,5 @@
 import json
-import os
 import subprocess
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -48,7 +46,22 @@ def template_from_project_list():
     return out_list
 
 
-def create_template_from_project(from_project_id, name, description):
+def update_template(id, name, description):
+    '''
+    *. delete old template
+    *. create a new one template
+    *. update table
+    '''
+    row = TemplateProject.query.filter_by(id=id).one()
+    gl.projects.delete(row.template_repository_id)
+    new_template_project, old_project = update_pipe_set_and_push_to_new_project(row.from_project_id, name, description)
+    row.template_repository_id = new_template_project.id
+    row.creator_id = get_jwt_identity()['user_id']
+    row.updated_at = datetime.utcnow()
+    db.session.commit()
+
+
+def update_pipe_set_and_push_to_new_project(from_project_id, name, description):
     '''
     *. compare name and description, if it was been edit, edit old project.
     1. Create a empty project in local-template group\
@@ -56,21 +69,10 @@ def create_template_from_project(from_project_id, name, description):
     3. Git clone old project in to local folder
     4. Edit pipeline_settings.json, replace name and description.
     5. Commit and push all file to template project
-    6. Update template_project table.
     '''
-
     old_project = gl.projects.get(nx_get_project_plugin_relation(
         nexus_project_id=from_project_id).git_repository_id)
     tm_update_pipe_set_json_from_api(old_project, name, description)
-
-    '''
-    # for test
-    local_template_group = gl.groups.list(search='local-templates')[0]
-    del_pjs = local_template_group.projects.list(search=old_project.path)
-    if len(del_pjs) > 0:
-        gl.projects.get(del_pjs[0].id).delete()
-        time.sleep(2)
-    '''
 
     local_template_group_id = gl.groups.list(search='local-templates')[0].id
     template_project = gl.projects.create({'name': f'{old_project.path}', 'namespace_id': local_template_group_id})
@@ -88,6 +90,14 @@ def create_template_from_project(from_project_id, name, description):
     set_git_username_config(f'{TEMPLATE_FOLDER_NAME}/{template_project.path}')
     tm_git_commit_push(template_project.path, temp_pj_secret_http_url,
                        TEMPLATE_FOLDER_NAME, f"專案 {old_project.path} 轉範本commit")
+    return template_project, old_project
+
+
+def create_template_from_project(from_project_id, name, description):
+    '''
+    6. Update template_project table.
+    '''
+    template_project, old_project = update_pipe_set_and_push_to_new_project(from_project_id, name, description)
     tm = TemplateProject(template_repository_id=template_project.id, from_project_id=from_project_id,
                          from_project_name=old_project.name, creator_id=get_jwt_identity()["user_id"],
                          created_at=datetime.utcnow(), updated_at=datetime.utcnow())
