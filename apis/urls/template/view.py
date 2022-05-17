@@ -5,10 +5,12 @@ from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from resources import role
 from resources.template import template_from_project
+from urls.template import router_model
 
 
 @doc(tags=['Template from project'], description='Create template from project_id')
 class TemplateFromProject(MethodResource):
+    @use_kwargs(router_model.CreateTemplateFormProjectScheme, location=('form'))
     @jwt_required
     def post(self, project_id):
         parser = reqparse.RequestParser()
