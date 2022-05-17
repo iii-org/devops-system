@@ -135,6 +135,7 @@ def delete_template(id):
     gl.projects.delete(row.template_repository_id)
     db.session.delete(row)
     db.session.commit()
+    time.sleep(1)
 
 
 def tm_update_pipe_set_json_from_api(pj, name, description):
