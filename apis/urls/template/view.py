@@ -19,14 +19,11 @@ class TemplateFromProject(MethodResource):
 
 @doc(tags=['Template from project'], description='Edit template')
 class TemplateEdit(MethodResource):
+    @use_kwargs(router_model.CreateTemplateFormProjectScheme, location=('form'))
     @jwt_required
-    def put(self, id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
-        parser.add_argument('description', type=str)
-        args = parser.parse_args()
+    def put(self, id, **kwargs):
         if role.is_admin() or template_from_project.verify_user_in_template_project(id):
-            template_from_project.update_template(id, args["name"], args["description"])
+            template_from_project.update_template(id, kwargs["name"], kwargs["description"])
         return util.success()
 
     @jwt_required
