@@ -896,6 +896,7 @@ class ReleaseRepoTag(db.Model):
 class TemplateProject(db.Model):
     id = Column(Integer, primary_key=True)
     template_repository_id = Column(Integer, nullable=False)
+    template_repository_name = Column(String)
     from_project_id = Column(Integer, nullable=False)
     from_project_name = Column(String)
     creator_id = Column(Integer, nullable=True)
