@@ -38,7 +38,7 @@ import resources.rancher as rancher
 
 ##### Project Relation ######
 
-@doc(tags=['Project'],description="Check project has son project or not")
+@doc(tags=['Project'], description="Check project has son project or not")
 @marshal_with(router_model.CheckhasSonProjectResponse)
 class CheckhasSonProjectV2(MethodResource):
     @jwt_required
@@ -46,7 +46,8 @@ class CheckhasSonProjectV2(MethodResource):
         return {
             "has_child": project_has_child(project_id)
         }
-    
+
+
 class CheckhasSonProject(Resource):
     @jwt_required
     def get(self, project_id):
@@ -54,41 +55,46 @@ class CheckhasSonProject(Resource):
             "has_child": project_has_child(project_id)
         }
 
-@doc(tags=['Project'],description="Check project has father, son project or not")
+
+@doc(tags=['Project'], description="Check project has father, son project or not")
 @marshal_with(router_model.CheckRelationProjectResponse)
 class CheckhasRelationProjectV2(MethodResource):
     @jwt_required
     def get(self, project_id):
-        has_father, has_child  = project_has_parent(project_id), project_has_child(project_id)
-        return {
-            "has_relations": has_father or has_child,
-            "has_father": has_father,
-            "has_child": has_child
-        }
-    
-class CheckhasRelationProject(Resource):
-    @jwt_required
-    def get(self, project_id):
-        has_father, has_child  = project_has_parent(project_id), project_has_child(project_id)
+        has_father, has_child = project_has_parent(project_id), project_has_child(project_id)
         return {
             "has_relations": has_father or has_child,
             "has_father": has_father,
             "has_child": has_child
         }
 
-@doc(tags=['Project'],description="Gey root project_id")
+
+class CheckhasRelationProject(Resource):
+    @jwt_required
+    def get(self, project_id):
+        has_father, has_child = project_has_parent(project_id), project_has_child(project_id)
+        return {
+            "has_relations": has_father or has_child,
+            "has_father": has_father,
+            "has_child": has_child
+        }
+
+
+@doc(tags=['Project'], description="Gey root project_id")
 @marshal_with(router_model.GetProjectRootIDResponse)
 class GetProjectRootIDV2(MethodResource):
     @jwt_required
     def get(self, project_id):
         return {"root_project_id": get_root_project_id(project_id)}
 
+
 class GetProjectRootID(Resource):
     @jwt_required
     def get(self, project_id):
         return {"root_project_id": get_root_project_id(project_id)}
 
-@doc(tags=['Sync'],description="Sync IIIDevops project's relationship with Redmine")
+
+@doc(tags=['Sync'], description="Sync IIIDevops project's relationship with Redmine")
 @marshal_with(util.CommonResponse)
 class SyncProjectRelationV2(MethodResource):
     @jwt_required
@@ -96,18 +102,21 @@ class SyncProjectRelationV2(MethodResource):
         Thread(target=sync_project_relation).start()
         return util.success()
 
+
 class SyncProjectRelation(Resource):
     @jwt_required
     def post(self):
         Thread(target=sync_project_relation).start()
         return util.success()
 
-@doc(tags=['Project'],description="Get all sons' project members")
+
+@doc(tags=['Project'], description="Get all sons' project members")
 @marshal_with(router_model.GetProjectFamilymembersByUserResponse)
 class GetProjectFamilymembersByUserV2(MethodResource):
     @jwt_required
     def get(self, project_id):
         return util.success(get_project_family_members_by_user(project_id))
+
 
 class GetProjectFamilymembersByUser(Resource):
     @jwt_required
@@ -128,6 +137,7 @@ class ProjectRelationV2(MethodResource):
     def delete(self, project_id, **kwargs):
         return remove_relation(project_id, kwargs["parent_id"])
 
+
 class ProjectRelation(Resource):
     @jwt_required
     def get(self, project_id):
@@ -139,6 +149,7 @@ class ProjectRelation(Resource):
         parser.add_argument('parent_id', type=int, required=True)
         args = parser.parse_args()
         return remove_relation(project_id, args["parent_id"])
+
 
 class ProjectRelationsV2(MethodResource):
     @doc(tags=['Project'], description="Get all parents' and sons' project id")
@@ -165,6 +176,7 @@ class IssueByProjectV2(MethodResource):
             # output = get_issue_list_by_project(project_id, args)
             output = get_issue_list_by_project_helper(project_id, kwargs)
         return util.success(output)
+
 
 class IssueByProject(Resource):
     @ jwt_required
@@ -196,6 +208,7 @@ class IssueByProject(Resource):
             output = get_issue_list_by_project_helper(project_id, args)
         return util.success(output)
 
+
 @doc(tags=['Issue'], description="Get issue list by tree by project")
 # @marshal_with(route_model.IssueByTreeByProjectResponse)
 class IssueByTreeByProjectV2(MethodResource):
@@ -205,12 +218,14 @@ class IssueByTreeByProjectV2(MethodResource):
         output = get_issue_by_tree_by_project(project_id)
         return util.success(output)
 
+
 class IssueByTreeByProject(Resource):
     @ jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         output = get_issue_by_tree_by_project(project_id)
         return util.success(output)
+
 
 @doc(tags=['Issue'], description="Get issue list by status by project")
 @marshal_with(router_model.IssueByStatusByProjectResponse)
@@ -220,11 +235,13 @@ class IssueByStatusByProjectV2(MethodResource):
         role.require_in_project(project_id)
         return get_issue_by_status_by_project(project_id)
 
+
 class IssueByStatusByProject(Resource):
     @ jwt_required
     def get(self, project_id):
         role.require_in_project(project_id)
         return get_issue_by_status_by_project(project_id)
+
 
 @doc(tags=['Issue'], description="Get issue Progress by tree by project")
 @use_kwargs(router_model.IssuesProgressByProjectSchema, location="query")
@@ -237,6 +254,7 @@ class IssuesProgressByProjectV2(MethodResource):
                                                              kwargs, progress=True)
         return util.success(output)
 
+
 class IssuesProgressByProject(Resource):
     @ jwt_required
     def get(self, project_id):
@@ -248,9 +266,10 @@ class IssuesProgressByProject(Resource):
                                                              args, progress=True)
         return util.success(output)
 
+
 @doc(tags=['Issue'], description="Get issue Progress by tree by project")
 @use_kwargs(router_model.IssuesProgressByProjectSchema, location="query")
-@marshal_with(router_model.IssuesStatisticsByProjectResponse)  
+@marshal_with(router_model.IssuesStatisticsByProjectResponse)
 class IssuesStatisticsByProjectV2(MethodResource):
     @ jwt_required
     def get(self, project_id, **kwargs):
@@ -259,6 +278,7 @@ class IssuesStatisticsByProjectV2(MethodResource):
         output = get_issue_progress_or_statistics_by_project(project_id,
                                                              kwargs, statistics=True)
         return util.success(output)
+
 
 class IssuesStatisticsByProject(Resource):
     @ jwt_required
@@ -270,6 +290,7 @@ class IssuesStatisticsByProject(Resource):
         output = get_issue_progress_or_statistics_by_project(project_id,
                                                              args, statistics=True)
         return util.success(output)
+
 
 @doc(tags=['Pending'], description="Get issue list by date")
 class IssueByDateByProjectV2(MethodResource):
@@ -295,7 +316,6 @@ class IssueFilterByProjectV2(MethodResource):
     def get(self, project_id):
         return util.success(get_custom_issue_filter(get_jwt_identity()['user_id'], project_id))
 
-
     @doc(tags=['Project'], description="Create project's issues' filter.")
     @use_kwargs(router_model.IssueFilterByProjectPostAndPutSchema, location="form")
     @marshal_with(router_model.IssueFilterByProjectPostResponse)
@@ -311,6 +331,7 @@ class IssueFilterByProjectV2(MethodResource):
                               error=apiError.argument_error("focus_tab"))
 
         return util.success(create_custom_issue_filter(user_id, project_id, kwargs))
+
 
 class IssueFilterByProjectWithFilterIDV2(MethodResource):
     @doc(tags=['Project'], description="Update project's issues' filter.")
@@ -399,6 +420,7 @@ class IssueFilterByProject(Resource):
 
 ##### Download project issue as excel ######
 
+
 class DownloadProjectExecuteV2(MethodResource):
     # download/execute
     @doc(tags=['Issue'], description="Execute download project's issues as excel.")
@@ -412,13 +434,15 @@ class DownloadProjectExecuteV2(MethodResource):
         threading.Thread(target=download_issue_excel.execute).start()
         return util.success()
 
+
 class DownloadProjectIsExistV2(MethodResource):
     # download/is_exist
     @doc(tags=['Issue'], description="Check excel file is exist.")
     @marshal_with(router_model.DownloadProjectIsExistResponse)
-    @jwt_required 
+    @jwt_required
     def get(self, project_id):
         return util.success(pj_download_file_is_exist(project_id))
+
 
 class DownloadProjectV2(MethodResource):
     # download/execute
@@ -431,6 +455,7 @@ class DownloadProjectV2(MethodResource):
                 apiError.project_issue_file_not_exits(project_id))
 
         return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
+
 
 class DownloadProject(Resource):
     # download/execute
@@ -457,21 +482,21 @@ class DownloadProject(Resource):
 
         if get_lock_status("download_pj_issues")["is_lock"]:
             return util.success("previous is still running")
-        
+
         # Because QA not the member of any project, so it will get error when it get issue by user_id.
         user_id = get_jwt_identity()["user_id"] if get_jwt_identity()["role_id"] != 7 else 1
-    
+
         download_issue_excel = DownloadIssueAsExcel(args, project_id, user_id)
         threading.Thread(target=download_issue_excel.execute).start()
         return util.success()
 
     # download/is_exist
-    @jwt_required 
+    @jwt_required
     def get(self, project_id):
         return util.success(pj_download_file_is_exist(project_id))
 
     # download/execute
-    @jwt_required    
+    @jwt_required
     def patch(self, project_id):
         if not pj_download_file_is_exist(project_id)["file_exist"]:
             raise apiError.DevOpsError(
@@ -498,6 +523,7 @@ class ListMyProjectsV2(MethodResource):
             return util.success(
                 {'project_list': project.get_project_list(get_jwt_identity()['user_id'], "pm", kwargs, disabled)})
 
+
 class ListMyProjects(Resource):
     @jwt_required
     def get(self):
@@ -523,14 +549,13 @@ class ListMyProjects(Resource):
                 {'project_list': project.get_project_list(get_jwt_identity()['user_id'], "pm", args, disabled)})
 
 
-
 @doc(tags=['Project'], description="List projects calculated issues count")
 @use_kwargs(router_model.CalculateProjectIssuesSchema, location="query")
 @marshal_with(router_model.CalculateProjectIssuesResponse)
 class CalculateProjectIssuesV2(MethodResource):
     @jwt_required
     def get(self, **kwargs):
-        
+
         project_ids = kwargs.get("project_ids").split(",")
 
         return util.success(
@@ -548,6 +573,7 @@ class CalculateProjectIssues(Resource):
         return util.success(
             {'project_list': project.get_project_issue_calculation(get_jwt_identity()['user_id'], project_ids)})
 
+
 @doc(tags=['Project'], description="List projects by user")
 @marshal_with(router_model.ListMyProjectsByUserResponse)
 class ListProjectsByUserV2(MethodResource):
@@ -557,12 +583,14 @@ class ListProjectsByUserV2(MethodResource):
         projects = project.get_projects_by_user(user_id)
         return util.success(projects)
 
+
 class ListProjectsByUser(Resource):
     @jwt_required
     def get(self, user_id):
         role.require_pm("Error while get project by user.")
         projects = project.get_projects_by_user(user_id)
         return util.success(projects)
+
 
 class SyncProjectIssueCalculateV2(MethodResource):
     @doc(tags=['System'], description="Sync project's issue calculate.")
@@ -571,6 +599,7 @@ class SyncProjectIssueCalculateV2(MethodResource):
         return util.success(project.sync_project_issue_calculate())
 
 ##### Single project ######
+
 
 class SingleProjectV2(MethodResource):
     @doc(tags=['Project'], description="Get project info")
@@ -640,11 +669,12 @@ class SingleProjectCreateV2(MethodResource):
     def post(self, **kwargs):
         role.require_pm()
         user_id = get_jwt_identity()["user_id"]
-        
+
         if kwargs.get('arguments') is not None:
             kwargs['arguments'] = ast.literal_eval(kwargs['arguments'])
         project.check_project_args_patterns(kwargs)
         return util.success(project.create_project(user_id, kwargs))
+
 
 class SingleProject(Resource):
     @jwt_required
@@ -740,6 +770,7 @@ class SingleProjectByNameV2(MethodResource):
             project_id, "Error while getting project info.")
         return util.success(project.get_project_info(project_id))
 
+
 class SingleProjectByName(Resource):
     @jwt_required
     def get(self, project_name):
@@ -751,6 +782,7 @@ class SingleProjectByName(Resource):
 
 ##### Project member ######
 
+
 class ProjectMemberV2(MethodResource):
     @doc(tags=['User'], description="Create project member.")
     @use_kwargs(router_model.SingleProjectPutSchema, location="form")
@@ -761,6 +793,7 @@ class ProjectMemberV2(MethodResource):
         role.require_in_project(project_id)
         return project.project_add_member(project_id, kwargs['user_id'])
 
+
 @doc(tags=['User'], description="Delete project member.")
 @marshal_with(util.CommonResponse)
 class ProjectMemberDeleteV2(MethodResource):
@@ -769,6 +802,7 @@ class ProjectMemberDeleteV2(MethodResource):
         role.require_pm()
         role.require_in_project(project_id)
         return project.project_remove_member(project_id, user_id)
+
 
 class ProjectMember(Resource):
     @jwt_required
@@ -786,6 +820,7 @@ class ProjectMember(Resource):
         role.require_in_project(project_id)
         return project.project_remove_member(project_id, user_id)
 
+
 class ProjectUserListV2(MethodResource):
     @doc(tags=['User'], description="Get users which able to add in the project.")
     @use_kwargs(router_model.ProjectUserListSchema, location="query")
@@ -793,6 +828,7 @@ class ProjectUserListV2(MethodResource):
     @jwt_required
     def get(self, project_id, **kwargs):
         return util.success({'user_list': user.user_list_by_project(project_id, kwargs)})
+
 
 class ProjectUserList(Resource):
     @jwt_required
@@ -804,6 +840,7 @@ class ProjectUserList(Resource):
 
 ##### Project report ######
 
+
 @doc(tags=['Project'], description="Get project test summary.")
 @marshal_with(router_model.TestSummaryResponse)
 class TestSummaryV2(MethodResource):
@@ -811,6 +848,7 @@ class TestSummaryV2(MethodResource):
     def get(self, project_id):
         role.require_in_project(project_id)
         return project.get_test_summary(project_id)
+
 
 class TestSummary(Resource):
     @jwt_required
@@ -828,6 +866,7 @@ class AllReportsV2(MethodResource):
         return send_file(project.get_all_reports(project_id),
                          attachment_filename='reports.zip', as_attachment=True)
 
+
 class AllReports(Resource):
     @jwt_required
     def get(self, project_id):
@@ -835,6 +874,7 @@ class AllReports(Resource):
         role.require_in_project(project_id)
         return send_file(project.get_all_reports(project_id),
                          attachment_filename='reports.zip', as_attachment=True)
+
 
 class ProjectFileV2(MethodResource):
     @doc(tags=['File'], description="Upload file to project.")
@@ -866,6 +906,7 @@ class ProjectFileV2(MethodResource):
                                        error=apiError.project_not_found(project_id))
         return util.success(redmine.rm_list_file(plan_project_id))
 
+
 class ProjectFile(Resource):
     @jwt_required
     def post(self, project_id):
@@ -892,7 +933,7 @@ class ProjectFile(Resource):
                               error=apiError.argument_error('file'))
         from resources.system_parameter import check_upload_type
         check_upload_type(file)
-        
+
         return redmine.rm_upload_to_project(plan_project_id, args, plan_operator_id)
 
     @jwt_required
@@ -906,6 +947,7 @@ class ProjectFile(Resource):
 
 ##### Project plugin(k8s) ######
 
+
 @doc(tags=['Plugin'], description="Get project plugin resource info.")
 @marshal_with(router_model.ProjectPluginUsageResponse)
 class ProjectPluginUsageV2(MethodResource):
@@ -915,12 +957,14 @@ class ProjectPluginUsageV2(MethodResource):
             project_id, "Error while getting project info.")
         return project.get_plugin_usage(project_id)
 
+
 class ProjectPluginUsage(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(
             project_id, "Error while getting project info.")
         return project.get_plugin_usage(project_id)
+
 
 class ProjectUserResourceV2(MethodResource):
     @doc(tags=['K8s'], description="Get project k8s info.")
@@ -979,6 +1023,7 @@ class ProjectPluginPodV2(MethodResource):
             project_id, "Error while getting project info.")
         return project.get_kubernetes_plugin_pods(project_id, kwargs.get("plugin_name"))
 
+
 class ProjectPluginPod(Resource):
     @jwt_required
     def get(self, project_id):
@@ -989,6 +1034,7 @@ class ProjectPluginPod(Resource):
         args = parser.parse_args()
         return project.get_kubernetes_plugin_pods(project_id, args.get("plugin_name"))
 
+
 @doc(tags=['K8s'], description="Get project pod list")
 @marshal_with(router_model.ProjectUserResourcePodsResponse)
 class ProjectUserResourcePodsV2(MethodResource):
@@ -998,12 +1044,14 @@ class ProjectUserResourcePodsV2(MethodResource):
             project_id, "Error while getting project info.")
         return project.get_kubernetes_namespace_pods(project_id)
 
+
 class ProjectUserResourcePods(Resource):
     @jwt_required
     def get(self, project_id):
         role.require_in_project(
             project_id, "Error while getting project info.")
         return project.get_kubernetes_namespace_pods(project_id)
+
 
 @doc(tags=['K8s'], description="Delete specific project pod.")
 @marshal_with(router_model.ProjectUserResourcePodResponse)
@@ -1014,12 +1062,14 @@ class ProjectUserResourcePodV2(MethodResource):
             project_id, "Error while getting project info.")
         return project.delete_kubernetes_namespace_pod(project_id, pod_name)
 
+
 class ProjectUserResourcePod(Resource):
     @jwt_required
     def delete(self, project_id, pod_name):
         role.require_in_project(
             project_id, "Error while getting project info.")
         return project.delete_kubernetes_namespace_pod(project_id, pod_name)
+
 
 @doc(tags=['K8s'], description="Get specific project pod.")
 @use_kwargs(router_model.ProjectUserResourcePodLogSchema, location="query")
@@ -1031,6 +1081,7 @@ class ProjectUserResourcePodLogV2(MethodResource):
             project_id, "Error while getting project info.")
         return project.get_kubernetes_namespace_pod_log(project_id, pod_name, kwargs['container_name'])
 
+
 class ProjectUserResourcePodLog(Resource):
     @jwt_required
     def get(self, project_id, pod_name):
@@ -1041,6 +1092,7 @@ class ProjectUserResourcePodLog(Resource):
         args = parser.parse_args()
         return project.get_kubernetes_namespace_pod_log(project_id, pod_name, args['container_name'])
 
+
 @doc(tags=['System'], description="Get specific project deployed environment.")
 @marshal_with(router_model.ProjectEnvironmentGetResponse)
 class ProjectEnvironmentGetV2(MethodResource):
@@ -1049,6 +1101,7 @@ class ProjectEnvironmentGetV2(MethodResource):
         role.require_in_project(
             project_id, "Error while getting project info.")
         return util.success(project.get_kubernetes_namespace_dev_environment(project_id))
+
 
 class ProjectEnvironmentV2(MethodResource):
     @doc(tags=['System'], description="Redeploy specific project deployed environment.")
@@ -1087,6 +1140,7 @@ class ProjectEnvironment(Resource):
             project_id, "Error while getting project info.")
         return project.delete_rancher_app(project_id, branch_name)
 
+
 @doc(tags=['Pending'], description="Get specific project deployed environment's URL?")
 # @marshal_with(router_model.ProjectEnvironmentUrlResponse)
 class ProjectEnvironmentUrlV2(MethodResource):
@@ -1096,6 +1150,7 @@ class ProjectEnvironmentUrlV2(MethodResource):
             project_id, "Error while getting project info.")
         return util.success(project.get_kubernetes_namespace_dev_environment_urls(
             project_id, branch_name))
+
 
 class ProjectEnvironmentUrl(Resource):
     @jwt_required
@@ -1142,6 +1197,7 @@ class ProjectUserResourceDeploymentV2(MethodResource):
             project_id, "Error while getting project info.")
         return project.delete_kubernetes_namespace_deployment(project_id, deployment_name)
 
+
 class ProjectUserResourceDeployment(Resource):
     @jwt_required
     def put(self, project_id, deployment_name):
@@ -1155,6 +1211,7 @@ class ProjectUserResourceDeployment(Resource):
             project_id, "Error while getting project info.")
         return project.delete_kubernetes_namespace_deployment(project_id, deployment_name)
 
+
 @doc(tags=['System'], description="Get specific project service list.")
 @marshal_with(router_model.ProjectUserResourceServicesResponse)
 class ProjectUserResourceServicesV2(MethodResource):
@@ -1163,6 +1220,7 @@ class ProjectUserResourceServicesV2(MethodResource):
         role.require_in_project(
             project_id, "Error while getting project info.")
         return project.get_kubernetes_namespace_services(project_id)
+
 
 class ProjectUserResourceServices(Resource):
     @jwt_required
@@ -1181,6 +1239,7 @@ class ProjectUserResourceServiceV2(MethodResource):
             project_id, "Error while getting project info.")
         return project.delete_kubernetes_namespace_service(project_id, service_name)
 
+
 class ProjectUserResourceService(Resource):
     @jwt_required
     def delete(self, project_id, service_name):
@@ -1197,6 +1256,7 @@ class ProjectUserResourceSecretsV2(MethodResource):
         role.require_in_project(
             project_id, "Error while getting project info.")
         return project.get_kubernetes_namespace_secrets(project_id)
+
 
 class ProjectUserResourceSecrets(Resource):
     @jwt_required
@@ -1291,6 +1351,7 @@ class ProjectUserResourceConfigMaps(Resource):
             project_id, "Error while getting project info.")
         return project.get_kubernetes_namespace_configmaps(project_id)
 
+
 class ProjectUserResourceConfigMapV2(MethodResource):
     @doc(tags=['K8s'], description="Get specific project k8s configmap by configmap_na.")
     @marshal_with(router_model.ProjectUserResourceConfigMapResponse)
@@ -1325,6 +1386,7 @@ class ProjectUserResourceConfigMapV2(MethodResource):
         role.require_in_project(
             project_id, "Error while getting project info.")
         return project.create_kubernetes_namespace_configmap(project_id, configmap_name, kwargs['configmaps'])
+
 
 class ProjectUserResourceConfigMap(Resource):
     @jwt_required
@@ -1402,6 +1464,7 @@ class ProjectVersionList(Resource):
         return util.success(version.get_version_list_by_project(
             project_id, root_args['status'], root_args['force_id']))
 
+
 class ProjectVersionPostV2(MethodResource):
     @doc(tags=['Version'], description="Create project version.")
     @use_kwargs(router_model.ProjectVersionPostPutSchema, location="json")
@@ -1410,6 +1473,7 @@ class ProjectVersionPostV2(MethodResource):
     def post(self, project_id, **kwargs):
         role.require_in_project(project_id)
         return version.post_version_by_project(project_id, kwargs)
+
 
 class ProjectVersionV2(MethodResource):
     @doc(tags=['Version'], description="Get project version by version_id.")
@@ -1433,6 +1497,7 @@ class ProjectVersionV2(MethodResource):
     def delete(self, project_id, version_id):
         role.require_in_project(project_id)
         return version.delete_version_by_version_id(version_id)
+
 
 class ProjectVersion(Resource):
     @jwt_required
@@ -1471,6 +1536,7 @@ class ProjectWikiListV2(MethodResource):
     def get(self, project_id):
         role.require_in_project(project_id)
         return wiki.get_wiki_list_by_project(project_id)
+
 
 class ProjectWikiList(Resource):
     @jwt_required
@@ -1532,6 +1598,7 @@ class ReleaseExtraV2(MethodResource):
     def get(self, project_id, **kwargs):
         return util.success(release.get_release_image_list(project_id, kwargs))
 
+
 class ReleaseTagV2(MethodResource):
     @doc(tags=['Release'], description="Add tag on release by release_id.")
     @use_kwargs(router_model.ReleaseTagSchema, location="form")
@@ -1539,13 +1606,14 @@ class ReleaseTagV2(MethodResource):
     @jwt_required
     def post(self, project_id, release_id, **kwargs):
         return release.create_release_image_tag(project_id, release_id, kwargs)
-    
+
     @doc(tags=['Release'], description="Delete tag on release by release_id.")
     @use_kwargs(router_model.ReleaseTagSchema, location="query")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def delete(self, project_id, release_id, **kwargs):
         return release.delete_release_image_tag(project_id, release_id, kwargs)
+
 
 class ReleaseRepoV2(MethodResource):
     @doc(tags=['Release'], description="Add repository on release by release_id.")
@@ -1554,13 +1622,14 @@ class ReleaseRepoV2(MethodResource):
     @jwt_required
     def post(self, project_id, release_id, **kwargs):
         return release.create_release_image_repo(project_id, release_id, kwargs)
-    
+
     @doc(tags=['Release'], description="Delete repository on release by release_id.")
     @use_kwargs(router_model.ReleaseRepoDeleteSchema, location="query")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def delete(self, project_id, release_id, **kwargs):
         return release.delete_release_image_repo(project_id, release_id, kwargs)
+
 
 class ReleasesV2(MethodResource):
     @doc(tags=['Release'], description="Get release list.")
@@ -1601,13 +1670,13 @@ class ReleasesV2(MethodResource):
             list_versions['versions'], 'id')
         release_name = release_obj.versions_by_key[kwargs['main']]['name']
 
-        # Check tag is exist in repos or not 
+        # Check tag is exist in repos or not
         extra_image_path_split = kwargs.get("extra_image_path", ":").split(":")
         if len(extra_image_path_split) > 1:
             extra_image_repo, extra_image_tag = extra_image_path_split[0], extra_image_path_split[1]
             for repo_name, tag in {
-                branch_name: release_name,
-                extra_image_repo: extra_image_tag}.items():
+                    branch_name: release_name,
+                    extra_image_repo: extra_image_tag}.items():
                 if hb_get_artifacts_with_tag(release_obj.project.name, repo_name, tag) != []:
                     if not forced:
                         raise apiError.DevOpsError(
@@ -1631,12 +1700,12 @@ class ReleasesV2(MethodResource):
             closed_version = False
             check_gitlab_release = False
             create_harbor_release = False
-            
+
             for version in kwargs['versions']:
                 params = {"version": {"status": "closed"}}
                 redmine.rm_put_version(version, params)
                 closed_version = True
-            
+
             # check  Gitalb Release
             if release_obj.gitlab_info.get('check') == True:
                 gitlab_data = {
@@ -1656,8 +1725,10 @@ class ReleasesV2(MethodResource):
                     image_path = [f"{release_obj.project.name}/{kwargs.get('extra_image_path')}"] + image_path
                     extra_image_path = kwargs.get("extra_image_path").split(":")
                     extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
-                    hb_copy_artifact_and_retage(release_obj.project.name, branch_name, extra_dest_repo, kwargs.get("commit"), extra_dest_tag, forced=forced)
-                hb_copy_artifact_and_retage(release_obj.project.name, branch_name, branch_name, kwargs.get("commit"), release_name, forced=forced)
+                    hb_copy_artifact_and_retage(release_obj.project.name, branch_name,
+                                                extra_dest_repo, kwargs.get("commit"), extra_dest_tag, forced=forced)
+                hb_copy_artifact_and_retage(release_obj.project.name, branch_name, branch_name,
+                                            kwargs.get("commit"), release_name, forced=forced)
                 create_harbor_release = True
 
             release.create_release(
@@ -1674,31 +1745,33 @@ class ReleasesV2(MethodResource):
             return util.success()
         except:
             # Roll back
-            ## Open redmine version
+            # Open redmine version
             if closed_version:
                 for version in kwargs['versions']:
                     params = {"version": {"status": "open"}}
                     redmine.rm_put_version(version, params)
 
-            ## check  Gitalb Release
+            # check  Gitalb Release
             if check_gitlab_release:
                 gitlab.gl_delete_release(
                     release_obj.plugin_relation.git_repository_id, release_name)
-            
-            ## Create Harbor Release
+
+            # Create Harbor Release
             if create_harbor_release:
                 for image in image_path:
                     removed_image_path = image.split("/")[-1].split(":")
                     removed_dest_repo, removed_dest_tag = removed_image_path[0], removed_image_path[1]
                     if removed_dest_repo != branch_name:
-                        hb_copy_artifact_and_retage(release_obj.project.name, removed_dest_repo, branch_name, removed_dest_tag, kwargs.get("commit"))
+                        hb_copy_artifact_and_retage(release_obj.project.name, removed_dest_repo,
+                                                    branch_name, removed_dest_tag, kwargs.get("commit"))
                     else:
                         digest = hb_get_artifact(release_obj.project.name, branch_name, removed_dest_tag)[0]["digest"]
-                        hb_delete_artifact_tag(release_obj.project.name, branch_name, digest, removed_dest_tag, keep=True)
+                        hb_delete_artifact_tag(release_obj.project.name, branch_name,
+                                               digest, removed_dest_tag, keep=True)
 
             if NoResultFound:
                 return util.respond(404, release.error_redmine_issues_closed,
-                                error=apiError.redmine_unable_to_forced_closed_issues(kwargs['versions']))
+                                    error=apiError.redmine_unable_to_forced_closed_issues(kwargs['versions']))
 
 
 class ReleaseV2(MethodResource):
@@ -1726,7 +1799,7 @@ class ReleaseV2(MethodResource):
 class ProjectErrorMessageV2(MethodResource):
     @doc(tags=['Release'], description="Get Helm error message.")
     @jwt_required
-    def get(self,project_name):
+    def get(self, project_name):
         js = rancher.rancher.rc_get_app_by_name(project_name)
         if len(js) == 0:
             return util.success("Can not find app")
@@ -1743,16 +1816,14 @@ class IssueForceTrackerV2(MethodResource):
     @jwt_required
     def get(self, project_id):
         return util.success(get_project_issue_check(project_id))
-    
-    
+
     @doc(tags=['Issue'], description="Create issue's force trackers.")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def post(self, project_id):
         role.require_project_owner(get_jwt_identity()['user_id'], project_id)
         return util.success(create_project_issue_check(project_id))
-    
-    
+
     @doc(tags=['Issue'], description="Update issue's force trackers.")
     @use_kwargs(router_model.IssueForceTrackerPatchSchema, location="json")
     @marshal_with(util.CommonResponse)
@@ -1761,7 +1832,6 @@ class IssueForceTrackerV2(MethodResource):
         role.require_project_owner(get_jwt_identity()['user_id'], project_id)
         return util.success(update_project_issue_check(project_id, kwargs))
 
-    
     @doc(tags=['Issue'], description="Delete issue's force trackers.")
     @marshal_with(util.CommonResponse)
     @jwt_required

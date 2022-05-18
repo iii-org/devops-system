@@ -29,6 +29,7 @@ from resources.redmine import redmine
 from resources.project import get_project_list
 import resources
 from sqlalchemy import desc, nullslast
+import gitlab as gitlab_pack
 
 # Make a regular expression
 default_role_id = 3
@@ -511,21 +512,16 @@ def create_user(args):
     logger.info('Account name not used in Redmine or force is True.')
 
     # Check Gitlab has this login, email, if has, raise error(if force remove it.)
-    page = 1
-    x_total_pages = 10
-    while page <= x_total_pages:
-        params = {'page': page}
-        user_list_output = gitlab.gl_get_user_list(params)
-        x_total_pages = int(user_list_output.headers['X-Total-Pages'])
-        for user in user_list_output.json():
-            if user['name'] == args['login'] or user['email'] == args['email']:
-                if force:
-                    gitlab.gl_delete_user(user["id"])
-                    logger.info('Force is True, so delete this Gitlab account.')
-                else:
-                    raise DevOpsError(422, "Gitlab already has this account or email.",
-                                      error=apiError.already_used())
-        page += 1
+    login_users = gitlab.gl.search(gitlab_pack.const.SEARCH_SCOPE_USERS, args['login'])
+    for login_user in login_users:
+        user = gitlab.gl.users.get(login_user['id'])
+        if user.name == args['login'] or user.email == args['email']:
+            if force:
+                gitlab.gl_delete_user(user["id"])
+                logger.info('Force is True, so delete this Gitlab account.')
+            else:
+                raise DevOpsError(422, "Gitlab already has this account or email.",
+                                  error=apiError.already_used())
     logger.info('Account name not used in Gitlab or force is True.')
 
     # Check Kubernetes has this Service Account (login), if has, return error 400(if force remove it.)
