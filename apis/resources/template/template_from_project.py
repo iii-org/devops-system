@@ -34,7 +34,6 @@ def template_from_project_list():
     for template in all_templates:
         template = json.loads(str(template))
         gl_template = gl.projects.get(template['template_repository_id'])
-        template['template_repository_name'] = gl_template.name
         template['template_repository_url'] = gl_template.http_url_to_repo
         if template['creator_id'] is not None:
             template['creator_name'] = nx_get_user(id=template['creator_id']).name
@@ -65,6 +64,7 @@ def update_template(id, name, description):
     new_template_project, old_project, pj_name = update_pipe_set_and_push_to_new_project(
         row.from_project_id, name, description)
     row.template_repository_id = new_template_project.id
+    row.template_repository_name = pj_name
     row.creator_id = get_jwt_identity()['user_id']
     row.updated_at = datetime.utcnow()
     row.from_project_name = pj_name
@@ -108,8 +108,9 @@ def create_template_from_project(from_project_id, name, description):
     6. Update template_project table.
     '''
     template_project, old_project, pj_name = update_pipe_set_and_push_to_new_project(from_project_id, name, description)
-    tm = TemplateProject(template_repository_id=template_project.id, from_project_id=from_project_id,
-                         from_project_name=pj_name, creator_id=get_jwt_identity()["user_id"],
+    tm = TemplateProject(template_repository_id=template_project.id, template_repository_name=pj_name,
+                         from_project_id=from_project_id, from_project_name=pj_name,
+                         creator_id=get_jwt_identity()["user_id"],
                          created_at=datetime.utcnow(), updated_at=datetime.utcnow())
     db.session.add(tm)
     db.session.commit()
