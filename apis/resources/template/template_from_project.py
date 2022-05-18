@@ -62,10 +62,12 @@ def update_template(id, name, description):
         time.sleep(2)
     except:
         pass
-    new_template_project, old_project = update_pipe_set_and_push_to_new_project(row.from_project_id, name, description)
+    new_template_project, old_project, pj_name = update_pipe_set_and_push_to_new_project(
+        row.from_project_id, name, description)
     row.template_repository_id = new_template_project.id
     row.creator_id = get_jwt_identity()['user_id']
     row.updated_at = datetime.utcnow()
+    row.from_project_name = pj_name
     db.session.commit()
 
 
@@ -80,7 +82,7 @@ def update_pipe_set_and_push_to_new_project(from_project_id, name, description):
     '''
     old_project = gl.projects.get(nx_get_project_plugin_relation(
         nexus_project_id=from_project_id).git_repository_id)
-    tm_update_pipe_set_json_from_api(old_project, name, description)
+    pj_name = tm_update_pipe_set_json_from_api(old_project, name, description)
 
     local_template_group_id = gl.groups.list(search='local-templates')[0].id
     template_project = gl.projects.create({'name': f'{old_project.path}', 'namespace_id': local_template_group_id})
@@ -98,16 +100,16 @@ def update_pipe_set_and_push_to_new_project(from_project_id, name, description):
     set_git_username_config(f'{TEMPLATE_FOLDER_NAME}/{template_project.path}')
     tm_git_commit_push(template_project.path, temp_pj_secret_http_url,
                        TEMPLATE_FOLDER_NAME, f"專案 {old_project.path} 轉範本commit")
-    return template_project, old_project
+    return template_project, old_project, pj_name
 
 
 def create_template_from_project(from_project_id, name, description):
     '''
     6. Update template_project table.
     '''
-    template_project, old_project = update_pipe_set_and_push_to_new_project(from_project_id, name, description)
+    template_project, old_project, pj_name = update_pipe_set_and_push_to_new_project(from_project_id, name, description)
     tm = TemplateProject(template_repository_id=template_project.id, from_project_id=from_project_id,
-                         from_project_name=old_project.name, creator_id=get_jwt_identity()["user_id"],
+                         from_project_name=pj_name, creator_id=get_jwt_identity()["user_id"],
                          created_at=datetime.utcnow(), updated_at=datetime.utcnow())
     db.session.add(tm)
     db.session.commit()
@@ -143,16 +145,20 @@ def tm_update_pipe_set_json_from_api(pj, name, description):
         return
     f = pj.files.get(file_path="iiidevops/pipeline_settings.json", ref=pj.default_branch)
     pip_set_json = json.loads(f.decode())
-    if pip_set_json['name'] != name or pip_set_json['description'] != description:
-        pip_set_json['name'] = name
-        pip_set_json['description'] = description
+    if (name is not None or description is not None) and (
+            pip_set_json.get('name') != name or pip_set_json.get('description') != description):
+        if name is not None and pip_set_json.get('name') != name:
+            pip_set_json['name'] = name
+        if description is not None and pip_set_json.get('description') != description:
+            pip_set_json['description'] = description
         f.content = json.dumps(pip_set_json)
         f.save(
             branch=pj.default_branch,
             author_email='system@iiidevops.org.tw',
             author_name='iiidevops',
             commit_message=f"{get_jwt_identity()['user_account']} 編輯 {pj.default_branch} 分支 \
-                iiidevops/pipeline_settings.json")
+                    iiidevops/pipeline_settings.json")
+    return pip_set_json['name']
 
 
 def get_tm_filter_by_tm_member():

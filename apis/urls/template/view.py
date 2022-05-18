@@ -13,8 +13,8 @@ class TemplateFromProject(MethodResource):
     @use_kwargs(router_model.CreateTemplateFormProjectScheme, location=('form'))
     @jwt_required
     def post(self, project_id, **kwargs):
-        return util.success(template_from_project.create_template_from_project(project_id, kwargs["name"],
-                                                                               kwargs["description"]))
+        return util.success(template_from_project.create_template_from_project(project_id, kwargs.get("name"),
+                                                                               kwargs.get("description")))
 
 
 @doc(tags=['Template from project'], description='Edit template')
@@ -23,7 +23,7 @@ class TemplateEdit(MethodResource):
     @jwt_required
     def put(self, id, **kwargs):
         if role.is_admin() or template_from_project.verify_user_in_template_project(id):
-            template_from_project.update_template(id, kwargs["name"], kwargs["description"])
+            template_from_project.update_template(id, kwargs.get("name"), kwargs.get("description"))
         return util.success()
 
     @jwt_required
