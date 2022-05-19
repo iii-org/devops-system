@@ -514,10 +514,10 @@ def create_user(args):
     # Check Gitlab has this login, email, if has, raise error(if force remove it.)
     login_users = gitlab.gl.search(gitlab_pack.const.SEARCH_SCOPE_USERS, args['login'])
     for login_user in login_users:
-        user = gitlab.gl.users.get(login_user['id'])
-        if user.name == args['login'] or user.email == args['email']:
+        gl_user = gitlab.gl.users.get(login_user['id'])
+        if gl_user.name == args['login'] or gl_user.email == args['email']:
             if force:
-                gitlab.gl_delete_user(user["id"])
+                gitlab.gl_delete_user(gl_user.id)
                 logger.info('Force is True, so delete this Gitlab account.')
             else:
                 raise DevOpsError(422, "Gitlab already has this account or email.",
