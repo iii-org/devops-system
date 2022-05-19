@@ -820,6 +820,8 @@ def update_issue(issue_id, args, operator_id=None):
     pj_id = get_project_id(issue.project.id)
     before_status_id = issue.status.id
     origin_parent_id = None
+    origin_fixed_version_id = None
+    origin_assigned_to_id = None
 
     # Issue can not be updated when its tracker is in its force tracker checking setting' tracker.
     check_issue_project_id = args.get("project_id") or pj_id
@@ -857,6 +859,8 @@ def update_issue(issue_id, args, operator_id=None):
             elif version.status in ['locked', 'closed']:
                 raise DevOpsError(400, "Error while updating issue",
                                   error=apiError.invalid_fixed_version_id(version.name, version.status))
+            else:
+                origin_fixed_version_id = None if not hasattr(issue, "fixed_version") else issue.fixed_version.id
         else:
             args['fixed_version_id'] = None
     if 'parent_id' in args:
@@ -879,6 +883,8 @@ def update_issue(issue_id, args, operator_id=None):
     if "assigned_to_id" in args and len(args['assigned_to_id']) > 0:
         user_plugin_relation = nexus.nx_get_user_plugin_relation(
             user_id=int(args['assigned_to_id']))
+        if hasattr(issue, 'assigned_to') and issue.assigned_to.id != user_plugin_relation.plan_user_id:
+            origin_assigned_to_id = nexus.nx_get_user_plugin_relation(plan_user_id=issue.assigned_to.id).user_id
         args['assigned_to_id'] = user_plugin_relation.plan_user_id
 
     point = args.pop("point", None)
@@ -911,6 +917,10 @@ def update_issue(issue_id, args, operator_id=None):
         issue_id, point=point, tags=tags, plan_operator_id=plan_operator_id)
     if origin_parent_id is not None:
         main_output["origin_parent_id"] = origin_parent_id
+    if origin_fixed_version_id is not None:
+        main_output["origin_fixed_version_id"] = origin_fixed_version_id
+    if origin_assigned_to_id is not None:
+        main_output["origin_assigned_to_id"] = origin_assigned_to_id
     ws_output_list = [main_output]
     if update_cache_issue_family and removed_parent_id is not None and parent_id_is_changed:
         ws_output_list.append(ws_common_response(removed_parent_id))
