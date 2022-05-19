@@ -148,6 +148,14 @@ def hb_delete_user(user_id):
     __api_delete('/users/{0}'.format(user_id))
 
 
+def hb_search_user(username):
+    return __api_get('/users/search', params={'username': username}).json()
+
+
+def hb_get_user(user_id):
+    return __api_get(f'/users/{user_id}').json()
+
+
 def hb_update_user_password(user_id, new_pwd, old_pwd):
     pass_quality = check_passsword(new_pwd)
     if pass_quality is False:

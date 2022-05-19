@@ -514,10 +514,10 @@ def create_user(args):
     # Check Gitlab has this login, email, if has, raise error(if force remove it.)
     login_users = gitlab.gl.search(gitlab_pack.const.SEARCH_SCOPE_USERS, args['login'])
     for login_user in login_users:
-        user = gitlab.gl.users.get(login_user['id'])
-        if user.name == args['login'] or user.email == args['email']:
+        gl_user = gitlab.gl.users.get(login_user['id'])
+        if gl_user.name == args['login'] or gl_user.email == args['email']:
             if force:
-                gitlab.gl_delete_user(user["id"])
+                gitlab.gl_delete_user(gl_user.id)
                 logger.info('Force is True, so delete this Gitlab account.')
             else:
                 raise DevOpsError(422, "Gitlab already has this account or email.",
@@ -537,25 +537,17 @@ def create_user(args):
     logger.info('Account name not used in kubernetes or force is True.')
 
     # Check Harbour has this login, email, if has, raise error(if force remove it.)
-    page = 1
-    page_size = 10
-    total_size = 20
-    while total_size > 0:
-        params = {'page': page, 'page_size': page_size}
-        output = harbor.hb_list_user(params)
-        for user in output.json():
-            if user['username'] == args['login'] or user['email'] == args['email']:
+    hb_user_list = harbor.hb_search_user(args['login'])
+    if hb_user_list:
+        for hb_user_list in hb_user_list:
+            hb_user = harbor.hb_get_user(hb_user_list['user_id'])
+            if hb_user['username'] == args['login'] or hb_user['email'] == args['email']:
                 if force:
-                    harbor.hb_delete_user(user["user_id"])
+                    harbor.hb_delete_user(hb_user["user_id"])
                     logger.info('Force is True, so delete this Harbour account.')
                 else:
                     raise DevOpsError(422, "Harbour already has this account or email.",
                                       error=apiError.already_used())
-        if output.headers.get('X-Total-Count', None):
-            total_size = int(output.headers['X-Total-Count']) - (page * page_size)
-            page += 1
-        else:
-            total_size = -1
     logger.info('Account name not used in Harbour or force is True.')
 
     # Check SonarQube has this login, if has, raise error(if force deactivate it.)
