@@ -915,3 +915,16 @@ class TemplateProject(db.Model):
             except TypeError:
                 fields[field] = str(data)
         return json.dumps(fields)
+
+
+class HarborScan(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    harbor_project_id = Column(Integer)
+    branch = Column(String)
+    commit = Column(String)
+    digest = Column(String)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+    finished_at = Column(DateTime)
+    finished = Column(Boolean)
