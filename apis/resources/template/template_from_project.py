@@ -7,7 +7,7 @@ from pathlib import Path
 from flask_jwt_extended import get_jwt_identity
 from model import Project, TemplateProject, db
 from nexus import (nx_get_project_plugin_relation, nx_get_user,
-                   nx_get_user_plugin_relation)
+                   nx_get_user_plugin_relation, nx_get_project)
 from resources import apiError, role
 
 from . import (gl, set_git_username_config, tm_get_secret_url,
@@ -67,7 +67,7 @@ def update_template(id, name, description):
     row.template_repository_name = pipe_json_temp_name
     row.creator_id = get_jwt_identity()['user_id']
     row.updated_at = datetime.utcnow()
-    row.from_project_name = pipe_json_temp_name
+    row.from_project_name = nx_get_project(id=row.from_project_id).display
     db.session.commit()
 
 
@@ -110,7 +110,7 @@ def create_template_from_project(from_project_id, name, description):
     template_project, old_project, pipe_json_temp_name = update_pipe_set_and_push_to_new_project(
         from_project_id, name, description)
     tm = TemplateProject(template_repository_id=template_project.id, template_repository_name=pipe_json_temp_name,
-                         from_project_id=from_project_id, from_project_name=pipe_json_temp_name,
+                         from_project_id=from_project_id, from_project_name=nx_get_project(id=from_project_id).display,
                          creator_id=get_jwt_identity()["user_id"],
                          created_at=datetime.utcnow(), updated_at=datetime.utcnow())
     db.session.add(tm)
