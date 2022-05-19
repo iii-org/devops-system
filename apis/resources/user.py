@@ -537,10 +537,10 @@ def create_user(args):
     logger.info('Account name not used in kubernetes or force is True.')
 
     # Check Harbour has this login, email, if has, raise error(if force remove it.)
-    hb_user_list = harbor.hb_search_user(args['login'])
-    if hb_user_list:
-        for hb_user_list in hb_user_list:
-            hb_user = harbor.hb_get_user(hb_user_list['user_id'])
+    hb_login_list = harbor.hb_search_user(args['login'])
+    if hb_login_list:
+        for hb_login in hb_login_list:
+            hb_user = harbor.hb_get_user(hb_login['user_id'])
             if hb_user['username'] == args['login'] or hb_user['email'] == args['email']:
                 if force:
                     harbor.hb_delete_user(hb_user["user_id"])
