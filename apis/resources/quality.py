@@ -45,14 +45,16 @@ request_trace_flow = {
 paths = [{
     "software_name": "Postman",
     "path": "iiidevops/postman",
-    "file_name_key": "postman_collection.json"
+    "file_name_key": "postman_collection.json",
+    "variables_file_name": "postman_environment.json"
 }, {
     "software_name": "SideeX",
     "path": "iiidevops/sideex",
-    "file_name_key": ""
+    "file_name_key": "",
+    "variables_file_name": "Global Variables.json"
 }]
 
-filename_validate_mapping = {"Postman": ".postman_collection.json$", "SideeX": ".sideex.json$"}
+filename_validate_mapping = {"Postman": ".postman_collection.json$", "SideeX": ".json$"}
 
 
 class PostmanJSON:
@@ -152,7 +154,8 @@ def qu_get_testfile_list(project_id):
     for path in paths:
         trees = gitlab.ql_get_tree(repository_id, path['path'])
         for tree in trees:
-            if path["file_name_key"] in tree["name"] and tree["name"][-5:] == ".json":
+            if path["file_name_key"] in tree["name"] and path["variables_file_name"] != tree['name'] and \
+                    tree["name"][-5:] == ".json":
                 path_file = f'{path["path"]}/{tree["name"]}'
                 gl_raw_lib = gitlab.gl_get_raw_from_lib(repository_id, path_file).decode()
                 if gl_raw_lib is None:
@@ -192,7 +195,7 @@ def qu_get_testfile_list(project_id):
                         "test_plans": postmane_test_plans,
                         "the_last_test_result": the_last_result
                     })
-                # sideex 
+                # sideex
                 # sideex's file name is not necessary to have 'sideex' in it.
                 elif path["file_name_key"] == "":
                     for test_plan in test_plans:
@@ -283,7 +286,8 @@ def remove_file_from_local(local_file_path, file_name):
     if os.path.isfile(f"{local_file_path}/{file_name}"):
         os.remove(f"{local_file_path}/{file_name}")
 
-#here
+
+# here
 def qu_upload_testfile(project_id, file, software_name):
     file_name = file.filename
     if re.search(filename_validate_mapping[software_name], file_name) is None:
@@ -301,8 +305,7 @@ def qu_upload_testfile(project_id, file, software_name):
                      if path["software_name"].lower() == software_name.lower())
     trees = gitlab.ql_get_tree(repository_id, soft_path['path'])
     if len(trees) != 0:
-        file_exist = next(
-            (True for tree in trees if tree["name"] == file_name), False)
+        file_exist = next((True for tree in trees if tree["name"] == file_name), False)
         if file_exist:
             raise apiError.DevOpsError(
                 409, f"Test File {file_name} already exists in git repository", error=apiError.argument_error("test_file")
@@ -332,8 +335,7 @@ def qu_del_testfile(project_id, software_name, test_file_name):
     for path in paths:
         if path["software_name"].lower() == software_name.lower() and \
                 path["file_name_key"] in test_file_name and test_file_name[-5:] == ".json":
-            url = urllib.parse.quote(f"{path['path']}/{test_file_name}",
-                                     safe='')
+            url = urllib.parse.quote(f"{path['path']}/{test_file_name}", safe='')
             gitlab.gl_delete_file(
                 repository_id, url, {
                     "commit_message":
