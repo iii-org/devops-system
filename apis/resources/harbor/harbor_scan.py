@@ -1,5 +1,7 @@
-from model import db, Project, HarborScan
+import json
 from datetime import datetime
+
+from model import HarborScan, Project, db
 
 
 def create_harbor_scan(project_name, branch, commit_id):
@@ -9,3 +11,10 @@ def create_harbor_scan(project_name, branch, commit_id):
                           created_at=datetime.utcnow(), finished=False)
         db.session.add(scan)
         db.session.commit()
+
+
+def harbor_scan_list(project_id):
+    rows = HarborScan.query.filter_by(project_id=project_id).all()
+    for row in rows:
+        row = json.loads(str(row))
+    return row

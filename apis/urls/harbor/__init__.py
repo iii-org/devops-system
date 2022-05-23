@@ -26,3 +26,5 @@ def harbor_url(api, add_resource):
 
     api.add_resource(view.HarborScan, '/v2/harbor/<project_name>/scan')
     add_resource(view.HarborScan, "public")
+    api.add_resource(view.HarborScanList, '/v2/harbor/<sint:project_id>/list')
+    add_resource(view.HarborScanList, "public")
