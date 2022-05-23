@@ -1,5 +1,7 @@
 import nexus
 import util
+from flask_apispec import doc, marshal_with, use_kwargs
+from flask_apispec.views import MethodResource
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from resources import role
@@ -19,6 +21,8 @@ from resources.harbor import (hb_copy_artifact_and_retage,
                               hb_list_repositories, hb_ping_registries,
                               hb_put_registries, hb_put_replication_policy,
                               hb_update_repository)
+
+from . import router_model
 
 
 def extract_names():
@@ -258,48 +262,10 @@ class HarborCopyImageRetage(Resource):
                 args["project_name"], args["from_repo_name"], args["dest_repo_name"], args["from_tag"], args["dest_tag"]))
 
 
-class HarborRelease():
+@doc(tags=['Harbor Scan'], description='Create a harbor scan record when pipeline execute')
+class HarborScan(MethodResource):
 
+    @use_kwargs(router_model.CreateTemplateFormProjectScheme, location=('form'))
     @jwt_required
-    def get_list_artifacts(self, project_name, repository_name):
-        return hb_list_artifacts(project_name, repository_name)
-
-    def check_harbor_status(self, image, tag_name):
-        output = 2
-        if image is True and tag_name is True:
-            output = 1
-        elif image is True:
-            output = 0
-        return output
-
-    def check_harbor_release(self, artifacts, tag_name, commit):
-        output = {'check': False, 'tag': False, 'image': False,
-                  "info": "", "target": {}, "errors": {}, "type": 2}
-
-        for art in artifacts:
-            #  Tag duplicate
-            if art['name'] == tag_name:
-                output['tag'] = True
-                output['info'] = '{0} is exists in harbor'.format(tag_name)
-                output['target']['duplicate'] = art
-            #  Image Find
-            if art['name'] == commit:
-                output['image'] = True
-                output['info'] = '{0} is exists in harbor'.format(commit)
-                output['target']['release'] = art
-        output['type'] = self.check_harbor_status(
-            output['image'], output['tag'])
-        if output['type'] == 0:
-            output['check'] = True
-        elif output['type'] == 2:
-            output['info'] = '{0} image is not exists in harbor'.format(commit)
-        return output
-
-    def create(self, project_name, repository_name, reference, tag_name):
-        return hb_create_artifact_tag(project_name, repository_name, reference, tag_name)
-
-    def delete_harbor_tag(self, project_name, repository_name, hb_info):
-        return hb_delete_artifact_tag(project_name, repository_name, hb_info['digest'], hb_info['name'])
-
-
-hb_release = HarborRelease()
+    def post(self, project_id, **kwargs):
+        return util.success()

@@ -17,7 +17,7 @@ from model import db
 from sqlalchemy import desc
 from resources import apiError, role
 from .gitlab import gitlab, gl_release
-from urls.harbor.view import hb_release
+from .harbor import hb_release
 from .redmine import redmine, rm_release
 
 error_redmine_issues_closed = "Unable closed all issues"
