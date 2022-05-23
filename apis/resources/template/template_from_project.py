@@ -104,11 +104,13 @@ def update_pipe_set_and_push_to_new_project(from_project_id, name, description):
 
 
 def create_template_from_project(from_project_id, name, description):
+    '''
     # if template already exist, call update template function
     row = TemplateProject.query.filter_by(from_project_id=from_project_id).first()
     if row:
         update_template(row.id, name, description)
         return {"id": row.id}
+    '''
 
     # 6. Update template_project table.
     template_project, old_project, pipe_json_temp_name = update_pipe_set_and_push_to_new_project(
@@ -123,6 +125,8 @@ def create_template_from_project(from_project_id, name, description):
 
 
 '''
+
+
 def tm_update_pipe_set_json_from_local(pj_path, name, description):
     Path(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops').mkdir(exist_ok=True)
     pipeline_settings_json = None
