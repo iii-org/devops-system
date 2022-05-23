@@ -267,5 +267,5 @@ class HarborScan(MethodResource):
 
     @use_kwargs(router_model.CreateTemplateFormProjectScheme, location=('form'))
     @jwt_required
-    def post(self, project_id, **kwargs):
-        return util.success(harbor_scan.create_harbor_scan(project_id, kwargs.get("branch"), kwargs.get("commit_id")))
+    def post(self, project_name, **kwargs):
+        return util.success(harbor_scan.create_harbor_scan(project_name, kwargs.get("branch"), kwargs.get("commit_id")))
