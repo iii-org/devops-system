@@ -649,4 +649,50 @@ def hb_ping_registries(args):
     __api_post('/registries/ping', data=data)
 
 
+class HarborRelease():
+
+    @jwt_required
+    def get_list_artifacts(self, project_name, repository_name):
+        return hb_list_artifacts(project_name, repository_name)
+
+    def check_harbor_status(self, image, tag_name):
+        output = 2
+        if image is True and tag_name is True:
+            output = 1
+        elif image is True:
+            output = 0
+        return output
+
+    def check_harbor_release(self, artifacts, tag_name, commit):
+        output = {'check': False, 'tag': False, 'image': False,
+                  "info": "", "target": {}, "errors": {}, "type": 2}
+
+        for art in artifacts:
+            #  Tag duplicate
+            if art['name'] == tag_name:
+                output['tag'] = True
+                output['info'] = '{0} is exists in harbor'.format(tag_name)
+                output['target']['duplicate'] = art
+            #  Image Find
+            if art['name'] == commit:
+                output['image'] = True
+                output['info'] = '{0} is exists in harbor'.format(commit)
+                output['target']['release'] = art
+        output['type'] = self.check_harbor_status(
+            output['image'], output['tag'])
+        if output['type'] == 0:
+            output['check'] = True
+        elif output['type'] == 2:
+            output['info'] = '{0} image is not exists in harbor'.format(commit)
+        return output
+
+    def create(self, project_name, repository_name, reference, tag_name):
+        return hb_create_artifact_tag(project_name, repository_name, reference, tag_name)
+
+    def delete_harbor_tag(self, project_name, repository_name, hb_info):
+        return hb_delete_artifact_tag(project_name, repository_name, hb_info['digest'], hb_info['name'])
+
+
+hb_release = HarborRelease()
+
 # ----------------- Resources -----------------
