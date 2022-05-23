@@ -20,7 +20,7 @@ from resources.harbor import (hb_copy_artifact_and_retage,
                               hb_get_replication_policy, hb_list_artifacts,
                               hb_list_repositories, hb_ping_registries,
                               hb_put_registries, hb_put_replication_policy,
-                              hb_update_repository)
+                              hb_update_repository, harbor_scan)
 
 from . import router_model
 
@@ -268,4 +268,4 @@ class HarborScan(MethodResource):
     @use_kwargs(router_model.CreateTemplateFormProjectScheme, location=('form'))
     @jwt_required
     def post(self, project_id, **kwargs):
-        return util.success()
+        return util.success(harbor_scan.create_harbor_scan(project_id, kwargs.get("branch"), kwargs.get("commit_id")))
