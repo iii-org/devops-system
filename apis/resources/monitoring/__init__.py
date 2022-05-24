@@ -86,10 +86,11 @@ class Monitoring:
             self.store_in_monitoring_record()
         else:
             not_alive_messages = get_unread_notification_message_list(alert_service_id=self.alert_service_id)
+            print(not_alive_messages)
             if not_alive_messages != []:
                 for not_alive_message in not_alive_messages:
                     close_notification_message(not_alive_message["id"])
-                    self.send_server_back_notification(not_alive_message["title"])
+            self.send_server_back_notification(not_alive_messages[0]["title"])
 
         self.error_title = None
 
