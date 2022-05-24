@@ -71,15 +71,17 @@ def __tm_get_tag_info(pj, tag_name):
     return tag_info_dict
 
 
-def __tm_get_pipe_yamlfile_name(pj, tag_name=None, branch_name=None):
+def __tm_get_pipe_yamlfile_name(pj, tag_name=None, branch_name=None, commit_id=None):
     pipe_yaml_file_name = None
-    if tag_name is None and branch_name is None:
+    if tag_name is None and branch_name is None and commit_id is None:
         ref = pj.default_branch
     elif tag_name is not None:
         tag_info_dict = __tm_get_tag_info(pj, tag_name)
         ref = tag_info_dict["commit_id"]
     elif branch_name is not None:
         ref = branch_name
+    elif commit_id is not None:
+        ref = commit_id
     for item in pj.repository_tree(ref=ref):
         if item["path"] == ".rancher-pipeline.yml":
             pipe_yaml_file_name = ".rancher-pipeline.yml"
@@ -88,10 +90,13 @@ def __tm_get_pipe_yamlfile_name(pj, tag_name=None, branch_name=None):
     return pipe_yaml_file_name
 
 
-def __tm_get_git_pipline_json(pj, tag_name=None):
-    if tag_name is None:
+def tm_get_git_pipeline_json(pj, tag_name=None, commit_id=None):
+    if tag_name is None and commit_id is None:
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
         ref = pj.default_branch
+    elif commit_id:
+        pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj, commit_id=commit_id)
+        ref = commit_id
     else:
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj,
                                                           tag_name=tag_name)
@@ -371,7 +376,6 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
     __add_plugin_soft_status_json()
     template_pj = gl.projects.get(template_repository_id)
     secret_temp_http_url = tm_get_secret_url(template_pj)
-    pipe_json = __tm_get_git_pipline_json(template_pj, tag_name=tag_name)
     tag_info_dict = __tm_get_tag_info(template_pj, tag_name)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(template_pj,
                                                       tag_name=tag_name)
