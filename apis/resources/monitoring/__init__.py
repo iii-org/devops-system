@@ -19,7 +19,7 @@ from resources.kubernetesClient import (list_namespace_pods_info,
                                         list_namespace_services)
 from resources.notification_message import (
     close_notification_message, create_notification_message,
-    get_the_last_unclose_notification_message,
+    get_unclose_notification_message,
     get_unread_notification_message_list)
 from resources.rancher import rancher
 from resources.redis import update_server_alive
@@ -88,13 +88,17 @@ class Monitoring:
             self.send_notification()
             self.store_in_monitoring_record()
         else:
-            message = get_the_last_unclose_notification_message(self.alert_service_id)
-            if message is not None:
-                self.send_server_back_notification(message["title"])
+            not_alive_messages = get_unclose_notification_message(self.alert_service_id)
+            if not_alive_messages is not None and len(not_alive_messages) > 0:
+                for not_alive_message in not_alive_messages:
+                    close_notification_message(not_alive_message["id"])
+                self.send_server_back_notification(not_alive_messages[0]["title"])
+            '''
             not_alive_messages = get_unread_notification_message_list(alert_service_id=self.alert_service_id)
             if not_alive_messages != []:
                 for not_alive_message in not_alive_messages:
                     close_notification_message(not_alive_message["id"])
+            '''
 
         self.error_title = None
 

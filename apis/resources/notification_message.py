@@ -321,11 +321,10 @@ def get_unread_notification_message_list(title=None, alert_service_id=None):
     return [{**json.loads(str(row[0]))} for row in rows if len(row) > 1 and row[1] is None]
 
 
-def get_the_last_unclose_notification_message(alert_service_id):
-    row = NotificationMessage.query.filter_by(alert_service_id=alert_service_id,
-                                              close=False).order_by(desc(NotificationMessage.id)).first()
-    if row:
-        return json.loads(str(row))
+def get_unclose_notification_message(alert_service_id):
+    rows = NotificationMessage.query.filter_by(alert_level=102, alert_service_id=alert_service_id,
+                                               close=False).order_by(desc(NotificationMessage.id)).all()
+    return [json.loads(str(row)) for row in rows]
 
 
 class NotificationRoom(object):
