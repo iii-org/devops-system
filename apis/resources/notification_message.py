@@ -320,6 +320,14 @@ def get_unread_notification_message_list(title=None, alert_service_id=None):
     rows = base_query.order_by(desc(NotificationMessage.id)).all()
     return [{**json.loads(str(row[0]))} for row in rows if len(row) > 1 and row[1] is None]
 
+
+def get_the_last_unclose_notification_message(alert_service_id):
+    row = NotificationMessage.query.filter_by(alert_service_id=alert_service_id,
+                                              close=False).order_by(desc(NotificationMessage.id)).first()
+    if row:
+        return json.loads(str(row))
+
+
 class NotificationRoom(object):
 
     def send_message_to_all(self, message_id):

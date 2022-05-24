@@ -1,27 +1,30 @@
-from nexus import nx_get_project_plugin_relation
-import util
-from model import MonitoringRecord, Project, db, NotificationMessage
-from github import Github
-from resources.redis import update_server_alive
-from sqlalchemy import desc
-
-from plugins.sonarqube.sonarqube_main import sq_get_current_measures, sq_list_project
-from resources.harbor import hb_get_project_summary, hb_get_registries
-from resources.redmine import redmine
-from resources.gitlab import gitlab
-from resources.rancher import rancher
-from resources import logger
-from resources.notification_message import create_notification_message, get_unread_notification_message_list, close_notification_message
-from resources.kubernetesClient import ApiK8sClient as k8s_client
-from resources.kubernetesClient import list_namespace_services, list_namespace_pods_info
-from datetime import datetime
-from resources import apiError
-import subprocess
 import os
+import re
+import subprocess
+from datetime import datetime
+
 import config
 import pandas as pd
-import re
-
+import util
+from github import Github
+from model import MonitoringRecord, NotificationMessage, Project, db
+from nexus import nx_get_project_plugin_relation
+from plugins.sonarqube.sonarqube_main import (sq_get_current_measures,
+                                              sq_list_project)
+from resources import apiError, logger
+from resources.gitlab import gitlab
+from resources.harbor import hb_get_project_summary, hb_get_registries
+from resources.kubernetesClient import ApiK8sClient as k8s_client
+from resources.kubernetesClient import (list_namespace_pods_info,
+                                        list_namespace_services)
+from resources.notification_message import (
+    close_notification_message, create_notification_message,
+    get_the_last_unclose_notification_message,
+    get_unread_notification_message_list)
+from resources.rancher import rancher
+from resources.redis import update_server_alive
+from resources.redmine import redmine
+from sqlalchemy import desc
 
 DATETIMEFORMAT = "%Y-%m-%d %H:%M:%S"
 AlertServiceIDMapping = {
@@ -85,12 +88,13 @@ class Monitoring:
             self.send_notification()
             self.store_in_monitoring_record()
         else:
+            message = get_the_last_unclose_notification_message(self.alert_service_id)
+            if message is not None:
+                self.send_server_back_notification(message["title"])
             not_alive_messages = get_unread_notification_message_list(alert_service_id=self.alert_service_id)
-            print(f"not_alive_messages: {not_alive_messages}")
             if not_alive_messages != []:
                 for not_alive_message in not_alive_messages:
                     close_notification_message(not_alive_message["id"])
-                self.send_server_back_notification(not_alive_messages[0]["title"])
 
         self.error_title = None
 
@@ -308,15 +312,15 @@ def docker_image_pull_limit_alert():
 def harbor_nfs_storage_remain_limit():
     try:
         output_str, _ = util.ssh_to_node_by_key(
-            'cd /iiidevopsNFS/ ; df -h' ,config.get("DEPLOYER_NODE_IP"))
-        
+            'cd /iiidevopsNFS/ ; df -h', config.get("DEPLOYER_NODE_IP"))
+
         contents = output_str.split("\n")
         data_frame_contents = [
             list(filter(lambda a: a != "", content.split(" "))) for content in contents]
-        df = pd.DataFrame(data_frame_contents[1:], columns = data_frame_contents[0][:-1])
-        out_df = df[df.loc[:,"Mounted"] == "/"]
+        df = pd.DataFrame(data_frame_contents[1:], columns=data_frame_contents[0][:-1])
+        out_df = df[df.loc[:, "Mounted"] == "/"]
         ret = out_df.to_dict("records")[0]
-        
+
         status = int(ret["Use%"].replace("%", "")) < 75
         return {
             "name": "Harbor nfs folder storage remain.",
