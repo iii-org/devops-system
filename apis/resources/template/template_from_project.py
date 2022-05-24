@@ -176,7 +176,7 @@ def get_tm_filter_by_tm_member():
         belong_to_me_pj_ids = []
         git_user_id = nx_get_user_plugin_relation(user_id=get_jwt_identity()['user_id']).repository_user_id
         user = gl.users.get(git_user_id)
-        memberships = user.memberships.list(type='Project')
+        memberships = user.memberships.list(type='Project', all=True)
         for membership in memberships:
             pj = gl.projects.get(membership.source_id)
             if pj.namespace['path'] == "local-templates":
