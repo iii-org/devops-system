@@ -36,10 +36,10 @@ import routine_job
 from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
-from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, harbor, \
+from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, \
     sync_user, router, deploy, alert, trace_order, tag, lock, system_parameter, alert_message, \
-    maintenance, issue_display_field, notification_message
+    maintenance, issue_display_field
 from apispec import APISpec
 from flask_apispec.extension import FlaskApiSpec
 from apispec.ext.marshmallow import MarshmallowPlugin
@@ -57,6 +57,7 @@ from urls import monitoring
 from urls.system_parameter import sync_system_parameter_url
 from urls.notification_message import notification_message_url
 from urls.template import template_url
+from urls.harbor import harbor_url
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -485,27 +486,7 @@ api.add_resource(system.SystemInfoReport, '/system_info_report')
 # api.add_resource(mock.UserDefaultFromAd, '/mock/userdefaultad')
 
 # Harbor
-api.add_resource(harbor.HarborRepository,
-                 '/harbor/projects/<int:nexus_project_id>',
-                 '/harbor/repositories')
-api.add_resource(harbor.HarborArtifact,
-                 '/harbor/artifacts')
-api.add_resource(harbor.HarborProject,
-                 '/harbor/projects/<int:nexus_project_id>/summary')
-api.add_resource(harbor.HarborRegistries, '/harbor/registries')
-api.add_resource(harbor.HarborRegistry,
-                 '/harbor/registries/<sint:registry_id>')
-api.add_resource(harbor.HarborReplicationPolices,
-                 '/harbor/replication/policies')
-api.add_resource(harbor.HarborReplicationPolicy,
-                 '/harbor/replication/policies/<sint:replication_policy_id>')
-api.add_resource(harbor.HarborReplicationExecution,
-                 '/harbor/replication/executions')
-api.add_resource(harbor.HarborReplicationExecutionTasks,
-                 '/harbor/replication/executions/<sint:execution_id>/tasks')
-api.add_resource(harbor.HarborReplicationExecutionTaskLog,
-                 '/harbor/replication/executions/<sint:execution_id>/tasks/<sint:task_id>/log')
-api.add_resource(harbor.HarborCopyImageRetage, '/harbor/handle_image')
+harbor_url(api, add_resource)
 
 # Maintenance
 api.add_resource(maintenance.UpdateDbRcProjectPipelineId,

@@ -135,11 +135,11 @@ def analysis_release(release, info, hb_list_tags, image_need):
     gitlab_project_url = info.get('gitlab_project_url')
     if ret.get('branch') is not None and ret.get('commit') is not None:
         ret['git_url'] = f'{gitlab_project_url}/-/releases/{ret.get("tag_name")}'
-        
+
         release_repo_tags = model.ReleaseRepoTag.query.filter_by(release_id=release.id).all()
         tag_mapping = {}
         repo_mapping = {}
-        
+
         for release_repo_tag in release_repo_tags:
             if release_repo_tag.tag != ret["tag_name"]:
                 tag_mapping.setdefault(release_repo_tag.tag, []).append(release_repo_tag.custom_path)
@@ -183,8 +183,8 @@ def get_release_image_list(project_id, args):
     from resources.gitlab import get_project_plugin_object
     project_name = model.Project.query.filter_by(id=project_id).first().name
     branch_name = args["branch_name"]
-    not_all = args.get("not_all", "false") == "true" 
-    only_image = args.get("only_image", "false") == "true" 
+    not_all = args.get("not_all", "false") == "true"
+    only_image = args.get("only_image", "false") == "true"
 
     releases = model.Release.query.filter_by(project_id=project_id).all()
     release_tag_mapping = {release.commit: release.tag_name for release in releases}
@@ -196,23 +196,23 @@ def get_release_image_list(project_id, args):
 
     image_list = hb_list_artifacts_with_params(project_name, branch_name, push_time=last_push_time)
     commits = gitlab.gl_get_commits(get_project_plugin_object(project_id).git_repository_id,
-                                        branch_name, per_page=3000, since=last_push_time)
+                                    branch_name, per_page=3000, since=last_push_time)
     if only_image:
         commit_images = {commit["short_id"][:-1]: commit["title"] for commit in commits}
         ret = [{
-            "image": image["digest"], 
+            "image": image["digest"],
             "push_time": image["push_time"][:-5],
             "commit_id": image["name"],
             "commit_message": commit_images[image["name"]],
             "tag": release_tag_mapping.get(image["name"])
         } for image in image_list if image["name"] in commit_images]
         total_count = len(ret)
-        ret = ret[args["offset"]: args["offset"]+ args["limit"]]
+        ret = ret[args["offset"]: args["offset"] + args["limit"]]
     else:
         image_mapping = {image["name"]: image for image in image_list}
         total_count = len(commits)
         ret = []
-        for commit in commits[args["offset"]: args["offset"]+ args["limit"]]:
+        for commit in commits[args["offset"]: args["offset"] + args["limit"]]:
             short_commit = commit["short_id"][:-1]
             image = image_mapping.get(short_commit)
             data = {
@@ -224,14 +224,15 @@ def get_release_image_list(project_id, args):
             }
             ret.append(data)
 
-
     page_dict = util.get_pagination(total_count, args['limit'], args["offset"])
     output = {"image_list": ret, "page": page_dict}
     return output
 
+
 def handle_gitlab_datetime(create_time):
     datetime_obj = datetime.strptime(create_time, "%Y-%m-%dT%H:%M:%S.%f%z") - timedelta(hours=8)
     return datetime_obj.strftime("%Y-%m-%dT%H:%M:%S")
+
 
 def get_distinct_repo(release_id):
     ret = []
@@ -240,13 +241,13 @@ def get_distinct_repo(release_id):
             ret.append(repo_tag.custom_path)
     return ret
 
+
 def get_distinct_image_path(release_id):
     ret = []
     for repo_tag in model.ReleaseRepoTag.query.filter_by(release_id=release_id).all():
         if repo_tag.custom_path not in ret:
             ret.append(repo_tag.custom_path)
     return ret
-    
 
 
 def create_release_image_repo(project_id, release_id, args):
@@ -265,7 +266,7 @@ def create_release_image_repo(project_id, release_id, args):
             )
             db.session.add(new)
             db.session.commit()
-            digest = hb_get_artifact(project_name, release.branch, release.tag_name)[0]["digest"]    
+            digest = hb_get_artifact(project_name, release.branch, release.tag_name)[0]["digest"]
             try:
                 copy_image = add_tag = False
                 if dest_repo not in repo_list or hb_list_artifacts(project_name, dest_repo) == []:
@@ -277,7 +278,8 @@ def create_release_image_repo(project_id, release_id, args):
                 add_tag = True
                 return util.success()
             except Exception as e:
-                model.ReleaseRepoTag.query.filter_by(release_id=release.id, tag=dest_tag, custom_path=dest_repo).delete()
+                model.ReleaseRepoTag.query.filter_by(
+                    release_id=release.id, tag=dest_tag, custom_path=dest_repo).delete()
                 release.update_at = before_update_at
                 db.session.commit()
                 if copy_image:
@@ -286,21 +288,21 @@ def create_release_image_repo(project_id, release_id, args):
                     hb_delete_artifact_tag(project_name, dest_repo, digest, dest_tag)
                 return util.respond(500, str(e))
 
-                
+
 def delete_release_image_repo(project_id, release_id, args):
     project_name = model.Project.query.filter_by(id=project_id).first().name
     release = model.Release.query.filter_by(id=release_id).first()
     removed_repo_name = args["repo_name"]
-    if release is not None and removed_repo_name != release.branch: 
+    if release is not None and removed_repo_name != release.branch:
         before_update_at = release.update_at
 
-        delete_tags = [release_repo_tag.tag 
-            for release_repo_tag in model.ReleaseRepoTag.query.filter_by(release_id=release_id, custom_path=removed_repo_name).all()]
-        
+        delete_tags = [release_repo_tag.tag
+                       for release_repo_tag in model.ReleaseRepoTag.query.filter_by(release_id=release_id, custom_path=removed_repo_name).all()]
+
         model.ReleaseRepoTag.query.filter_by(release_id=release_id, custom_path=removed_repo_name).delete()
         release.update_at = str(datetime.now())
         db.session.commit()
-        
+
         digest = hb_get_artifact(project_name, release.branch, release.tag_name)[0]["digest"]
         try:
             hb_delete_artifact(project_name, removed_repo_name, digest)
@@ -311,7 +313,7 @@ def delete_release_image_repo(project_id, release_id, args):
                     release_id=release.id,
                     tag=tag,
                     custom_path=removed_repo_name
-                )  for tag in delete_tags 
+                ) for tag in delete_tags
             ]
             db.session.add_all(row_list)
             release.update_at = before_update_at
@@ -334,7 +336,7 @@ def create_release_image_tag(project_id, release_id, args):
                 if hb_get_artifacts_with_tag(project_name, repo, dest_tags) != []:
                     raise apiError.DevOpsError(
                         500, f'{dest_tags.capitalize()} already exist in this Harbor repository.',
-                        error=apiError.harbor_tag_already_exist(dest_tags, repo))  
+                        error=apiError.harbor_tag_already_exist(dest_tags, repo))
 
         # Must to update DB first, otherwise the value won't change.
         row_list = [
@@ -342,7 +344,7 @@ def create_release_image_tag(project_id, release_id, args):
                 release_id=release.id,
                 tag=dest_tags,
                 custom_path=repo
-            )  for repo in distinct_repos 
+            ) for repo in distinct_repos
         ]
         db.session.add_all(row_list)
         release.update_at = str(datetime.now())
@@ -379,7 +381,7 @@ def delete_release_image_tag(project_id, release_id, args):
         db.session.commit()
 
         # Then add tag on all image_path
-        digest =  hb_get_artifact(project_name, release.branch, release.tag_name)[0]["digest"]
+        digest = hb_get_artifact(project_name, release.branch, release.tag_name)[0]["digest"]
         try:
             release_image_tag_helper(
                 project_name, distinct_repos, dest_tags, digest, delete=True)
@@ -390,7 +392,7 @@ def delete_release_image_tag(project_id, release_id, args):
                     release_id=release.id,
                     tag=dest_tags,
                     custom_path=repo
-                )  for repo in distinct_repos 
+                ) for repo in distinct_repos
             ]
             db.session.add_all(row_list)
             release.update_at = before_update_at
@@ -403,10 +405,10 @@ def delete_release_image_tag(project_id, release_id, args):
 def release_image_tag_helper(project_name, distinct_repos, dest_tags, digest, delete=False, forced=False):
     for distinct_repo in distinct_repos:
         if not delete:
-            if dest_tags not in [tag.get("name", "") for tag in hb_list_tags(project_name, distinct_repo, digest)]:  
+            if dest_tags not in [tag.get("name", "") for tag in hb_list_tags(project_name, distinct_repo, digest)]:
                 hb_create_artifact_tag(project_name, distinct_repo, digest, dest_tags, forced=forced)
         else:
-            if dest_tags in [tag.get("name", "") for tag in hb_list_tags(project_name, distinct_repo, digest)]:  
+            if dest_tags in [tag.get("name", "") for tag in hb_list_tags(project_name, distinct_repo, digest)]:
                 hb_delete_artifact_tag(project_name, distinct_repo, digest, dest_tags)
 
 
@@ -588,12 +590,14 @@ class Releases(Resource):
             #  Create Harbor Release
             image_path = [f"{self.project.name}/{branch_name}:{release_name}"]
             if self.harbor_info['target'].get('release', None) is not None:
-                if args.get("extra_image_path") is not None and f"{self.project.name}/{args.get('extra_image_path')}" not in image_path: 
+                if args.get("extra_image_path") is not None and f"{self.project.name}/{args.get('extra_image_path')}" not in image_path:
                     image_path = [f"{self.project.name}/{args.get('extra_image_path')}"] + image_path
                     extra_image_path = args.get("extra_image_path").split(":")
                     extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
-                    hb_copy_artifact_and_retage(self.project.name, branch_name, extra_dest_repo, args.get("commit"), extra_dest_tag)
-                hb_copy_artifact_and_retage(self.project.name, branch_name, branch_name, args.get("commit"), release_name)
+                    hb_copy_artifact_and_retage(self.project.name, branch_name,
+                                                extra_dest_repo, args.get("commit"), extra_dest_tag)
+                hb_copy_artifact_and_retage(self.project.name, branch_name, branch_name,
+                                            args.get("commit"), release_name)
                 create_harbor_release = True
 
             create_release(
@@ -610,24 +614,25 @@ class Releases(Resource):
             return util.success()
         except:
             # Roll back
-            ## Open redmine version
+            # Open redmine version
             if closed_version:
                 for version in args['versions']:
                     params = {"version": {"status": "open"}}
                     redmine.rm_put_version(version, params)
 
-            ## check  Gitalb Release
+            # check  Gitalb Release
             if check_gitlab_release:
                 gitlab.gl_delete_release(
                     self.plugin_relation.git_repository_id, release_name)
-            
-            ## Create Harbor Release
+
+            # Create Harbor Release
             if create_harbor_release:
                 for image in image_path:
                     removed_image_path = image.split("/")[-1].split(":")
                     removed_dest_repo, removed_dest_tag = removed_image_path[0], removed_image_path[1]
                     if removed_dest_repo != branch_name:
-                        hb_copy_artifact_and_retage(self.project.name, removed_dest_repo, branch_name, removed_dest_tag, args.get("commit"))
+                        hb_copy_artifact_and_retage(self.project.name, removed_dest_repo,
+                                                    branch_name, removed_dest_tag, args.get("commit"))
                     else:
                         digest = hb_get_artifact(self.project.name, branch_name, removed_dest_tag)[0]["digest"]
                         hb_delete_artifact_tag(self.project.name, branch_name, digest, removed_dest_tag, keep=True)
@@ -668,6 +673,7 @@ class Release(Resource):
         except NoResultFound:
             return util.respond(404, error_gitlab_not_found,
                                 error=apiError.repository_id_not_found(plugin_relation.git_repository_id))
+
 
 class ReleaseFile:
     def __init__(self, release_id):

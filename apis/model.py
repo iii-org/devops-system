@@ -920,7 +920,6 @@ class TemplateProject(db.Model):
 class HarborScan(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
-    harbor_project_id = Column(Integer)
     branch = Column(String)
     commit = Column(String)
     digest = Column(String)
