@@ -923,6 +923,7 @@ class HarborScan(db.Model):
     branch = Column(String)
     commit = Column(String)
     digest = Column(String)
+    scan_overview = Column(JSON)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     finished_at = Column(DateTime)
