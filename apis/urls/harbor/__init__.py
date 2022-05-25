@@ -25,6 +25,6 @@ def harbor_url(api, add_resource):
     api.add_resource(view.HarborCopyImageRetage, '/harbor/handle_image')
 
     api.add_resource(view.HarborScan, '/v2/harbor/<project_name>/scan')
-    add_resource(view.HarborScan, "public")
+    add_resource(view.HarborScan, "private")
     api.add_resource(view.HarborScanList, '/v2/harbor/<sint:project_id>/list')
-    add_resource(view.HarborScanList, "public")
+    add_resource(view.HarborScanList, "private")

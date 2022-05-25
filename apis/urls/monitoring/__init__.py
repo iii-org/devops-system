@@ -1,4 +1,4 @@
-from . import view 
+from . import view
 
 
 def monitoring_url(api, add_resource):
@@ -39,7 +39,7 @@ def monitoring_url(api, add_resource):
     add_resource(view.CollectPodRestartTimeV2, "public")
     api.add_resource(view.PodAlert, '/monitoring/k8s/pod_alert')
     api.add_resource(view.PodAlertV2, '/v2/monitoring/k8s/pod_alert')
-    add_resource(view.PodAlertV2, "private")
+    add_resource(view.PodAlertV2, "public")
     api.add_resource(view.RemoveExtraExecutions, '/monitoring/k8s/remove_extra_executions')
     api.add_resource(view.RemoveExtraExecutionsV2, '/v2/monitoring/k8s/remove_extra_executions')
     add_resource(view.RemoveExtraExecutionsV2, "public")
