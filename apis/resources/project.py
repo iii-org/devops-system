@@ -138,11 +138,12 @@ def get_project_rows_by_user(user_id, disable, args={}):
     # 如果不是admin（也就是一般RD/PM/QA），取得 user_id 有參加的 project 列表
     if user.get_role_id(user_id) != role.ADMIN.id:
         query = query.filter(model.Project.user_role.any(user_id=user_id))
-    
-    stared_pjs = db.session.query(StarredProject).join(ProjectUserRole, StarredProject.project_id == ProjectUserRole.project_id). \
-    filter(ProjectUserRole.user_id == user_id).filter(StarredProject.user_id == user_id).all()
+        stared_pjs = db.session.query(StarredProject).join(ProjectUserRole, StarredProject.project_id == ProjectUserRole.project_id). \
+            filter(ProjectUserRole.user_id == user_id).filter(StarredProject.user_id == user_id).all()
+    else:
+        stared_pjs = db.session.query(StarredProject).filter_by(user_id=user_id).all()
     star_projects_obj = [model.Project.query.get(stared_pj.project_id) for stared_pj in stared_pjs]
-   
+
     if disable is not None:
         query = query.filter_by(disabled=disable)
         star_projects_obj = [star_project for star_project in star_projects_obj if star_project.disabled == disable]
