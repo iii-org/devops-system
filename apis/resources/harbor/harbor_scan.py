@@ -25,6 +25,29 @@ def create_harbor_scan(project_name, branch, commit_id):
                     db.session.commit()
 
 
-def harbor_scan_list(project_id):
-    rows = HarborScan.query.filter_by(project_id=project_id).all()
-    return [json.loads(str(row)) for row in rows]
+def harbor_scan_list(project_id, kwargs):
+    page_dict = {}
+    query = HarborScan.query.filter_by(project_id=project_id).order_by(HarborScan.id.desc())
+    if 'per_page' in kwargs:
+        per_page = kwargs['per_page']
+    if 'page' in kwargs:
+        paginate_query = query.paginate(
+            page=kwargs['page'],
+            per_page=per_page,
+            error_out=False
+        )
+        page_dict = {
+            'current': paginate_query.page,
+            'prev': paginate_query.prev_num,
+            'next': paginate_query.next_num,
+            'pages': paginate_query.pages,
+            'per_page': paginate_query.per_page,
+            'total': paginate_query.total
+        }
+        rows = paginate_query.items
+    else:
+        rows = query.all()
+    out_dict = {"scan_list": [json.loads(str(row)) for row in rows], "page": page_dict}
+    if page_dict:
+        out_dict['page'] = page_dict
+    return out_dict
