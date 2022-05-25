@@ -265,7 +265,7 @@ class HarborCopyImageRetage(Resource):
 @doc(tags=['Harbor Scan'], description='Create a harbor image scan record when pipeline execute')
 class HarborScan(MethodResource):
 
-    @use_kwargs(router_model.CreateTemplateFormProjectScheme, location=('form'))
+    @use_kwargs(router_model.CreateHarborScan, location=('form'))
     def post(self, project_name, **kwargs):
         harbor_scan.create_harbor_scan(project_name, kwargs.get("branch"), kwargs.get("commit_id"))
         return util.success()
@@ -273,6 +273,7 @@ class HarborScan(MethodResource):
 
 @doc(tags=['Harbor Scan'], description='List harbor image scan by project')
 class HarborScanList(MethodResource):
+    @use_kwargs(router_model.HarborScanList, location="query")
     @jwt_required
-    def get(self, project_id):
-        return util.success(harbor_scan.harbor_scan_list(project_id))
+    def get(self, project_id, **kwargs):
+        return util.success(harbor_scan.harbor_scan_list(project_id, kwargs))
