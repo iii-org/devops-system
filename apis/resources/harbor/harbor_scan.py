@@ -22,7 +22,6 @@ def create_harbor_scan(project_name, branch, commit_id):
                 stage_when = pipeline_yaml_OO.RancherPipelineWhen(pipe_dict.get("when").get("branch"))
                 if branch in stage_when.branch.include:
                     scan = HarborScan(project_id=row.id, branch=branch, commit=commit_id,
-                                      fully_commit=pj.commits.get(commit_id).web_url,
                                       created_at=datetime.utcnow(), finished=False)
                     db.session.add(scan)
                     db.session.commit()
@@ -54,20 +53,20 @@ def harbor_scan_list(project_id, kwargs):
     for row in rows:
         if row.finished is False:
             scan_report_dict = hb_get_artifact_scan_overview(nx_get_project(id=project_id).name, row.branch, row.commit)
-            if scan_report_dict is None:
-                continue
-            scan_report_dict |= scan_report_dict.get('summary').get('summary')
-            del scan_report_dict.get('summary')['summary']
-            scan_report_dict |= scan_report_dict.get('summary')
-            del scan_report_dict['summary']
-            if scan_report_dict.get('complete_percent') == 100:
-                row.finished_at = datetime.utcnow()
-                row.finished = True
-            row.updated_at = datetime.utcnow()
-            row.scan_overview = scan_report_dict
-            db.session.commit()
-        for k, v in row.scan_overview.items():
-            setattr(row, k, v)
+            if scan_report_dict is not None:
+                scan_report_dict |= scan_report_dict.get('summary').get('summary')
+                del scan_report_dict.get('summary')['summary']
+                scan_report_dict |= scan_report_dict.get('summary')
+                del scan_report_dict['summary']
+                if scan_report_dict.get('complete_percent') == 100:
+                    row.finished_at = datetime.utcnow()
+                    row.finished = True
+                row.updated_at = datetime.utcnow()
+                row.scan_overview = scan_report_dict
+                db.session.commit()
+        if row.scan_overview is not None:
+            for k, v in row.scan_overview.items():
+                setattr(row, k, v)
         setattr(row, 'commit_url', commit_id_to_url(project_id, row.commit))
         row_dict = json.loads(str(row))
         del row_dict['scan_overview']
