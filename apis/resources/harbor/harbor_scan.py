@@ -3,8 +3,9 @@ from datetime import datetime
 
 import resources.yaml_OO as pipeline_yaml_OO
 from model import HarborScan, Project, db
-from nexus import nx_get_project_plugin_relation
+from nexus import nx_get_project_plugin_relation, nx_get_project
 from resources.template import gl, tm_get_git_pipeline_json
+from . import hb_get_artifact_scan_overview
 
 
 def create_harbor_scan(project_name, branch, commit_id):
@@ -26,6 +27,7 @@ def create_harbor_scan(project_name, branch, commit_id):
 
 
 def harbor_scan_list(project_id, kwargs):
+    scan_list = []
     page_dict = {}
     query = HarborScan.query.filter_by(project_id=project_id).order_by(HarborScan.id.desc())
     if 'per_page' in kwargs:
@@ -47,7 +49,26 @@ def harbor_scan_list(project_id, kwargs):
         rows = paginate_query.items
     else:
         rows = query.all()
-    out_dict = {"scan_list": [json.loads(str(row)) for row in rows], "page": page_dict}
+    for row in rows:
+        if row.finished is False:
+            scan_report_dict = hb_get_artifact_scan_overview(nx_get_project(id=project_id).name, row.branch, row.commit)
+            scan_report_dict |= scan_report_dict.get('summary').get('summary')
+            del scan_report_dict.get('summary')['summary']
+            scan_report_dict |= scan_report_dict.get('summary')
+            del scan_report_dict['summary']
+            if scan_report_dict.get('complete_percent') == 100:
+                row.finished_at = datetime.utcnow()
+                row.finished = True
+            row.updated_at = datetime.utcnow()
+            row.scan_overview = scan_report_dict
+            db.session.commit()
+        for k, v in row.scan_overview.items():
+            setattr(row, k, v)
+        row_dict = json.loads(str(row))
+        del row_dict['scan_overview']
+        scan_list.append(row_dict)
+
+    out_dict = {"scan_list": scan_list, "page": page_dict}
     if page_dict:
         out_dict['page'] = page_dict
     return out_dict

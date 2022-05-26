@@ -327,6 +327,15 @@ def hb_get_artifact(project_name, repository_name, tag_name):
     return generate_artifacts_output(artifact)
 
 
+def hb_get_artifact_scan_overview(project_name, repository_name, commit_id):
+    artifact = __api_get(f'/projects/{project_name}/repositories'
+                         f'/{__encode(repository_name)}/artifacts/'
+                         f'{__encode(commit_id)}', params={'with_scan_overview': True}).json()
+    if type(artifact.get("scan_overview")) is dict:
+        scan_report = next(iter(artifact.get("scan_overview").values()))
+    return scan_report
+
+
 def hb_copy_artifact(project_name, repository_name, from_image):
     url = f"/projects/{project_name}/repositories/{repository_name}/artifacts?from={quote_plus(from_image)}"
     return __api_post(url)
