@@ -922,6 +922,7 @@ class HarborScan(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     branch = Column(String)
     commit = Column(String)
+    fully_commit = Column(String)
     digest = Column(String)
     scan_overview = Column(JSON)
     created_at = Column(DateTime)
