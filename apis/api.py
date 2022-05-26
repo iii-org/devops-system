@@ -79,7 +79,7 @@ security_definitions = {
 app.config.update({
     'APISPEC_SPEC': APISpec(
         title='Devops API Project',
-        version='v1',
+        version='v2',
         plugins=[MarshmallowPlugin()],
         securityDefinitions=security_definitions,
         openapi_version='2.0.0',
