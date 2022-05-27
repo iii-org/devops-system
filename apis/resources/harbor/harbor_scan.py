@@ -6,7 +6,7 @@ from model import HarborScan, Project, db
 from nexus import nx_get_project_plugin_relation, nx_get_project
 from resources.template import gl, tm_get_git_pipeline_json
 from resources.gitlab import commit_id_to_url
-from . import hb_get_artifact_scan_overview
+from . import hb_get_artifact_scan_overview, hb_get_artifact_scan_vulnerabilities_detail
 
 
 def create_harbor_scan(project_name, branch, commit_id):
@@ -25,6 +25,14 @@ def create_harbor_scan(project_name, branch, commit_id):
                                       created_at=datetime.utcnow(), finished=False)
                     db.session.add(scan)
                     db.session.commit()
+
+
+def get_harbor_scan_report(project_name, branch, commit_id):
+    row = Project.query.filter_by(name=project_name).first()
+    if row:
+        out = hb_get_artifact_scan_vulnerabilities_detail(row.name, branch, commit_id)
+        if out:
+            return out.get('vulnerabilities')
 
 
 def harbor_scan_list(project_id, kwargs):

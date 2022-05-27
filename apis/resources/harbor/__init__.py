@@ -330,11 +330,22 @@ def hb_get_artifact(project_name, repository_name, tag_name):
 def hb_get_artifact_scan_overview(project_name, repository_name, commit_id):
     try:
         artifact = __api_get(f'/projects/{project_name}/repositories'
-                            f'/{__encode(repository_name)}/artifacts/'
-                            f'{__encode(commit_id)}', params={'with_scan_overview': True}).json()
+                             f'/{__encode(repository_name)}/artifacts/'
+                             f'{__encode(commit_id)}', params={'with_scan_overview': True}).json()
         if type(artifact.get("scan_overview")) is dict:
             scan_report = next(iter(artifact.get("scan_overview").values()))
         return scan_report
+    except:
+        return
+
+
+def hb_get_artifact_scan_vulnerabilities_detail(project_name, repository_name, commit_id):
+    try:
+        artifact = __api_get(f'/projects/{project_name}/repositories'
+                             f'/{__encode(repository_name)}/artifacts/'
+                             f'{__encode(commit_id)}/additions/vulnerabilities').json()
+        out = next(iter(artifact.values()))
+        return out
     except:
         return
 
