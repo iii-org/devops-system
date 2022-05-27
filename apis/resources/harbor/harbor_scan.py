@@ -51,6 +51,7 @@ def harbor_scan_list(project_id, kwargs):
     else:
         rows = query.all()
     for row in rows:
+        setattr(row, 'scan_status', 'Not Scanned')
         if row.finished is False:
             scan_report_dict = hb_get_artifact_scan_overview(nx_get_project(id=project_id).name, row.branch, row.commit)
             if scan_report_dict is not None:
