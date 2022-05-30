@@ -418,12 +418,12 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                             fun_value["answers"][
                                                 ans_key] = arg_value
 
-                            # Add volume uuid in DB and Web answer.
-                            if stage["iiidevops"] == "deployed-environments":
-                                fun_value["answers"]["volumeMounts.enabled"] = True
-                                fun_value["answers"]["volumeMounts.project"] = "${CICD_GIT_REPO_NAME}"
-                                fun_value["answers"]["volumeMounts.uuid"] = uuids
-                                fun_value["answers"]["volumeMounts.mountPath"] = "/project-data"
+                            # # Add volume uuid in DB and Web answer.
+                            # if stage["iiidevops"] == "deployed-environments":
+                            #     fun_value["answers"]["volumeMounts.enabled"] = True
+                            #     fun_value["answers"]["volumeMounts.project"] = "${CICD_GIT_REPO_NAME}"
+                            #     fun_value["answers"]["volumeMounts.uuid"] = uuids
+                            #     fun_value["answers"]["volumeMounts.mountPath"] = "/project-data"
 
                         elif fun_key == "envFrom":
                             pass
@@ -848,7 +848,8 @@ class ProjectPipelineBranches(Resource):
         # Remove duplicate args
         for branch, pip_info in args["detail"].items():
             args["detail"][branch] = [dict(t) for t in {tuple(d.items()) for d in pip_info}]
-        tm_update_pipline_branches(repository_id, args["detail"], default=False, run=args["run"])
+        print(args["detail"])
+        # tm_update_pipline_branches(repository_id, args["detail"], default=False, run=args["run"])
         return util.success()
 
 
