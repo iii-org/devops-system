@@ -812,6 +812,7 @@ class NotificationMessage(db.Model):
     alert_service_id = Column(Integer, default=0)
     title = Column(String)
     message = Column(String, nullable=False)
+    message_parameter = Column(JSON)
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
