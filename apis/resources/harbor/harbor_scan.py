@@ -32,7 +32,7 @@ def get_harbor_scan_report(project_name, branch, commit_id):
     if row:
         out = hb_get_artifact_scan_vulnerabilities_detail(row.name, branch, commit_id)
         if out:
-            return out.get('vulnerabilities')
+            return out
 
 
 def harbor_scan_list(project_id, kwargs):
