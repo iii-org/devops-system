@@ -848,8 +848,7 @@ class ProjectPipelineBranches(Resource):
         # Remove duplicate args
         for branch, pip_info in args["detail"].items():
             args["detail"][branch] = [dict(t) for t in {tuple(d.items()) for d in pip_info}]
-        print(args["detail"])
-        # tm_update_pipline_branches(repository_id, args["detail"], default=False, run=args["run"])
+        tm_update_pipline_branches(repository_id, args["detail"], default=False, run=args["run"])
         return util.success()
 
 
