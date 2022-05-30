@@ -553,7 +553,7 @@ class SingleProjectByNameResponse(CommonBasicResponse):
 
 #################################### Schema ####################################
 
-class SingleProjectPutSchema(Schema):
+class SingleProjectMemberPutSchema(Schema):
     user_id = fields.Int(doc='user_id',  example=1, required=True)
 
 class ProjectUserListSchema(Schema):

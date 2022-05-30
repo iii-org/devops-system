@@ -785,7 +785,7 @@ class SingleProjectByName(Resource):
 
 class ProjectMemberV2(MethodResource):
     @doc(tags=['User'], description="Create project member.")
-    @use_kwargs(router_model.SingleProjectPutSchema, location="form")
+    @use_kwargs(router_model.SingleProjectMemberPutSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def post(self, project_id, **kwargs):

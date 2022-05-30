@@ -371,9 +371,18 @@ def create_project(user_id, args):
 
         # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
         if is_inherit_members and args.get('parent_plan_project_id') is not None:
-            for user in model.ProjectUserRole.query.filter_by(project_id=args.get('parent_id')).all():
-                if user.user_id != owner_id:
-                    project_add_member(project_id, user.user_id)
+            for row in db.session.query(model.User, ProjectUserRole). \
+            join(model.User).filter(model.ProjectUserRole.project_id==args.get('parent_id')).all():
+                if row.ProjectUserRole.role_id == 7:
+                    qa_user = ProjectUserRole(
+                        user_id=row.User.id,
+                        project_id=project_id,
+                        role_id=7
+                    )
+                    db.session.add(qa_user)
+                    db.session.commit()
+                elif row.User.id != owner_id and not row.User.login.startswith("project_bot"):
+                    project_add_member(project_id, row.User.id)
 
         # Commit and push file by template , if template env is not None
         if args.get("template_id") is not None:
@@ -496,9 +505,21 @@ def pm_update_project(project_id, args):
 
     # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
     if is_inherit_members and args.get('parent_plan_project_id') is not None:
-        for user in model.ProjectUserRole.query.filter_by(project_id=args.get('parent_id')).all():
-            if model.ProjectUserRole.query.filter_by(project_id=project_id, user_id=user.user_id).first() is None:
-                project_add_member(project_id, user.user_id)
+        exist_user_ids = [row.user_id for row in model.ProjectUserRole.query.filter_by(project_id=project_id).all()]
+
+        for row in db.session.query(model.User, ProjectUserRole). \
+        join(model.User).filter(model.ProjectUserRole.project_id==args.get('parent_id')).all():
+            if row.User.id not in exist_user_ids:
+                if row.ProjectUserRole.role_id == 7:
+                    qa_user = ProjectUserRole(
+                        user_id=row.User.id,
+                        project_id=project_id,
+                        role_id=7
+                    )
+                    db.session.add(qa_user)
+                    db.session.commit()
+                elif row.User.id != args.get("owner_id") and not row.User.login.startswith("project_bot"):
+                    project_add_member(project_id, row.User.id)
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
