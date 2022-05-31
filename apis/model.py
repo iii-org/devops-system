@@ -102,6 +102,7 @@ class Project(db.Model):
     base_example = Column(String)
     example_tag = Column(String)
     uuid = Column(String)
+    is_inheritance_member = Column(Boolean, default=False)
 
     def __repr__(self):
         fields = {}
