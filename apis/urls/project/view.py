@@ -699,6 +699,8 @@ class SingleProject(Resource):
         parser.add_argument('parent_id', type=str)
         parser.add_argument('is_inheritance_member', type=bool)
         args = parser.parse_args()
+        args = {key: value for key, value in args.items() if value is not None}
+
         project.check_project_args_patterns(args)
         project.check_project_owner_id(args['owner_id'], get_jwt_identity()[
             'user_id'], project_id)
