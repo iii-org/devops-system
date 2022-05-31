@@ -697,7 +697,7 @@ class SingleProject(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int, required=True)
         parser.add_argument('parent_id', type=str)
-        parser.add_argument('is_inherit_members', type=bool)
+        parser.add_argument('is_inheritance_member', type=bool)
         args = parser.parse_args()
         project.check_project_args_patterns(args)
         project.check_project_owner_id(args['owner_id'], get_jwt_identity()[
@@ -751,7 +751,7 @@ class SingleProject(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int)
         parser.add_argument('parent_id', type=int)
-        parser.add_argument('is_inherit_members', type=bool)
+        parser.add_argument('is_inheritance_member', type=bool)
         args = parser.parse_args()
         if args['arguments'] is not None:
             args['arguments'] = ast.literal_eval(args['arguments'])

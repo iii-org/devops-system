@@ -191,7 +191,7 @@ def get_project_rows_by_user(user_id, disable, args={}):
 # 新增redmine & gitlab的project並將db相關table新增資訊
 @record_activity(ActionType.CREATE_PROJECT)
 def create_project(user_id, args):
-    is_inherit_members = args.pop("is_inherit_members", False)
+    is_inherit_members = args.pop("is_inheritance_member", False)
     if args["description"] is None:
         args["description"] = ""
     if args['display'] is None:
@@ -359,7 +359,8 @@ def create_project(user_id, args):
         if args.get('parent_plan_project_id') is not None:
             new_father_son_relation = model.ProjectParentSonRelation(
                 parent_id=args.get('parent_id'),
-                son_id=project_id
+                son_id=project_id,
+                created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             )
             db.session.add(new_father_son_relation)
             db.session.commit()
@@ -470,8 +471,7 @@ def create_bot(project_id):
 
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
-    is_inherit_members = args.pop("is_inherit_members", False)
-    args["is_inheritance_member"] = is_inherit_members
+    args["is_inheritance_member"] = is_inherit_members = args.pop("is_inheritance_member", False)
 
     plugin_relation = model.ProjectPluginRelation.query.filter_by(
         project_id=project_id).first()
