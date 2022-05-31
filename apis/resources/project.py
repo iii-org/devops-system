@@ -373,15 +373,9 @@ def create_project(user_id, args):
         if is_inherit_members and args.get('parent_plan_project_id') is not None:
             for row in db.session.query(model.User, ProjectUserRole). \
             join(model.User).filter(model.ProjectUserRole.project_id==args.get('parent_id')).all():
-                if row.ProjectUserRole.role_id == 7:
-                    qa_user = ProjectUserRole(
-                        user_id=row.User.id,
-                        project_id=project_id,
-                        role_id=7
-                    )
-                    db.session.add(qa_user)
-                    db.session.commit()
-                elif row.User.id not in [owner_id, user_id] and not row.User.login.startswith("project_bot"):
+                if row.User.id not in [owner_id, user_id] and \
+                    not row.User.login.startswith("project_bot") and \
+                    row.ProjectUserRole.role_id != 7:
                     project_add_member(project_id, row.User.id)
 
         # Commit and push file by template , if template env is not None
@@ -509,17 +503,11 @@ def pm_update_project(project_id, args):
 
         for row in db.session.query(model.User, ProjectUserRole). \
         join(model.User).filter(model.ProjectUserRole.project_id==args.get('parent_id')).all():
-            if row.User.id not in exist_user_ids:
-                if row.ProjectUserRole.role_id == 7:
-                    qa_user = ProjectUserRole(
-                        user_id=row.User.id,
-                        project_id=project_id,
-                        role_id=7
-                    )
-                    db.session.add(qa_user)
-                    db.session.commit()
-                elif row.User.id != args.get("owner_id") and not row.User.login.startswith("project_bot"):
-                    project_add_member(project_id, row.User.id)
+            if row.User.id not in exist_user_ids and \
+                row.User.id != args.get("owner_id") and \
+                not row.User.login.startswith("project_bot") and \
+                row.ProjectUserRole.role_id != 7:
+                project_add_member(project_id, row.User.id)
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
