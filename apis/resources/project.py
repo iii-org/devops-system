@@ -471,7 +471,7 @@ def create_bot(project_id):
 
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
-    args["is_inheritance_member"] = is_inherit_members = args.pop("is_inheritance_member", False)
+    is_inherit_members = args.get("is_inheritance_member") or False
 
     plugin_relation = model.ProjectPluginRelation.query.filter_by(
         project_id=project_id).first()
