@@ -381,7 +381,7 @@ def create_project(user_id, args):
                     )
                     db.session.add(qa_user)
                     db.session.commit()
-                elif row.User.id != owner_id and not row.User.login.startswith("project_bot"):
+                elif row.User.id not in [owner_id, user_id] and not row.User.login.startswith("project_bot"):
                     project_add_member(project_id, row.User.id)
 
         # Commit and push file by template , if template env is not None
