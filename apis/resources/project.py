@@ -336,7 +336,8 @@ def create_project(user_id, args):
             creator_id=user_id,
             base_example=template_pj_path,
             example_tag=args["tag_name"],
-            uuid=uuids
+            uuid=uuids,
+            is_inheritance_member=is_inherit_members
         )
         db.session.add(new_pjt)
         db.session.commit()
@@ -470,6 +471,7 @@ def create_bot(project_id):
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
     is_inherit_members = args.pop("is_inherit_members", False)
+    args["is_inheritance_member"] = is_inherit_members
 
     plugin_relation = model.ProjectPluginRelation.query.filter_by(
         project_id=project_id).first()
@@ -477,7 +479,10 @@ def pm_update_project(project_id, args):
         gitlab.gl_update_project(
             plugin_relation.git_repository_id, args["description"])
     if args.get('parent_id', None) is not None:
-        args['parent_plan_project_id'] = get_plan_project_id(args.get('parent_id'))
+        if args["parent_id"] == "":
+            args['parent_plan_project_id'] = ""
+        else:
+            args['parent_plan_project_id'] = get_plan_project_id(int(args.get('parent_id')))
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     nexus.nx_update_project(project_id, args)
 
@@ -488,13 +493,23 @@ def pm_update_project(project_id, args):
             plugin_relation.git_repository_id, disabled)
 
     # 若有父專案, 加關聯進ProjectParentSonRelation, 須等redmine更新完再寫入
-    if args.get('parent_plan_project_id') is not None and model.ProjectParentSonRelation. \
-            query.filter_by(parent_id=args.get('parent_id'), son_id=project_id).first() is None:
-        new_father_son_relation = model.ProjectParentSonRelation(
-            parent_id=args.get('parent_id'),
-            son_id=project_id
-        )
-        db.session.add(new_father_son_relation)
+    if args.get('parent_plan_project_id') is not None:
+        project_relation = model.ProjectParentSonRelation.query.filter_by(son_id=project_id)
+        if project_relation.first() is None:
+            if args.get('parent_plan_project_id') != "":
+                new_father_son_relation = model.ProjectParentSonRelation(
+                    parent_id=int(args.get('parent_id')),
+                    son_id=project_id,
+                    created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                )
+                db.session.add(new_father_son_relation) 
+        else:
+            if args.get('parent_plan_project_id') != "":
+                project_relation = project_relation.first()
+                project_relation.parent_id = int(args.get('parent_id'))
+                project_relation.created_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                project_relation.delete()
         db.session.commit()
 
     # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
