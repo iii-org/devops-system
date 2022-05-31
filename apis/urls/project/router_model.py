@@ -465,6 +465,8 @@ class ListMyProjectsDataProjectListResponse(ProjectsBasicResponse):
     last_test_result = fields.Dict(example={"total": 12, "success": 12})
     members = fields.Int()
     has_son = fields.Bool()
+    parent_id = fields.Int(default=None)
+    is_inheritance_member = fields.Bool()
     
 class CalculateProjectIssuesListResponse(Schema):
     id = fields.Str(required=True)
