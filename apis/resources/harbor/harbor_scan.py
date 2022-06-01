@@ -34,6 +34,25 @@ def get_harbor_scan_report(project_name, branch, commit_id):
         if out:
             return out
 
+def harbor_get_scan_by_commit(project_id, commit_id):
+    row = HarborScan.query.filter_by(project_id=project_id, commit=commit_id).first()
+    if row is not None:
+        ret = json.loads(str(row))
+        ret["run_at"] = ret.pop("created_at", None)
+        for k, v in ret.pop("scan_overview", {}).items():
+            ret[k] = v
+        status = ret.pop("scan_status", None)
+        if status == "Success" and ret.get("finished"):
+            ret["status"] = "Finished"
+        elif (status == "Success" and not ret.get("finished")) or \
+            status in ["Queued", "Scanning", "Complete"]:
+            ret["status"] = "scanning"
+        else:
+            ret["status"] = "failed"
+    else:
+        ret = {}
+    return ret
+
 
 def harbor_scan_list(project_id, kwargs):
     scan_list = []
