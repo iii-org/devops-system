@@ -101,6 +101,8 @@ def has_devops_update():
         if check_message_exist(versions['version_name'], 101) is False:
             args = {"alert_level": 101, "title": f"New version: {versions['version_name']}", "type_ids": [4],
                     "type_parameters": {'role_ids': [5]}, "message": f"New version: {versions['version_name']}"}
+            # close old version notification message
+            close_version_notification()
             create_notification_message(args, user_id=1)
     return {
         'has_update': current_version != versions['version_name'],
@@ -126,12 +128,7 @@ def update_deployment(versions):
             else:
                 logger.exception(str(error_str))
 
-    # Send system upgrade to all administrators
-    rows = model.NotificationMessage.query.filter(and_(
-        model.NotificationMessage.alert_level == 101, model.NotificationMessage.close == False)).all()
-    if len(rows) > 0:
-        for row in rows:
-            close_notification_message(row.id)
+    close_version_notification()
 
     logger.info(f'Updating deployment to {version_name}...')
     api_image_tag = versions['api_image_tag']
@@ -142,6 +139,14 @@ def update_deployment(versions):
     model.NexusVersion.query.one().deploy_version = version_name
     model.db.session.commit()
     __api_post('/report_update', data={'version_name': version_name})
+
+
+def close_version_notification():
+    rows = model.NotificationMessage.query.filter(and_(
+        model.NotificationMessage.alert_level == 101, model.NotificationMessage.close == False)).all()
+    if len(rows) > 0:
+        for row in rows:
+            close_notification_message(row.id)
 
 
 def current_devops_version():
