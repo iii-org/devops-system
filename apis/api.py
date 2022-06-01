@@ -480,6 +480,7 @@ api.add_resource(redmine.RedmineMail, '/mail')
 api.add_resource(system.SystemGitCommitID,
                  '/system_git_commit_id')  # git commit
 api.add_resource(system.SystemInfoReport, '/system_info_report')
+api.add_resource(system.send_merge_request_notification, '/system/send_merge_request_notification')
 
 # Mocks
 # api.add_resource(mock.MockTestResult, '/mock/test_summary')

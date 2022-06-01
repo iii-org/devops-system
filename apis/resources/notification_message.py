@@ -35,6 +35,8 @@ NEW = AlertLevel(101, 'New Version', False)
 SAL = AlertLevel(102, 'System Alert', False)
 SWA = AlertLevel(103, 'System Warming', True)
 
+SWA = AlertLevel(201, 'GitLab Merge Request Notification', True)
+
 ALL_ALERTS = [INF, WAR, URG, NEW, SAL, SWA]
 
 
@@ -199,6 +201,7 @@ def create_notification_message(args, user_id=None):
         alert_level=args['alert_level'],
         title=args['title'],
         alert_service_id=args.get("alert_service_id", 0),
+        message_parameter=args.get("message_parameter"),
         message=args['message'],
         creator_id=user_id,
         created_at=datetime.utcnow(),
