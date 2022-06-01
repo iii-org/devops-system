@@ -1708,7 +1708,7 @@ class ReleasesV2(MethodResource):
                 redmine.rm_put_version(version, params)
                 closed_version = True
 
-            # check  Gitalb Release
+            # check Gitalb Release
             if release_obj.gitlab_info.get('check') == True:
                 gitlab_data = {
                     'tag_name': release_name,
