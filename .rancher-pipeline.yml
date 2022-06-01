@@ -134,8 +134,7 @@ stages:
       targetKey: api_origin
     runScriptConfig:
       image: harbor-dev3.iiidevops.org/dockerhub/iiiorg/rancher-cli:v2.4.6
-      shellScript:
-        rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
+      shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
         && apt-get install -y jq && export PW=$(rancher kubectl get secret nexus-bot
         -n ${CICD_GIT_REPO_NAME} -o=go-template='{{index .data "password"}}' | base64
         -d) && export UN=$(rancher kubectl get secret nexus-bot -n ${CICD_GIT_REPO_NAME}
@@ -155,23 +154,23 @@ stages:
 - name: Deploy--Web
   iiidevops: deployed-environments
   steps:
-    - applyAppConfig:
-        answers:
-          git.branch: ${CICD_GIT_BRANCH}
-          git.commitID: ${CICD_GIT_COMMIT}
-          git.repoName: ${CICD_GIT_REPO_NAME}
-          git.url: ${CICD_GIT_URL}
-          harbor.host: harbor-dev3.iiidevops.org
-          imagePullSecrets[0].name: harbor-local
-          pipeline.sequence: ${CICD_EXECUTION_SEQUENCE}
-          web.imageTag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
-          web.port: 10009
-          kube.ingress.base_domain: ingress-dev3.iiidevops.org
-          kube.ingress.proxy_body_size: 20m
-        catalogTemplate: cattle-global-data:iii-dev-charts3-web
-        name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-serv
-        targetNamespace: ${CICD_GIT_REPO_NAME}
-        version: 0.5.12
+  - applyAppConfig:
+      answers:
+        git.branch: ${CICD_GIT_BRANCH}
+        git.commitID: ${CICD_GIT_COMMIT}
+        git.repoName: ${CICD_GIT_REPO_NAME}
+        git.url: ${CICD_GIT_URL}
+        harbor.host: harbor-dev3.iiidevops.org
+        imagePullSecrets[0].name: harbor-local
+        pipeline.sequence: ${CICD_EXECUTION_SEQUENCE}
+        web.imageTag: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
+        web.port: 10009
+        kube.ingress.base_domain: ingress-dev3.iiidevops.org
+        kube.ingress.proxy_body_size: 20m
+      catalogTemplate: cattle-global-data:iii-dev-charts3-web
+      name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-serv
+      targetNamespace: ${CICD_GIT_REPO_NAME}
+      version: 0.5.12
   when:
     branch:
       include:
@@ -186,16 +185,15 @@ stages:
       max_wait: 128
       namespace: ${CICD_GIT_REPO_NAME}
     envFrom:
-      - sourceKey: API_TOKEN
-        sourceName: pipeline-api-key
-        targetKey: rancher_api_token
-      - sourceKey: rancher-url
-        sourceName: rancher
-        targetKey: rancher_url
+    - sourceKey: API_TOKEN
+      sourceName: pipeline-api-key
+      targetKey: rancher_api_token
+    - sourceKey: rancher-url
+      sourceName: rancher
+      targetKey: rancher_url
     runScriptConfig:
       image: iiiorg/deployment-waiter:0.0.2
-      shellScript:
-        rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify;
+      shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify;
         bash /app/run.sh
   when:
     branch:
