@@ -30,10 +30,13 @@ def create_harbor_scan(project_name, branch, commit_id):
 
 
 def get_harbor_scan_report(project_name, branch, commit_id):
-    row = Project.query.filter_by(name=project_name).first()
-    if row:
-        out = hb_get_artifact_scan_vulnerabilities_detail(row.name, branch, commit_id)
+    pj_row = Project.query.filter_by(name=project_name).first()
+    if pj_row:
+        out = hb_get_artifact_scan_vulnerabilities_detail(pj_row.name, branch, commit_id)
         if out:
+            hs_row = HarborScan.query.filter_by(project_id=pj_row.id, branch=branch,
+                                                commit=commit_id).order_by(HarborScan.id.desc()).first()
+            out["overview"] = hs_row.scan_overview
             return out
 
 
