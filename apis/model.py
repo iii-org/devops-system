@@ -944,3 +944,24 @@ class HarborScan(db.Model):
             except TypeError:
                 fields[field] = str(data)
         return json.dumps(fields)
+
+
+class Excalidraw(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    name = Column(String)
+    room = Column(String, nullable=False)
+    key = Column(String, nullable=False)
+
+
+class ExcalidrawJson(db.Model):
+    id = Column(Integer, primary_key=True)
+    excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete='CASCADE'))
+    name = Column(String)
+    json_key = Column(String, nullable=False)
+
+
+class ExcalidrawIssueRelation(db.Model):
+    id = Column(Integer, primary_key=True)
+    excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete='CASCADE'))
+    issue_id = Column(Integer)
