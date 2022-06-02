@@ -41,6 +41,7 @@ from .gitlab import gitlab
 from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
 from resources.monitoring import Monitoring
+from resources.harbor import harbor_scan
 from resources import sync_project
 from resources.project_relation import get_all_sons_project, get_plan_id
 from flask_apispec import doc
@@ -974,6 +975,26 @@ def get_test_summary(project_id):
         else:
             not_found_ret['message'] = not_found_ret_message("cmas")
             ret['cmas'] = not_found_ret.copy()
+
+    # Harbor scan
+    scan_list = harbor_scan.harbor_scan_list(project_id, {"per_page": 2, "page": 1})["scan_list"]
+    if scan_list != []:
+        scan = scan_list[0]
+        ret["harbor"] = {"run_at": scan.get("created_at")}
+        ret["harbor"]["result"] = {
+            key: scan.get(key) for key in ["Critical", "High", "Low", "Medium", "Negligible", "Unknown"]
+            if scan.get(key) is not None}
+        if scan.get("scan_status") == "Success" and scan.get("finished"):
+            ret["harbor"] |= {"message": "success", "status": 1}
+        elif (scan.get("scan_status") == "Success" and not scan.get("finished")) or \
+            scan.get("scan_status") in ["Queued", "Scanning", "Complete"]:
+            ret["harbor"] |= {"message": "scanning", "status": 2}
+        else:
+            ret["harbor"] |= {"message": "failed", "status": -1, "run_at": None}
+    else:
+        not_found_ret['message'] = not_found_ret_message("harbor")
+        ret['harbor'] = not_found_ret.copy()
+
     return util.success({'test_results': ret})
 
 
