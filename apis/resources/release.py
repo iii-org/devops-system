@@ -471,7 +471,6 @@ class Releases(Resource):
             if tag_artifact is not None:
                 hb_release.delete_harbor_tag(self.project.name, branch_name,
                                              tag_artifact)
-                self.gitlab_info["check"] = True
         except NoResultFound:
             return util.respond(404, error_harbor_no_image,
                                 error=apiError.release_unable_to_build(self.plugin_relation.git_repository_id))
@@ -499,6 +498,7 @@ class Releases(Resource):
         # Delete Gitlab Tags
         if 'gitlab' in self.valid_info['errors']:
             self.delete_gitlab_tag(release_name)
+            self.gitlab_info["check"] = True
         # Delete Harbor Tags
         if self.valid_info['targets'].get('harbor', None) is not None:
             self.delete_harbor_tag(branch_name)

@@ -8,6 +8,8 @@ from resources.template import gl, tm_get_git_pipeline_json
 from resources.gitlab import commit_id_to_url
 from . import hb_get_artifact_scan_overview, hb_get_artifact_scan_vulnerabilities_detail
 
+harbor_scan_list_keys = ["Critical", "High", "Low", "Medium", "fixable"]
+
 
 def create_harbor_scan(project_name, branch, commit_id):
     row = Project.query.filter_by(name=project_name).first()
@@ -28,11 +30,33 @@ def create_harbor_scan(project_name, branch, commit_id):
 
 
 def get_harbor_scan_report(project_name, branch, commit_id):
-    row = Project.query.filter_by(name=project_name).first()
-    if row:
-        out = hb_get_artifact_scan_vulnerabilities_detail(row.name, branch, commit_id)
+    pj_row = Project.query.filter_by(name=project_name).first()
+    if pj_row:
+        out = hb_get_artifact_scan_vulnerabilities_detail(pj_row.name, branch, commit_id)
         if out:
+            hs_row = HarborScan.query.filter_by(project_id=pj_row.id, branch=branch,
+                                                commit=commit_id).order_by(HarborScan.id.desc()).first()
+            out["overview"] = hs_row.scan_overview
             return out
+
+def harbor_get_scan_by_commit(project_id, commit_id):
+    row = HarborScan.query.filter_by(project_id=project_id, commit=commit_id).first()
+    if row is not None:
+        ret = json.loads(str(row))
+        ret["run_at"] = ret.pop("created_at", None)
+        for k, v in ret.pop("scan_overview", {}).items():
+            ret[k] = v
+        status = ret.pop("scan_status", None)
+        if status == "Success" and ret.get("finished"):
+            ret["status"] = "Finished"
+        elif (status == "Success" and not ret.get("finished")) or \
+            status in ["Queued", "Scanning", "Complete"]:
+            ret["status"] = "scanning"
+        else:
+            ret["status"] = "failed"
+    else:
+        ret = {}
+    return ret
 
 
 def harbor_scan_list(project_id, kwargs):
@@ -77,6 +101,9 @@ def harbor_scan_list(project_id, kwargs):
             for k, v in row.scan_overview.items():
                 setattr(row, k, v)
         setattr(row, 'commit_url', commit_id_to_url(project_id, row.commit))
+        for scan_key in harbor_scan_list_keys:
+            if hasattr(row, scan_key) is False:
+                setattr(row, scan_key, 0)
         row_dict = json.loads(str(row))
         del row_dict['scan_overview']
         scan_list.append(row_dict)

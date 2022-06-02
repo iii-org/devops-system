@@ -41,6 +41,7 @@ from .gitlab import gitlab
 from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
 from resources.monitoring import Monitoring
+from resources.harbor import harbor_scan
 from resources import sync_project
 from resources.project_relation import get_all_sons_project, get_plan_id
 from flask_apispec import doc
@@ -191,7 +192,7 @@ def get_project_rows_by_user(user_id, disable, args={}):
 # 新增redmine & gitlab的project並將db相關table新增資訊
 @record_activity(ActionType.CREATE_PROJECT)
 def create_project(user_id, args):
-    is_inherit_members = args.pop("is_inherit_members", False)
+    is_inherit_members = args.pop("is_inheritance_member", False)
     if args["description"] is None:
         args["description"] = ""
     if args['display'] is None:
@@ -336,7 +337,8 @@ def create_project(user_id, args):
             creator_id=user_id,
             base_example=template_pj_path,
             example_tag=args["tag_name"],
-            uuid=uuids
+            uuid=uuids,
+            is_inheritance_member=is_inherit_members
         )
         db.session.add(new_pjt)
         db.session.commit()
@@ -358,7 +360,8 @@ def create_project(user_id, args):
         if args.get('parent_plan_project_id') is not None:
             new_father_son_relation = model.ProjectParentSonRelation(
                 parent_id=args.get('parent_id'),
-                son_id=project_id
+                son_id=project_id,
+                created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             )
             db.session.add(new_father_son_relation)
             db.session.commit()
@@ -469,7 +472,7 @@ def create_bot(project_id):
 
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
-    is_inherit_members = args.pop("is_inherit_members", False)
+    is_inherit_members = args.get("is_inheritance_member") or False
 
     plugin_relation = model.ProjectPluginRelation.query.filter_by(
         project_id=project_id).first()
@@ -477,7 +480,10 @@ def pm_update_project(project_id, args):
         gitlab.gl_update_project(
             plugin_relation.git_repository_id, args["description"])
     if args.get('parent_id', None) is not None:
-        args['parent_plan_project_id'] = get_plan_project_id(args.get('parent_id'))
+        if args["parent_id"] == "":
+            args['parent_plan_project_id'] = ""
+        else:
+            args['parent_plan_project_id'] = get_plan_project_id(int(args.get('parent_id')))
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     nexus.nx_update_project(project_id, args)
 
@@ -488,13 +494,23 @@ def pm_update_project(project_id, args):
             plugin_relation.git_repository_id, disabled)
 
     # 若有父專案, 加關聯進ProjectParentSonRelation, 須等redmine更新完再寫入
-    if args.get('parent_plan_project_id') is not None and model.ProjectParentSonRelation. \
-            query.filter_by(parent_id=args.get('parent_id'), son_id=project_id).first() is None:
-        new_father_son_relation = model.ProjectParentSonRelation(
-            parent_id=args.get('parent_id'),
-            son_id=project_id
-        )
-        db.session.add(new_father_son_relation)
+    if args.get('parent_plan_project_id') is not None:
+        project_relation = model.ProjectParentSonRelation.query.filter_by(son_id=project_id)
+        if project_relation.first() is None:
+            if args.get('parent_plan_project_id') != "":
+                new_father_son_relation = model.ProjectParentSonRelation(
+                    parent_id=int(args.get('parent_id')),
+                    son_id=project_id,
+                    created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                )
+                db.session.add(new_father_son_relation) 
+        else:
+            if args.get('parent_plan_project_id') != "":
+                project_relation = project_relation.first()
+                project_relation.parent_id = int(args.get('parent_id'))
+                project_relation.created_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                project_relation.delete()
         db.session.commit()
 
     # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
@@ -959,6 +975,26 @@ def get_test_summary(project_id):
         else:
             not_found_ret['message'] = not_found_ret_message("cmas")
             ret['cmas'] = not_found_ret.copy()
+
+    # Harbor scan
+    scan_list = harbor_scan.harbor_scan_list(project_id, {"per_page": 2, "page": 1})["scan_list"]
+    if scan_list != []:
+        scan = scan_list[0]
+        ret["harbor"] = {"run_at": scan.get("created_at")}
+        ret["harbor"]["result"] = {
+            key: scan.get(key) for key in ["Critical", "High", "Low", "Medium", "Negligible", "Unknown"]
+            if scan.get(key) is not None}
+        if scan.get("scan_status") == "Success" and scan.get("finished"):
+            ret["harbor"] |= {"message": "success", "status": 1}
+        elif (scan.get("scan_status") == "Success" and not scan.get("finished")) or \
+            scan.get("scan_status") in ["Queued", "Scanning", "Complete"]:
+            ret["harbor"] |= {"message": "scanning", "status": 2}
+        else:
+            ret["harbor"] |= {"message": "failed", "status": -1, "run_at": None}
+    else:
+        not_found_ret['message'] = not_found_ret_message("harbor")
+        ret['harbor'] = not_found_ret.copy()
+
     return util.success({'test_results': ret})
 
 

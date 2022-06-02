@@ -509,8 +509,8 @@ class SingleProjectPutSchema(Schema):
     start_date = fields.Str(doc='start_date', example="1970-01-01", required=True)
     due_date = fields.Str(doc='due_date', example="1970-01-01", required=True)
     owner_id = fields.Int(doc='owner_id', example=1, required=True)
-    parent_id = fields.Int(doc='parent_id', example="1")
-    is_inherit_members = fields.Bool(doc='is_inherit_members', example=True)
+    parent_id = fields.Str(doc='parent_id', example="1")
+    is_inheritance_member = fields.Bool(doc='is_inheritance_member', example=True)
 
 class SingleProjectPatchSchema(Schema):
     owner_id = fields.Int(doc='owner_id', example=1, required=True)

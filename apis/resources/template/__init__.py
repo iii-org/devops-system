@@ -569,7 +569,7 @@ def handle_stage_format(stage):
     return []
 
 
-def update_branches(stage, pipline_soft, branch, enable_key_name):
+def update_branches(stage, pipline_soft, branch, enable_key_name, exist_branches):
     had_update_branche = False
     if get_tool_name(stage) is not None and pipline_soft["key"] == get_tool_name(stage):
         if "when" not in stage:
@@ -580,7 +580,9 @@ def update_branches(stage, pipline_soft, branch, enable_key_name):
             had_update_branche = True
         elif pipline_soft[enable_key_name] is False and branch in stage_when:
             stage_when.remove(branch)
-            had_update_branche = True
+            had_update_branche = True 
+        
+        stage_when = [branch for branch in stage_when if branch in exist_branches]
         if len(stage_when) == 0:
             stage_when.append("skip")
             had_update_branche = True
@@ -598,6 +600,8 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return
+    exist_branch_list = [br.name for br in pj.branches.list(all=True)]
+
     for br in pj.branches.list(all=True):
         had_update_branche = False
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
@@ -608,11 +612,13 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
         for stage in pipe_json["stages"]:
             if default:
                 for put_pipe_soft in data["stages"]:
-                    had_update_branche |= update_branches(stage, put_pipe_soft, pj.default_branch, "has_default_branch")
+                    had_update_branche |= update_branches(
+                        stage, put_pipe_soft, pj.default_branch, "has_default_branch", exist_branch_list)
             else:
                 for input_branch, multi_software in data.items():
                     for input_soft_enable in multi_software:
-                        had_update_branche |= update_branches(stage, input_soft_enable, input_branch, "enable")
+                        had_update_branche |= update_branches(
+                            stage, input_soft_enable, input_branch, "enable", exist_branch_list)
         if had_update_branche is True:
             branch_name_in_data = list(data.keys())[0]
             if run is False or (run is True and br.name != branch_name_in_data):
