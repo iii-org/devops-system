@@ -35,7 +35,7 @@ class ResourceMembers(object):
     def set_projects_members(self, pj_name, pj_relation):
         self.project_members['rm_members_id'] = [
             context['user']['id'] for context in redmine.redmine.rm_get_memberships_list(
-                pj_relation.plan_project_id)['memberships']
+                pj_relation.plan_project_id)['memberships'] if context.get("group") is None
         ]
         self.project_members['gl_members_id'] = [
             context['id'] for context in self.handle_gl_user_page(

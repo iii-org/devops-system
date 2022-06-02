@@ -68,10 +68,11 @@ def __encode(repository_name):
 # Regular methods
 def hb_get_id_by_name(project_name):
     projects = __api_get('/projects', params={'name': project_name}).json()
-    if len(projects) == 0:
-        raise DevOpsError(404, 'Harbor does not have such project.',
-                          error=apiError.project_not_found(project_name))
-    return projects[0]['project_id']
+    for project in projects:
+        if project.get("name") == project_name:
+            return project["project_id"]
+    raise DevOpsError(404, 'Harbor does not have such project.',
+                        error=apiError.project_not_found(project_name))
 
 
 def hb_create_project(project_name):
