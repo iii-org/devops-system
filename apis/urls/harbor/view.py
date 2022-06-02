@@ -273,9 +273,8 @@ class HarborScan(MethodResource):
 
 @doc(tags=['Harbor Scan'], description='Get harbor scan report')
 class HarborScanReport(MethodResource):
-    @use_kwargs(router_model.CreateHarborScan, location=('query'))
-    def get(self, project_name, **kwargs):
-        return util.success(harbor_scan.get_harbor_scan_report(project_name, kwargs.get("branch"), kwargs.get("commit_id")))
+    def get(self, project_name, branch_name, commit_id):
+        return util.success(harbor_scan.get_harbor_scan_report(project_name, branch_name, commit_id))
 
 
 @doc(tags=['Harbor Scan'], description='List harbor image scan by project')
