@@ -1,0 +1,27 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: check-project-exist
+spec:
+  concurrencyPolicy: Forbid
+  schedule: "30 * * * *"
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 0
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          containers:
+          - name: curl
+            image: curlimages/curl:7.76.1
+            imagePullPolicy: IfNotPresent
+            env: 
+              - name: TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: cornjob-bot
+                    key: cornjob-token
+            command: ["/bin/sh"]
+            args: ["-c", "curl -H \"Authorization: Bearer $TOKEN\" --location --request GET 'http://devopsapi-service:10009/v2/sync_projects/check_project_exist'"]
+          restartPolicy: OnFailure
