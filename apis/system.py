@@ -1,17 +1,22 @@
-import os
 import json
-import requests
+import os
 
+import requests
 from flask_restful import Resource
-import util
+from sqlalchemy.sql import and_
+from sqlalchemy.orm.attributes import flag_modified
+
 import config
 import model
-from model import db, Project, ProjectPluginRelation
-from sqlalchemy.sql import and_, or_
+import nexus
 import resources.apiError as apiError
 import resources.kubernetesClient as kubernetesClient
+import util
+from model import (NotificationMessage, NotificationMessageRecipient, Project,
+                   ProjectPluginRelation, UserPluginRelation, db)
 from resources.gitlab import gitlab
-from resources import gitlab as gitlab_py
+from resources.notification_message import (close_notification_message,
+                                            create_notification_message)
 
 
 class SystemInfoReport(Resource):
@@ -77,29 +82,64 @@ class send_merge_request_notification(Resource):
                     if mr_objs:
                         for mr_obj in mr_objs:
                             if mr_obj.state == 'opened':
-                                # has merge request
                                 if len(mr_obj.assignees) == 0:
-                                    # Don't have assignees, found project member has authorization
                                     for pj_member in pj.members.list(all=True):
-                                        print(pj_member)
+                                        filter_and_send_notification(pj_member, mr_obj, p_branches)
                                 else:
-                                    # have assignees
                                     for assignee in mr_obj.assignees:
-                                        user = gitlab.gl.users.get(assignee['id'])
-                                        if len(p_branches) > 0:
-                                            for p_branche in p_branches:
-
-                                                pass
+                                        assignee_member = pj.members.get(assignee['id'])
+                                        if verify_user_can_merge_into_this_branch(assignee_member, mr_obj, p_branches):
+                                            filter_and_send_notification(assignee_member, mr_obj, p_branches)
                                         else:
-                                            pass
+                                            for pj_member in pj.members.list(all=True):
+                                                filter_and_send_notification(pj_member, mr_obj, p_branches)
+
                             else:
-                                # Merge rqeuest is down, close notification message
-                                pass
+                                nm_rows = NotificationMessage.query.filter_by(
+                                    alert_level=201, alert_service_id=mr_obj.id).all()
+                                for nm_row in nm_rows:
+                                    close_notification_message(nm_row.id)
 
 
-def verify_user_can_merge_into_this_branch(user, merge_request, protect_branch):
-    if merge_request.target_branch == protect_branch.name and \
-            user.highest_role >= protect_branch.merge_access_levels[0]['access_level']:
-        return user.id
-    else:
+def filter_and_send_notification(pj_member, mr_obj, p_branches):
+    if is_this_not_admin_or_bot(pj_member.id) and \
+            verify_user_can_merge_into_this_branch(pj_member, mr_obj, p_branches):
+        nm_row = NotificationMessage.query.filter_by(alert_level=201, alert_service_id=mr_obj.id).first()
+        if nm_row:
+            nm_rep_row = NotificationMessageRecipient.query.filter_by(message_id=nm_row.id).first()
+            user_lists = nm_rep_row.type_parameter.get('user_ids')
+            if pj_member.id not in user_lists:
+                user_lists.append(pj_member.id)
+                nm_rep_row.type_parameter.update({"user_ids": user_lists})
+                flag_modified(nm_rep_row, 'type_parameter')
+                db.session.add(nm_rep_row)
+                db.session.commit()
+        else:
+            upr_row = UserPluginRelation.query.filter_by(repository_user_id=pj_member.id).first()
+            if upr_row:
+                print(
+                    f"Don't assignees project_name: {pj_member.name}, MR_id: {mr_obj.id} sent notification to user {pj_member.name}")
+                args = {"alert_level": 201, "title": f"Review merge request: {mr_obj.title}", "alert_service_id": mr_obj.id,
+                        "message_parameter": {"mr_id": mr_obj.id}, "message": f"Merge request link:{mr_obj.web_url}",
+                        "type_ids": [3], "type_parameters": {"user_ids": [upr_row.user_id]}}
+                create_notification_message(args, user_id=1)
+
+
+def verify_user_can_merge_into_this_branch(pj_member, mr_obj, p_branches):
+    if len(p_branches) > 0:
+        for protect_branch in p_branches:
+            if mr_obj.target_branch == protect_branch.name \
+                    and pj_member.access_level >= protect_branch.merge_access_levels[0]['access_level']:
+                return True
         return False
+    else:
+        return True
+
+
+def is_this_not_admin_or_bot(git_user_id):
+    upr_row = UserPluginRelation.query.filter_by(repository_user_id=git_user_id).first()
+    if upr_row:
+        from resources import user as user_py
+        if user_py.get_role_id(upr_row.user_id) not in (5, 6):
+            return True
+    return False
