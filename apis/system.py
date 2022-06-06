@@ -97,25 +97,26 @@ class send_merge_request_notification(Resource):
                             else:
                                 nm_rows = NotificationMessage.query.filter_by(
                                     alert_level=201, alert_service_id=mr_obj.id).all()
-                                for nm_row in nm_rows:
-                                    close_notification_message(nm_row.id)
+                                if len(nm_rows) > 0:
+                                    for nm_row in nm_rows:
+                                        close_notification_message(nm_row.id)
 
 
 def filter_and_send_notification(pj_member, mr_obj, p_branches):
     if is_this_not_admin_or_bot(pj_member.id) and \
             verify_user_can_merge_into_this_branch(pj_member, mr_obj, p_branches):
         nm_row = NotificationMessage.query.filter_by(alert_level=201, alert_service_id=mr_obj.id).first()
-        if nm_row:
+        upr_row = UserPluginRelation.query.filter_by(repository_user_id=pj_member.id).first()
+        if nm_row and upr_row:
             nm_rep_row = NotificationMessageRecipient.query.filter_by(message_id=nm_row.id).first()
             user_lists = nm_rep_row.type_parameter.get('user_ids')
-            if pj_member.id not in user_lists:
-                user_lists.append(pj_member.id)
+            if upr_row.user_id not in user_lists:
+                user_lists.append(upr_row.user_id)
                 nm_rep_row.type_parameter.update({"user_ids": user_lists})
                 flag_modified(nm_rep_row, 'type_parameter')
                 db.session.add(nm_rep_row)
                 db.session.commit()
         else:
-            upr_row = UserPluginRelation.query.filter_by(repository_user_id=pj_member.id).first()
             if upr_row:
                 print(
                     f"Don't assignees project_name: {pj_member.name}, MR_id: {mr_obj.id} sent notification to user {pj_member.name}")
