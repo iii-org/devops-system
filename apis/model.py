@@ -952,6 +952,10 @@ class Excalidraw(db.Model):
     name = Column(String)
     room = Column(String, nullable=False)
     key = Column(String, nullable=False)
+    operator_id = Column(Integer, ForeignKey(
+        User.id, ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
 
 
 class ExcalidrawJson(db.Model):
