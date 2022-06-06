@@ -27,7 +27,6 @@ from werkzeug.routing import IntegerConverter
 import plugins
 import migrate
 import model
-import system
 import resources.apiError as apiError
 import resources.pipeline as pipeline
 import resources.rancher as rancher
@@ -58,6 +57,7 @@ from urls.system_parameter import sync_system_parameter_url
 from urls.notification_message import notification_message_url
 from urls.template import template_url
 from urls.harbor import harbor_url
+from urls.system import system_url
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -476,11 +476,7 @@ api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
 api.add_resource(redmine.RedmineMail, '/mail')
 
-# System administrations
-api.add_resource(system.SystemGitCommitID,
-                 '/system_git_commit_id')  # git commit
-api.add_resource(system.SystemInfoReport, '/system_info_report')
-api.add_resource(system.send_merge_request_notification, '/system/send_merge_request_notification')
+system_url(api, add_resource)
 
 # Mocks
 # api.add_resource(mock.MockTestResult, '/mock/test_summary')
