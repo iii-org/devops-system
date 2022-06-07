@@ -1840,6 +1840,3 @@ class IssueForceTrackerV2(MethodResource):
     def delete(self, project_id):
         role.require_project_owner(get_jwt_identity()['user_id'], project_id)
         return util.success(delete_project_issue_check(project_id))
-
-# rstr 3.2.0 
-# b = rstr.xeger(r'[a-zA-Z0-9_-]{22}')
