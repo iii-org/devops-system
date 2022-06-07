@@ -318,6 +318,10 @@ def tm_get_template_list(force_update=0):
             "options": []
         }]
         for data in total_data:
+            try:
+                gl.projects.get(data.temp_repo_id)
+            except:
+                continue
             if data.group_name == "Public Templates":
                 output[0]["options"].append({
                     "id": data.temp_repo_id,
