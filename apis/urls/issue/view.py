@@ -15,7 +15,7 @@ from resources.issue import get_issue, require_issue_visible, get_issue_tags, ge
     delete_issue_relation, check_issue_closable, get_commit_hook_issues, modify_hook, sync_issue_relation, \
     get_issue_children
 from resources.system_parameter import check_upload_type
-
+from resources.excalidraw import get_excalidraw_by_issue_id
 
 ##### Issue single #####
 
@@ -40,7 +40,7 @@ class SingleIssueV2(MethodResource):
         issue_info["name"] = issue_info.pop('subject', None)
         issue_info["point"] = get_issue_point(issue_id)
         issue_info["tags"] = get_issue_tags(issue_id)
-
+        issue_info["excalidraw"] = get_excalidraw_by_issue_id(issue_id)
         return util.success(issue_info)
 
     @doc(tags=['Issue'], description="Update single issue")
@@ -154,6 +154,7 @@ class SingleIssue(Resource):
         issue_info["name"] = issue_info.pop('subject', None)
         issue_info["point"] = get_issue_point(issue_id)
         issue_info["tags"] = get_issue_tags(issue_id)
+        issue_info["excalidraw"] = get_excalidraw_by_issue_id(issue_id)
 
         return util.success(issue_info)
 
