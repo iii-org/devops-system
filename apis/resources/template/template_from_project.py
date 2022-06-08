@@ -96,7 +96,7 @@ def update_pipe_set_and_push_to_new_project(from_project_id, name, description):
     old_secret_http_url = tm_get_secret_url(old_project)
     temp_pj_secret_http_url = tm_get_secret_url(template_project)
     Path(TEMPLATE_FOLDER_NAME).mkdir(exist_ok=True)
-    subprocess.call(['git', 'clone', '--mirror', old_secret_http_url, f"{TEMPLATE_FOLDER_NAME}/{old_project.path}"])
+    subprocess.call(['git', 'clone', old_secret_http_url, f"{TEMPLATE_FOLDER_NAME}/{old_project.path}"])
     set_git_username_config(f'{TEMPLATE_FOLDER_NAME}/{template_project.path}')
     tm_git_commit_push(template_project.path, temp_pj_secret_http_url,
                        TEMPLATE_FOLDER_NAME, f"專案 {old_project.path} 轉範本commit")
