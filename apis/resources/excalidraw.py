@@ -7,11 +7,20 @@ import resources.project as project
 from resources import apiError
 from resources.apiError import DevOpsError
 from resources.role import require_in_project
+from plugins import get_plugin_config
+import psycopg2
 import config
 
 
+def excalidraw_get_config(key):
+    for arg in get_plugin_config("excalidraw")["arguments"]:
+        if arg['key'] == key:
+            return arg['value']
+    return None
+
+
 def get_excalidraw_url(excalidraw):
-    excalidraw_url = config.get("EXCALIDRAW_URL")
+    excalidraw_url = excalidraw_get_config("excalidraw-url")
     return f"{excalidraw_url}/#room={excalidraw.room},{excalidraw.key}"
 
 
@@ -177,3 +186,33 @@ def update_excalidraw(excalidraw_id, name=None, issue_ids=None):
         "issue_ids": issue_ids,
         "url": get_excalidraw_url(excalidraw)
     }
+
+
+def sync_excalidraw_db():
+    # prod
+    excalidraw_db_url = config.get("EXCALIDRAW_DB_URL").split(":")
+    host=excalidraw_db_url[0]
+    port=int(excalidraw_db_url[1])
+    '''
+    # local
+    host = "10.20.0.96"
+    port = 30503
+    '''
+    password = excalidraw_get_config("excalidraw-db-password")
+    excalidraw_keys = ",".join([f"'ROOMS:{excalidraw.room}'" for excalidraw in Excalidraw.query.all()])
+    
+    conn = psycopg2.connect(
+        database="excalidraw", user="postgres", password="lxVN59Wfi7ua745kEIQ93Afrb", host=host, port=port)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f'''
+            DELETE FROM public.keyv
+            WHERE key NOT IN ({excalidraw_keys});
+            '''
+        )
+        conn.commit()
+    except Exception as e:
+        print(str(e))
+    finally:
+        conn.close()

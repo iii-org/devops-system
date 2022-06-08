@@ -1,0 +1,17 @@
+{
+    "name": "excalidraw",
+    "default_disabled": false,
+    "is_pipeline": false,
+    "keys": [
+        {
+            "key": "excalidraw-url",
+            "type": "string",
+            "store": "secret_all"
+        },
+        {
+            "key": "excalidraw-db-password",
+            "type": "string",
+            "store": "secret_all"
+        }
+    ]
+}

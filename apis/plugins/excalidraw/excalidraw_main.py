@@ -41,3 +41,9 @@ class ExcalidrawV2(MethodResource):
     def patch(self, excalidraw_id, **kwargs):
         return util.success(excalidraw.update_excalidraw(excalidraw_id, **kwargs))
 
+
+class SyncExcalidrawDBV2(MethodResource):
+    @doc(tags=['Sync'], description="Remove unused data in excalidraw's DB.")
+    @jwt_required
+    def post(self):
+        return util.success(excalidraw.sync_excalidraw_db())

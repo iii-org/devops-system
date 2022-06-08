@@ -58,7 +58,6 @@ from urls.notification_message import notification_message_url
 from urls.template import template_url
 from urls.harbor import harbor_url
 from urls.system import system_url
-from urls.excalidraw import excalidraw_url
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -616,8 +615,6 @@ notification_message_url(api, add_resource, socketio)
 api.add_resource(routine_job.DoJobByMonth, '/routine_job/by_month')
 api.add_resource(routine_job.DoJobByDay, '/routine_job/by_day')
 
-# Excalidraw
-excalidraw_url(api, add_resource)
 
 def start_prod():
     try:
