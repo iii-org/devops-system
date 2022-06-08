@@ -10,6 +10,7 @@ from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
+import shutil
 import model
 import util
 from model import CMAS as Model
@@ -284,14 +285,15 @@ def update_task(args, task_id):
 
 def remove_apk():
     from datetime import datetime
-    for path in [pj[0] for pj in os.walk("./devops-data/project-data") if pj[0].endswith("pipeline")]:
-        apk_path = f"{path}/app-debug.apk"
-        if os.path.isfile(apk_path):
-            current_time = datetime.now()
-            apk_datetime = datetime.fromtimestamp(os.path.getctime(apk_path))
-            if (current_time - apk_datetime).total_seconds() > 60 * 60 * 24:
-                print(apk_path)
-                os.remove(apk_path)
+    for super_path in [pj[0] for pj in os.walk("./devops-data/project-data") if pj[0].endswith("pipeline")]:
+        for path in os.walk(super_path):
+            apk_path = f"{path[0]}/app-debug.apk"
+            if os.path.isfile(apk_path):
+                current_time = datetime.now()
+                apk_datetime = datetime.fromtimestamp(os.path.getctime(apk_path))
+                if (current_time - apk_datetime).total_seconds() > 60 * 60 * 24:
+                    print(apk_path)
+                    shutil.rmtree(path[0])
 
 # --------------------- Resources ---------------------
 

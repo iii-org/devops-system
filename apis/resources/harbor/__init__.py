@@ -68,10 +68,11 @@ def __encode(repository_name):
 # Regular methods
 def hb_get_id_by_name(project_name):
     projects = __api_get('/projects', params={'name': project_name}).json()
-    if len(projects) == 0:
-        raise DevOpsError(404, 'Harbor does not have such project.',
-                          error=apiError.project_not_found(project_name))
-    return projects[0]['project_id']
+    for project in projects:
+        if project.get("name") == project_name:
+            return project["project_id"]
+    raise DevOpsError(404, 'Harbor does not have such project.',
+                        error=apiError.project_not_found(project_name))
 
 
 def hb_create_project(project_name):
@@ -325,6 +326,29 @@ def hb_get_artifact(project_name, repository_name, tag_name):
                          f'{__encode(tag_name)}', params={'with_scan_overview': True}).json()
 
     return generate_artifacts_output(artifact)
+
+
+def hb_get_artifact_scan_overview(project_name, repository_name, commit_id):
+    try:
+        artifact = __api_get(f'/projects/{project_name}/repositories'
+                             f'/{__encode(repository_name)}/artifacts/'
+                             f'{__encode(commit_id)}', params={'with_scan_overview': True}).json()
+        if type(artifact.get("scan_overview")) is dict:
+            scan_report = next(iter(artifact.get("scan_overview").values()))
+        return scan_report
+    except:
+        return
+
+
+def hb_get_artifact_scan_vulnerabilities_detail(project_name, repository_name, commit_id):
+    try:
+        artifact = __api_get(f'/projects/{project_name}/repositories'
+                             f'/{__encode(repository_name)}/artifacts/'
+                             f'{__encode(commit_id)}/additions/vulnerabilities').json()
+        out = next(iter(artifact.values()))
+        return out
+    except:
+        return
 
 
 def hb_copy_artifact(project_name, repository_name, from_image):

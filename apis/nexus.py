@@ -76,8 +76,8 @@ def nx_get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=
         except NoResultFound:
             raise apiError.DevOpsError(
                 404,
-                'User with redmine id {0} does not exist in redmine.'.format(plan_user_id),
-                apiError.user_not_found(plan_user_id))
+                'User with gitlab_user id {0} does not exist in gitlab.'.format(gitlab_user_id),
+                apiError.user_not_found(gitlab_user_id))
     else:
         try:
             return model.UserPluginRelation.query.filter_by(

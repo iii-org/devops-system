@@ -121,6 +121,8 @@ def get_plugin_config(plugin_name):
 
 
 def update_plugin_config(plugin_name, args):
+    patch_secret = False
+    system_secrets_not_exist = False
     config = get_plugin_config_file(plugin_name)
     db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one()
     db_arguments = json.loads(db_row.parameter)
@@ -129,6 +131,7 @@ def update_plugin_config(plugin_name, args):
     system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name))
     global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name)
     if system_secrets is None:
+        system_secrets_not_exist = True
         system_secrets = {}
     if global_secrets is None:
         global_secrets = {}
@@ -153,11 +156,14 @@ def update_plugin_config(plugin_name, args):
             if store == PluginKeyStore.DB:
                 db_arguments[argument] = str(args['arguments'][argument])
             elif store == PluginKeyStore.SECRET_SYSTEM:
-                create_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), {})
+                if system_secrets_not_exist:
+                    create_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), {})
                 system_secrets[argument] = str(args['arguments'][argument])
+                patch_secret = True
             elif store == PluginKeyStore.SECRET_ALL:
                 global_secrets[argument] = str(args['arguments'][argument])
-    patch_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), system_secrets)
+    if patch_secret:
+        patch_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), system_secrets)
     rancher.rc_add_secrets_to_all_namespaces(plugin_name, global_secrets)
     db_row.parameter = json.dumps(db_arguments)
     db_row.update_at = datetime.now()

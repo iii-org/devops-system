@@ -71,15 +71,17 @@ def __tm_get_tag_info(pj, tag_name):
     return tag_info_dict
 
 
-def __tm_get_pipe_yamlfile_name(pj, tag_name=None, branch_name=None):
+def __tm_get_pipe_yamlfile_name(pj, tag_name=None, branch_name=None, commit_id=None):
     pipe_yaml_file_name = None
-    if tag_name is None and branch_name is None:
+    if tag_name is None and branch_name is None and commit_id is None:
         ref = pj.default_branch
     elif tag_name is not None:
         tag_info_dict = __tm_get_tag_info(pj, tag_name)
         ref = tag_info_dict["commit_id"]
     elif branch_name is not None:
         ref = branch_name
+    elif commit_id is not None:
+        ref = commit_id
     for item in pj.repository_tree(ref=ref):
         if item["path"] == ".rancher-pipeline.yml":
             pipe_yaml_file_name = ".rancher-pipeline.yml"
@@ -88,10 +90,13 @@ def __tm_get_pipe_yamlfile_name(pj, tag_name=None, branch_name=None):
     return pipe_yaml_file_name
 
 
-def __tm_get_git_pipline_json(pj, tag_name=None):
-    if tag_name is None:
+def tm_get_git_pipeline_json(pj, tag_name=None, commit_id=None):
+    if tag_name is None and commit_id is None:
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
         ref = pj.default_branch
+    elif commit_id:
+        pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj, commit_id=commit_id)
+        ref = commit_id
     else:
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj,
                                                           tag_name=tag_name)
@@ -313,6 +318,10 @@ def tm_get_template_list(force_update=0):
             "options": []
         }]
         for data in total_data:
+            try:
+                gl.projects.get(data.temp_repo_id)
+            except:
+                continue
             if data.group_name == "Public Templates":
                 output[0]["options"].append({
                     "id": data.temp_repo_id,
@@ -371,7 +380,6 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
     __add_plugin_soft_status_json()
     template_pj = gl.projects.get(template_repository_id)
     secret_temp_http_url = tm_get_secret_url(template_pj)
-    pipe_json = __tm_get_git_pipline_json(template_pj, tag_name=tag_name)
     tag_info_dict = __tm_get_tag_info(template_pj, tag_name)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(template_pj,
                                                       tag_name=tag_name)
@@ -414,12 +422,12 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                             fun_value["answers"][
                                                 ans_key] = arg_value
 
-                            # Add volume uuid in DB and Web answer.
-                            if stage["iiidevops"] == "deployed-environments":
-                                fun_value["answers"]["volumeMounts.enabled"] = True
-                                fun_value["answers"]["volumeMounts.project"] = "${CICD_GIT_REPO_NAME}"
-                                fun_value["answers"]["volumeMounts.uuid"] = uuids
-                                fun_value["answers"]["volumeMounts.mountPath"] = "/project-data"
+                            # # Add volume uuid in DB and Web answer.
+                            # if stage["iiidevops"] == "deployed-environments":
+                            #     fun_value["answers"]["volumeMounts.enabled"] = True
+                            #     fun_value["answers"]["volumeMounts.project"] = "${CICD_GIT_REPO_NAME}"
+                            #     fun_value["answers"]["volumeMounts.uuid"] = uuids
+                            #     fun_value["answers"]["volumeMounts.mountPath"] = "/project-data"
 
                         elif fun_key == "envFrom":
                             pass
@@ -565,7 +573,7 @@ def handle_stage_format(stage):
     return []
 
 
-def update_branches(stage, pipline_soft, branch, enable_key_name):
+def update_branches(stage, pipline_soft, branch, enable_key_name, exist_branches):
     had_update_branche = False
     if get_tool_name(stage) is not None and pipline_soft["key"] == get_tool_name(stage):
         if "when" not in stage:
@@ -576,7 +584,9 @@ def update_branches(stage, pipline_soft, branch, enable_key_name):
             had_update_branche = True
         elif pipline_soft[enable_key_name] is False and branch in stage_when:
             stage_when.remove(branch)
-            had_update_branche = True
+            had_update_branche = True 
+        
+        stage_when = [branch for branch in stage_when if branch in exist_branches]
         if len(stage_when) == 0:
             stage_when.append("skip")
             had_update_branche = True
@@ -594,6 +604,8 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return
+    exist_branch_list = [br.name for br in pj.branches.list(all=True)]
+
     for br in pj.branches.list(all=True):
         had_update_branche = False
         pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
@@ -604,11 +616,13 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
         for stage in pipe_json["stages"]:
             if default:
                 for put_pipe_soft in data["stages"]:
-                    had_update_branche |= update_branches(stage, put_pipe_soft, pj.default_branch, "has_default_branch")
+                    had_update_branche |= update_branches(
+                        stage, put_pipe_soft, pj.default_branch, "has_default_branch", exist_branch_list)
             else:
                 for input_branch, multi_software in data.items():
                     for input_soft_enable in multi_software:
-                        had_update_branche |= update_branches(stage, input_soft_enable, input_branch, "enable")
+                        had_update_branche |= update_branches(
+                            stage, input_soft_enable, input_branch, "enable", exist_branch_list)
         if had_update_branche is True:
             branch_name_in_data = list(data.keys())[0]
             if run is False or (run is True and br.name != branch_name_in_data):

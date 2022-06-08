@@ -35,6 +35,8 @@ NEW = AlertLevel(101, 'New Version', False)
 SAL = AlertLevel(102, 'System Alert', False)
 SWA = AlertLevel(103, 'System Warming', True)
 
+SWA = AlertLevel(201, 'GitLab Merge Request Notification', True)
+
 ALL_ALERTS = [INF, WAR, URG, NEW, SAL, SWA]
 
 
@@ -199,6 +201,7 @@ def create_notification_message(args, user_id=None):
         alert_level=args['alert_level'],
         title=args['title'],
         alert_service_id=args.get("alert_service_id", 0),
+        message_parameter=args.get("message_parameter"),
         message=args['message'],
         creator_id=user_id,
         created_at=datetime.utcnow(),
@@ -319,6 +322,13 @@ def get_unread_notification_message_list(title=None, alert_service_id=None):
         base_query = base_query.filter(NotificationMessage.title == title)
     rows = base_query.order_by(desc(NotificationMessage.id)).all()
     return [{**json.loads(str(row[0]))} for row in rows if len(row) > 1 and row[1] is None]
+
+
+def get_unclose_notification_message(alert_service_id):
+    rows = NotificationMessage.query.filter_by(alert_level=102, alert_service_id=alert_service_id,
+                                               close=False).order_by(desc(NotificationMessage.id)).all()
+    return [json.loads(str(row)) for row in rows]
+
 
 class NotificationRoom(object):
 

@@ -9,6 +9,7 @@ from plugins.sonarqube.sonarqube_main import sq_get_history_by_commit
 from plugins.webinspect.webinspect_main import wi_get_scan_by_commit
 from plugins.zap.zap_main import zap_get_test_by_commit
 from plugins.cmas.cmas_main import get_task_state
+from resources.harbor.harbor_scan import harbor_get_scan_by_commit
 from resources import apiTest, role
 
 
@@ -39,6 +40,7 @@ def get_commit_summary(project_id, commit_id):
         result = check_plugin_software_open(row, project_id, commit_id)
         if result is not None:
             output.update(result)
+    output.update({'harbor': harbor_get_scan_by_commit(project_id, commit_id)})
     return output
 
 

@@ -27,7 +27,6 @@ from werkzeug.routing import IntegerConverter
 import plugins
 import migrate
 import model
-import system
 import resources.apiError as apiError
 import resources.pipeline as pipeline
 import resources.rancher as rancher
@@ -58,6 +57,7 @@ from urls.system_parameter import sync_system_parameter_url
 from urls.notification_message import notification_message_url
 from urls.template import template_url
 from urls.harbor import harbor_url
+from urls.system import system_url
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -79,10 +79,11 @@ security_definitions = {
 app.config.update({
     'APISPEC_SPEC': APISpec(
         title='Devops API Project',
-        version='v1',
+        version='v2',
         plugins=[MarshmallowPlugin()],
         securityDefinitions=security_definitions,
-        openapi_version='2.0.0'
+        openapi_version='2.0.0',
+        basePath='/prod-api'
     ),
     'APISPEC_SWAGGER_URL': '/swagger/',  # URI to access API Doc JSON
     'APISPEC_SWAGGER_UI_URL': '/swagger-ui/'  # URI to access UI of API Doc
@@ -237,7 +238,7 @@ api.add_resource(project.GitRepoIdToCiPipeId,
                  '/git_repo_id_to_ci_pipe_id/<repository_id>')
 api.add_resource(project.GitRepoIdToCiPipeIdV2,
                  '/v2/git_repo_id_to_ci_pipe_id/<repository_id>')
-add_resource(project.GitRepoIdToCiPipeIdV2, 'public')
+add_resource(project.GitRepoIdToCiPipeIdV2, 'private')
 
 # Projects
 api.add_resource(starred_project.StarredProject,
@@ -367,17 +368,17 @@ api.add_resource(issue.DashboardIssuePriority,
                  '/dashboard_issues_priority/<user_id>')
 api.add_resource(issue.DashboardIssuePriorityV2,
                  '/v2/dashboard_issues_priority/<user_id>')
-add_resource(issue.DashboardIssuePriorityV2, "public")
+add_resource(issue.DashboardIssuePriorityV2, "private")
 
 api.add_resource(issue.DashboardIssueProject,
                  '/dashboard_issues_project/<user_id>')
 api.add_resource(issue.DashboardIssueProjectV2,
                  '/v2/dashboard_issues_project/<user_id>')
-add_resource(issue.DashboardIssueProjectV2, "public")
+add_resource(issue.DashboardIssueProjectV2, "private")
 
 api.add_resource(issue.DashboardIssueType, '/dashboard_issues_type/<user_id>')
 api.add_resource(issue.DashboardIssueTypeV2, '/v2/dashboard_issues_type/<user_id>')
-add_resource(issue.DashboardIssueTypeV2, 'public')
+add_resource(issue.DashboardIssueTypeV2, 'private')
 
 api.add_resource(gitlab.GitTheLastHoursCommits,
                  '/dashboard/the_last_hours_commits')
@@ -401,37 +402,37 @@ api.add_resource(sync_redmine.PassingRateDetail,
 # testPhase Requirement
 api.add_resource(issue.RequirementByIssue, '/requirements_by_issue/<issue_id>')
 api.add_resource(issue.RequirementByIssueV2, '/v2/requirements_by_issue/<issue_id>')
-add_resource(issue.RequirementByIssueV2, 'public')
+add_resource(issue.RequirementByIssueV2, 'private')
 
 api.add_resource(issue.Requirement, '/requirements/<requirement_id>')
 api.add_resource(issue.RequirementV2, '/v2/requirements/<requirement_id>')
-add_resource(issue.RequirementV2, 'public')
+add_resource(issue.RequirementV2, 'private')
 
 # testPhase Flow
 api.add_resource(issue.FlowByIssue, '/flows_by_issue/<issue_id>')
 api.add_resource(issue.FlowByIssueV2, '/v2/flows_by_issue/<issue_id>')
-add_resource(issue.FlowByIssueV2, 'public')
+add_resource(issue.FlowByIssueV2, 'private')
 
 api.add_resource(issue.GetFlowType, '/flows/support_type')
 api.add_resource(issue.GetFlowTypeV2, '/v2/flows/support_type')
-add_resource(issue.GetFlowTypeV2, 'public')
+add_resource(issue.GetFlowTypeV2, 'private')
 
 api.add_resource(issue.Flow, '/flows/<flow_id>')
 api.add_resource(issue.FlowV2, '/v2/flows/<flow_id>')
-add_resource(issue.FlowV2, "public")
+add_resource(issue.FlowV2, "private")
 
 # testPhase Parameters FLow
 api.add_resource(issue.ParameterByIssue, '/parameters_by_issue/<issue_id>')
 api.add_resource(issue.ParameterByIssueV2, '/v2/parameters_by_issue/<issue_id>')
-add_resource(issue.ParameterByIssueV2, 'public')
+add_resource(issue.ParameterByIssueV2, 'private')
 
 api.add_resource(issue.Parameter, '/parameters/<parameter_id>')
 api.add_resource(issue.ParameterV2, '/v2/parameters/<parameter_id>')
-add_resource(issue.ParameterV2, 'public')
+add_resource(issue.ParameterV2, 'private')
 
 api.add_resource(issue.ParameterType, '/parameter_types')
 api.add_resource(issue.ParameterTypeV2, '/v2/parameter_types')
-add_resource(issue.ParameterTypeV2, 'public')
+add_resource(issue.ParameterTypeV2, 'private')
 
 # testPhase TestCase Support Case Type
 api.add_resource(apiTest.TestCases, '/test_cases')
@@ -475,10 +476,7 @@ api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
 api.add_resource(redmine.RedmineMail, '/mail')
 
-# System administrations
-api.add_resource(system.SystemGitCommitID,
-                 '/system_git_commit_id')  # git commit
-api.add_resource(system.SystemInfoReport, '/system_info_report')
+system_url(api, add_resource)
 
 # Mocks
 # api.add_resource(mock.MockTestResult, '/mock/test_summary')
@@ -582,19 +580,19 @@ api.add_resource(alert.DefaultAlertDaysUpdate, '/alert/default_days')
 # Trace Order
 api.add_resource(trace_order.TraceOrders, '/trace_order')
 api.add_resource(trace_order.TraceOrdersV2, '/v2/trace_order')
-add_resource(trace_order.TraceOrdersV2, 'public')
+add_resource(trace_order.TraceOrdersV2, 'private')
 
 api.add_resource(trace_order.SingleTraceOrder, '/trace_order/<sint:trace_order_id>')
 api.add_resource(trace_order.SingleTraceOrderV2, '/v2/trace_order/<sint:trace_order_id>')
-add_resource(trace_order.SingleTraceOrderV2, 'public')
+add_resource(trace_order.SingleTraceOrderV2, 'private')
 
 api.add_resource(trace_order.ExecuteTraceOrder, '/trace_order/execute')
 api.add_resource(trace_order.ExecuteTraceOrderV2, '/v2/trace_order/execute')
-add_resource(trace_order.ExecuteTraceOrderV2, 'public')
+add_resource(trace_order.ExecuteTraceOrderV2, 'private')
 
 api.add_resource(trace_order.GetTraceResult, '/trace_order/result')
 api.add_resource(trace_order.GetTraceResultV2, '/v2/trace_order/result')
-add_resource(trace_order.GetTraceResultV2, 'public')
+add_resource(trace_order.GetTraceResultV2, 'private')
 
 # monitoring
 monitoring.monitoring_url(api, add_resource)

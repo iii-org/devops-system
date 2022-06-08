@@ -262,9 +262,25 @@ class HarborCopyImageRetage(Resource):
                 args["project_name"], args["from_repo_name"], args["dest_repo_name"], args["from_tag"], args["dest_tag"]))
 
 
-@doc(tags=['Harbor Scan'], description='Create a harbor scan record when pipeline execute')
+@doc(tags=['Harbor Scan'], description='Create a harbor image scan record when pipeline execute')
 class HarborScan(MethodResource):
 
-    @use_kwargs(router_model.CreateTemplateFormProjectScheme, location=('form'))
+    @use_kwargs(router_model.CreateHarborScan, location=('form'))
     def post(self, project_name, **kwargs):
-        return util.success(harbor_scan.create_harbor_scan(project_name, kwargs.get("branch"), kwargs.get("commit_id")))
+        harbor_scan.create_harbor_scan(project_name, kwargs.get("branch"), kwargs.get("commit_id"))
+        return util.success()
+
+
+@doc(tags=['Harbor Scan'], description='Get harbor scan report')
+class HarborScanReport(MethodResource):
+    @use_kwargs(router_model.CreateHarborScan, location=('query'))
+    def get(self, project_name, **kwargs):
+        return util.success(harbor_scan.get_harbor_scan_report(project_name, kwargs.get("branch"), kwargs.get("commit_id")))
+
+
+@doc(tags=['Harbor Scan'], description='List harbor image scan by project')
+class HarborScanList(MethodResource):
+    @use_kwargs(router_model.HarborScanList, location="query")
+    @jwt_required
+    def get(self, project_id, **kwargs):
+        return util.success(harbor_scan.harbor_scan_list(project_id, kwargs))

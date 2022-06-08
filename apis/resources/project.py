@@ -41,6 +41,7 @@ from .gitlab import gitlab
 from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
 from resources.monitoring import Monitoring
+from resources.harbor import harbor_scan
 from resources import sync_project
 from resources.project_relation import get_all_sons_project, get_plan_id
 from flask_apispec import doc
@@ -138,11 +139,12 @@ def get_project_rows_by_user(user_id, disable, args={}):
     # 如果不是admin（也就是一般RD/PM/QA），取得 user_id 有參加的 project 列表
     if user.get_role_id(user_id) != role.ADMIN.id:
         query = query.filter(model.Project.user_role.any(user_id=user_id))
-    
-    stared_pjs = db.session.query(StarredProject).join(ProjectUserRole, StarredProject.project_id == ProjectUserRole.project_id). \
-    filter(ProjectUserRole.user_id == user_id).filter(StarredProject.user_id == user_id).all()
+        stared_pjs = db.session.query(StarredProject).join(ProjectUserRole, StarredProject.project_id == ProjectUserRole.project_id). \
+            filter(ProjectUserRole.user_id == user_id).filter(StarredProject.user_id == user_id).all()
+    else:
+        stared_pjs = db.session.query(StarredProject).filter_by(user_id=user_id).all()
     star_projects_obj = [model.Project.query.get(stared_pj.project_id) for stared_pj in stared_pjs]
-   
+
     if disable is not None:
         query = query.filter_by(disabled=disable)
         star_projects_obj = [star_project for star_project in star_projects_obj if star_project.disabled == disable]
@@ -190,7 +192,7 @@ def get_project_rows_by_user(user_id, disable, args={}):
 # 新增redmine & gitlab的project並將db相關table新增資訊
 @record_activity(ActionType.CREATE_PROJECT)
 def create_project(user_id, args):
-    is_inherit_members = args.pop("is_inherit_members", False)
+    is_inherit_members = args.pop("is_inheritance_member", False)
     if args["description"] is None:
         args["description"] = ""
     if args['display'] is None:
@@ -335,7 +337,8 @@ def create_project(user_id, args):
             creator_id=user_id,
             base_example=template_pj_path,
             example_tag=args["tag_name"],
-            uuid=uuids
+            uuid=uuids,
+            is_inheritance_member=is_inherit_members
         )
         db.session.add(new_pjt)
         db.session.commit()
@@ -357,7 +360,8 @@ def create_project(user_id, args):
         if args.get('parent_plan_project_id') is not None:
             new_father_son_relation = model.ProjectParentSonRelation(
                 parent_id=args.get('parent_id'),
-                son_id=project_id
+                son_id=project_id,
+                created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             )
             db.session.add(new_father_son_relation)
             db.session.commit()
@@ -370,9 +374,12 @@ def create_project(user_id, args):
 
         # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
         if is_inherit_members and args.get('parent_plan_project_id') is not None:
-            for user in model.ProjectUserRole.query.filter_by(project_id=args.get('parent_id')).all():
-                if user.user_id != owner_id:
-                    project_add_member(project_id, user.user_id)
+            for row in db.session.query(model.User, ProjectUserRole). \
+            join(model.User).filter(model.ProjectUserRole.project_id==args.get('parent_id')).all():
+                if row.User.id not in [owner_id, user_id] and \
+                    not row.User.login.startswith("project_bot") and \
+                    row.ProjectUserRole.role_id != 7:
+                    project_add_member(project_id, row.User.id)
 
         # Commit and push file by template , if template env is not None
         if args.get("template_id") is not None:
@@ -465,7 +472,7 @@ def create_bot(project_id):
 
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
-    is_inherit_members = args.pop("is_inherit_members", False)
+    is_inherit_members = args.get("is_inheritance_member") or False
 
     plugin_relation = model.ProjectPluginRelation.query.filter_by(
         project_id=project_id).first()
@@ -473,7 +480,10 @@ def pm_update_project(project_id, args):
         gitlab.gl_update_project(
             plugin_relation.git_repository_id, args["description"])
     if args.get('parent_id', None) is not None:
-        args['parent_plan_project_id'] = get_plan_project_id(args.get('parent_id'))
+        if args["parent_id"] == "":
+            args['parent_plan_project_id'] = ""
+        else:
+            args['parent_plan_project_id'] = get_plan_project_id(int(args.get('parent_id')))
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     nexus.nx_update_project(project_id, args)
 
@@ -484,20 +494,36 @@ def pm_update_project(project_id, args):
             plugin_relation.git_repository_id, disabled)
 
     # 若有父專案, 加關聯進ProjectParentSonRelation, 須等redmine更新完再寫入
-    if args.get('parent_plan_project_id') is not None and model.ProjectParentSonRelation. \
-            query.filter_by(parent_id=args.get('parent_id'), son_id=project_id).first() is None:
-        new_father_son_relation = model.ProjectParentSonRelation(
-            parent_id=args.get('parent_id'),
-            son_id=project_id
-        )
-        db.session.add(new_father_son_relation)
+    if args.get('parent_plan_project_id') is not None:
+        project_relation = model.ProjectParentSonRelation.query.filter_by(son_id=project_id)
+        if project_relation.first() is None:
+            if args.get('parent_plan_project_id') != "":
+                new_father_son_relation = model.ProjectParentSonRelation(
+                    parent_id=int(args.get('parent_id')),
+                    son_id=project_id,
+                    created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                )
+                db.session.add(new_father_son_relation) 
+        else:
+            if args.get('parent_plan_project_id') != "":
+                project_relation = project_relation.first()
+                project_relation.parent_id = int(args.get('parent_id'))
+                project_relation.created_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                project_relation.delete()
         db.session.commit()
 
     # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
     if is_inherit_members and args.get('parent_plan_project_id') is not None:
-        for user in model.ProjectUserRole.query.filter_by(project_id=args.get('parent_id')).all():
-            if model.ProjectUserRole.query.filter_by(project_id=project_id, user_id=user.user_id).first() is None:
-                project_add_member(project_id, user.user_id)
+        exist_user_ids = [row.user_id for row in model.ProjectUserRole.query.filter_by(project_id=project_id).all()]
+
+        for row in db.session.query(model.User, ProjectUserRole). \
+        join(model.User).filter(model.ProjectUserRole.project_id==args.get('parent_id')).all():
+            if row.User.id not in exist_user_ids and \
+                row.User.id != args.get("owner_id") and \
+                not row.User.login.startswith("project_bot") and \
+                row.ProjectUserRole.role_id != 7:
+                project_add_member(project_id, row.User.id)
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
@@ -949,6 +975,26 @@ def get_test_summary(project_id):
         else:
             not_found_ret['message'] = not_found_ret_message("cmas")
             ret['cmas'] = not_found_ret.copy()
+
+    # Harbor scan
+    scan_list = harbor_scan.harbor_scan_list(project_id, {"per_page": 2, "page": 1})["scan_list"]
+    if scan_list != []:
+        scan = scan_list[0]
+        ret["harbor"] = {"run_at": scan.get("created_at")}
+        ret["harbor"]["result"] = {
+            key: scan.get(key) for key in ["Critical", "High", "Low", "Medium", "Negligible", "Unknown"]
+            if scan.get(key) is not None}
+        if scan.get("scan_status") == "Success" and scan.get("finished"):
+            ret["harbor"] |= {"message": "success", "status": 1}
+        elif (scan.get("scan_status") == "Success" and not scan.get("finished")) or \
+            scan.get("scan_status") in ["Queued", "Scanning", "Complete"]:
+            ret["harbor"] |= {"message": "scanning", "status": 2}
+        else:
+            ret["harbor"] |= {"message": "failed", "status": -1, "run_at": None}
+    else:
+        not_found_ret['message'] = not_found_ret_message("harbor")
+        ret['harbor'] = not_found_ret.copy()
+
     return util.success({'test_results': ret})
 
 

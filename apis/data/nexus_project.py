@@ -114,6 +114,8 @@ class NexusProject:
         ret['owner_name'] = self.get_owner().name
         ret['department'] = self.get_owner().department
         ret['has_son'] = project_has_child(self.__project_id)
+        project_relation = model.ProjectParentSonRelation.query.filter_by(son_id=ret["id"]).first()
+        ret["parent_id"] = None if project_relation is None else project_relation.parent_id
         for key, value in self.get_extra_fields().items():
             ret[key] = value
         if self.__project_members_dict is not None:

@@ -696,9 +696,11 @@ class SingleProject(Resource):
         parser.add_argument('start_date', type=str, required=True)
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int, required=True)
-        parser.add_argument('parent_id', type=int)
-        parser.add_argument('is_inherit_members', type=bool)
+        parser.add_argument('parent_id', type=str)
+        parser.add_argument('is_inheritance_member', type=bool)
         args = parser.parse_args()
+        args = {key: value for key, value in args.items() if value is not None or key == "description"}
+
         project.check_project_args_patterns(args)
         project.check_project_owner_id(args['owner_id'], get_jwt_identity()[
             'user_id'], project_id)
@@ -751,7 +753,7 @@ class SingleProject(Resource):
         parser.add_argument('due_date', type=str, required=True)
         parser.add_argument('owner_id', type=int)
         parser.add_argument('parent_id', type=int)
-        parser.add_argument('is_inherit_members', type=bool)
+        parser.add_argument('is_inheritance_member', type=bool)
         args = parser.parse_args()
         if args['arguments'] is not None:
             args['arguments'] = ast.literal_eval(args['arguments'])
@@ -785,7 +787,7 @@ class SingleProjectByName(Resource):
 
 class ProjectMemberV2(MethodResource):
     @doc(tags=['User'], description="Create project member.")
-    @use_kwargs(router_model.SingleProjectPutSchema, location="form")
+    @use_kwargs(router_model.SingleProjectMemberPutSchema, location="form")
     @marshal_with(util.CommonResponse)
     @jwt_required
     def post(self, project_id, **kwargs):
@@ -1706,7 +1708,7 @@ class ReleasesV2(MethodResource):
                 redmine.rm_put_version(version, params)
                 closed_version = True
 
-            # check  Gitalb Release
+            # check Gitalb Release
             if release_obj.gitlab_info.get('check') == True:
                 gitlab_data = {
                     'tag_name': release_name,

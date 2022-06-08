@@ -102,6 +102,7 @@ class Project(db.Model):
     base_example = Column(String)
     example_tag = Column(String)
     uuid = Column(String)
+    is_inheritance_member = Column(Boolean, default=False)
 
     def __repr__(self):
         fields = {}
@@ -812,6 +813,7 @@ class NotificationMessage(db.Model):
     alert_service_id = Column(Integer, default=0)
     title = Column(String)
     message = Column(String, nullable=False)
+    message_parameter = Column(JSON)
     creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
@@ -922,8 +924,48 @@ class HarborScan(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     branch = Column(String)
     commit = Column(String)
+    fully_commit = Column(String)
     digest = Column(String)
+    scan_overview = Column(JSON)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     finished_at = Column(DateTime)
     finished = Column(Boolean)
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+            data = self.__getattribute__(field)
+            try:
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
+                fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)
+
+
+class Excalidraw(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    name = Column(String)
+    room = Column(String, nullable=False)
+    key = Column(String, nullable=False)
+    operator_id = Column(Integer, ForeignKey(
+        User.id, ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+
+class ExcalidrawJson(db.Model):
+    id = Column(Integer, primary_key=True)
+    excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete='CASCADE'))
+    name = Column(String)
+    json_key = Column(String, nullable=False)
+
+
+class ExcalidrawIssueRelation(db.Model):
+    id = Column(Integer, primary_key=True)
+    excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete='CASCADE'))
+    issue_id = Column(Integer)
