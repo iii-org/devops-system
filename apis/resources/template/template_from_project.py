@@ -33,7 +33,10 @@ def template_from_project_list():
     out_list = []
     for template in all_templates:
         template = json.loads(str(template))
-        gl_template = gl.projects.get(template['template_repository_id'])
+        try:
+            gl_template = gl.projects.get(template['template_repository_id'])
+        except:
+            continue
         template['template_repository_url'] = gl_template.http_url_to_repo
         if template['creator_id'] is not None:
             template['creator_name'] = nx_get_user(id=template['creator_id']).name
