@@ -1,6 +1,6 @@
 {
     "name": "excalidraw",
-    "default_disabled": true,
+    "default_disabled": false,
     "is_pipeline": false,
     "keys": [
         {
