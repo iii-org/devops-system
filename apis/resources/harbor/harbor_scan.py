@@ -87,10 +87,9 @@ def harbor_scan_list(project_id, kwargs):
         if row.finished is False:
             scan_report_dict = hb_get_artifact_scan_overview(nx_get_project(id=project_id).name, row.branch, row.commit)
             if scan_report_dict is not None:
-                scan_report_dict |= scan_report_dict.get('summary').get('summary')
-                del scan_report_dict.get('summary')['summary']
-                scan_report_dict |= scan_report_dict.get('summary')
-                del scan_report_dict['summary']
+                if scan_report_dict.get('summary', {}).get('summary') is not None:
+                    scan_report_dict |= scan_report_dict.pop("summary")
+                    scan_report_dict |= scan_report_dict.pop("summary")
                 if scan_report_dict.get('complete_percent') == 100:
                     row.finished_at = datetime.utcnow()
                     row.finished = True

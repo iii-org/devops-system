@@ -10,6 +10,7 @@ from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import NoResultFound
 
+import shutil
 import model
 import util
 from model import CMAS as Model
@@ -292,7 +293,7 @@ def remove_apk():
                 apk_datetime = datetime.fromtimestamp(os.path.getctime(apk_path))
                 if (current_time - apk_datetime).total_seconds() > 60 * 60 * 24:
                     print(apk_path)
-                    os.remove(apk_path)
+                    shutil.rmtree(path[0])
 
 # --------------------- Resources ---------------------
 
