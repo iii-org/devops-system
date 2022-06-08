@@ -816,7 +816,7 @@ def update_pj_plugin_status(plugin_name, disable):
 
 
 class TemplateList(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         role.require_pm("Error while getting template list.")
         parser = reqparse.RequestParser()
@@ -835,7 +835,7 @@ class TemplateListForCronJob(Resource):
 
 
 class SingleTemplate(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, repository_id):
         role.require_pm("Error while getting template list.")
         parser = reqparse.RequestParser()
@@ -845,7 +845,7 @@ class SingleTemplate(Resource):
 
 
 class ProjectPipelineBranches(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('all_data', type=bool)
@@ -854,7 +854,7 @@ class ProjectPipelineBranches(Resource):
 
         return util.success(tm_get_pipeline_branches(repository_id, all_data=all_data))
 
-    @ jwt_required
+    @jwt_required()
     def put(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('detail', type=dict)
@@ -868,11 +868,11 @@ class ProjectPipelineBranches(Resource):
 
 
 class ProjectPipelineDefaultBranch(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, repository_id):
         return util.success(tm_get_pipeline_default_branch(repository_id))
 
-    @ jwt_required
+    @jwt_required()
     def put(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('detail', type=dict)

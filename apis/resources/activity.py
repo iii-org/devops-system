@@ -18,7 +18,7 @@ from resources import role
 
 
 def record_activity(action_type):
-    # Must be used after @jwt_required decorator!
+    # Must be used after @jwt_required() decorator!
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):

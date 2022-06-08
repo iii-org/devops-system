@@ -312,14 +312,14 @@ checkmarx = CheckMarx()
 
 # --------------------- Resources ---------------------
 class GetCheckmarxProject(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         cm_project_id = checkmarx.get_latest('cm_project_id', project_id)
         return util.success({'cm_project_id': cm_project_id})
 
 
 class CreateCheckmarxScan(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('cm_project_id', type=int, required=True)
@@ -332,13 +332,13 @@ class CreateCheckmarxScan(Resource):
 
 
 class GetCheckmarxScans(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         return util.success(checkmarx.list_scans(project_id))
 
 
 class GetCheckmarxLatestScan(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         scan_id = checkmarx.get_latest('scan_id', project_id)
         if scan_id >= 0:
@@ -348,7 +348,7 @@ class GetCheckmarxLatestScan(Resource):
 
 
 class GetCheckmarxLatestScanStats(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         scan_id = checkmarx.get_latest('scan_id', project_id)
         if scan_id < 0:
@@ -361,7 +361,7 @@ class GetCheckmarxLatestScanStats(Resource):
 
 
 class GetCheckmarxLatestReport(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         report_id = checkmarx.get_latest('report_id', project_id)
         if report_id < 0:
@@ -370,13 +370,13 @@ class GetCheckmarxLatestReport(Resource):
 
 
 class GetCheckmarxReport(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, report_id):
         return checkmarx.get_report(report_id)
 
 
 class GetCheckmarxScanStatus(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, scan_id):
         status_id, name = checkmarx.get_scan_status(scan_id)
 
@@ -391,20 +391,20 @@ class GetCheckmarxScanStatus(Resource):
 
 
 class RegisterCheckmarxReport(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self, scan_id):
         return checkmarx.register_report(scan_id)
 
 
 class GetCheckmarxReportStatus(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, report_id):
         status_id, value = checkmarx.get_report_status(report_id)
         return util.success({'id': status_id, 'value': value})
 
 
 class GetCheckmarxScanStatistics(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, scan_id):
         stats = checkmarx.get_scan_statistics(scan_id)
         if 'statisticsCalculationDate' in stats:
@@ -414,7 +414,7 @@ class GetCheckmarxScanStatistics(Resource):
 
 
 class CancelCheckmarxScan(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self, scan_id):
         status_code = checkmarx.cancel_scan(scan_id)
         status = "success" if status_code == 200 else "failure"

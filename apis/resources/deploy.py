@@ -237,7 +237,7 @@ def delete_cluster(cluster_id):
 
 
 class Clusters(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         try:
             output = get_clusters()
@@ -247,7 +247,7 @@ class Clusters(Resource):
                                 _ERROR_GET_CLUSTERS,
                                 error=apiError.get_clusters_failed())
 
-    @jwt_required
+    @jwt_required()
     def post(self):
         try:
             user_id = get_jwt_identity()["user_id"]
@@ -276,7 +276,7 @@ class Clusters(Resource):
 
 
 class Cluster(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, cluster_id):
         try:
             output = get_clusters(cluster_id)
@@ -288,7 +288,7 @@ class Cluster(Resource):
                                 _ERROR_GET_CLUSTERS,
                                 error=apiError.get_clusters_failed())
 
-    @jwt_required
+    @jwt_required()
     def put(self, cluster_id):
         try:
             role.require_admin()
@@ -313,7 +313,7 @@ class Cluster(Resource):
                                 _ERROR_UPDATE_CLUSTERS,
                                 error=apiError.update_cluster_failed())
 
-    @jwt_required
+    @jwt_required()
     def delete(self, cluster_id):
         try:
             role.require_admin()
@@ -363,7 +363,7 @@ def get_registries(registry_id=None):
 
 
 class Registries(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         try:
             output = get_registries()
@@ -375,7 +375,7 @@ class Registries(Resource):
 
 
 class Registry(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, registry_id):
         try:
             output = get_registries(registry_id)
@@ -1634,7 +1634,7 @@ def delete_k8s_application(app):
 
 
 class Applications(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         try:
             parser = reqparse.RequestParser()
@@ -1653,7 +1653,7 @@ class Applications(Resource):
                                 _ERROR_GET_DEPLOY_APPLICATION,
                                 error=apiError.get_deploy_application_failed(project_id=args.get('project_id')))
 
-    @jwt_required
+    @jwt_required()
     def post(self):
         try:
             parser = reqparse.RequestParser()

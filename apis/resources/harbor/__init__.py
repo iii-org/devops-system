@@ -72,7 +72,7 @@ def hb_get_id_by_name(project_name):
         if project.get("name") == project_name:
             return project["project_id"]
     raise DevOpsError(404, 'Harbor does not have such project.',
-                        error=apiError.project_not_found(project_name))
+                      error=apiError.project_not_found(project_name))
 
 
 def hb_create_project(project_name):
@@ -675,7 +675,7 @@ def hb_ping_registries(args):
 
 class HarborRelease():
 
-    @jwt_required
+    @jwt_required()
     def get_list_artifacts(self, project_name, repository_name):
         return hb_list_artifacts(project_name, repository_name)
 

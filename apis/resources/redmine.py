@@ -600,7 +600,7 @@ def update_mail_config(args):
 
 
 class RedmineFile(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('id', type=int)
@@ -610,18 +610,18 @@ class RedmineFile(Resource):
         role.require_in_project(args['project_id'], "Error while download redmine file.")
         return redmine.rm_download_attachment(args)
 
-    @jwt_required
+    @jwt_required()
     def delete(self, file_id):
         return redmine.rm_delete_attachment(file_id, get_jwt_identity()['user_id'])
 
 
 class RedmineMail(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         role.require_admin()
         return util.success(get_mail_config())
 
-    @jwt_required
+    @jwt_required()
     def put(self):
         role.require_admin()
         parser = reqparse.RequestParser()
@@ -641,7 +641,7 @@ class RedmineMailActive(Resource):
 
 
 class RedmineRelease():
-    @jwt_required
+    @jwt_required()
     def check_redemine_release(self, targets, versions, main_version=None):
         output = {'check': True, "info": "", 'errors': {}, 'versions_status': {"pass": [], "failed": []},
                   'failed_name': [],

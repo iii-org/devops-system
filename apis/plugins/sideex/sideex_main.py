@@ -107,7 +107,7 @@ def sd_get_report(test_id):
 
 # --------------------- Resources ---------------------
 class Sideex(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_name', type=str)
@@ -117,7 +117,7 @@ class Sideex(Resource):
         role.require_in_project(project_name=args['project_name'])
         return util.success({'test_id': sd_start_test(args)})
 
-    @jwt_required
+    @jwt_required()
     def put(self):
         parser = reqparse.RequestParser()
         parser.add_argument('test_id', type=int)
@@ -130,14 +130,14 @@ class Sideex(Resource):
         sd_finish_test(args)
         return util.success()
 
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_in_project(project_id=project_id)
         return util.success(sd_get_tests(project_id))
 
 
 class SideexReport(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, test_id):
         project_name = model.Sideex.query.filter_by(id=test_id).one().project_name
         role.require_in_project(project_name=project_name)

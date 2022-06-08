@@ -237,17 +237,18 @@ def sq_get_history_by_commit(project_id, commit_id):
 
 # --------------------- Resources ---------------------
 class SonarqubeHistory(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, project_name):
         return util.success({
             'link': f'{config.get("SONARQUBE_EXTERNAL_BASE_URL")}/dashboard?id={project_name}',
             'history': sq_get_history_measures(project_name)
         })
 
+
 class SonarqubeHistoryV2(MethodResource):
-    @doc(tags=['Plugin'],description="Get Sonarqube testing history.")
+    @doc(tags=['Plugin'], description="Get Sonarqube testing history.")
     @marshal_with(router_model.SonarqubeHistoryResponse)
-    @jwt_required
+    @jwt_required()
     def get(self, project_name):
         return util.success({
             'link': f'{config.get("SONARQUBE_EXTERNAL_BASE_URL")}/dashboard?id={project_name}',

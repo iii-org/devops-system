@@ -494,7 +494,7 @@ class TraceOrdersV2(MethodResource):
     @doc(tags=['QA'], description="Create project's trace order")
     @use_kwargs(route_model.TraceOrdersPostSchema, location="json")
     @marshal_with(route_model.TraceOrdersPostResponse)
-    @jwt_required
+    @jwt_required()
     def post(self, **kwargs):
         return util.success(create_trace_order_by_project(kwargs))
 
@@ -506,7 +506,7 @@ class TraceOrders(Resource):
         args = parser.parse_args()
         return util.success(get_trace_order_by_project(args["project_id"]))
 
-    @jwt_required
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
@@ -521,20 +521,20 @@ class SingleTraceOrderV2(MethodResource):
     @doc(tags=['QA'], description="Update project's trace order by trace_order_id")
     @use_kwargs(route_model.TraceOrdersPutSchema, location="json")
     @marshal_with(util.CommonResponse)
-    @jwt_required
+    @jwt_required()
     def patch(self, trace_order_id, **kwargs):
         args = {k: v for k, v in kwargs.items() if v is not None}
         return util.success(update_trace_order(trace_order_id, args))
 
     @doc(tags=['QA'], description="Delete project's trace order by trace_order_id")
     @marshal_with(util.CommonResponse)
-    @jwt_required
+    @jwt_required()
     def delete(self, trace_order_id):
         return util.success(delete_trace_order(trace_order_id))
 
 
 class SingleTraceOrder(Resource):
-    @jwt_required
+    @jwt_required()
     def patch(self, trace_order_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
@@ -545,7 +545,7 @@ class SingleTraceOrder(Resource):
         args = {k: v for k, v in args.items() if v is not None}
         return util.success(update_trace_order(trace_order_id, args))
 
-    @jwt_required
+    @jwt_required()
     def delete(self, trace_order_id):
         return util.success(delete_trace_order(trace_order_id))
 
@@ -554,7 +554,7 @@ class ExecuteTraceOrderV2(MethodResource):
     @doc(tags=['QA'], description="Update project's trace order by trace_order_id")
     @use_kwargs(route_model.TraceOrdersSchema, location="json")
     @marshal_with(util.CommonResponse)
-    @jwt_required
+    @jwt_required()
     def patch(self, **kwargs):
         project_id = kwargs["project_id"]
         order = get_order(project_id)
@@ -584,7 +584,7 @@ class ExecuteTraceOrderV2(MethodResource):
 
 
 class ExecuteTraceOrder(Resource):
-    @jwt_required
+    @jwt_required()
     def patch(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int, required=True)
@@ -620,7 +620,7 @@ class GetTraceResultV2(MethodResource):
     @doc(tags=['QA'], description="Get project's trace order result by trace_order_id")
     @use_kwargs(route_model.TraceOrdersSchema, location="query")
     @marshal_with(route_model.GetTraceResultResponse)
-    @jwt_required
+    @jwt_required()
     def get(self, **kwargs):
 
         project_id = kwargs["project_id"]
@@ -628,7 +628,7 @@ class GetTraceResultV2(MethodResource):
 
 
 class GetTraceResult(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int, required=True)

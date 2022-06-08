@@ -5,6 +5,7 @@ import util
 
 DEFAULT_DISPLAY_FIELD = ["name", "tracker", "status", "priority", "assigned_to"]
 
+
 def create_issue_display_field(user_id, pj_id, field_type, display_field=DEFAULT_DISPLAY_FIELD):
     wbs_cache = IssueDisplayField(
         user_id=user_id, project_id=pj_id, type=field_type, display_field=display_field)
@@ -33,7 +34,7 @@ def put_issue_display_field(user_id, pj_id, field_type, display_field):
 
 # --------------------- Resources ---------------------
 class IssueFieldDisplay(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         user_id = get_jwt_identity()['user_id']
         parser = reqparse.RequestParser()
@@ -43,7 +44,7 @@ class IssueFieldDisplay(Resource):
 
         return util.success(get_issue_display_field(user_id, args["project_id"], args["type"]))
 
-    @jwt_required
+    @jwt_required()
     def put(self):
         user_id = get_jwt_identity()['user_id']
         parser = reqparse.RequestParser()

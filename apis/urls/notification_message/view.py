@@ -65,7 +65,7 @@ class MessageV2(MethodResource):
     @doc(tags=['Notification Message'], description="Create a notification message. Only for administrator")
     # @use_kwargs(router_model.CreateNotificationMessageSchema, location="form")
     @marshal_with(util.CommonResponse)
-    @jwt_required
+    @jwt_required()
     def post(self):
         role.require_admin()
         parser = reqparse.RequestParser()
@@ -88,7 +88,7 @@ class MessageV2(MethodResource):
 class MessageIdV2(MethodResource):
     @doc(tags=['Notification Message'], description="Delete the notification message. Only for administrator")
     @marshal_with(util.CommonResponse)
-    @jwt_required
+    @jwt_required()
     def delete(self, message_id):
         role.require_admin()
         return util.success(delete_notification_message(message_id))

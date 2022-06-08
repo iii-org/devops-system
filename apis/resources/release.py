@@ -660,7 +660,7 @@ class Releases(Resource):
                           error=apiError.uncaught_exception(str(e)))
             
 
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         self.plugin_relation = model.ProjectPluginRelation.query.filter_by(
             project_id=project_id).first()
@@ -675,7 +675,7 @@ class Releases(Resource):
 
 
 class Release(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, project_id, release_name):
         plugin_relation = model.ProjectPluginRelation.query.filter_by(
             project_id=project_id).first()

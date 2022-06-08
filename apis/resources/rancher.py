@@ -633,12 +633,12 @@ def turn_tags_off():
 
 # --------------------- Resources ---------------------
 class Catalogs(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         catalgos_list = rancher.rc_get_catalogs_all()
         return util.success(catalgos_list)
 
-    @jwt_required
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
@@ -651,7 +651,7 @@ class Catalogs(Resource):
         output = rancher.rc_add_catalogs(args)
         return util.success(output)
 
-    @jwt_required
+    @jwt_required()
     def put(self, catalog_name):
         parser = reqparse.RequestParser()
         parser.add_argument('branch', type=str)
@@ -662,14 +662,14 @@ class Catalogs(Resource):
         output = rancher.rc_edit_catalogs(args, catalog_name)
         return util.success(output)
 
-    @jwt_required
+    @jwt_required()
     def delete(self, catalog_name):
         rancher.rc_delete_catalogs(catalog_name)
         return util.success()
 
 
 class Catalogs_Refresh(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         return util.success(rancher.rc_refresh_catalogs())
 

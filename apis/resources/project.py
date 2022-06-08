@@ -61,7 +61,7 @@ def get_project_issue_calculation(user_id, project_ids=[]):
             project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
         except:
             project_object = None
-        
+
         if project_object is None:
             recheck_project = True
             calculate_project_issue = {
@@ -130,8 +130,10 @@ def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
 def get_project_rows_by_user(user_id, disable, args={}):
     search = args.get("search")
     limit, offset = args.get("limit"), args.get("offset")
-    pj_due_start = datetime.strptime(args.get("pj_due_date_start"), "%Y-%m-%d").date() if args.get("pj_due_date_start") is not None else None
-    pj_due_end = datetime.strptime(args.get("pj_due_date_end"), "%Y-%m-%d").date() if args.get("pj_due_date_end") is not None else None
+    pj_due_start = datetime.strptime(args.get("pj_due_date_start"),
+                                     "%Y-%m-%d").date() if args.get("pj_due_date_start") is not None else None
+    pj_due_end = datetime.strptime(args.get("pj_due_date_end"),
+                                   "%Y-%m-%d").date() if args.get("pj_due_date_end") is not None else None
 
     query = model.Project.query.options(
         joinedload(model.Project.user_role, innerjoin=True)
@@ -169,7 +171,6 @@ def get_project_rows_by_user(user_id, disable, args={}):
         star_projects_obj = [
             star_project for star_project in star_projects_obj
             if pj_due_start <= star_project.due_date <= pj_due_end]
-    
 
     # Remove dump_project and stared_project
     project_ids = [star_project.id for star_project in star_projects_obj]
@@ -375,10 +376,10 @@ def create_project(user_id, args):
         # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
         if is_inherit_members and args.get('parent_plan_project_id') is not None:
             for row in db.session.query(model.User, ProjectUserRole). \
-            join(model.User).filter(model.ProjectUserRole.project_id==args.get('parent_id')).all():
+                    join(model.User).filter(model.ProjectUserRole.project_id == args.get('parent_id')).all():
                 if row.User.id not in [owner_id, user_id] and \
-                    not row.User.login.startswith("project_bot") and \
-                    row.ProjectUserRole.role_id != 7:
+                        not row.User.login.startswith("project_bot") and \
+                        row.ProjectUserRole.role_id != 7:
                     project_add_member(project_id, row.User.id)
 
         # Commit and push file by template , if template env is not None
@@ -503,7 +504,7 @@ def pm_update_project(project_id, args):
                     son_id=project_id,
                     created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                 )
-                db.session.add(new_father_son_relation) 
+                db.session.add(new_father_son_relation)
         else:
             if args.get('parent_plan_project_id') != "":
                 project_relation = project_relation.first()
@@ -518,11 +519,11 @@ def pm_update_project(project_id, args):
         exist_user_ids = [row.user_id for row in model.ProjectUserRole.query.filter_by(project_id=project_id).all()]
 
         for row in db.session.query(model.User, ProjectUserRole). \
-        join(model.User).filter(model.ProjectUserRole.project_id==args.get('parent_id')).all():
+                join(model.User).filter(model.ProjectUserRole.project_id == args.get('parent_id')).all():
             if row.User.id not in exist_user_ids and \
-                row.User.id != args.get("owner_id") and \
-                not row.User.login.startswith("project_bot") and \
-                row.ProjectUserRole.role_id != 7:
+                    row.User.id != args.get("owner_id") and \
+                    not row.User.login.startswith("project_bot") and \
+                    row.ProjectUserRole.role_id != 7:
                 project_add_member(project_id, row.User.id)
 
 
@@ -809,7 +810,7 @@ def get_test_summary(project_id):
         'result': {},
         'run_at': None,
     }
-    not_found_ret_message = lambda plugin : f"The latest scan is not Found in the {plugin} server"
+    def not_found_ret_message(plugin): return f"The latest scan is not Found in the {plugin} server"
 
     # newman ..
     if not plugins.get_plugin_config('postman')['disabled']:
@@ -866,7 +867,7 @@ def get_test_summary(project_id):
                     'result': {},
                     "run_at": str(scan['run_at']) if scan['run_at'] is not None else None,
                 }
-            else:    
+            else:
                 ret['webinspect'] = {
                     'message': 'It is not finished yet.',
                     'status': 2,
@@ -987,7 +988,7 @@ def get_test_summary(project_id):
         if scan.get("scan_status") == "Success" and scan.get("finished"):
             ret["harbor"] |= {"message": "success", "status": 1}
         elif (scan.get("scan_status") == "Success" and not scan.get("finished")) or \
-            scan.get("scan_status") in ["Queued", "Scanning", "Complete"]:
+                scan.get("scan_status") in ["Queued", "Scanning", "Complete"]:
             ret["harbor"] |= {"message": "scanning", "status": 2}
         else:
             ret["harbor"] |= {"message": "failed", "status": -1, "run_at": None}
@@ -1078,7 +1079,7 @@ def get_kubernetes_plugin_pods(project_id, plugin_name):
         "container_name": pod["containers"][0]["name"],
         "pod_name": pod["name"],
         "time": pod["containers"][0]["time"]
-    } for pod in pods["data"] \
+    } for pod in pods["data"]
         if len(pod["containers"]) > 0 and pod["containers"][0]["name"].startswith(plugin_name)
     ]
 
@@ -1363,7 +1364,7 @@ def sync_project_issue_calculate():
         pj_id = project.id
         plan_id = get_plan_id(project.id)
         if plan_id != -1:
-            try: 
+            try:
                 project_object = redmine_lib.redmine.project.get(plan_id)
                 rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
                 project_issue_calculate[pj_id] = json.dumps(
@@ -1372,11 +1373,12 @@ def sync_project_issue_calculate():
                 continue
 
     update_pj_issue_calcs(project_issue_calculate)
-    
+
 
 def delete_rancher_app(project_id, branch_name):
     project_info = model.Project.query.filter_by(id=project_id).first()
-    project_deployment = kubernetesClient.list_dev_environment_by_branch(str(project_info.name),str(project_info.http_url))
+    project_deployment = kubernetesClient.list_dev_environment_by_branch(
+        str(project_info.name), str(project_info.http_url))
     for temp in project_deployment:
         if temp.get("branch") == branch_name:
             for pod in temp.get("pods"):
@@ -1386,16 +1388,15 @@ def delete_rancher_app(project_id, branch_name):
 
 # --------------------- Resources ---------------------
 
+
 @doc(tags=['Pending'], description="Get CI pipeline id by git repo id")
 class GitRepoIdToCiPipeIdV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id):
         return git_repo_id_to_ci_pipe_id(repository_id)
 
 
 class GitRepoIdToCiPipeId(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id):
         return git_repo_id_to_ci_pipe_id(repository_id)
-
-

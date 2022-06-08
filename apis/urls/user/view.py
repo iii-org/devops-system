@@ -13,13 +13,16 @@ import json
 
 security_params = [{"bearer": []}]
 # --------------------- Resources ---------------------
-@doc(tags=['User'],description='Login API', security=security_params)
+
+
+@doc(tags=['User'], description='Login API', security=security_params)
 @use_kwargs(router_model.LoginSchema, location=('json'))
 @marshal_with(router_model.LoginResponse)  # marshalling
 class LoginV2(MethodResource):
     # noinspection PyMethodMayBeStatic
-    def post(self,**kwargs):
+    def post(self, **kwargs):
         return login(kwargs)
+
 
 class Login(Resource):
     # noinspection PyMethodMayBeStatic
@@ -28,10 +31,11 @@ class Login(Resource):
         parser.add_argument('username', type=str, required=True)
         parser.add_argument('password', type=str, required=True)
         args = parser.parse_args()
-        return login(args)        
+        return login(args)
+
 
 class UserStatus(Resource):
-    @jwt_required
+    @jwt_required()
     def put(self, user_id):
         role.require_admin('Only admins can modify user.')
         parser = reqparse.RequestParser()
@@ -40,49 +44,48 @@ class UserStatus(Resource):
         return change_user_status(user_id, args)
 
 
-
-@doc(tags=['User'],description='SingleUser API')
+@doc(tags=['User'], description='SingleUser API')
 class PostSingleUserV2(MethodResource):
     @use_kwargs(router_model.PostSingleUserSchema, location=('form'))
     @marshal_with(router_model.CreateSingleUserResponse)  # marshalling
-    @jwt_required
-    def post(self,**kwargs):
+    @jwt_required()
+    def post(self, **kwargs):
         role.require_admin('Only admins can create user.')
         return util.success(create_user(kwargs))
 
 
-
-@doc(tags=['User'],description='SingleUser API')   
+@doc(tags=['User'], description='SingleUser API')
 class GetSingleUserV2(MethodResource):
     # @use_kwargs(router_model.PostSingleUserSchema, location="query")
     # @marshal_with(router_model.SingleUserResponse)  # marshalling
-    @jwt_required
+    @jwt_required()
     def get(self, user_id):
         role.require_user_himself(user_id, even_pm=False,
                                   err_message="Only admin and PM can access another user's data.")
         return util.success(NexusUser().set_user_id(user_id).to_json())
 
     @marshal_with(router_model.SingleUserResponse)  # marshalling
-    @jwt_required
+    @jwt_required()
     def delete(self, user_id):
         role.require_admin("Only admin can delete user.")
         return util.success(delete_user(user_id))
 
     @use_kwargs(router_model.PutSingleUserSchema, location="form")
     @marshal_with(router_model.SingleUserResponse)  # marshalling
-    @jwt_required
-    def put(self, user_id,**kwargs):
+    @jwt_required()
+    def put(self, user_id, **kwargs):
         role.require_user_himself(user_id)
         return update_user(user_id, kwargs)
 
+
 class SingleUser(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, user_id):
         role.require_user_himself(user_id, even_pm=False,
                                   err_message="Only admin and PM can access another user's data.")
         return util.success(NexusUser().set_user_id(user_id).to_json())
 
-    @jwt_required
+    @jwt_required()
     def put(self, user_id):
         role.require_user_himself(user_id)
         parser = reqparse.RequestParser()
@@ -98,12 +101,12 @@ class SingleUser(Resource):
         args = parser.parse_args()
         return update_user(user_id, args)
 
-    @jwt_required
+    @jwt_required()
     def delete(self, user_id):
         role.require_admin("Only admin can delete user.")
         return util.success(delete_user(user_id))
 
-    @jwt_required
+    @jwt_required()
     def post(self):
         role.require_admin('Only admins can create user.')
         parser = reqparse.RequestParser()
@@ -120,7 +123,7 @@ class SingleUser(Resource):
 
 
 class UserList(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         role.require_pm()
         parser = reqparse.RequestParser()
@@ -141,12 +144,12 @@ class UserList(Resource):
         return util.success(user_list(filters))
 
 
-@doc(tags=['User'],description='SingleUser API', security=security_params) 
+@doc(tags=['User'], description='SingleUser API', security=security_params)
 class UserListV2(MethodResource):
     @use_kwargs(router_model.UserListSchema, location="query")
-    @marshal_with(router_model.GetUserListResponse)  # marshalling   
-    @jwt_required
-    def get(self,**kwargs):
+    @marshal_with(router_model.GetUserListResponse)  # marshalling
+    @jwt_required()
+    def get(self, **kwargs):
         role.require_pm()
         filters = {}
         if kwargs.get('role_ids') is not None:
@@ -161,7 +164,7 @@ class UserListV2(MethodResource):
 
 
 class UserSaConfig(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, user_id):
         role.require_user_himself(user_id, even_pm=False,
                                   err_message="Only admin and PM can access another user's data.")
