@@ -108,10 +108,6 @@ def update_pipe_set_and_push_to_new_project(from_project_id, name, description):
 def create_template_from_project(from_project_id, name, description):
     '''
     # if template already exist, call update template function
-    row = TemplateProject.query.filter_by(from_project_id=from_project_id).first()
-    if row:
-        update_template(row.id, name, description)
-        return {"id": row.id}
     '''
 
     # 6. Update template_project table.
@@ -124,24 +120,6 @@ def create_template_from_project(from_project_id, name, description):
     db.session.add(tm)
     db.session.commit()
     return {"id": tm.id}
-
-
-'''
-
-
-def tm_update_pipe_set_json_from_local(pj_path, name, description):
-    Path(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops').mkdir(exist_ok=True)
-    pipeline_settings_json = None
-    if os.path.exists(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops/pipeline_settings.json'):
-        with open(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops/pipeline_settings.json', encoding="utf-8") as f:
-            pipeline_settings_json = json.loads(f.read())
-            if name is not None:
-                pipeline_settings_json['name'] = name
-            if name is not None:
-                pipeline_settings_json['description'] = description
-        with open(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops/pipeline_settings.json', 'w') as f:
-            json.dump(pipeline_settings_json, f)
-'''
 
 
 def delete_template(id):
