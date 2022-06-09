@@ -467,6 +467,13 @@ def tm_git_commit_push(pj_path, secret_pj_http_url, folder_name, commit_message)
         pass
 
 
+def tm_git_mirror_push(pj_path, secret_pj_http_url, folder_name):
+    subprocess.call(['git', 'remote', 'set-url', 'origin', secret_pj_http_url],
+                    cwd=f"{folder_name}/{pj_path}")
+    subprocess.call(['git', 'push', '--mirror'],
+                    cwd=f"{folder_name}/{pj_path}")
+
+
 def tm_get_pipeline_branches(repository_id, all_data=False):
 
     out = {}
@@ -584,8 +591,8 @@ def update_branches(stage, pipline_soft, branch, enable_key_name, exist_branches
             had_update_branche = True
         elif pipline_soft[enable_key_name] is False and branch in stage_when:
             stage_when.remove(branch)
-            had_update_branche = True 
-        
+            had_update_branche = True
+
         stage_when = [branch for branch in stage_when if branch in exist_branches]
         if len(stage_when) == 0:
             stage_when.append("skip")
