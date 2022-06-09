@@ -1,17 +1,37 @@
 {
     "name": "excalidraw",
-    "default_disabled": false,
+    "default_disabled": true,
     "is_pipeline": false,
     "keys": [
         {
             "key": "excalidraw-url",
             "type": "string",
-            "store": "secret_all"
+            "store": "secret_system"
+        },
+        {
+            "key": "excalidraw-db-account",
+            "type": "string",
+            "store": "secret_system"
         },
         {
             "key": "excalidraw-db-password",
+            "type": "password",
+            "store": "secret_system"
+        },
+        {
+            "key": "excalidraw-db-host",
             "type": "string",
-            "store": "secret_all"
+            "store": "secret_system"
+        },
+        {
+            "key": "excalidraw-db-port",
+            "type": "string",
+            "store": "secret_system"
+        },
+        {
+            "key": "excalidraw-db-database",
+            "type": "string",
+            "store": "secret_system"
         }
     ]
 }

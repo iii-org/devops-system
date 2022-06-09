@@ -1,6 +1,6 @@
 from flask_jwt_extended import get_jwt_identity
 from rstr import xeger
-from model import Excalidraw, ExcalidrawJson, ExcalidrawIssueRelation, db, User
+from model import Excalidraw, ExcalidrawJson, ExcalidrawIssueRelation, ProjectUserRole, db, User
 from datetime import datetime
 from accessories import redmine_lib
 import resources.project as project
@@ -9,7 +9,7 @@ from resources.apiError import DevOpsError
 from resources.role import require_in_project
 from plugins import get_plugin_config
 import psycopg2
-import config
+from . import role, user
 
 
 def excalidraw_get_config(key):
@@ -99,12 +99,21 @@ def create_excalidraw(args):
 
 def get_excalidraws(args):
     project_id, name = args.get("project_id"), args.get("name")
+    user_id = get_jwt_identity()['user_id']
+    not_admin_user = user.get_role_id(user_id) != role.ADMIN.id
     excalidraw_rows = db.session.query(Excalidraw, ExcalidrawIssueRelation, User).outerjoin(
         ExcalidrawIssueRelation, Excalidraw.id==ExcalidrawIssueRelation.excalidraw_id)
     excalidraw_rows = excalidraw_rows.join(User, Excalidraw.operator_id==User.id)
+    user_project_ids = [
+        project.project_id for project in ProjectUserRole.query.filter_by(user_id=user_id).all()]
     
     if project_id is not None:
+        if project_id not in user_project_ids and not_admin_user:
+            raise apiError.NotInProjectError('You need to be in the project for this operation.')
         excalidraw_rows = excalidraw_rows.filter(Excalidraw.project_id==project_id)
+    elif not_admin_user:
+        excalidraw_rows = excalidraw_rows.filter(Excalidraw.project_id.in_(user_project_ids))
+    
     if name is not None:
         excalidraw_rows = excalidraw_rows.filter(Excalidraw.name.ilike(f'%{name}%'))
     
@@ -190,11 +199,16 @@ def update_excalidraw(excalidraw_id, name=None, issue_ids=None):
 
 def sync_excalidraw_db():
     # prod
-    excalidraw_db_url = config.get("EXCALIDRAW_DB_URL").split(":")
-    host=excalidraw_db_url[0]
-    port=int(excalidraw_db_url[1])
+    database = excalidraw_get_config("excalidraw-db-database") 
+    user = excalidraw_get_config("excalidraw-db-account") 
+    password = excalidraw_get_config("excalidraw-db-password") 
+    host = excalidraw_get_config("excalidraw-db-host") 
+    port = excalidraw_get_config("excalidraw-db-port")
     '''
     # local
+    database = "excalidraw"
+    user = "postgres"
+    password = "lxVN59Wfi7ua745kEIQ93Afrb"
     host = "10.20.0.96"
     port = 30503
     '''
@@ -202,7 +216,12 @@ def sync_excalidraw_db():
     excalidraw_keys = ",".join([f"'ROOMS:{excalidraw.room}'" for excalidraw in Excalidraw.query.all()])
     
     conn = psycopg2.connect(
-        database="excalidraw", user="postgres", password="lxVN59Wfi7ua745kEIQ93Afrb", host=host, port=port)
+        database=database,
+        user=user,
+        password=password,
+        host=host,
+        port=port
+    )
     try:
         cur = conn.cursor()
         cur.execute(

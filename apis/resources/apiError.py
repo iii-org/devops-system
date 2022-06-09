@@ -127,6 +127,9 @@ def project_tracker_must_has_father_issue(project_id, tracker_name):
     return build(
         1018, f'Modify or Create issue with tacker_id:{tracker_name} must has father issue.', {"project_id": project_id, "tracker_name": tracker_name})
 
+def plugin_is_disabled(plugin_name):
+    return build(1019, 'Plugin Software is disabled.', {'plugin_name': plugin_name})
+
 # User errors
 
 

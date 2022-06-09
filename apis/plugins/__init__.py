@@ -237,3 +237,19 @@ def create_plugins_api_router(api, add_resource):
         third_part_plugin = getattr(plugins, plugin_name)
         if hasattr(third_part_plugin, "router"):
             third_part_plugin.router(api, add_resource)
+
+
+def handle_plugin(plugin):
+    def decorator(func):
+        def wrap(*args, **kwargs):
+            plugin_software = model.PluginSoftware.query.filter_by(name=plugin).first()
+            if plugin_software is None:
+                raise apiError.DevOpsError(404, plugin,
+                                error=apiError.invalid_plugin_name(plugin))
+            elif plugin_software.disabled:
+                raise apiError.DevOpsError(404, plugin,
+                                error=apiError.plugin_is_disabled(plugin)) 
+
+            return func(*args, **kwargs)
+        return wrap
+    return decorator

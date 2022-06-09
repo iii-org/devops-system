@@ -14,8 +14,7 @@ FIXED = {
         "Test Plan"
     ],
     "DOCUMENT_LEVEL": "public",
-    "REDIS_BASE_URL": "devops-redis-service:6379",
-    "EXCALIDRAW_DB_URL": "excalidrawdb-service:5432"
+    "REDIS_BASE_URL": "devops-redis-service:6379"
 }
 
 in_file = {}
