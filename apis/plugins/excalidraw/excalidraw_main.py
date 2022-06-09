@@ -14,6 +14,7 @@ class ExcalidrawsV2(MethodResource):
     @marshal_with(router_model.ExcalidrawPostRes)
     @handle_plugin("excalidraw")
     @jwt_required()
+    @handle_plugin("excalidraw")
     def post(self, **kwargs):
         kwargs["issue_ids"] = None if kwargs.get("issue_ids") == "" else kwargs.get("issue_ids")
         return util.success(excalidraw.create_excalidraw(kwargs))
@@ -24,6 +25,7 @@ class ExcalidrawsV2(MethodResource):
     @marshal_with(router_model.ExcalidrawGetRes)
     @handle_plugin("excalidraw")
     @jwt_required()
+    @handle_plugin("excalidraw")
     def get(self, **kwargs):
         return util.success(excalidraw.get_excalidraws(kwargs))
 
@@ -33,6 +35,7 @@ class ExcalidrawV2(MethodResource):
     @marshal_with(util.CommonResponse)
     @handle_plugin("excalidraw")
     @jwt_required()
+    @handle_plugin("excalidraw")
     def delete(self, excalidraw_id):
         return util.success(excalidraw.delete_excalidraw(excalidraw_id))
 
@@ -42,6 +45,7 @@ class ExcalidrawV2(MethodResource):
     @marshal_with(router_model.ExcalidrawPatchRes)
     @handle_plugin("excalidraw")
     @jwt_required()
+    @handle_plugin("excalidraw")
     def patch(self, excalidraw_id, **kwargs):
         return util.success(excalidraw.update_excalidraw(excalidraw_id, **kwargs))
 
