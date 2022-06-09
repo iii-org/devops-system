@@ -5,10 +5,11 @@ from datetime import datetime
 from pathlib import Path
 
 from flask_jwt_extended import get_jwt_identity
-from model import Project, TemplateProject, db
-from nexus import (nx_get_project_plugin_relation, nx_get_user,
-                   nx_get_user_plugin_relation, nx_get_project)
+from model import Project, ProjectUserRole, TemplateProject, db
+from nexus import (nx_get_project, nx_get_project_plugin_relation, nx_get_user,
+                   nx_get_user_plugin_relation)
 from resources import apiError, role
+from sqlalchemy.sql import and_
 
 from . import (gl, set_git_username_config, tm_get_secret_url,
                tm_git_mirror_push)
@@ -153,16 +154,10 @@ def tm_update_pipe_set_json_from_api(pj, name, description):
 
 def get_tm_filter_by_tm_member():
     if get_jwt_identity()['role_id'] != role.ADMIN.id:
-        belong_to_me_pj_ids = []
-        git_user_id = nx_get_user_plugin_relation(user_id=get_jwt_identity()['user_id']).repository_user_id
-        user = gl.users.get(git_user_id)
-        memberships = user.memberships.list(type='Project', all=True)
-        for membership in memberships:
-            pj = gl.projects.get(membership.source_id)
-            if pj.namespace['path'] == "local-templates":
-                belong_to_me_pj_ids.append(pj.id)
-        all_templates = TemplateProject.query.filter(
-            TemplateProject.template_repository_id.in_(belong_to_me_pj_ids)).all()
+        # get user template from source project ProjectUserRole.
+        all_templates = db.session.query(TemplateProject).join(ProjectUserRole, and_(
+            ProjectUserRole.user_id == get_jwt_identity()['user_id'],
+            ProjectUserRole.project_id == TemplateProject.from_project_id)).all()
     else:
         all_templates = TemplateProject.query.all()
     return all_templates
