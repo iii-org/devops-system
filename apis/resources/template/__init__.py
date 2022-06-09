@@ -472,6 +472,10 @@ def tm_git_mirror_push(pj_path, secret_pj_http_url, folder_name):
                     cwd=f"{folder_name}/{pj_path}")
     subprocess.call(['git', 'push', '--mirror'],
                     cwd=f"{folder_name}/{pj_path}")
+    try:
+        shutil.rmtree(f"{folder_name}/{pj_path}", ignore_errors=True)
+    except PermissionError:
+        pass
 
 
 def tm_get_pipeline_branches(repository_id, all_data=False):
