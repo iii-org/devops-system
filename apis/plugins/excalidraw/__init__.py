@@ -11,3 +11,5 @@ def router(api, add_resource):
     add_resource(excalidraw_main.ExcalidrawV2, "public")
     api.add_resource(excalidraw_main.SyncExcalidrawDBV2, '/v2/excalidraw/sync_db')
     add_resource(excalidraw_main.SyncExcalidrawDBV2, "public")
+    api.add_resource(excalidraw_main.CheckExcalidrawAliveV2, '/v2/excalidraw/alive')
+    add_resource(excalidraw_main.CheckExcalidrawAliveV2, "public")

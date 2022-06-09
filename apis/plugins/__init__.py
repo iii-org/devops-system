@@ -142,6 +142,16 @@ def update_plugin_config(plugin_name, args):
             'type': item['type']
         }
     if args.get('disabled', None) is not None:
+        if not args['disabled']:
+            from resources.excalidraw import check_excalidraw_alive
+            plugin_alive_func_mapping = {
+                "excalidraw": check_excalidraw_alive
+            }
+            plugin_alive_func = plugin_alive_func_mapping.get(plugin_name)
+            if plugin_alive_func is not None and not plugin_alive_func():
+                raise DevOpsError(400, 'Plugin is not alive',
+                                  error=apiError.plugin_server_not_alive(plugin_name))
+
         db_row.disabled = bool(args['disabled'])
         #  Update Project Plugin Status
         if bool(config.get('is_pipeline', True)):

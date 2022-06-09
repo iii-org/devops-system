@@ -53,3 +53,12 @@ class SyncExcalidrawDBV2(MethodResource):
     @jwt_required
     def post(self):
         return util.success(excalidraw.sync_excalidraw_db())
+
+
+class CheckExcalidrawAliveV2(MethodResource):
+    @doc(tags=['Excalidraw'], description="Check excalidraw server is alive.")
+    @marshal_with(router_model.CheckExcalidrawAliveRes)
+    @handle_plugin("excalidraw")
+    @jwt_required
+    def get(self):
+        return util.success({"alive": excalidraw.check_excalidraw_alive()})

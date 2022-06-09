@@ -23,29 +23,7 @@ def error_3rd_party_api(service_name, response):
                  {'service_name': service_name, 'response': resp_value})
 
 
-# Template errors
-def template_not_found(template_id):
-    return build(5001, 'Template not found.',
-                 {'template_id': template_id})
-
-
-def template_file_not_found(template_id, template_name):
-    return build(5002, 'Can not get template file or folder.',
-                 {'template_id': template_id, 'template_name': template_name})
-
-
-def template_user_not_in_template_gitlab_repo(template_repository_id, user_id):
-    return build(5003, f'User not in this template gitlab repository',
-                 {'template_repository_id': template_repository_id, 'user_id': user_id})
-
-
-# Notification message error
-def not_enough_authorization(message_id, user_id):
-    return build(6001, 'Not enough authorization to get message.',
-                 {'message_id': message_id, 'user_id': user_id})
-
-
-# Project errors
+# 1: Project errors
 def identifier_has_been_taken(identifier):
     return build(1001, 'Project identifier has been taken.', {'identifier': identifier})
 
@@ -127,12 +105,8 @@ def project_tracker_must_has_father_issue(project_id, tracker_name):
     return build(
         1018, f'Modify or Create issue with tacker_id:{tracker_name} must has father issue.', {"project_id": project_id, "tracker_name": tracker_name})
 
-def plugin_is_disabled(plugin_name):
-    return build(1019, 'Plugin Software is disabled.', {'plugin_name': plugin_name})
 
-# User errors
-
-
+# 2: User errors
 def user_not_found(user_id):
     return build(2001, 'User not found.', {'user_id': user_id})
 
@@ -276,7 +250,7 @@ def delete_deploy_application_failed(application_id):
     return build(2023, 'Delete deploy application failed', {'application_id', application_id})
 
 
-# Permission errors
+# 3: Permission errors
 class NotAllowedError(HTTPException):
     pass
 
@@ -293,7 +267,29 @@ class NotProjectOwnerError(HTTPException):
     pass
 
 
-# Redmine Issue/Wiki/... errors
+# Exception type errors, for errors those need to be aborted instantly rather than returning
+# an error response.
+custom_errors = {
+    'NotAllowedError': {
+        'error': build(3001, "Your role does not have the permission for this operation."),
+        'status': 401
+    },
+    'NotInProjectError': {
+        'error': build(3002, 'You need to be in the project for this operation.'),
+        'status': 401
+    },
+    'NotUserHimselfError': {
+        'error': build(3003, "You are not permitted to access another user's data."),
+        'status': 401
+    },
+    'NotProjectOwnerError': {
+        'error': build(3004, "Only PM can set it, please contact PM for assistance."),
+        'status': 401
+    }
+}
+
+
+# 4: Redmine Issue/Wiki/... errors
 def issue_not_found(issue_id):
     return build(4001, 'Issue not found.', {'issue_id': issue_id})
 
@@ -307,7 +303,30 @@ def redmine_unable_to_relate(issue_id, issue_to_id):
                  {'issue_ids': [issue_id, issue_to_id]})
 
 
-# General errors
+
+# 5: Template errors
+def template_not_found(template_id):
+    return build(5001, 'Template not found.',
+                 {'template_id': template_id})
+
+
+def template_file_not_found(template_id, template_name):
+    return build(5002, 'Can not get template file or folder.',
+                 {'template_id': template_id, 'template_name': template_name})
+
+
+def template_user_not_in_template_gitlab_repo(template_repository_id, user_id):
+    return build(5003, f'User not in this template gitlab repository',
+                 {'template_repository_id': template_repository_id, 'user_id': user_id})
+
+
+# 6: Notification message error
+def not_enough_authorization(message_id, user_id):
+    return build(6001, 'Not enough authorization to get message.',
+                 {'message_id': message_id, 'user_id': user_id})
+
+
+# 7: General errors
 def no_detail():
     return build(7001, 'This error has no detailed information.')
 
@@ -348,7 +367,7 @@ def file_not_found(file_name, path):
 
 # Third party service errors
 
-# Redmine
+# 8: Redmine
 def redmine_error(response):
     try:
         error_message_list = response.json().get("errors")
@@ -360,9 +379,7 @@ def redmine_error(response):
         pass
     return error_3rd_party_api('Redmine', response)
 
-# Harbor
-
-
+# 9: Harbor
 def harbor_tag_already_exist(tag, repo_name):
     return build(
         9001,
@@ -374,14 +391,22 @@ def harbor_tag_already_exist(tag, repo_name):
 def parent_issue_error():
     return build(8101, f"Parent issue setting error! Please confirm that the setting issue is not a sub-issue or related issue of this issue.")
 
+
 # GitLab
-
-
 def gitlab_error(response):
     return error_3rd_party_api('Gitlab', response)
 
 
-# Internal errors
+# 89: General Plugin 
+def plugin_is_disabled(plugin_name):
+    return build(8901, 'Plugin Software is disabled.', {'plugin_name': plugin_name})
+
+
+def plugin_server_not_alive(plugin_name):
+    return build(8902, 'Plugin Server is not alive.', {'plugin_name': plugin_name})
+
+
+# 9: Internal errors
 def uncaught_exception(exception):
     return build(9001, 'An uncaught exception has occurred.',
                  {'type': str(type(exception)), 'exception': str(exception)})
@@ -398,27 +423,6 @@ def db_error(detail_message):
 def unknown_error():
     return build(9999, 'An unknown internal error has occurred.')
 
-
-# Exception type errors, for errors those need to be aborted instantly rather than returning
-# an error response.
-custom_errors = {
-    'NotAllowedError': {
-        'error': build(3001, "Your role does not have the permission for this operation."),
-        'status': 401
-    },
-    'NotInProjectError': {
-        'error': build(3002, 'You need to be in the project for this operation.'),
-        'status': 401
-    },
-    'NotUserHimselfError': {
-        'error': build(3003, "You are not permitted to access another user's data."),
-        'status': 401
-    },
-    'NotProjectOwnerError': {
-        'error': build(3004, "Only PM can set it, please contact PM for assistance."),
-        'status': 401
-    }
-}
 
 
 # Exceptions wrapping method_type error information

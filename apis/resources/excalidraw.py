@@ -235,3 +235,9 @@ def sync_excalidraw_db():
         print(str(e))
     finally:
         conn.close()
+
+
+def check_excalidraw_alive():
+    import requests
+    return requests.get(excalidraw_get_config("excalidraw-url")).status_code == 200
+    

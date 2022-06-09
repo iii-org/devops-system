@@ -54,3 +54,8 @@ class ExcalidrawPatchRes(CommonBasicResponse):
             "url": "https://excalidraw.ingress-dev3.iiidevops.org/#room=0e31e20d11e62bc6c8ea,sf4U2sfVIqY9-WVrBNb-Ft"
         }
     , required=True)
+
+class CheckExcalidrawAliveRes(CommonBasicResponse):
+    data = fields.Dict(
+        example={"alive": True}
+    , required=True)
