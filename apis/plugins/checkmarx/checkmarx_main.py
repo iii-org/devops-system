@@ -225,15 +225,11 @@ class CheckMarx(object):
         data = self.get_scan_statistics(scan_id)
         data.pop("statisticsCalculationDate", "")
         if rst_id != 2:
-            ret["message"] = 'The report is not ready yet.'
-            ret["status"] = 2
-            ret["result"] = data
-            ret["run_at"] = str(row.run_at) if row.run_at is not None else None
-            return ret
+            ret["message"] = 'In the process of generating report.'
         ret["message"] = 'success'
         ret["status"] = 1
         ret["result"] = data
-        ret["run_at"] = str(row.run_at)
+        ret["run_at"] = str(row.run_at) if row.run_at is not None else None
         ret["report_id"] = report_id
         return ret
 
