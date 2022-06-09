@@ -1709,7 +1709,8 @@ class ReleasesV2(MethodResource):
                 closed_version = True
 
             # check Gitalb Release
-            if release_obj.gitlab_info.get('check') == True:
+            if release_obj.gitlab_info.get('check') == True and \
+                kwargs.get("commit") != "" and kwargs.get("branch") != "":
                 gitlab_data = {
                     'tag_name': release_name,
                     'ref': gitlab_ref,
@@ -1745,7 +1746,7 @@ class ReleasesV2(MethodResource):
             )
 
             return util.success()
-        except:
+        except Exception as e:
             # Roll back
             # Open redmine version
             if closed_version:
