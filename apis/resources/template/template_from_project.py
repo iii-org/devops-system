@@ -11,7 +11,7 @@ from nexus import (nx_get_project_plugin_relation, nx_get_user,
 from resources import apiError, role
 
 from . import (gl, set_git_username_config, tm_get_secret_url,
-               tm_git_commit_push)
+               tm_git_mirror_push)
 
 TEMPLATE_FOLDER_NAME = "template_from_pj"
 
@@ -99,10 +99,9 @@ def update_pipe_set_and_push_to_new_project(from_project_id, name, description):
     old_secret_http_url = tm_get_secret_url(old_project)
     temp_pj_secret_http_url = tm_get_secret_url(template_project)
     Path(TEMPLATE_FOLDER_NAME).mkdir(exist_ok=True)
-    subprocess.call(['git', 'clone', old_secret_http_url, f"{TEMPLATE_FOLDER_NAME}/{old_project.path}"])
+    subprocess.run(['git', 'clone', '--mirror', old_secret_http_url, f"{TEMPLATE_FOLDER_NAME}/{old_project.path}"])
     set_git_username_config(f'{TEMPLATE_FOLDER_NAME}/{template_project.path}')
-    tm_git_commit_push(template_project.path, temp_pj_secret_http_url,
-                       TEMPLATE_FOLDER_NAME, f"專案 {old_project.path} 轉範本commit")
+    tm_git_mirror_push(template_project.path, temp_pj_secret_http_url, TEMPLATE_FOLDER_NAME)
     return template_project, old_project, pipe_json_temp_name
 
 
