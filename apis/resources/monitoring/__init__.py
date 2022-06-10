@@ -7,7 +7,7 @@ import config
 import pandas as pd
 import util
 from github import Github
-from model import MonitoringRecord, NotificationMessage, Project, db
+from model import MonitoringRecord, NotificationMessage, Project, db, PluginSoftware
 from nexus import nx_get_project_plugin_relation
 from plugins.sonarqube.sonarqube_main import (sq_get_current_measures,
                                               sq_list_project)
@@ -110,6 +110,15 @@ class Monitoring:
         self.__update_all_alive(alive)
         return alive
 
+    # It will be merge in __check_server_alive.
+    def __check_plugin_server_alive(self, func):
+        alive = self.__is_server_alive(func)
+        if not alive:
+            self.error_message = f"{self.server} not alive"
+        self.__update_all_alive(alive)
+        return alive
+
+
     def send_notification(self):
         title = f"{self.server} not alive" if self.error_title is None else self.error_title
         previous_server_notification = NotificationMessage.query.filter_by(title=title) \
@@ -202,8 +211,27 @@ class Monitoring:
         return self.__check_server_alive(
             rancher.rc_get_pipeline_info, rancher.rc_get_project_pipeline, self.ci_pj_id, self.ci_pipeline_id)
 
+    # Plugins
+    def excalidraw_alive(self):
+        from resources.excalidraw import check_excalidraw_alive
+        self.server = "Excalidraw"
+        self.alert_service_id = 1001
+        return self.__check_plugin_server_alive(check_excalidraw_alive)
+
+
+    def check_plugin_alive(self):
+        ret = {}
+        plugin_mapping = {"excalidraw": self.excalidraw_alive}
+        for plugin, plugin_func in plugin_mapping.items():
+            plugin_software = PluginSoftware.query.filter_by(name=plugin).first()
+            if plugin_software is not None and not plugin_software.disabled:
+                alive = plugin_func()
+                ret[plugin] = alive
+        return ret
+
     # all alive
     def check_project_alive(self):
+        plugin_alive_dict = self.check_plugin_alive()
         all_alive = {
             "alive": {
                 "Redmine": self.redmine_alive(),
@@ -215,6 +243,7 @@ class Monitoring:
             },
             "all_alive": self.all_alive
         }
+        all_alive["alive"] |= plugin_alive_dict
         return all_alive
 
 

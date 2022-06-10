@@ -20,6 +20,7 @@ from resources.apiError import DevOpsError
 from resources.kubernetesClient import read_namespace_secret, SYSTEM_SECRET_NAMESPACE, DEFAULT_NAMESPACE, \
     create_namespace_secret, patch_namespace_secret, delete_namespace_secret
 from resources.rancher import rancher
+from resources.notification_message import close_notification_message, get_unclose_notification_message, create_notification_message
 
 SYSTEM_SECRET_PREFIX = 'system-secret-'
 
@@ -142,15 +143,47 @@ def update_plugin_config(plugin_name, args):
             'type': item['type']
         }
     if args.get('disabled') is not None:
+        from resources.excalidraw import check_excalidraw_alive
+        plugin_alive_mapping = {
+            "excalidraw": {"func": check_excalidraw_alive, "alert_monitring_id": 1001}
+        }
         if not args['disabled']:
-            from resources.excalidraw import check_excalidraw_alive
-            plugin_alive_func_mapping = {
-                "excalidraw": check_excalidraw_alive
-            }
-            plugin_alive_func = plugin_alive_func_mapping.get(plugin_name)
+            # Plugin 
+            if plugin_name == "excalidraw" and system_secrets_not_exist:
+                excalidraw_url = args.get('arguments', {}).get('excalidraw-url')
+                if excalidraw_url is None:
+                    raise DevOpsError(400, 'Argument: excalidraw-url can not be blank in first create.',
+                                  error=apiError.argument_error('disabled'))
+                elif not check_excalidraw_alive(excalidraw_url):
+                    raise DevOpsError(400, 'New excalidraw-url is not alive.',
+                                  error=apiError.argument_error('argument'))
+
+            # check plugin server alive before set disabled to false.
+            plugin_alive_func = plugin_alive_mapping.get(plugin_name, {}).get("func")
             if plugin_alive_func is not None and not plugin_alive_func():
                 raise DevOpsError(400, 'Plugin is not alive',
                                   error=apiError.plugin_server_not_alive(plugin_name))
+        
+        else:
+            # Read alert_message of plugin server is not alive then send notification.
+            plugin_alive_id = plugin_alive_mapping.get(plugin_name, {}).get("alert_monitring_id")
+            if plugin_alive_id is not None:
+                not_alive_messages = get_unclose_notification_message(plugin_alive_id)
+                if not_alive_messages is not None and len(not_alive_messages) > 0:
+                    for not_alive_message in not_alive_messages:
+                        close_notification_message(not_alive_message["id"])
+                    create_notification_message(
+                        {
+                            "alert_level": 1,
+                            "title": f"Close {plugin_name} alert",
+                            "message": 
+                                f"Close {plugin_name} not alive alert, because plugin has been disabled.",
+                            "type_ids": [4],
+                            "type_parameters": {"role_ids": [5]}
+                        }, 
+                        user_id=1
+                    )
+
 
         db_row.disabled = bool(args['disabled'])
         #  Update Project Plugin Status
