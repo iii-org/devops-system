@@ -149,8 +149,9 @@ def update_plugin_config(plugin_name, args):
         }
         if not args['disabled']:
             # Plugin 
-            if plugin_name == "excalidraw" and system_secrets_not_exist:
-                excalidraw_url = args.get('arguments', {}).get('excalidraw-url')
+            if plugin_name == "excalidraw" and system_secrets_not_exist: 
+                excalidraw_url = args.get('arguments').get('excalidraw-url') if \
+                    args.get('arguments') is not None else None
                 if excalidraw_url is None:
                     raise DevOpsError(400, 'Argument: excalidraw-url can not be blank in first create.',
                                   error=apiError.argument_error('disabled'))
