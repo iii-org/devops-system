@@ -379,10 +379,10 @@ def redmine_error(response):
         pass
     return error_3rd_party_api('Redmine', response)
 
-# 9: Harbor
+# 8: Harbor
 def harbor_tag_already_exist(tag, repo_name):
     return build(
-        9001,
+        8201,
         f'Harbor repository: {repo_name} already have tag: {tag}.',
         {'tag': tag, 'repo_name': repo_name}
     )

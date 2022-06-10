@@ -141,7 +141,7 @@ def update_plugin_config(plugin_name, args):
             'store': item['store'],
             'type': item['type']
         }
-    if args.get('disabled', None) is not None:
+    if args.get('disabled') is not None:
         if not args['disabled']:
             from resources.excalidraw import check_excalidraw_alive
             plugin_alive_func_mapping = {
@@ -157,7 +157,7 @@ def update_plugin_config(plugin_name, args):
         if bool(config.get('is_pipeline', True)):
             threading.Thread(target=template.update_pj_plugin_status, args=(plugin_name, args["disabled"],)).start()
 
-    if args.get('arguments', None) is not None:
+    if args.get('arguments') is not None:
         for argument in args['arguments']:
             if argument not in key_map:
                 raise DevOpsError(400, f'Argument {argument} is not in the argument list of plugin {plugin_name}.',
@@ -168,6 +168,7 @@ def update_plugin_config(plugin_name, args):
             elif store == PluginKeyStore.SECRET_SYSTEM:
                 if system_secrets_not_exist:
                     create_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), {})
+                    system_secrets_not_exist = False
                 system_secrets[argument] = str(args['arguments'][argument])
                 patch_secret = True
             elif store == PluginKeyStore.SECRET_ALL:
