@@ -241,5 +241,10 @@ def check_excalidraw_alive(excalidraw_url=None):
     import requests
     if excalidraw_url is None:
         excalidraw_url = excalidraw_get_config("excalidraw-url")
-    return requests.get(excalidraw_url).status_code == 200
+    excalidraw_alive = False
+    try:
+        excalidraw_alive = requests.get(excalidraw_url).status_code == 200
+    except:
+        excalidraw_alive = False
+    return excalidraw_alive
     
