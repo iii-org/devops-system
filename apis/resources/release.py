@@ -522,82 +522,100 @@ class Releases(Resource):
                 version_ids.append(version)
         return version_ids
 
-    @jwt_required
-    def post(self, project_id):
-        user_id = get_jwt_identity()["user_id"]
-        role.require_in_project(project_id, 'Error to create release')
-        self.plugin_relation = model.ProjectPluginRelation.query.filter_by(
-            project_id=project_id).first()
-        self.project = model.Project.query.filter_by(id=project_id).first()
-        parser = reqparse.RequestParser()
-        parser.add_argument('main', type=int)
-        parser.add_argument('versions', action='append')
-        parser.add_argument('branch', type=str)
-        parser.add_argument('commit', type=str)
-        parser.add_argument('note', type=str)
-        parser.add_argument('released_at', type=str)
-        parser.add_argument('forced', action='store_true')
-        parser.add_argument('extra_image_path', type=str)
-        args = parser.parse_args()
-        gitlab_ref = branch_name = args.get('branch')
-        branch_name = None if branch_name == "" else branch_name
-        if args.get('commit', None) is None and branch_name is not None:
-            args.update({'commit': 'latest'})
-        else:
-            gitlab_ref = args.get('commit')
-        args['main'] = str(args.get('main'))
+    def get_release_name_by_main(self, main):
         list_versions = redmine.rm_get_version_list(
             self.plugin_relation.plan_project_id)
         self.versions_by_key = transfer_array_to_object(
             list_versions['versions'], 'id')
+        return self.versions_by_key[main]['name']
 
-        release_name = self.versions_by_key[args['main']]['name']
+    def check_given_tag_not_exist(self, branch_name, release_name, extra_image_path, forced):
+        extra_image_path_split = extra_image_path.split(":")
+        if len(extra_image_path_split) > 1:
+            extra_image_repo, extra_image_tag = extra_image_path_split[0], extra_image_path_split[1]
+            for repo_name, tag in {
+                    branch_name: release_name,
+                    extra_image_repo: extra_image_tag}.items():
+                if hb_get_artifacts_with_tag(self.project.name, repo_name, tag) != []:
+                    if not forced:
+                        raise apiError.DevOpsError(
+                            500, f'{tag.capitalize()} already exist in this Harbor repository.',
+                            error=apiError.harbor_tag_already_exist(tag, repo_name))
+
+
+    def release_main(self, project_id, args):
+        # Initial variable
+        user_id = get_jwt_identity()["user_id"]
+        self.project = model.Project.query.filter_by(id=project_id).first()
+        if self.project is None:
+            raise apiError.DevOpsError(404, 'Project not found',
+                          error=apiError.project_not_found(project_id))
+        self.plugin_relation = model.ProjectPluginRelation.query.filter_by(
+            project_id=project_id).first()
+
+        gitlab_ref = branch_name = args.get('branch')
+        branch_name = None if branch_name == "" else branch_name
+        forced = args.get('forced') or False
+        gitlab_ref = args.get('commit')   
+        args['main'] = str(args.get('main'))
+
+        # Check given tag exist in harbor repos or not
+        release_name = self.get_release_name_by_main(args['main'])
+        self.check_given_tag_not_exist(
+            branch_name, release_name, args.get("extra_image_path", ":"), forced)
+
+        # Check release status
         list_statuses = redmine.rm_get_issue_status()
         self.closed_statuses = redmine.get_closed_status(
             list_statuses['issue_statuses'])
         self.check_release_status(
             args, release_name, branch_name, args.get('commit'))
+
         # Verify Issues is all closed in versions
         self.check_release_states()
         try:
-            if args['forced'] == 'True' and self.valid_info['check'] is False:
+            # Force close this version or release status must be true
+            if forced and not self.valid_info['check']:
                 self.forced_close(release_name, branch_name)
-            elif self.valid_info['check'] is False:
+            elif not self.valid_info['check']:
                 return util.respond(404, error_release_build,
                                     error=apiError.release_unable_to_build(self.valid_info))
-            # Close Redmine Versions
+
             closed_version = False
             check_gitlab_release = False
             create_harbor_release = False
-
+            
+            # Close Redmine Versions
             for version in args['versions']:
                 params = {"version": {"status": "closed"}}
                 redmine.rm_put_version(version, params)
                 closed_version = True
 
-            # check  Gitalb Release
-            # if self.gitlab_info.get('check') == True:
-            gitlab_data = {
-                'tag_name': release_name,
-                'ref': gitlab_ref,
-                'description': args['note']
-            }
-            if args['released_at'] != "":
-                gitlab_data['release_at'] = args['released_at']
-            gitlab.gl_create_release(
-                self.plugin_relation.git_repository_id, gitlab_data)
-            check_gitlab_release = True
+            # Check Gitalb Release
+            if self.gitlab_info.get('check') and \
+                args.get("commit") != "" and args.get("branch") != "":
+                gitlab_data = {
+                    'tag_name': release_name,
+                    'ref': gitlab_ref,
+                    'description': args['note']
+                }
+                if args.get('released_at') is not None:
+                    gitlab_data['release_at'] = args['released_at']
+                gitlab.gl_create_release(
+                    self.plugin_relation.git_repository_id, gitlab_data)
+                check_gitlab_release = True
+
             #  Create Harbor Release
             image_path = [f"{self.project.name}/{branch_name}:{release_name}"]
-            if self.harbor_info['target'].get('release', None) is not None:
+            if self.harbor_info['target'].get('release') is not None:
                 if args.get("extra_image_path") is not None and f"{self.project.name}/{args.get('extra_image_path')}" not in image_path:
                     image_path = [f"{self.project.name}/{args.get('extra_image_path')}"] + image_path
                     extra_image_path = args.get("extra_image_path").split(":")
                     extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
                     hb_copy_artifact_and_retage(self.project.name, branch_name,
-                                                extra_dest_repo, args.get("commit"), extra_dest_tag)
+                                                extra_dest_repo, args.get("commit"), extra_dest_tag, forced=forced)
                 hb_copy_artifact_and_retage(self.project.name, branch_name, branch_name,
-                                            args.get("commit"), release_name)
+                                            args.get("commit"), release_name, forced=forced)
                 create_harbor_release = True
 
             create_release(
@@ -610,9 +628,7 @@ class Releases(Resource):
                 user_id,
                 image_path
             )
-
-            return util.success()
-        except:
+        except Exception as e:
             # Roll back
             # Open redmine version
             if closed_version:
@@ -635,11 +651,135 @@ class Releases(Resource):
                                                     branch_name, removed_dest_tag, args.get("commit"))
                     else:
                         digest = hb_get_artifact(self.project.name, branch_name, removed_dest_tag)[0]["digest"]
-                        hb_delete_artifact_tag(self.project.name, branch_name, digest, removed_dest_tag, keep=True)
-
+                        hb_delete_artifact_tag(self.project.name, branch_name,
+                                               digest, removed_dest_tag, keep=True)
+            
             if NoResultFound:
-                return util.respond(404, error_redmine_issues_closed,
+                raise apiError.DevOpsError(404, error_redmine_issues_closed,
                                     error=apiError.redmine_unable_to_forced_closed_issues(args['versions']))
+            else:
+                raise apiError.DevOpsError(500, str(e),
+                          error=apiError.uncaught_exception(str(e)))
+            
+
+    # @jwt_required
+    # def post(self, project_id):
+    #     user_id = get_jwt_identity()["user_id"]
+    #     role.require_in_project(project_id, 'Error to create release')
+    #     self.plugin_relation = model.ProjectPluginRelation.query.filter_by(
+    #         project_id=project_id).first()
+    #     self.project = model.Project.query.filter_by(id=project_id).first()
+    #     parser = reqparse.RequestParser()
+    #     parser.add_argument('main', type=int)
+    #     parser.add_argument('versions', action='append')
+    #     parser.add_argument('branch', type=str)
+    #     parser.add_argument('commit', type=str)
+    #     parser.add_argument('note', type=str)
+    #     parser.add_argument('released_at', type=str)
+    #     parser.add_argument('forced', action='store_true')
+    #     parser.add_argument('extra_image_path', type=str)
+    #     args = parser.parse_args()
+    #     gitlab_ref = branch_name = args.get('branch')
+    #     branch_name = None if branch_name == "" else branch_name
+    #     if args.get('commit', None) is None and branch_name is not None:
+    #         args.update({'commit': 'latest'})
+    #     else:
+    #         gitlab_ref = args.get('commit')
+    #     args['main'] = str(args.get('main'))
+    #     list_versions = redmine.rm_get_version_list(
+    #         self.plugin_relation.plan_project_id)
+    #     self.versions_by_key = transfer_array_to_object(
+    #         list_versions['versions'], 'id')
+
+    #     release_name = self.versions_by_key[args['main']]['name']
+    #     list_statuses = redmine.rm_get_issue_status()
+    #     self.closed_statuses = redmine.get_closed_status(
+    #         list_statuses['issue_statuses'])
+    #     self.check_release_status(
+    #         args, release_name, branch_name, args.get('commit'))
+    #     # Verify Issues is all closed in versions
+    #     self.check_release_states()
+    #     try:
+    #         if args['forced'] == 'True' and self.valid_info['check'] is False:
+    #             self.forced_close(release_name, branch_name)
+    #         elif self.valid_info['check'] is False:
+    #             return util.respond(404, error_release_build,
+    #                                 error=apiError.release_unable_to_build(self.valid_info))
+    #         # Close Redmine Versions
+    #         closed_version = False
+    #         check_gitlab_release = False
+    #         create_harbor_release = False
+
+    #         for version in args['versions']:
+    #             params = {"version": {"status": "closed"}}
+    #             redmine.rm_put_version(version, params)
+    #             closed_version = True
+
+    #         # check  Gitalb Release
+    #         # if self.gitlab_info.get('check') == True:
+    #         gitlab_data = {
+    #             'tag_name': release_name,
+    #             'ref': gitlab_ref,
+    #             'description': args['note']
+    #         }
+    #         if args['released_at'] != "":
+    #             gitlab_data['release_at'] = args['released_at']
+    #         gitlab.gl_create_release(
+    #             self.plugin_relation.git_repository_id, gitlab_data)
+    #         check_gitlab_release = True
+    #         #  Create Harbor Release
+    #         image_path = [f"{self.project.name}/{branch_name}:{release_name}"]
+    #         if self.harbor_info['target'].get('release', None) is not None:
+    #             if args.get("extra_image_path") is not None and f"{self.project.name}/{args.get('extra_image_path')}" not in image_path:
+    #                 image_path = [f"{self.project.name}/{args.get('extra_image_path')}"] + image_path
+    #                 extra_image_path = args.get("extra_image_path").split(":")
+    #                 extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
+    #                 hb_copy_artifact_and_retage(self.project.name, branch_name,
+    #                                             extra_dest_repo, args.get("commit"), extra_dest_tag)
+    #             hb_copy_artifact_and_retage(self.project.name, branch_name, branch_name,
+    #                                         args.get("commit"), release_name)
+    #             create_harbor_release = True
+
+    #         create_release(
+    #             project_id,
+    #             args,
+    #             self.get_redmine_versions(),
+    #             self.get_redmine_issue(),
+    #             branch_name,
+    #             release_name,
+    #             user_id,
+    #             image_path
+    #         )
+
+    #         return util.success()
+    #     except:
+    #         # Roll back
+    #         # Open redmine version
+    #         if closed_version:
+    #             for version in args['versions']:
+    #                 params = {"version": {"status": "open"}}
+    #                 redmine.rm_put_version(version, params)
+
+    #         # check  Gitalb Release
+    #         if check_gitlab_release:
+    #             gitlab.gl_delete_release(
+    #                 self.plugin_relation.git_repository_id, release_name)
+
+    #         # Create Harbor Release
+    #         if create_harbor_release:
+    #             for image in image_path:
+    #                 removed_image_path = image.split("/")[-1].split(":")
+    #                 removed_dest_repo, removed_dest_tag = removed_image_path[0], removed_image_path[1]
+    #                 if removed_dest_repo != branch_name:
+    #                     hb_copy_artifact_and_retage(self.project.name, removed_dest_repo,
+    #                                                 branch_name, removed_dest_tag, args.get("commit"))
+    #                 else:
+    #                     digest = hb_get_artifact(self.project.name, branch_name, removed_dest_tag)[0]["digest"]
+    #                     hb_delete_artifact_tag(self.project.name, branch_name, digest, removed_dest_tag, keep=True)
+
+    #         if NoResultFound:
+    #             return util.respond(404, error_redmine_issues_closed,
+    #                                 error=apiError.redmine_unable_to_forced_closed_issues(args['versions']))
 
     @jwt_required
     def get(self, project_id):
