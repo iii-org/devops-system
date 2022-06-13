@@ -11,8 +11,8 @@ from nexus import (nx_get_project, nx_get_project_plugin_relation, nx_get_user,
 from resources import apiError, role
 from sqlalchemy.sql import and_
 
-from . import (gl, set_git_username_config, tm_get_secret_url,
-               tm_git_mirror_push)
+from . import (gl, set_git_username_config, tm_get_secret_url, get_tag_info_list_from_pj,
+               tm_git_mirror_push, tm_read_pipe_set_json, update_redis_template_cache)
 
 TEMPLATE_FOLDER_NAME = "template_from_pj"
 
@@ -103,6 +103,9 @@ def update_pipe_set_and_push_to_new_project(from_project_id, name, description):
     subprocess.run(['git', 'clone', '--mirror', old_secret_http_url, f"{TEMPLATE_FOLDER_NAME}/{old_project.path}"])
     set_git_username_config(f'{TEMPLATE_FOLDER_NAME}/{template_project.path}')
     tm_git_mirror_push(template_project.path, temp_pj_secret_http_url, TEMPLATE_FOLDER_NAME)
+    tag_list = get_tag_info_list_from_pj(template_project, "local-templates")
+    pip_set_json = tm_read_pipe_set_json(template_project)
+    update_redis_template_cache(template_project, "local-templates", pip_set_json, tag_list)
     return template_project, old_project, pipe_json_temp_name
 
 

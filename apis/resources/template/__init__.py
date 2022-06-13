@@ -39,6 +39,15 @@ gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token, s
 support_software_json = util.read_json_file("apis/resources/template/supported_software.json")
 TEMPLATE_FOLDER_NAME = "pj_push_template"
 
+TEMPLATE_GROUP_DICT = {
+    "iiidevops-templates": "Public Templates",
+    "local-templates": "Local Templates"
+}
+
+TEMPLATE_SUPPORT_VERSION = None
+with open('apis/resources/template/template_support_version.json') as file:
+    TEMPLATE_SUPPORT_VERSION = json.load(file)
+
 
 def __tm_get_tag_info(pj, tag_name):
     tag_info_dict = {
@@ -109,7 +118,7 @@ def tm_get_git_pipeline_json(pj, tag_name=None, commit_id=None):
     return pipe_json
 
 
-def __tm_read_pipe_set_json(pj, tag_name=None):
+def tm_read_pipe_set_json(pj, tag_name=None):
     pip_set_json = {}
     try:
         if pj.empty_repo:
@@ -197,8 +206,44 @@ def __compare_tag_version(tag_version, start_version, end_version=None):
             return False
 
 
+def get_tag_info_list_from_pj(pj, group_name):
+    # get all tags
+    tag_list = []
+    for tag in pj.tags.list(all=True):
+        if group_name == "iiidevops-templates" and \
+                TEMPLATE_SUPPORT_VERSION is not None:
+            for temp_name, temp_value in TEMPLATE_SUPPORT_VERSION.items():
+                if temp_name == pj.name:
+                    status = __compare_tag_version(
+                        tag.name, temp_value.get('start_version'),
+                        temp_value.get('end_version'))
+                    if status:
+                        tag_list.append({
+                            "name": tag.name,
+                            "commit_id": tag.commit["id"],
+                            "commit_time": tag.commit["committed_date"]
+                        })
+                    break
+        else:
+            tag_list.append({
+                "name": tag.name,
+                "commit_id": tag.commit["id"],
+                "commit_time": tag.commit["committed_date"]
+            })
+    return tag_list
+
+
+def update_redis_template_cache(pj, group_name, pip_set_json, tag_list):
+    update_template_cache(pj.id, {'name': pj.name,
+                                  'path': pj.path,
+                                  'display': pip_set_json["name"],
+                                  'description': pip_set_json["description"],
+                                  'version': tag_list,
+                                  'update_at': datetime.now(),
+                                  'group_name': TEMPLATE_GROUP_DICT.get(group_name)})
+
+
 def __force_update_template_cache_table():
-    template_support_version = None
     output = [{
         "source": "Public Templates",
         "options": []
@@ -206,42 +251,14 @@ def __force_update_template_cache_table():
         "source": "Local Templates",
         "options": []
     }]
-    template_group_dict = {
-        "iiidevops-templates": "Public Templates",
-        "local-templates": "Local Templates"
-    }
-    with open('apis/resources/template/template_support_version.json') as file:
-        template_support_version = json.load(file)
     for group in gl.groups.list(all=True):
-        if group.name in template_group_dict:
+        if group.name in TEMPLATE_GROUP_DICT:
             for group_project in get_all_group_projects(group):
                 pj = gl.projects.get(group_project.id)
                 if pj.empty_repo:
                     continue
-                # get all tags
-                tag_list = []
-                for tag in pj.tags.list(all=True):
-                    if group.name == "iiidevops-templates" and \
-                            template_support_version is not None:
-                        for temp_name, temp_value in template_support_version.items():
-                            if temp_name == pj.name:
-                                status = __compare_tag_version(
-                                    tag.name, temp_value.get('start_version'),
-                                    temp_value.get('end_version'))
-                                if status:
-                                    tag_list.append({
-                                        "name": tag.name,
-                                        "commit_id": tag.commit["id"],
-                                        "commit_time": tag.commit["committed_date"]
-                                    })
-                                break
-                    else:
-                        tag_list.append({
-                            "name": tag.name,
-                            "commit_id": tag.commit["id"],
-                            "commit_time": tag.commit["committed_date"]
-                        })
-                pip_set_json = __tm_read_pipe_set_json(pj)
+                tag_list = get_tag_info_list_from_pj(pj, group.name)
+                pip_set_json = tm_read_pipe_set_json(pj)
                 template_data = {
                     "id":
                         pj.id,
@@ -256,20 +273,14 @@ def __force_update_template_cache_table():
                         "version":
                         tag_list
                 }
-                if group.name == "iiidevops-templates" and template_support_version is None:
+                if group.name == "iiidevops-templates" and TEMPLATE_SUPPORT_VERSION is None:
                     output[0]['options'].append(template_data)
-                elif group.name == "iiidevops-templates" and template_support_version is not None \
-                        and pj.name in template_support_version:
+                elif group.name == "iiidevops-templates" and TEMPLATE_SUPPORT_VERSION is not None \
+                        and pj.name in TEMPLATE_SUPPORT_VERSION:
                     output[0]['options'].append(template_data)
                 elif group.name == "local-templates":
                     output[1]['options'].append(template_data)
-                update_template_cache(pj.id, {'name': pj.name,
-                                              'path': pj.path,
-                                              'display': pip_set_json["name"],
-                                              'description': pip_set_json["description"],
-                                              'version': tag_list,
-                                              'update_at': datetime.now(),
-                                              'group_name': template_group_dict.get(group.name)})
+                update_redis_template_cache(pj, group.name, pip_set_json, tag_list)
     return output
 
 
@@ -336,7 +347,7 @@ def tm_get_template_list(force_update=0):
 def tm_get_template(repository_id, tag_name):
     pj = gl.projects.get(repository_id)
     tag_info_dict = __tm_get_tag_info(pj, tag_name)
-    pip_set_json = __tm_read_pipe_set_json(pj, tag_name)
+    pip_set_json = tm_read_pipe_set_json(pj, tag_name)
     output = {"id": int(repository_id), "tag_name": tag_info_dict["tag_name"]}
     if 'name' in pip_set_json:
         output['name'] = pip_set_json['name']
@@ -369,7 +380,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
     tag_info_dict = __tm_get_tag_info(template_pj, tag_name)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(template_pj,
                                                       tag_name=tag_name)
-    pip_set_json = __tm_read_pipe_set_json(template_pj, tag_name)
+    pip_set_json = tm_read_pipe_set_json(template_pj, tag_name)
 
     pj = gl.projects.get(user_repository_id)
     secret_pj_http_url = tm_get_secret_url(pj)
