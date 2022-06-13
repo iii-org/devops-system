@@ -295,6 +295,18 @@ def verify_github_info(value):
     g = Github(login_or_token=token)
     try:
         login = g.get_user().login
+        not_alive_messages = get_unread_notification_message_list(title="GitHub token is unavailable")
+        if not_alive_messages is not None and len(not_alive_messages) > 0:
+            for not_alive_message in not_alive_messages:
+                close_notification_message(not_alive_message["id"])
+            back_to_alive_title = "GitHub token is back to available."
+            create_notification_message({
+                "alert_level": 1,
+                "title": back_to_alive_title,
+                "message": back_to_alive_title,
+                "type_ids": [4],
+                "type_parameters": {"role_ids": [5]}
+            })
     except:
         raise apiError.DevOpsError(
             400,

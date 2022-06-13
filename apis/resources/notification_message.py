@@ -31,14 +31,18 @@ INF = AlertLevel(1, 'INFO', True)
 WAR = AlertLevel(2, 'WARNING', True)
 URG = AlertLevel(3, 'Urgent', True)
 
+# System
 NEW = AlertLevel(101, 'New Version', False)
 SAL = AlertLevel(102, 'System Alert', False)
 SWA = AlertLevel(103, 'System Warming', True)
 
-SWA = AlertLevel(201, 'GitLab Merge Request Notification', True)
+# GitLab
+MR = AlertLevel(201, 'Merge Request', True)
 
-ALL_ALERTS = [INF, WAR, URG, NEW, SAL, SWA]
+# GitHub
+GHT = AlertLevel(301, 'GitHub Token Invalid', False)
 
+ALL_ALERTS = [INF, WAR, URG, NEW, SAL, SWA, MR, GHT]
 
 def get_alert_level(alert_id):
     for alert in ALL_ALERTS:
@@ -197,6 +201,9 @@ def get_notification_message_list(args, admin=False):
 def create_notification_message(args, user_id=None):
     if user_id is None:
         user_id = get_jwt_identity()['user_id']
+    # Do not need to create same notification message if previous one is ont read and alert level is 102 or 301
+    if args["alert_level"] in [102, 301] and get_unread_notification_message_list(title=args['title']) != []:
+        return
     row = NotificationMessage(
         alert_level=args['alert_level'],
         title=args['title'],
@@ -316,6 +323,7 @@ def get_unread_notification_message_list(title=None, alert_service_id=None):
     base_query = db.session.query(NotificationMessage, NotificationMessageReply).outerjoin(
         NotificationMessageReply, and_(NotificationMessageReply.user_id.in_(get_am_role_user()),
                                        NotificationMessage.id == NotificationMessageReply.message_id))
+    base_query = base_query.filter(NotificationMessage.close == False)
     if alert_service_id is not None:
         base_query = base_query.filter(NotificationMessage.alert_service_id == alert_service_id)
     if title is not None:
