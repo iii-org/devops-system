@@ -61,4 +61,4 @@ class CheckExcalidrawAliveV2(MethodResource):
     @handle_plugin("excalidraw")
     @jwt_required
     def get(self):
-        return util.success({"alive": excalidraw.check_excalidraw_alive()})
+        return util.success(excalidraw.check_excalidraw_alive())

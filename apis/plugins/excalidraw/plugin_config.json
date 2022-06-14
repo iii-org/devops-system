@@ -9,6 +9,11 @@
             "store": "secret_system"
         },
         {
+            "key": "excalidraw-socket-url",
+            "type": "string",
+            "store": "secret_system"
+        },
+        {
             "key": "excalidraw-db-account",
             "type": "string",
             "store": "secret_system"

@@ -236,15 +236,26 @@ def sync_excalidraw_db():
     finally:
         conn.close()
 
-
-def check_excalidraw_alive(excalidraw_url=None):
+def check_url_alive(url):
     import requests
-    if excalidraw_url is None:
-        excalidraw_url = excalidraw_get_config("excalidraw-url")
-    excalidraw_alive = False
     try:
-        excalidraw_alive = requests.get(excalidraw_url).status_code == 200
+        alive = requests.get(url).status_code < 500
     except:
-        excalidraw_alive = False
-    return excalidraw_alive
+        alive = False
+    return alive
+
+
+def check_excalidraw_alive(excalidraw_url=None, excalidraw_socket_url=None):
+    excalidraw_url = excalidraw_url or excalidraw_get_config("excalidraw-url")
+    excalidraw_socket_url = excalidraw_socket_url or excalidraw_get_config("excalidraw-socket-url")
     
+    not_alive_services = []
+    ret = {"alive": True, "services": {"API": True, "UI": True, "Socket": True}}
+    for service, url in {"UI": excalidraw_url, "Socket": excalidraw_socket_url, "API": f"{excalidraw_url}/api/v2"}.items():
+        if not check_url_alive(url):
+            ret["alive"] = ret["services"][service] = False
+            not_alive_services.append(service)
+    
+    if not_alive_services != []:
+        ret["message"] = f'{", ".join(not_alive_services)} not alive'
+    return ret

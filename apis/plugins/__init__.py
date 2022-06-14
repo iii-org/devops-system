@@ -152,16 +152,19 @@ def update_plugin_config(plugin_name, args):
             if plugin_name == "excalidraw" and system_secrets_not_exist: 
                 excalidraw_url = args.get('arguments').get('excalidraw-url') if \
                     args.get('arguments') is not None else None
-                if excalidraw_url is None:
-                    raise DevOpsError(400, 'Argument: excalidraw-url can not be blank in first create.',
+                excalidraw_socket_url = args.get('arguments').get('excalidraw-socket-url') if \
+                    args.get('arguments') is not None else None
+                if excalidraw_url is None or excalidraw_socket_url is None:
+                    raise DevOpsError(400, 'Argument: excalidraw-url or excalidraw-socket-url can not be blank in first create.',
                                   error=apiError.argument_error('disabled'))
-                elif not check_excalidraw_alive(excalidraw_url):
-                    raise DevOpsError(400, 'New excalidraw-url is not alive.',
+                elif not check_excalidraw_alive(
+                    excalidraw_url=excalidraw_url, excalidraw_socket_url=excalidraw_socket_url)["alive"]:
+                    raise DevOpsError(400, "Excalidraw's servers are not alive.",
                                   error=apiError.argument_error('argument'))
 
             # check plugin server alive before set disabled to false.
             plugin_alive_func = plugin_alive_mapping.get(plugin_name, {}).get("func")
-            if plugin_alive_func is not None and not plugin_alive_func():
+            if plugin_alive_func is not None and not plugin_alive_func()["alive"]:
                 raise DevOpsError(400, 'Plugin is not alive',
                                   error=apiError.plugin_server_not_alive(plugin_name))
         

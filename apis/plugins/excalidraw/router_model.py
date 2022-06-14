@@ -57,5 +57,5 @@ class ExcalidrawPatchRes(CommonBasicResponse):
 
 class CheckExcalidrawAliveRes(CommonBasicResponse):
     data = fields.Dict(
-        example={"alive": True}
+        example={"alive": True, "services": {"API": True, "UI": True, "Socket": True}}
     , required=True)

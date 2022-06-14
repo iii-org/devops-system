@@ -40,7 +40,6 @@ AlertServiceIDMapping = {
 
 
 class Monitoring:
-
     def __init__(self, project_id=None):
         self.server = None
         self.pj_id = project_id
@@ -112,11 +111,14 @@ class Monitoring:
 
     # It will be merge in __check_server_alive.
     def __check_plugin_server_alive(self, func):
-        alive = self.__is_server_alive(func)
-        if not alive:
-            self.error_message = f"{self.server} not alive"
-        self.__update_all_alive(alive)
-        return alive
+        server_alive = func()
+        if not server_alive["alive"]:
+            if server_alive.get("message") is not None:
+                self.error_message = server_alive["message"]
+            else:
+                self.error_message = f"{self.server} not alive"
+        self.__update_all_alive(server_alive["alive"])
+        return server_alive["alive"]
 
 
     def send_notification(self):
