@@ -220,13 +220,19 @@ class Monitoring:
         self.alert_service_id = 1001
         return self.__check_plugin_server_alive(check_excalidraw_alive)
 
+    def check_plugin_disabled(self, plugin):
+        try:
+            plugin_software = PluginSoftware.query.filter_by(name=plugin).first()
+            plugin_disabled = plugin_software is not None and not plugin_software.disabled
+        except:
+            plugin_disabled = False
+        return plugin_disabled
 
     def check_plugin_alive(self):
         ret = {}
         plugin_mapping = {"excalidraw": self.excalidraw_alive}
         for plugin, plugin_func in plugin_mapping.items():
-            plugin_software = PluginSoftware.query.filter_by(name=plugin).first()
-            if plugin_software is not None and not plugin_software.disabled:
+            if self.check_plugin_disabled(plugin):
                 alive = plugin_func()
                 ret[plugin] = alive
         return ret
