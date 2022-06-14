@@ -104,7 +104,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
     "pool_recycle": 60,
     'pool_timeout': 300,
-    'pool_size': 50
+    'pool_size': 20
 }
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1000 * 1000
 
