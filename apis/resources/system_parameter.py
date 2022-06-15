@@ -168,6 +168,8 @@ def get_github_verify_log_websocket(data):
             current_num = max_index
 
 
+## upload_file
+
 def get_all_upload_file_mimetype():
     upload_file_types = get_upload_file_types_obj().value["upload_file_types"]
     return [upload_file_type["MIME Type"] for upload_file_type in upload_file_types]
@@ -259,6 +261,24 @@ def check_upload_type(file):
     if file.mimetype not in get_all_upload_file_mimetype():
         raise DevOpsError(400, 'Argument upload_file type is not supported.',
                           error=apiError.argument_error("upload_file"))
+
+## receive_mail_from_noti
+def get_receive_mail_from_noti():
+    system_parameter = SystemParameter.query.filter_by(name="receive_mail_from_notification").first()
+    if system_parameter is not None:
+        receive_mail_from_notification = row_to_dict(system_parameter)
+        receive_mail_from_notification["receive"] =  receive_mail_from_notification.pop("value", {}). \
+            get('receive_mail_from_notification')
+        return util.success(receive_mail_from_notification)
+
+
+def update_receive_mail_from_noti(receive):
+    system_parameter = SystemParameter.query.filter_by(name="receive_mail_from_notification").first()
+    if system_parameter is not None:
+        system_parameter.value = {"receive_mail_from_notification": receive}
+        db.session.commit()
+    return util.success()
+    
 
 # --------------------- Resources ---------------------
 

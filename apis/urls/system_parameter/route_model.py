@@ -18,6 +18,9 @@ class UpdateFilesPatchSchema(Schema):
     name = fields.Str()
 
 
+class ReceiveMailFromNotificationSchema(Schema):
+    receive = fields.Bool(required=True)
+
 ################### Response ######################
 
 
@@ -50,3 +53,12 @@ class UpdateFilePostResponse(CommonBasicResponse):
 
 class GetUploadFileDistinctNameResponse(CommonBasicResponse):
     data = fields.List(fields.Str())
+
+
+class ReceiveMailFromNotificationRepsonse(CommonBasicResponse):
+    data = fields.Dict(example={
+        "active": True,
+        "id": 9,
+        "name": "receive_mail_from_notification",
+        "receive": True
+    })
