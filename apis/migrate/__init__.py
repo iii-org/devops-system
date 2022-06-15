@@ -5,7 +5,8 @@ import util
 import uuid
 from migrate.upgrade_function.upload_file_types import upload_file_types
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware, \
-    DefaultAlertDays, TraceOrder, TraceResult, Application, IssueExtensions, Lock, RedmineProject, ServerType, SystemParameter
+    DefaultAlertDays, TraceOrder, TraceResult, Application, IssueExtensions, Lock, RedmineProject, ServerType, SystemParameter, \
+    ProjectResourceStoragelevel
 from plugins.sonarqube.sonarqube_main import sq_create_project, sq_create_user
 from resources import harbor, kubernetesClient, role, devops_version
 from resources.apiError import DevOpsError
@@ -39,7 +40,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.15.0.13', '1.15.0.14', '1.15.0.15', '1.15.0.16', '1.15.1.0', '1.15.1.1', '1.15.2.0', '1.15.2.1', '1.15.2.2', '1.15.2.3', '1.15.2.4',
             '1.16.0.1', '1.16.1.0', '1.16.1.1', '1.16.1.2', '1.16.1.3', '1.16.1.4', '1.16.1.5', '1.16.2.0', '1.16.2.1',
             '1.16.2.2', '1.16.2.3', '1.16.2.4', '1.16.2.5', '1.16.2.6', '1.16.2.7', '1.16.3.0', '1.16.3.1', '1.17.1.0', '1.17.1.1', '1.17.2.1',
-            '1.17.2.2', '1.17.2.3', '1.17.2.4']
+            '1.17.2.2', '1.17.2.3', '1.17.2.4', '1.17.2.5']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -199,6 +200,25 @@ def upgrade(version):
         remove_unused_folder()
     elif version == '1.17.2.3':
         insert_receive_mail_from_notification_in_system_parameter()
+    elif version == '1.17.2.5':
+        insert_gitlab_condition_in_pj_rs_stg_level()
+
+
+def insert_gitlab_condition_in_pj_rs_stg_level():
+    for project in model.Project.query.all():
+        pj_id = project.id
+        pj_rs_stg_level = ProjectResourceStoragelevel.query.filter_by(project_id=project.id).first()
+        if pj_rs_stg_level is None:
+            row = ProjectResourceStoragelevel(
+                project_id=pj_id,
+                gitlab={
+                    "limit": 8,
+                    "comparison": ">",
+                    "percentage": False
+                }
+            )
+            db.session.add(row)
+            db.session.commit()
 
 
 def insert_receive_mail_from_notification_in_system_parameter():

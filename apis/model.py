@@ -961,5 +961,12 @@ class ExcalidrawIssueRelation(db.Model):
 
 
 class ProjectResourceStoragelevel(db.Model):
+    '''
+    {
+        "limit": integer,
+        "comparison": string ("<", ">", "="),
+        "percentage": bool
+    }
+    '''
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
     gitlab = Column(JSON)
