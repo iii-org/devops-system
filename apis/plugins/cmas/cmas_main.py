@@ -227,12 +227,12 @@ def get_task_state(project_id, commit_id):
 def get_latest_state(project_id):
     cmas_test = get_cmas_object(project_id)
     if cmas_test is not None:
-        if not cmas_test.finished:
-            status = CMAS(cmas_test.task_id).query_report_task().get("status")
-            if status == "SUCCESS":
-                cmas_test = db.session.query(Model).join(ProjectPluginRelation).filter(
-                model.ProjectPluginRelation.project_id == project_id).order_by(desc(Model.run_at)).first()
-                status = cmas_test.scan_final_status
+        status = CMAS(cmas_test.task_id).query_report_task().get("status")
+        # In case DB data has not been recorded
+        if not cmas_test.finished and status == "SUCCESS":
+            cmas_test = db.session.query(Model).join(ProjectPluginRelation).filter(
+            model.ProjectPluginRelation.project_id == project_id).order_by(desc(Model.run_at)).first()
+            status = cmas_test.scan_final_status
         return {
             "logs": cmas_test.logs,
             "stats": util.is_json(cmas_test.stats),
