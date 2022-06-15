@@ -39,7 +39,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.15.0.13', '1.15.0.14', '1.15.0.15', '1.15.0.16', '1.15.1.0', '1.15.1.1', '1.15.2.0', '1.15.2.1', '1.15.2.2', '1.15.2.3', '1.15.2.4',
             '1.16.0.1', '1.16.1.0', '1.16.1.1', '1.16.1.2', '1.16.1.3', '1.16.1.4', '1.16.1.5', '1.16.2.0', '1.16.2.1',
             '1.16.2.2', '1.16.2.3', '1.16.2.4', '1.16.2.5', '1.16.2.6', '1.16.2.7', '1.16.3.0', '1.16.3.1', '1.17.1.0', '1.17.1.1', '1.17.2.1',
-            '1.17.2.2']
+            '1.17.2.2', '1.17.2.3']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -197,6 +197,19 @@ def upgrade(version):
         add_default_value_in_is_inheritance_member_project()
     elif version == '1.17.2.1':
         remove_unused_folder()
+    elif version == '1.17.2.3':
+        insert_receive_mail_from_notification_in_system_parameter()
+
+
+def insert_receive_mail_from_notification_in_system_parameter():
+    if SystemParameter.query.filter_by(name="receive_mail_from_notification").first() is None:
+        row = SystemParameter(
+            name="receive_mail_from_notification",
+            value={"receive_mail_from_notification": False},
+            active=True
+        )
+        db.session.add(row)
+        db.session.commit()
 
 
 def remove_unused_folder():
