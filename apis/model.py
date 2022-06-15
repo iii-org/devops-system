@@ -958,3 +958,8 @@ class ExcalidrawIssueRelation(db.Model):
     id = Column(Integer, primary_key=True)
     excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete='CASCADE'))
     issue_id = Column(Integer)
+
+
+class ProjectResourceStoragelevel(db.Model):
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
+    gitlab = Column(JSON)
