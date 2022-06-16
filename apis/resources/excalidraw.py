@@ -103,7 +103,8 @@ def create_excalidraw(args):
         "project_id": project_id,
         "created_at": str(datetime_now),
         "url": f'{excalidraw_get_config("excalidraw-url")}/#room={room},{key}',
-        "issue_ids": [int(issue_id) for issue_id in issue_ids.split(",")]
+        "issue_ids": [int(issue_id) for issue_id in issue_ids.split(",")] if \
+            has_issue_ids else []
     }
 
 
