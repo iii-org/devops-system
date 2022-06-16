@@ -1438,7 +1438,7 @@ class ProjectUserResourceIngresses(Resource):
     def get(self, project_id):
         role.require_in_project(
             project_id, "Error while getting project info.")
-        return version.get_kubernetes_namespace_ingresses(project_id)
+        return project.get_kubernetes_namespace_ingresses(project_id)
 
 
 ##### Version ######
@@ -1718,3 +1718,13 @@ class IssueForceTrackerV2(MethodResource):
     def delete(self, project_id):
         role.require_project_owner(get_jwt_identity()['user_id'], project_id)
         return util.success(delete_project_issue_check(project_id))
+
+
+##### project resource storage ######
+
+# class ProjectResourceStorage(MethodResource):
+#     @doc(tags=['Issue'], description="Get project's resource storage info.")
+#     # @marshal_with(router_model.IssueForceTrackerPostResponse)
+#     @jwt_required
+#     def get(self, project_id):
+#         return util.success(get_project_issue_check(project_id))
