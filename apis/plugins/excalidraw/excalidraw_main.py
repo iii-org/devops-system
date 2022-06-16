@@ -12,7 +12,6 @@ class ExcalidrawsV2(MethodResource):
     @doc(tags=['Excalidraw'], description="Create a excalidraw.")
     @use_kwargs(router_model.ExcalidrawCreateSchema, location="form")
     @marshal_with(router_model.ExcalidrawPostRes)
-    @handle_plugin("excalidraw")
     @jwt_required()
     @handle_plugin("excalidraw")
     def post(self, **kwargs):
