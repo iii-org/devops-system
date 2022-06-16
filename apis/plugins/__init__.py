@@ -145,15 +145,22 @@ def update_plugin_config(plugin_name, args):
     if args.get('disabled') is not None:
         from resources.excalidraw import check_excalidraw_alive
         plugin_alive_mapping = {
-            "excalidraw": {"func": check_excalidraw_alive, "alert_monitring_id": 1001}
+            "excalidraw": {
+                "func": check_excalidraw_alive, 
+                "alert_monitring_id": 1001,
+                "parameters": {
+                    "excalidraw_url": args.get('arguments').get('excalidraw-url') if \
+                        args.get('arguments') is not None else None,
+                    "excalidraw_socket_url": args.get('arguments').get('excalidraw-socket-url') if \
+                        args.get('arguments') is not None else None
+                }
+            }
         }
         if not args['disabled']:
             # Plugin 
             if plugin_name == "excalidraw" and system_secrets_not_exist: 
-                excalidraw_url = args.get('arguments').get('excalidraw-url') if \
-                    args.get('arguments') is not None else None
-                excalidraw_socket_url = args.get('arguments').get('excalidraw-socket-url') if \
-                    args.get('arguments') is not None else None
+                excalidraw_url = plugin_alive_mapping["excalidraw"]["parameters"]["excalidraw_url"]
+                excalidraw_socket_url = plugin_alive_mapping["excalidraw"]["parameters"]["excalidraw_socket_url"]
                 if excalidraw_url is None or excalidraw_socket_url is None:
                     raise DevOpsError(400, 'Argument: excalidraw-url or excalidraw-socket-url can not be blank in first create.',
                                   error=apiError.argument_error('disabled'))
@@ -164,9 +171,16 @@ def update_plugin_config(plugin_name, args):
 
             # check plugin server alive before set disabled to false.
             plugin_alive_func = plugin_alive_mapping.get(plugin_name, {}).get("func")
-            if plugin_alive_func is not None and not plugin_alive_func()["alive"]:
-                raise DevOpsError(400, 'Plugin is not alive',
-                                  error=apiError.plugin_server_not_alive(plugin_name))
+            if plugin_alive_func is not None:
+                kwargs = plugin_alive_mapping.get(plugin_name, {}).get("parameters")
+                if kwargs is not None:
+                    alive = plugin_alive_func(**kwargs)["alive"]
+                else:
+                    alive = plugin_alive_func()["alive"]
+
+                if not alive:    
+                    raise DevOpsError(400, 'Plugin is not alive',
+                                    error=apiError.plugin_server_not_alive(plugin_name))
         
         else:
             # Read alert_message of plugin server is not alive then send notification.
@@ -187,7 +201,6 @@ def update_plugin_config(plugin_name, args):
                         }, 
                         user_id=1
                     )
-
 
         db_row.disabled = bool(args['disabled'])
         #  Update Project Plugin Status
