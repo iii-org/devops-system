@@ -54,6 +54,7 @@ def create_excalidraw(args):
     operator_id = get_jwt_identity()['user_id']
     project_id, issue_ids, name = args["project_id"], args.get("issue_ids"), args["name"]
     has_issue_ids = issue_ids is not None
+    datetime_now = datetime.utcnow()
     require_in_project(project_id=project_id)
 
     # In case it has duplicate room in db
@@ -79,8 +80,8 @@ def create_excalidraw(args):
         room=room,
         key=key,
         operator_id=operator_id,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime_now,
+        updated_at=datetime_now,
     )
     db.session.add(row) 
     db.session.commit()
@@ -95,6 +96,15 @@ def create_excalidraw(args):
         ]
         db.session.add_all(excalidraw_issue_relations)
         db.session.commit()
+    
+    return {
+        "id": row.id,
+        "name": name,
+        "project_id": project_id,
+        "created_at": str(datetime_now),
+        "url": f'{excalidraw_get_config("excalidraw-url")}/#room={room},{key}',
+        "issue_ids": [int(issue_id) for issue_id in issue_ids.split(",")]
+    }
 
 
 def get_excalidraws(args):

@@ -11,13 +11,12 @@ from plugins import handle_plugin
 class ExcalidrawsV2(MethodResource):
     @doc(tags=['Excalidraw'], description="Create a excalidraw.")
     @use_kwargs(router_model.ExcalidrawCreateSchema, location="form")
-    @marshal_with(util.CommonResponse)
+    @marshal_with(router_model.ExcalidrawPostRes)
     @handle_plugin("excalidraw")
     @jwt_required
     def post(self, **kwargs):
         kwargs["issue_ids"] = None if kwargs.get("issue_ids") == "" else kwargs.get("issue_ids")
-        excalidraw.create_excalidraw(kwargs)
-        return util.success()
+        return util.success(excalidraw.create_excalidraw(kwargs))
 
 
     @doc(tags=['Excalidraw'], description="Get excalidraws.")
