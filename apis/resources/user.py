@@ -15,7 +15,7 @@ import model
 import resources.apiError as apiError
 import util as util
 from enums.action_type import ActionType
-from model import ProjectUserRole, db
+from model import ProjectUserRole, db, UserMessageType
 from nexus import nx_get_user_plugin_relation, nx_get_user
 from plugins.sonarqube import sonarqube_main as sonarqube
 from plugins.ad.ad_main import ldap_api
@@ -669,6 +669,17 @@ def create_user(args):
         db.session.add(rol)
         db.session.commit()
         logger.info(f'Nexus user project_user_role created.')
+
+        # insert user_message_type
+        row = model.UserMessageType(
+            user_id=user_id,
+            teams=False,
+            notification=True,
+            mail=False
+        )
+        db.session.add(row)
+        db.session.commit()
+        logger.info(f'Nexus user_message_type created.')
     except Exception as e:
         harbor.hb_delete_user(harbor_user_id)
         gitlab.gl_delete_user(gitlab_user_id)
@@ -797,3 +808,55 @@ def get_am_role_user():
     rows = ProjectUserRole.query.filter_by(role_id=5).with_entities(ProjectUserRole.user_id). \
         distinct()
     return [row.user_id for row in rows]
+
+
+# user message type
+def row_to_dict(row):
+    if row is None:
+        return {}
+    ret = {key: getattr(row, key) for key in type(row).__table__.columns.keys()}
+    if ret.get("user_id") is not None:
+        user_id = ret.pop("user_id")
+        user = model.User.query.get(user_id)
+        ret["user"] = {
+            "id": user_id,
+            "name": user.name,
+            "login": user.login
+        }
+    return ret
+
+
+def get_user_message_types(limit=None, offset=None):
+    ret, page_dict = [], None
+    users_message_type = UserMessageType.query
+    if limit is not None and offset is not None:
+        users_message_type, page_dict = util.orm_pagination(
+            users_message_type, limit, offset)
+    
+    for user_message_type in users_message_type.all():
+        ret.append(row_to_dict(user_message_type))
+    
+    if page_dict is not None:
+        ret = {
+            "user_message_type": ret,
+            "page": page_dict
+        }
+    return ret
+
+
+def get_user_message_type(user_id):
+    return row_to_dict(UserMessageType.query.filter_by(user_id=user_id).first())
+
+
+def update_user_message_types(user_id, args):
+    users_message_type = UserMessageType.query.filter_by(user_id=user_id).first()
+    if users_message_type is not None:
+        teams, notification, mail = args.get("teams"), args.get("notification"), args.get("mail")
+        if teams is not None:
+            users_message_type.teams = teams
+        if notification is not None:
+            users_message_type.notification = notification
+        if mail is not None:
+            users_message_type.mail = mail
+
+        db.session.commit()

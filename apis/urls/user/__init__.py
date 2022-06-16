@@ -24,4 +24,8 @@ def user_url(api, add_resource):
 
     api.add_resource(view.UserSaConfig, '/user/<int:user_id>/config')
     
+    api.add_resource(view.MessageTypes, '/v2/user/message_types')
+    add_resource(view.MessageTypes, "public")
+    api.add_resource(view.MessageType, '/v2/user/message_type/<int:user_id>')
+    add_resource(view.MessageType, "public")
     
