@@ -972,7 +972,8 @@ class ProjectResourceStoragelevel(db.Model):
     gitlab = Column(JSON)
 
 
-class UserNotifyType(db.Model):
-    user_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
+class UserMessageType(db.Model):
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
     notification = Column(Boolean)
     mail = Column(Boolean)
+    teams = Column(Boolean)
