@@ -206,8 +206,8 @@ class CheckMarx(object):
         if st_id != 7:
             if st_id in [8, 9]:
                 st_mapping = {
-                    "8": "The scan is canceled.",
-                    "9": "The scan failed."
+                    8: "The scan is canceled.",
+                    9: "The scan failed."
                 }
                 ret["status"] = -1
                 ret["message"] = st_mapping[st_id]
