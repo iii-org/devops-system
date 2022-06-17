@@ -364,6 +364,12 @@ def github_token_error(arg_name):
 def file_not_found(file_name, path):
     return build(7008, f"The file is not found in provided path.", {'file_name': file_name, "path": path})
 
+def gmail_need_apply_apppassword(account):
+    return build(7009, "According to google policy, account needs to apply apppassord to login.", {'account': account})
+
+def login_email_error():
+    return build(7010, "SMTP System responses error, please make sure your system, port, account and password are correct")
+
 
 # Third party service errors
 

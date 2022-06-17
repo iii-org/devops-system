@@ -456,6 +456,16 @@ class Redmine:
         return rm_con_json["default"]["email_delivery"]
 
     def rm_put_mail_setting(self, rm_put_mail_dict):
+        from resources.mail import Mail
+
+        mail_info = self.rm_get_mail_setting().get("smtp_settings", {})
+        smtp_settings = rm_put_mail_dict.get("smtp_settings", {})
+        domain = smtp_settings.get("domain") or  mail_info.get("domain")
+        port = smtp_settings.get("port") or mail_info.get("port")
+        account = smtp_settings.get("user_name") or mail_info.get("user_name")
+        password = smtp_settings.get("password") or mail_info.get("password")
+        Mail.check_mail_server(domain, port, account, password)
+
         optional_parameters = ["ssl", "user_name", "password"]
         rm_configmap_dict = self.rm_get_or_create_configmap()
         rm_put_mail_dict["smtp_settings"] = {
@@ -534,10 +544,10 @@ class RedmineMail(Resource):
         parser.add_argument('redmine_mail', type=dict)
         parser.add_argument('emission_email_address', type=str)
         args = parser.parse_args()
-        if args["emission_email_address"] is not None:
-            redmine.rm_get_or_set_emission_email_address(args["emission_email_address"])
         if args["redmine_mail"] is not None:
             redmine.rm_put_mail_setting(args["redmine_mail"])
+        if args["emission_email_address"] is not None:
+            redmine.rm_get_or_set_emission_email_address(args["emission_email_address"])
         return util.success()
 
 
