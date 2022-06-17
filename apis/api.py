@@ -39,6 +39,7 @@ from resources import project, gitlab, issue, user, redmine, wiki, version, apiT
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, \
     sync_user, router, deploy, alert, trace_order, tag, lock, system_parameter, alert_message, \
     maintenance, issue_display_field
+from resources.router import router_file
 from apispec import APISpec
 from flask_apispec.extension import FlaskApiSpec
 from apispec.ext.marshmallow import MarshmallowPlugin
@@ -634,6 +635,7 @@ def start_prod():
         router.load_ui_route()
         with app.app_context():  # Prevent error appear(Working outside of application context.)
             kubernetesClient.create_cron_secret()
+        router_file.check_file_data_is_same()
         return app
     except Exception as e:
         ret = internal_error(e)
