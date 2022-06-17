@@ -205,7 +205,7 @@ def upgrade(version):
         insert_gitlab_condition_in_pj_rs_stg_level()
     elif version == '1.17.2.7':
         pass
-    elif version == '1,17.2.9':
+    elif version == '1.17.2.9':
         insert_default_info_in_user_message_type()
 
 
