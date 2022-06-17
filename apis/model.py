@@ -868,6 +868,18 @@ class UIRouteFile(db.Model):
     updated_at = Column(DateTime)
 
 
+class UIRoute(db.Model):
+    id = Column(Integer, primary_key=True)
+    name = Column(String, primary_key=True)
+    role = Column(String, primary_key=True)
+    parent = Column(Integer)
+    old_brother = Column(Integer)
+    visible = Column(Boolean, default=True)
+    ui_route = Column(JSON)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+
 class MonitoringRecord(db.Model):
     id = Column(Integer, primary_key=True)
     server = Column(String)
