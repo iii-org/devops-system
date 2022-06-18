@@ -381,31 +381,15 @@
         }
       },
       {
-        "path": "pipelines",
-        "name": "Pipelines",
-        "component": "layout/components/parentBlank",
-        "redirect": {
-          "name": "Pipeline"
-        },
+        "path": "pipeline",
+        "name": "Pipeline",
+        "component": "views/Progress/Pipelines",
         "meta": {
           "title": "Pipelines",
           "roles": [
             "Administrator"
           ]
-        },
-        "children": [
-          {
-            "path": "",
-            "name": "Pipeline",
-            "hidden": true,
-            "component": "views/Progress/Pipelines",
-            "meta": {
-              "roles": [
-                "Administrator"
-              ]
-            }
-          }
-        ]
+        }
       },
       {
         "path": "devEnvironment",
@@ -794,20 +778,7 @@
           "roles": [
             "Administrator"
           ]
-        },
-        "children": [
-          {
-            "path": "report",
-            "name": "DockerReport",
-            "hidden": true,
-            "component": "views/Scan/DockerReport",
-            "meta": {
-              "roles": [
-                "Administrator"
-              ]
-            }
-          }
-        ]
+        }
       }
     ]
   },
@@ -1059,6 +1030,33 @@
         "name": "TestReport",
         "meta": {
           "title": "TestReport",
+          "roles": [
+            "Administrator"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "path": "/docker-report",
+    "name": "DockerReports",
+    "component": "layout",
+    "redirect": {
+      "name": "DockerReport"
+    },
+    "hidden": true,
+    "meta": {
+      "roles": [
+        "Administrator"
+      ]
+    },
+    "children": [
+      {
+        "path": ":projectId/:commitBranch/:commitId",
+        "component": "views/Scan/DockerReport",
+        "name": "DockerReport",
+        "meta": {
+          "title": "DockerReport",
           "roles": [
             "Administrator"
           ]

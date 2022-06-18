@@ -868,8 +868,8 @@ class UIRouteFile(db.Model):
     updated_at = Column(DateTime)
 
 
-class UIRoute(db.Model):
-    id = Column(Integer, primary_key=True)
+class UIRouteData(db.Model):
+    id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, primary_key=True)
     role = Column(String, primary_key=True)
     parent = Column(Integer)

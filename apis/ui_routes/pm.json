@@ -396,31 +396,15 @@
         }
       },
       {
-        "path": "pipelines",
-        "name": "Pipelines",
-        "component": "layout/components/parentBlank",
-        "redirect": {
-          "name": "Pipeline"
-        },
+        "path": "pipeline",
+        "name": "Pipeline",
+        "component": "views/Progress/Pipelines",
         "meta": {
           "title": "Pipelines",
           "roles": [
             "Project Manager"
           ]
-        },
-        "children": [
-          {
-            "path": "",
-            "name": "Pipeline",
-            "hidden": true,
-            "component": "views/Progress/Pipelines",
-            "meta": {
-              "roles": [
-                "Project Manager"
-              ]
-            }
-          }
-        ]
+        }
       },
       {
         "path": "devEnvironment",
@@ -809,20 +793,7 @@
           "roles": [
             "Project Manager"
           ]
-        },
-        "children": [
-          {
-            "path": "report",
-            "name": "DockerReport",
-            "hidden": true,
-            "component": "views/Scan/DockerReport",
-            "meta": {
-              "roles": [
-                "Project Manager"
-              ]
-            }
-          }
-        ]
+        }
       }
     ]
   },
@@ -991,6 +962,33 @@
         "name": "TestReport",
         "meta": {
           "title": "TestReport",
+          "roles": [
+            "Project Manager"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "path": "/docker-report",
+    "name": "DockerReports",
+    "component": "layout",
+    "redirect": {
+      "name": "DockerReport"
+    },
+    "hidden": true,
+    "meta": {
+      "roles": [
+        "Project Manager"
+      ]
+    },
+    "children": [
+      {
+        "path": ":projectId/:commitBranch/:commitId",
+        "component": "views/Scan/DockerReport",
+        "name": "DockerReport",
+        "meta": {
+          "title": "DockerReport",
           "roles": [
             "Project Manager"
           ]

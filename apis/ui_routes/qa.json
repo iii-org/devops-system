@@ -520,20 +520,7 @@
           "roles": [
             "QA"
           ]
-        },
-        "children": [
-          {
-            "path": "report",
-            "name": "DockerReport",
-            "hidden": true,
-            "component": "views/Scan/DockerReport",
-            "meta": {
-              "roles": [
-                "QA"
-              ]
-            }
-          }
-        ]
+        }
       }
     ]
   },
@@ -557,6 +544,33 @@
         "name": "TestReport",
         "meta": {
           "title": "TestReport",
+          "roles": [
+            "QA"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "path": "/docker-report",
+    "name": "DockerReports",
+    "component": "layout",
+    "redirect": {
+      "name": "DockerReport"
+    },
+    "hidden": true,
+    "meta": {
+      "roles": [
+        "QA"
+      ]
+    },
+    "children": [
+      {
+        "path": ":projectId/:commitBranch/:commitId",
+        "component": "views/Scan/DockerReport",
+        "name": "DockerReport",
+        "meta": {
+          "title": "DockerReport",
           "roles": [
             "QA"
           ]
