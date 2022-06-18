@@ -3,6 +3,7 @@ import config
 import model
 import util
 import uuid
+from migrate.upgrade_function.ui_route_upgrade import ui_route_first_version
 from migrate.upgrade_function.upload_file_types import upload_file_types
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware, \
     DefaultAlertDays, TraceOrder, TraceResult, Application, IssueExtensions, Lock, RedmineProject, ServerType, SystemParameter, \

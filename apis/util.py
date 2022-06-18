@@ -379,10 +379,18 @@ def get_few_months_ago_utc_datetime(month_number):
         x_months_ago_date_time = x_months_ago_date_time.replace(month=datetime.utcnow().date().month-month_number % 12)
     return x_months_ago_date_time
 
+class obj:
+    def __init__(self, dict1):
+        self.__dict__.update(dict1)
 
-def read_json_file(path):
+
+def read_json_file(path, return_obj=False):
     with open(path, "r") as f:
-        f_info = json.load(f)
+        if return_obj:
+
+            f_info = json.load(f, object_hook=obj)
+        else:
+            f_info = json.load(f)
     return f_info
 
 
