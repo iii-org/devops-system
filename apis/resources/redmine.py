@@ -455,16 +455,34 @@ class Redmine:
         del (rm_con_json["default"]["email_delivery"]["delivery_method"])
         return rm_con_json["default"]["email_delivery"]
 
-    def rm_put_mail_setting(self, rm_put_mail_dict):
+    def pre_check_mail_alive(self, rm_put_mail_dict):
         from resources.mail import Mail
-
-        mail_info = self.rm_get_mail_setting().get("smtp_settings", {})
+        from resources.notification_message import close_notification_message, get_unclose_notification_message, create_notification_message
         smtp_settings = rm_put_mail_dict.get("smtp_settings", {})
-        domain = smtp_settings.get("domain") or  mail_info.get("domain")
-        port = smtp_settings.get("port") or mail_info.get("port")
-        account = smtp_settings.get("user_name") or mail_info.get("user_name")
-        password = smtp_settings.get("password") or mail_info.get("password")
-        Mail.check_mail_server(domain, port, account, password)
+        Mail.check_mail_server(
+            smtp_settings.get("domain"), 
+            smtp_settings.get("port"), 
+            smtp_settings.get("user_name"), 
+            smtp_settings.get("password")
+        )
+
+        not_alive_messages = get_unclose_notification_message(1101)
+        if not_alive_messages is not None and len(not_alive_messages) > 0:
+            for not_alive_message in not_alive_messages:
+                close_notification_message(not_alive_message["id"])
+            create_notification_message(
+                {
+                    "alert_level": 1,
+                    "title": "SMTP is back.",
+                    "message": "SMTP is back.",
+                    "type_ids": [4],
+                    "type_parameters": {"role_ids": [5]}
+                }, 
+                user_id=1
+            )
+
+    def rm_put_mail_setting(self, rm_put_mail_dict):
+        self.pre_check_mail_alive(rm_put_mail_dict)
 
         optional_parameters = ["ssl", "user_name", "password"]
         rm_configmap_dict = self.rm_get_or_create_configmap()

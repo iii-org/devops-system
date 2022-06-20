@@ -9,16 +9,20 @@ class Mail:
         self.__get_account_and_password()
         self.__init_mail_server()
 
-    def __get_account_and_password(self):
-        mail_info = redmine.rm_get_mail_setting().get("smtp_settings", {})
-        self.smtp_server = mail_info.get("domain")
-        self.smtp_server_port = mail_info.get("port")
-        self.smtp_server_account = mail_info.get("user_name")
-        self.smtp_server_password = mail_info.get("password")
+    def __get_account_and_password(self):        
+        self.smtp_server, self.smtp_server_port, self.smtp_server_account, \
+        self.smtp_server_password = get_basic_mail_info()
 
     @staticmethod
-    def check_mail_server(domain, port, account, password):
-        ret = {"status": True, "message": ""}
+    def check_mail_server(domain=None, port=None, account=None, password=None):
+        smtp_server, smtp_server_port, smtp_server_account, \
+        smtp_server_password = get_basic_mail_info()
+        domain = domain or smtp_server
+        port = port or smtp_server_port
+        account = account or smtp_server_account
+        password = password or smtp_server_password
+        server = None
+
         try:
             server = smtplib.SMTP(domain, port)
         except Exception as e:
@@ -40,16 +44,12 @@ class Mail:
             logger.logger.exception(str(e))
             raise apiError.DevOpsError(404, 'Account or password are incorrect',
                           error=apiError.login_email_error())
+
         return server
                             
     def __init_mail_server(self):
         try:
-            self.server = self.check_mail_server(
-                self.smtp_server, 
-                self.smtp_server_port, 
-                self.smtp_server_account,
-                self.smtp_server_password
-            )
+            self.server = self.check_mail_server()
         except:
             self.server = None
 
@@ -63,3 +63,22 @@ class Mail:
         if self.server is not None:
             self.server.sendmail(self.smtp_server_account, receiver, text.as_string())
             self.server.quit()
+
+
+def get_basic_mail_info():
+        mail_info = redmine.rm_get_mail_setting().get("smtp_settings", {})
+        return mail_info.get("domain"), \
+                mail_info.get("port"), \
+                mail_info.get("user_name"), \
+                mail_info.get("password")
+
+
+def mail_server_is_open():
+    '''
+    Based on redmine server settings(default it's open), 
+    if address and port are being set, then is true.
+    '''
+    mail_info = redmine.rm_get_mail_setting().get("smtp_settings")
+    if mail_info is None:
+        return False
+    return mail_info.get("address") is not None and mail_info.get("port") is not None
