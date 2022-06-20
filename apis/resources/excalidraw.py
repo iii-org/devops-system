@@ -134,10 +134,15 @@ def get_excalidraws(args):
 
 
 def get_excalidraw_by_issue_id(issue_id):
-    excalidraw_rows = db.session.query(Excalidraw, ExcalidrawIssueRelation, User, Project).outerjoin(
+    excalidraw_ids = [
+        excalidraw_rel.excalidraw_id for excalidraw_rel in ExcalidrawIssueRelation.query.filter_by(issue_id=issue_id)]
+    if excalidraw_ids == []:
+        return []
+
+    excalidraw_rows = db.session.query(Excalidraw, ExcalidrawIssueRelation, User, Project).join(
         ExcalidrawIssueRelation, Excalidraw.id==ExcalidrawIssueRelation.excalidraw_id).join(
         User, Excalidraw.operator_id==User.id).join(Project, Excalidraw.project_id==Project.id).filter(
-        ExcalidrawIssueRelation.issue_id==issue_id)
+        Excalidraw.id.in_(excalidraw_ids))
     
     return nexus_excalidraw(excalidraw_rows)
 
