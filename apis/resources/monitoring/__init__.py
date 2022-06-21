@@ -7,7 +7,7 @@ import config
 import pandas as pd
 import util
 from github import Github
-from model import MonitoringRecord, NotificationMessage, Project, db, PluginSoftware
+from model import MonitoringRecord, NotificationMessage, Project, ProjectPluginRelation, db, PluginSoftware
 from nexus import nx_get_project_plugin_relation
 from plugins.sonarqube.sonarqube_main import (sq_get_current_measures,
                                               sq_list_project)
@@ -24,7 +24,9 @@ from resources.notification_message import (
 from resources.rancher import rancher
 from resources.redis import update_server_alive
 from resources.redmine import redmine
+from resources.mail import Mail, mail_server_is_open
 from sqlalchemy import desc
+# from resources.resource_storage import get_project_resource_storage_level, compare_operator
 
 DATETIMEFORMAT = "%Y-%m-%d %H:%M:%S"
 AlertServiceIDMapping = {
@@ -165,6 +167,7 @@ class Monitoring:
         return self.__check_server_alive(
             redmine.rm_get_project, redmine.rm_list_projects, self.plan_pj_id)
 
+    # Gitlab
     def gitlab_alive(self):
         self.server = "GitLab"
         self.alert_service_id = 201
@@ -220,7 +223,12 @@ class Monitoring:
         self.alert_service_id = 1001
         return self.__check_plugin_server_alive(check_excalidraw_alive)
 
-    def check_plugin_disabled(self, plugin):
+    def smtp_alive(self):
+        self.server = "SMTP"
+        self.alert_service_id = 1101
+        return self.__check_plugin_server_alive(check_mail_server)
+
+    def check_plugin_is_open(self, plugin):
         try:
             plugin_software = PluginSoftware.query.filter_by(name=plugin).first()
             plugin_disabled = plugin_software is not None and not plugin_software.disabled
@@ -230,10 +238,20 @@ class Monitoring:
 
     def check_plugin_alive(self):
         ret = {}
-        plugin_mapping = {"excalidraw": self.excalidraw_alive}
-        for plugin, plugin_func in plugin_mapping.items():
-            if self.check_plugin_disabled(plugin):
-                alive = plugin_func()
+        plugin_mapping = {
+            "excalidraw": {
+                "alive": self.excalidraw_alive,
+            },
+            "mail": {
+                "alive": self.smtp_alive, 
+                "is_open": mail_server_is_open
+            },
+        }
+        for plugin, plugin_info in plugin_mapping.items():
+            in_plugin_db = plugin_info.get("is_open") is None
+            if (in_plugin_db and self.check_plugin_is_open(plugin)) or \
+                (not in_plugin_db and plugin_info["is_open"]()):
+                alive = plugin_info["alive"]()
                 ret[plugin] = alive
         return ret
 
@@ -396,3 +414,12 @@ def harbor_nfs_storage_remain_limit():
             "message": str(e),
             "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
         }
+
+
+def check_mail_server():
+    ret = {"alive": True, "message": ""}
+    try:
+        Mail.check_mail_server()
+    except Exception as e:
+        ret["alive"], ret["message"] = False, str(e)
+    return ret

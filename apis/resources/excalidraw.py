@@ -1,6 +1,6 @@
 from flask_jwt_extended import get_jwt_identity
 from rstr import xeger
-from model import Excalidraw, ExcalidrawJson, ExcalidrawIssueRelation, ProjectUserRole, db, User
+from model import Excalidraw, ExcalidrawJson, ExcalidrawIssueRelation, Project, ProjectUserRole, db, User
 from datetime import datetime
 from accessories import redmine_lib
 import resources.project as project
@@ -27,8 +27,10 @@ def get_excalidraw_url(excalidraw):
 def nexus_excalidraw(excalidraw_join_issue_relations):
     ret = {}
     for excalidraw_join_issue_relation in excalidraw_join_issue_relations:
-        excalidraw, user = excalidraw_join_issue_relation.Excalidraw, excalidraw_join_issue_relation.User
-        
+        excalidraw = excalidraw_join_issue_relation.Excalidraw
+        user       = excalidraw_join_issue_relation.User
+        project    = excalidraw_join_issue_relation.Project
+
         if excalidraw_join_issue_relation.ExcalidrawIssueRelation is not None:
             issue_id = [excalidraw_join_issue_relation.ExcalidrawIssueRelation.issue_id]
             if ret.get(excalidraw.id) is not None:
@@ -39,13 +41,13 @@ def nexus_excalidraw(excalidraw_join_issue_relations):
         
         ret[excalidraw.id] = {
             "id": excalidraw.id,
+            "issue_ids": issue_id,
             "name": excalidraw.name,
-            "project_id": excalidraw.project_id,
+            "url": get_excalidraw_url(excalidraw),
             "created_at": str(excalidraw.created_at),
             "updated_at": str(excalidraw.updated_at),
-            "url": get_excalidraw_url(excalidraw),
-            "operator": {"id": user.id, "name": user.name, "login": user.login},
-            "issue_ids": issue_id
+            "project":  {"id": project.id, "name": project.name, "display": project.display},
+            "operator": {"id": user.id, "name": user.name, "login": user.login}
         }
     return list(ret.values())
 
@@ -112,9 +114,9 @@ def get_excalidraws(args):
     project_id, name = args.get("project_id"), args.get("name")
     user_id = get_jwt_identity()['user_id']
     not_admin_user = user.get_role_id(user_id) != role.ADMIN.id
-    excalidraw_rows = db.session.query(Excalidraw, ExcalidrawIssueRelation, User).outerjoin(
-        ExcalidrawIssueRelation, Excalidraw.id==ExcalidrawIssueRelation.excalidraw_id)
-    excalidraw_rows = excalidraw_rows.join(User, Excalidraw.operator_id==User.id)
+    excalidraw_rows = db.session.query(Excalidraw, ExcalidrawIssueRelation, User, Project).outerjoin(
+        ExcalidrawIssueRelation, Excalidraw.id==ExcalidrawIssueRelation.excalidraw_id).join(
+        User, Excalidraw.operator_id==User.id).join(Project, Excalidraw.project_id==Project.id)
     user_project_ids = [
         project.project_id for project in ProjectUserRole.query.filter_by(user_id=user_id).all()]
     
@@ -132,17 +134,17 @@ def get_excalidraws(args):
 
 
 def get_excalidraw_by_issue_id(issue_id):
-    row = db.session.query(ExcalidrawIssueRelation, Excalidraw). \
-    outerjoin(Excalidraw, ExcalidrawIssueRelation.excalidraw_id==Excalidraw.id). \
-    filter(ExcalidrawIssueRelation.issue_id==issue_id).first()
-    if row is not None:
-        excalidraw = row.Excalidraw
-        row = {
-            "id": excalidraw.id,
-            "exlidraw_url": get_excalidraw_url(excalidraw),
-            "name": excalidraw.name
-        }
-    return row
+    excalidraw_ids = [
+        excalidraw_rel.excalidraw_id for excalidraw_rel in ExcalidrawIssueRelation.query.filter_by(issue_id=issue_id)]
+    if excalidraw_ids == []:
+        return []
+
+    excalidraw_rows = db.session.query(Excalidraw, ExcalidrawIssueRelation, User, Project).join(
+        ExcalidrawIssueRelation, Excalidraw.id==ExcalidrawIssueRelation.excalidraw_id).join(
+        User, Excalidraw.operator_id==User.id).join(Project, Excalidraw.project_id==Project.id).filter(
+        Excalidraw.id.in_(excalidraw_ids))
+    
+    return nexus_excalidraw(excalidraw_rows)
 
 
 def delete_excalidraw(excalidraw_id):

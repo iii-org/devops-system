@@ -38,7 +38,11 @@ class ExcalidrawGetRes(CommonBasicResponse):
                 "login": "sysadmin",
                 "name": "初始管理者"
             },
-            "project_id": 1,
+            "project": {
+                "display": "display",
+                "id": 1,
+                "name": "name"
+            },
             "updated_at": "1970-01-01 00:00:00.000000",
             "url": "https://excalidraw.ingress-dev3.iiidevops.org/#room=0e31e20d11e62bc6c8ea,sf4U2sfVIqY9-WVrBNb-Ft"
         }
