@@ -217,15 +217,6 @@ def sync_excalidraw_db():
     password = excalidraw_get_config("excalidraw-db-password") 
     host = excalidraw_get_config("excalidraw-db-host") 
     port = excalidraw_get_config("excalidraw-db-port")
-    '''
-    # local
-    database = "excalidraw"
-    user = "postgres"
-    password = "lxVN59Wfi7ua745kEIQ93Afrb"
-    host = "10.20.0.96"
-    port = 30503
-    '''
-    password = excalidraw_get_config("excalidraw-db-password")
     excalidraw_keys = ",".join([f"'ROOMS:{excalidraw.room}'" for excalidraw in Excalidraw.query.all()])
     
     conn = psycopg2.connect(
