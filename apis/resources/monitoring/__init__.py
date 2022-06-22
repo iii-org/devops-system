@@ -1,6 +1,7 @@
 import os
 import re
 import subprocess
+import json
 from datetime import datetime
 
 import config
@@ -184,7 +185,12 @@ class Monitoring:
             return server_alive
 
         harbor_alive = True
-        for check_element in [harbor_nfs_storage_remain_limit, docker_image_pull_limit_alert]:
+
+        # offfline env doesn't need to checl pull limit
+        check_elements = [harbor_nfs_storage_remain_limit]
+        if (config.get("deploy_env") or "online") == "online":
+            check_elements.append(docker_image_pull_limit_alert)
+        for check_element in check_elements:
             check_element = check_element()
             element_alive = check_element["status"]
             self.error_title = str(check_element["error_title"])
@@ -353,57 +359,49 @@ def verify_github_info(value):
 
 
 def docker_image_pull_limit_alert():
-    limit = ""
-    os.chmod('./apis/resources/monitoring/docker_hub_remain_limit.sh', 0o777)
-    results = subprocess.run(
-        './apis/resources/monitoring/docker_hub_remain_limit.sh', stdout=subprocess.PIPE).stdout.decode('utf-8')
-    for result in results.split("\n"):
-        if result.startswith("ratelimit-remaining:"):
-            regex = re.compile(r'ratelimit-remaining:(.\d+)')
-            limit = regex.search(result).group(1).strip()
-            break
-
-    if limit == "":
-        status, message = False, "Can not get number of ratelimit-remaining!"
+    output_str, _ = util.ssh_to_node_by_key(
+            'perl deploy-devops/bin/get-cluster-pull-ratelimit.pl', config.get("DEPLOYER_NODE_IP")) 
+    outputs = output_str.split("\n")
+    if "---" in outputs:
+        nodes_info = outputs[outputs.index("---") + 1]
     else:
-        limit = int(limit)
-        status = limit > 30
-        message = None if status else "Pull remain time close to the limit(30 times)."
+        nodes_info = max(output_str.split("\n"))
+    
+    try:
+        nodes_info = json.loads(nodes_info)
+    except:
+        return {
+            "name": "Harbor proxy remain limit",
+            "error_title": "Harbor pull limit exceed",
+            "status": False,
+            "remain_limit": 0,
+            "message": "Can not get all nodes' pull limit info.",
+            "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+        }
+    error_nodes_message = []
+    for node_info in nodes_info:
+        limit = node_info.get("ratelimit-remaining")
+        if limit is None:
+            error_nodes_message.append(f"Can not get node {node_info.get('node')} pull remain times.")
+        elif limit < 30:
+            error_nodes_message.append(f"Node {node_info.get('node')} pull remain times({limit}) below limit(30 times).")
 
     return {
         "name": "Harbor proxy remain limit",
         "error_title": "Harbor pull limit exceed",
-        "status": status,
-        "remain_limit": limit,
-        "message": message,
+        "status": error_nodes_message == [],
+        "message": "\n".join(error_nodes_message),
         "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
     }
 
 
 def harbor_nfs_storage_remain_limit():
+    output_str, _ = util.ssh_to_node_by_key(
+        'perl deploy-devops/bin/get-cluster-df.pl', config.get("DEPLOYER_NODE_IP"))
+    nodes_storage_info = max(output_str.split('\n'))
     try:
-        output_str, _ = util.ssh_to_node_by_key(
-            'cd /iiidevopsNFS/ ; df -h', config.get("DEPLOYER_NODE_IP"))
-
-        contents = output_str.split("\n")
-        data_frame_contents = [
-            list(filter(lambda a: a != "", content.split(" "))) for content in contents]
-        df = pd.DataFrame(data_frame_contents[1:], columns=data_frame_contents[0][:-1])
-        out_df = df[df.loc[:, "Mounted"] == "/"]
-        ret = out_df.to_dict("records")[0]
-
-        status = int(ret["Use%"].replace("%", "")) < 75
-        return {
-            "name": "Harbor nfs folder storage remain.",
-            "error_title": "Harbor NFS out of storage",
-            "status": status,
-            "total_size": ret["Size"],
-            "used": ret["Used"],
-            "avail": ret["Avail"],
-            "message": "Nfs Folder Used percentage exceeded 75%!" if not status else None,
-            "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
-        }
-    except Exception as e:
+        nodes_storage_info = json.loads(nodes_storage_info)
+    except:
         return {
             "name": "Harbor nfs folder storage remain.",
             "error_title": "Harbor NFS out of storage",
@@ -411,9 +409,24 @@ def harbor_nfs_storage_remain_limit():
             "total_size": None,
             "used": None,
             "avail": None,
-            "message": str(e),
+            "message": "Can not get all nodes' nft storage.",
             "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
         }
+    error_nodes_message = []
+    for node_storage_info in nodes_storage_info:
+        usage = node_storage_info.get("Usage")
+        if usage is None:
+            error_nodes_message.append(f"Can not get node {node_storage_info.get('node')} nfs usage.")
+        elif int(usage.replace("%", "")) > 75:
+            error_nodes_message.append(f"Node {node_storage_info.get('node')} nfs Folder Used percentage({usage}) exceeded 75%!")
+    
+    return {
+        "name": "Harbor nfs folder storage remain.",
+        "error_title": "Harbor NFS out of storage",
+        "status": error_nodes_message == [],
+        "message": "\n".join(error_nodes_message),
+        "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+    }
 
 
 def check_mail_server():
