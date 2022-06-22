@@ -696,10 +696,11 @@ def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
                 stage_out_list["key"] = software["template_key"]
                 if "when" in stage:
                     stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
+                    include_branches = stage_when.branch.include or []
                     if is_default_branch:
-                        stage_out_list["has_default_branch"] = default_branch in stage_when.branch.include
+                        stage_out_list["has_default_branch"] = default_branch in include_branches
                     else:
-                        stage_out_list["branches"] = stage_when.branch.include
+                        stage_out_list["branches"] = include_branches
                 if stage_out_list not in stages_info["stages"]:
                     stages_info["stages"].append(stage_out_list)
                 break
