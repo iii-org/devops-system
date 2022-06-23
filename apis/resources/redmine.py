@@ -17,7 +17,21 @@ from resources.logger import logger
 from . import kubernetesClient, role
 import json
 from urllib.parse import quote_plus
+from model import db, SystemParameter
 
+
+DEFAULT_MAIL_CONFIG = {
+    "smtp_settings": {
+        "enable_starttls_auto": "smtp_enable_starttls_auto",
+        "address": "smtp_address",
+        "port": "smtp_port",
+        "authentication": "smtp_authentication",
+        "domain": "smtp_domain",
+        "user_name": "smtp_username",
+        "password": "smtp_password"
+    },
+    "emission_email_address": "smtp_username"
+}
 
 class Redmine:
     def __init__(self):
@@ -456,16 +470,17 @@ class Redmine:
         return rm_con_json["default"]["email_delivery"]
 
     def pre_check_mail_alive(self, rm_put_mail_dict):
-        from resources.mail import Mail
-        from resources.notification_message import close_notification_message, get_unclose_notification_message, create_notification_message
-        smtp_settings = rm_put_mail_dict.get("smtp_settings", {})
+        from resources.mail import Mail 
         Mail.check_mail_server(
-            smtp_settings.get("domain"), 
-            smtp_settings.get("port"), 
-            smtp_settings.get("user_name"), 
-            smtp_settings.get("password")
+            rm_put_mail_dict.get("domain"), 
+            rm_put_mail_dict.get("port"), 
+            rm_put_mail_dict.get("user_name"), 
+            rm_put_mail_dict.get("password")
         )
+        self.read_mail_unclose_message()
 
+    def read_mail_unclose_message(self, message="SMTP is back."):
+        from resources.notification_message import close_notification_message, get_unclose_notification_message, create_notification_message
         not_alive_messages = get_unclose_notification_message(1101)
         if not_alive_messages is not None and len(not_alive_messages) > 0:
             for not_alive_message in not_alive_messages:
@@ -474,7 +489,7 @@ class Redmine:
                 {
                     "alert_level": 1,
                     "title": "SMTP is back.",
-                    "message": "SMTP is back.",
+                    "message": message,
                     "type_ids": [4],
                     "type_parameters": {"role_ids": [5]}
                 }, 
@@ -482,14 +497,12 @@ class Redmine:
             )
 
     def rm_put_mail_setting(self, rm_put_mail_dict):
-        self.pre_check_mail_alive(rm_put_mail_dict)
-
         optional_parameters = ["ssl", "user_name", "password"]
         rm_configmap_dict = self.rm_get_or_create_configmap()
-        rm_put_mail_dict["smtp_settings"] = {
-            k: v for k, v in rm_put_mail_dict["smtp_settings"].items() if k not in optional_parameters or v != ""}
+        rm_put_mail_dict = {
+            k: v for k, v in rm_put_mail_dict.items() if k not in optional_parameters or v != ""}
         rm_configmap_dict["default"]["email_delivery"]["delivery_method"] = ":smtp"
-        rm_configmap_dict["default"]["email_delivery"]["smtp_settings"] = rm_put_mail_dict["smtp_settings"]
+        rm_configmap_dict["default"]["email_delivery"]["smtp_settings"] = rm_put_mail_dict
         out = {}
         out["configuration.yml"] = str(yaml.dump(rm_configmap_dict))
         kubernetesClient.put_namespace_configmap("default", self.redmine_config_name, out)
@@ -526,8 +539,59 @@ class Redmine:
             return json.loads(output_str)
 
 
-# --------------------- Resources ---------------------
 redmine = Redmine()
+
+
+def row_to_dict(row):
+    if row is None:
+        return {
+            "name": "mail_config",
+            "emission_email_address": "",
+            "smtp_settings": {},
+            "active": False
+        }
+    return {key: getattr(row, key) for key in type(row).__table__.columns.keys()}
+
+
+def get_mail_config():
+    mail_config = SystemParameter.query.filter_by(name="mail_config").first()
+    ret = row_to_dict(mail_config)
+    ret.update(ret.pop("value", {}))
+    return ret
+
+
+def update_mail_config(args):
+    args = {k: v for k, v in args.items() if v is not None}
+    args.update(args.pop("redmine_mail", {}))
+    active = args.pop("active")
+    
+    mail_config = SystemParameter.query.filter_by(name="mail_config").first() 
+    value = mail_config.value
+    old_active = mail_config.active
+    
+    mail_config.active = active
+    if not active:
+        mail_config.value = DEFAULT_MAIL_CONFIG
+        args = DEFAULT_MAIL_CONFIG
+        redmine.read_mail_unclose_message("Close SMTP alive alert, because SMTP function has been inactivated.")
+    else:
+        redmine.pre_check_mail_alive(args.get("smtp_settings") or {})
+        mail_config.value = value | args
+    db.session.commit()
+
+    try:
+        if args.get("emission_email_address") is not None:
+            redmine.rm_get_or_set_emission_email_address(args["emission_email_address"])
+        if args.get("smtp_settings") is not None:
+            redmine.rm_put_mail_setting(args["smtp_settings"])
+    except:
+        # Roll back if fail to update redmine config.
+        mail_config.active = old_active
+        mail_config.value = value
+        db.session.commit()
+
+
+# --------------------- Resources ---------------------
 
 
 class RedmineFile(Resource):
@@ -550,10 +614,7 @@ class RedmineMail(Resource):
     @jwt_required
     def get(self):
         role.require_admin()
-        mail_setting = redmine.rm_get_mail_setting()
-        email_address = redmine.rm_get_or_set_emission_email_address(None)
-        mail_setting["emission_email_address"] = email_address["message"]
-        return util.success(mail_setting)
+        return util.success(get_mail_config())
 
     @jwt_required
     def put(self):
@@ -561,12 +622,10 @@ class RedmineMail(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('redmine_mail', type=dict)
         parser.add_argument('emission_email_address', type=str)
+        parser.add_argument('active', type=bool, required=True)
         args = parser.parse_args()
-        if args["redmine_mail"] is not None:
-            redmine.rm_put_mail_setting(args["redmine_mail"])
-        if args["emission_email_address"] is not None:
-            redmine.rm_get_or_set_emission_email_address(args["emission_email_address"])
-        return util.success()
+
+        return util.success(update_mail_config(args))
 
 
 class RedmineRelease():
