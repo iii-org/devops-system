@@ -433,9 +433,13 @@ def hb_create_artifact_tag(project_name, repository_name, reference, tag_name, f
 
 
 def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name, keep=False):
-    __api_delete(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
-                 f'/artifacts/{reference}/tags/{tag_name}')
-    if len(hb_list_tags(project_name, repository_name, reference)) == 0 and not keep:
+    tag_num = len(hb_list_tags(project_name, repository_name, reference))
+    can_remove_artifact = tag_num in [0, 1]
+    if tag_num > 0:
+        __api_delete(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
+                    f'/artifacts/{reference}/tags/{tag_name}')
+
+    if can_remove_artifact and not keep:
         hb_delete_artifact(project_name, repository_name, reference)
 
 
