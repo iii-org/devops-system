@@ -31,11 +31,6 @@ def insert_into_ui_route_table(ui_route_dict, parent_name, old_brother_name):
                               updated_at=datetime.utcnow())
         db.session.add(new_row)
         db.session.commit()
-        print(ui_route_dict['name'])
-        print(role)
-        print(parent_name)
-        print(old_brother_name)
-        print('-'*30)
     if 'children' in ui_route_dict:
         j = 0
         while j < len(ui_route_dict['children']):
@@ -53,4 +48,3 @@ def ui_route_first_version():
                 old_brother_name = "" if i == 0 else ui_route_dicts[i-1]['name']
                 insert_into_ui_route_table(ui_route_dicts[i], "", old_brother_name)
                 i += 1
-            print("="*50)

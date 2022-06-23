@@ -634,7 +634,6 @@ def start_prod():
         router.load_ui_route()
         with app.app_context():  # Prevent error appear(Working outside of application context.)
             kubernetesClient.create_cron_secret()
-        migrate.ui_route_first_version()
         return app
     except Exception as e:
         ret = internal_error(e)
