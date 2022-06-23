@@ -70,8 +70,21 @@ class CheckMarx(object):
         if int(res.status_code / 100) != 2:
             raise apiError.DevOpsError(
                 res.status_code, 'Got non-2xx response from Checkmarx.',
-                apiError.error_3rd_party_api('Checkmarx', res))
+                apiError.error_3rd_party_api('Checkmarx', self.__handle_error_message(res)))
         return res
+
+    def __handle_error_message(self, res):
+        if type(res) is str:
+            return res
+        else:
+            try:
+                res = res.json()
+            except Exception:
+                res = res.text
+
+        if type(res) is dict and res.get("messageDetails") is not None:
+            return res["messageDetails"]
+            
 
     def __api_get(self, path, headers=None):
         return self.__api_request('GET', path, headers=headers)
@@ -112,7 +125,20 @@ class CheckMarx(object):
 
     # Need to write into db if see a final scan status
     def get_scan_status(self, scan_id):
-        status = self.__api_get('/sast/scans/{0}'.format(scan_id)).json().get('status')
+        try:
+            status = self.__api_get('/sast/scans/{0}'.format(scan_id)).json().get('status')
+        except Exception as e:
+            error_mes = None
+            if e.status_code == 404 and hasattr(e, "error_value"):
+                scan = Model.query.filter_by(scan_id=scan_id).one()
+                scan.scan_final_status = "Deleted"
+                error_mes = e.error_value.get("message")
+            
+            error_mes = error_mes if error_mes is not None else str(e)
+            raise apiError.DevOpsError(
+                e.status_code, 'Got non-2xx response from Checkmarx.',
+                apiError.error_3rd_party_api('Checkmarx', error_mes)) 
+
         status_id = status.get('id')
         status_name = status.get('name')
         if status_id in {7, 8, 9}:

@@ -19,7 +19,9 @@ def error_3rd_party_api(service_name, response):
             resp_value = response.json()
         except Exception:
             resp_value = response.text
-    return build(8001, '{0} responds error.'.format(service_name),
+            
+    message = resp_value or f'{service_name} responds error.'
+    return build(8001, message,
                  {'service_name': service_name, 'response': resp_value})
 
 
