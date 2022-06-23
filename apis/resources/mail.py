@@ -1,8 +1,8 @@
 import smtplib
 from email.mime.text import MIMEText
-from resources.redmine import redmine
 from resources import apiError
 from resources import logger
+from model import db, SystemParameter
 
 class Mail:
     def __init__(self):
@@ -66,19 +66,17 @@ class Mail:
 
 
 def get_basic_mail_info():
-        mail_info = redmine.rm_get_mail_setting().get("smtp_settings", {})
-        return mail_info.get("domain"), \
-                mail_info.get("port"), \
-                mail_info.get("user_name"), \
-                mail_info.get("password")
+    from resources.redmine import get_mail_config
+    mail_config = get_mail_config().get("smtp_settings", {})
+    smtp_server = mail_config.get("domain")
+    smtp_server_port = mail_config.get("port")
+    smtp_server_account = mail_config.get("user_name")
+    smtp_server_password = mail_config.get("password")
+    
+    return smtp_server, smtp_server_port, smtp_server_account, smtp_server_password
 
 
 def mail_server_is_open():
-    '''
-    Based on redmine server settings(default it's open), 
-    if address and port are being set, then is true.
-    '''
-    mail_info = redmine.rm_get_mail_setting().get("smtp_settings")
-    if mail_info is None:
-        return False
-    return mail_info.get("address") is not None and mail_info.get("port") is not None
+    mail_config = SystemParameter.query.filter_by(name="mail_config").first()
+    return mail_config is not None and mail_config.active
+    

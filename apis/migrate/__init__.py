@@ -42,7 +42,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.16.0.1', '1.16.1.0', '1.16.1.1', '1.16.1.2', '1.16.1.3', '1.16.1.4', '1.16.1.5', '1.16.2.0', '1.16.2.1',
             '1.16.2.2', '1.16.2.3', '1.16.2.4', '1.16.2.5', '1.16.2.6', '1.16.2.7', '1.16.3.0', '1.16.3.1', '1.17.1.0', '1.17.1.1', '1.17.2.1',
             '1.17.2.2', '1.17.2.3', '1.17.2.4', '1.17.2.5', '1.17.2.6', '1.17.2.7', '1.17.2.8', '1.17.2.9', '1.17.2.10', '1.17.2.11',
-            '1.17.2.12', '1.17.2.13']
+            '1.17.2.12', '1.17.2.13', '1.17.2.14', '1.17.2.15']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -211,6 +211,43 @@ def upgrade(version):
         pass
     elif version == '1.17.2.13':
         insert_default_info_in_user_message_type()
+    elif version == '1.17.2.14':
+        remove_all_rows_in_project_resource_storagelevel()
+    elif version == '1.17.2.15':
+        insert_mail_info_in_system_parameter()
+
+
+def insert_mail_info_in_system_parameter():
+    mail_notification = SystemParameter.query.filter_by(name="receive_mail_from_notification").first()
+    if mail_notification is not None:
+        db.session.delete(mail_notification)
+        db.session.commit()
+    
+    mail_config = SystemParameter.query.filter_by(name="mail_config").first()
+    if mail_config is None:
+        row = SystemParameter(
+            name="mail_config",
+            value={
+                "smtp_settings": {
+                    "enable_starttls_auto": "smtp_enable_starttls_auto",
+                    "address": "smtp_address",
+                    "port": "smtp_port",
+                    "authentication": "smtp_authentication",
+                    "domain": "smtp_domain",
+                    "user_name": "smtp_username",
+                    "password": "smtp_password"
+                },
+                "emission_email_address": "smtp_username"
+            },
+            active=False
+        )
+        db.session.add(row)
+        db.session.commit()
+
+
+def remove_all_rows_in_project_resource_storagelevel():
+    ProjectResourceStoragelevel.query.delete()
+    db.session.commit()
 
 
 def insert_default_info_in_user_message_type():

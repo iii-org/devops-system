@@ -42,19 +42,3 @@ class GetUploadFileDistinctName(MethodResource):
     @jwt_required
     def get(self):
         return system_parameter.get_upload_file_distinct_name()
-
-
-class ReceiveMailFromNotification(MethodResource):
-    @doc(tags=["System"], description="Get system_parameter of get email from notification or not.")
-    @marshal_with(route_model.ReceiveMailFromNotificationRepsonse)
-    @jwt_required
-    def get(self):
-        return system_parameter.get_receive_mail_from_noti()
-    
-
-    @doc(tags=["System"], description="Update system_parameter of get email from notification or not.")
-    @use_kwargs(route_model.ReceiveMailFromNotificationSchema, location="json")
-    @marshal_with(util.CommonResponse)
-    @jwt_required
-    def patch(self, **kwargs):
-        return system_parameter.update_receive_mail_from_noti(kwargs["receive"])
