@@ -149,14 +149,19 @@ class Monitoring:
         create_monitoring_record(args)
 
     def send_server_back_notification(self, title):
+        recover_message_mapping = {
+            "Harbor NFS out of storage": "All nodes' nfs folder used percentage back to health level.",
+            "Harbor pull limit exceed": "All nodes' pull remain rate back to health level."
+        }
+
         if title.endswith("not alive"):
-            title = f"{self.server} is back"
+            recover_title = f"{self.server} is back"
         else:
-            title = f"{title} is solved"
+            recover_title = f"{title} is solved"
         args = {
             "alert_level": 1,
-            "title": title,
-            "message": title,
+            "title": recover_title,
+            "message": recover_message_mapping.get(title, recover_title),
             "type_ids": [4],
             "type_parameters": {"role_ids": [5]}
         }
