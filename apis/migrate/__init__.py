@@ -227,13 +227,16 @@ def insert_mail_info_in_system_parameter():
         row = SystemParameter(
             name="mail_config",
             value={
-                "enable_starttls_auto": "smtp_enable_starttls_auto",
-                "address": "smtp_address",
-                "port": "smtp_port",
-                "authentication": "smtp_authentication",
-                "domain": "smtp_domain",
-                "user_name": "smtp_username",
-                "password": "smtp_password"
+                "smtp_settings": {
+                    "enable_starttls_auto": "smtp_enable_starttls_auto",
+                    "address": "smtp_address",
+                    "port": "smtp_port",
+                    "authentication": "smtp_authentication",
+                    "domain": "smtp_domain",
+                    "user_name": "smtp_username",
+                    "password": "smtp_password"
+                },
+                "emission_email_address": "smtp_username"
             },
             active=False
         )
