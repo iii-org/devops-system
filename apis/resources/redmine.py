@@ -563,32 +563,37 @@ def get_mail_config():
 def update_mail_config(args):
     args = {k: v for k, v in args.items() if v is not None}
     args.update(args.pop("redmine_mail", {}))
-    active = args.pop("active")
+    active, temp_save = args.pop("active", None), args.pop("temp_save", None)
     
     mail_config = SystemParameter.query.filter_by(name="mail_config").first() 
-    value = mail_config.value
-    old_active = mail_config.active
+    value, old_active = mail_config.value, mail_config.active
     
-    mail_config.active = active
-    if not active:
-        mail_config.value = DEFAULT_MAIL_CONFIG
-        args = DEFAULT_MAIL_CONFIG
-        redmine.read_mail_unclose_message("Close SMTP alive alert, because SMTP function has been inactivated.")
-    else:
-        redmine.pre_check_mail_alive(args.get("smtp_settings") or {})
-        mail_config.value = value | args
-    db.session.commit()
-
-    try:
-        if args.get("emission_email_address") is not None:
-            redmine.rm_get_or_set_emission_email_address(args["emission_email_address"])
-        if args.get("smtp_settings") is not None:
-            redmine.rm_put_mail_setting(args["smtp_settings"])
-    except:
-        # Roll back if fail to update redmine config.
-        mail_config.active = old_active
-        mail_config.value = value
+    if active is not None:
+        if not active:
+            mail_config.value = DEFAULT_MAIL_CONFIG
+            args = DEFAULT_MAIL_CONFIG
+            redmine.read_mail_unclose_message("Close SMTP alive alert, because SMTP function has been inactivated.")
+        else:
+            redmine.pre_check_mail_alive(args.get("smtp_settings") or {})
+            mail_config.value = value | args
+        mail_config.active = active
         db.session.commit()
+
+        try:
+            if args.get("emission_email_address") is not None:
+                redmine.rm_get_or_set_emission_email_address(args["emission_email_address"])
+            if args.get("smtp_settings") is not None:
+                redmine.rm_put_mail_setting(args["smtp_settings"])
+        except:
+            # Roll back if fail to update redmine config.
+            mail_config.active = old_active
+            mail_config.value = value
+            db.session.commit()
+    elif not old_active and temp_save is not None:
+        mail_config.value = value | args
+        db.session.commit()
+
+
 
 
 # --------------------- Resources ---------------------
@@ -622,7 +627,8 @@ class RedmineMail(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('redmine_mail', type=dict)
         parser.add_argument('emission_email_address', type=str)
-        parser.add_argument('active', type=bool, required=True)
+        parser.add_argument('active', type=bool)
+        parser.add_argument('temp_save', type=bool)
         args = parser.parse_args()
 
         return util.success(update_mail_config(args))
