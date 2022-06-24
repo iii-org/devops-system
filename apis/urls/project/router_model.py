@@ -1081,3 +1081,33 @@ class IssueForceTrackerPostData(Schema):
 
 class IssueForceTrackerPostResponse(CommonBasicResponse):
     data = fields.Nested(IssueForceTrackerPostData, required=True)
+
+
+##### Project resource info  ######
+
+#################################### Schema ####################################
+
+
+class ProjectResourceStorageUpdateSchema(Schema):
+    gitlab = fields.Dict(example={
+        "limit": 0.8,
+        "comparison": ">",
+        "percentage": False
+    })
+
+
+#################################### Response ####################################
+
+########## API Action ##########
+
+class ProjectResourceStorageRes(CommonBasicResponse):
+    data = fields.Dict(exmaple={
+        "gitlab": {
+            "comparison": ">",
+            "limit": 0.9,
+            "percentage": False
+        },
+        "project_id": 1
+    })
+    
+    

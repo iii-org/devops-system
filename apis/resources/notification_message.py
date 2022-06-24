@@ -202,7 +202,7 @@ def get_notification_message_list(args, admin=False):
 def create_notification_message(args, user_id=None):
     if user_id is None:
         user_id = get_jwt_identity()['user_id']
-    # Do not need to create same notification message if previous one is ont read and alert level is 102 or 301
+    # Do not need to create same notification message if previous one is on read and alert level is 102 or 301
     if args["alert_level"] in [102, 301] and get_unread_notification_message_list(title=args['title']) != []:
         return
     row = NotificationMessage(

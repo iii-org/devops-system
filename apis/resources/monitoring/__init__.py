@@ -3,6 +3,7 @@ import re
 import subprocess
 import json
 from datetime import datetime
+from time import sleep
 
 import config
 import pandas as pd
@@ -27,12 +28,13 @@ from resources.redis import update_server_alive
 from resources.redmine import redmine
 from resources.mail import Mail, mail_server_is_open
 from sqlalchemy import desc
-# from resources.resource_storage import get_project_resource_storage_level, compare_operator
+from resources.resource_storage import get_project_resource_storage_level, compare_operator
 
 DATETIMEFORMAT = "%Y-%m-%d %H:%M:%S"
 AlertServiceIDMapping = {
     "Redmine not alive": 101,
     "GitLab not alive": 201,
+    "Gitlab projects are exceeded its storage limit": 202,
     "Harbor not alive": 301,
     "Harbor pull limit exceed": 302,
     "Harbor NFS out of storage": 303,
@@ -52,6 +54,7 @@ class Monitoring:
         self.error_title = None
         self.alert_service_id = None
         self.detail = {}
+        self.invalid_project_id_mapping = {}
 
     def __init_ids(self):
         self.plan_pj_id = None
@@ -90,17 +93,21 @@ class Monitoring:
             self.send_notification()
             self.store_in_monitoring_record()
         else:
+            send_back_notifcation_titles = []
             not_alive_messages = get_unclose_notification_message(self.alert_service_id)
             if not_alive_messages is not None and len(not_alive_messages) > 0:
                 for not_alive_message in not_alive_messages:
                     close_notification_message(not_alive_message["id"])
-                self.send_server_back_notification(not_alive_messages[0]["title"])
-            '''
-            not_alive_messages = get_unread_notification_message_list(alert_service_id=self.alert_service_id)
-            if not_alive_messages != []:
-                for not_alive_message in not_alive_messages:
-                    close_notification_message(not_alive_message["id"])
-            '''
+                    not_alive_mes_title = not_alive_message["title"]
+                    
+                    # Do not need to send same recover notification and notification which not 
+                    # in AlertServiceIDMapping's keys
+                    if not_alive_mes_title in AlertServiceIDMapping and \
+                        not_alive_mes_title not in send_back_notifcation_titles:
+                        send_back_notifcation_titles.append(not_alive_mes_title)
+                
+                for send_back_notifcation_title in send_back_notifcation_titles:
+                    self.send_server_back_notification(send_back_notifcation_title)
 
         self.error_title = None
 
@@ -112,7 +119,6 @@ class Monitoring:
         self.__update_all_alive(alive)
         return alive
 
-    # It will be merge in __check_server_alive.
     def __check_plugin_server_alive(self, func):
         server_alive = func()
         if not server_alive["alive"]:
@@ -123,6 +129,17 @@ class Monitoring:
         self.__update_all_alive(server_alive["alive"])
         return server_alive["alive"]
 
+    def __check_server_element_alive(self, func):
+        element_ret = func()
+        element_alive = element_ret["status"]
+        self.error_title = str(element_ret["error_title"])
+        self.alert_service_id = AlertServiceIDMapping[self.error_title]
+        if not element_alive:
+            self.error_message = str(element_ret["message"])
+            self.detail = element_ret
+            self.invalid_project_id_mapping = element_ret.get("invalid_project_id_mapping", {})
+        self.__update_all_alive(element_alive)
+        return element_alive
 
     def send_notification(self):
         title = f"{self.server} not alive" if self.error_title is None else self.error_title
@@ -140,6 +157,22 @@ class Monitoring:
             }
             create_notification_message(args, user_id=1)
 
+            # Send notification to type 2 (project)
+            if self.invalid_project_id_mapping != {}:
+                for pj_id, mes in self.invalid_project_id_mapping.items():
+                    args = {
+                        "alert_level": 102,
+                        "title": str(mes),
+                        "alert_service_id": self.alert_service_id,
+                        "message": str(mes),
+                        "type_ids": [2],
+                        "type_parameters": {"project_ids": [int(pj_id)]}
+                    }
+                    create_notification_message(args, user_id=1)
+                    sleep(0.5)
+                self.invalid_project_id_mapping = {} 
+
+
     def store_in_monitoring_record(self):
         args = {
             "server": self.server,
@@ -147,11 +180,13 @@ class Monitoring:
             "detail": self.detail
         }
         create_monitoring_record(args)
+        self.detail = {}
 
     def send_server_back_notification(self, title):
         recover_message_mapping = {
             "Harbor NFS out of storage": "All nodes' nfs folder used percentage back to health level.",
-            "Harbor pull limit exceed": "All nodes' pull remain rate back to health level."
+            "Harbor pull limit exceed": "All nodes' pull remain rate back to health level.",
+            "Gitlab projects are exceeded its storage limit": "All projects' storage are in health level."
         }
 
         if title.endswith("not alive"):
@@ -177,17 +212,25 @@ class Monitoring:
     def gitlab_alive(self):
         self.server = "GitLab"
         self.alert_service_id = 201
-        return self.__check_server_alive(
+        gitlab_alive = self.__check_server_alive(
             gitlab.gl_get_project, gitlab.gl_get_user_list, self.gl_pj_id, args={})
+        if not gitlab_alive:
+            return gitlab_alive
+
+        for check_element in [gitlab_projects_storage_limit]:
+            if not self.__check_server_element_alive(check_element):
+                gitlab_alive = False
+        return gitlab_alive
+        
 
     # Harbor
     def harbor_alive(self):
         self.server = "Harbor"
         self.alert_service_id = 301
-        server_alive = self.__check_server_alive(
+        harbor_alive = self.__check_server_alive(
             hb_get_project_summary, hb_get_registries, self.hr_pj_id)
-        if not server_alive:
-            return server_alive
+        if not harbor_alive:
+            return harbor_alive
 
         harbor_alive = True
 
@@ -441,3 +484,33 @@ def check_mail_server():
     except Exception as e:
         ret["alive"], ret["message"] = False, str(e)
     return ret
+
+
+def gitlab_projects_storage_limit():
+    invalid_project_id_mapping = {}
+    project_rows = db.session.query(Project, ProjectPluginRelation).join(
+        ProjectPluginRelation, Project.id==ProjectPluginRelation.project_id)
+    for project_row in project_rows:
+        project_obj, repo_id = project_row.Project, project_row.ProjectPluginRelation.git_repository_id
+        pj_resource_storage = get_project_resource_storage_level(project_obj.id)
+        gitlab_resource_info = pj_resource_storage.get("gitlab")
+        if gitlab_resource_info is not None:
+            pj_gl_storage_usage_dict = gitlab.gl_get_storage_usage(repo_id)
+            used = int(pj_gl_storage_usage_dict.get("used", {}).get("value", 0)) / 1024 / 1024 / 1024
+            max_used = int(pj_gl_storage_usage_dict.get("quota", {}).get("value", 0)) / 1024 / 1024 / 1024   
+            limit = gitlab_resource_info["limit"]
+            if compare_operator(
+                gitlab_resource_info["comparison"],
+                used,
+                limit,
+                max_used,
+                percentage=gitlab_resource_info["percentage"]
+            ):
+                invalid_project_id_mapping[project_obj.id] = f"Project: {project_obj.name} 在gitlab上的使用量({round(used, 5)}) 超過限制({limit})"
+    message = "\n".join(invalid_project_id_mapping.values())
+    return {
+        "status": message == "", 
+        "message": message,
+        "error_title": "Gitlab projects are exceeded its storage limit",
+        # "invalid_project_id_mapping": invalid_project_id_mapping
+    }
