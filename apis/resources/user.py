@@ -854,7 +854,7 @@ def update_user_message_types(user_id, args):
         teams, notification, mail = args.get("teams"), args.get("notification"), args.get("mail")
         if teams is not None:
             users_message_type.teams = teams
-        if notification is not None:
+        if notification is not None and get_jwt_identity()["role_id"] != 5:
             users_message_type.notification = notification
         if mail is not None:
             users_message_type.mail = mail

@@ -349,6 +349,19 @@ def send_mail(user_id, title, message):
             Mail().send_email(receiver, title, message)
 
 
+def get_notification_is_open(user_id, message_id):
+    from resources.user import get_user_message_type
+    is_not_open = get_user_message_type(user_id).get("notification", True) is False
+    if is_not_open:
+        args = {"message_ids": [message_id]}
+        create_notification_message_reply_slip(user_id, args)
+        if len(choose_send_to_who(message_id)) <= 1:
+            row = NotificationMessage.query.filter_by(id=message_id).first()
+            row.close = True
+            db.session.commit()
+    
+    return not is_not_open 
+
 class NotificationRoom(object):
 
     def send_message_to_all(self, message_id):
@@ -361,7 +374,8 @@ class NotificationRoom(object):
                 v["creator"] = NexusUser().set_user_id(v["creator_id"]).to_json()
             v.pop("creator_id", None)
             send_mail(k, v["title"], v["message"])
-            emit("create_message", v, namespace="/v2/get_notification_message", to=f"user/{k}")
+            if get_notification_is_open(k, message_id):
+                emit("create_message", v, namespace="/v2/get_notification_message", to=f"user/{k}")
 
     def get_message(self, data):
         rows = db.session.query(NotificationMessage, NotificationMessageRecipient).outerjoin(
