@@ -42,7 +42,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.16.0.1', '1.16.1.0', '1.16.1.1', '1.16.1.2', '1.16.1.3', '1.16.1.4', '1.16.1.5', '1.16.2.0', '1.16.2.1',
             '1.16.2.2', '1.16.2.3', '1.16.2.4', '1.16.2.5', '1.16.2.6', '1.16.2.7', '1.16.3.0', '1.16.3.1', '1.17.1.0', '1.17.1.1', '1.17.2.1',
             '1.17.2.2', '1.17.2.3', '1.17.2.4', '1.17.2.5', '1.17.2.6', '1.17.2.7', '1.17.2.8', '1.17.2.9', '1.17.2.10', '1.17.2.11',
-            '1.17.2.12', '1.17.2.13', '1.17.2.14', '1.17.2.15', '1.17.2.16']
+            '1.17.2.12', '1.17.2.13', '1.17.2.14', '1.17.2.15', '1.17.2.16', '1.17.2.17']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -217,6 +217,18 @@ def upgrade(version):
         insert_mail_info_in_system_parameter()
     elif version == '1.17.2.16':
         ui_route_first_version()
+    elif version == '1.17.2.17':
+        sync_mail_info_in_system_parameter()
+
+
+
+def sync_mail_info_in_system_parameter():
+    mail_setting = redmine.rm_get_mail_setting()
+    email_address = redmine.rm_get_or_set_emission_email_address(None)
+    mail_setting["emission_email_address"] = email_address["message"]
+    mail_config = SystemParameter.query.filter_by(name="mail_config").first()
+    mail_config.value = mail_setting
+    db.session.commit()
 
 
 def insert_mail_info_in_system_parameter():
