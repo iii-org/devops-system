@@ -16,6 +16,7 @@ from resources import project, user, version, wiki, release
 from resources.gitlab import gitlab
 from resources.project_permission import get_project_issue_check, create_project_issue_check, update_project_issue_check, \
     delete_project_issue_check
+from resources.resource_storage import get_project_resource_storage_level, update_project_resource_storage_level
 
 
 from resources.harbor import hb_copy_artifact_and_retage, hb_get_artifact, hb_delete_artifact_tag, hb_list_repositories, \
@@ -1722,9 +1723,17 @@ class IssueForceTrackerV2(MethodResource):
 
 ##### project resource storage ######
 
-# class ProjectResourceStorage(MethodResource):
-#     @doc(tags=['Issue'], description="Get project's resource storage info.")
-#     # @marshal_with(router_model.IssueForceTrackerPostResponse)
-#     @jwt_required
-#     def get(self, project_id):
-#         return util.success(get_project_issue_check(project_id))
+class ProjectResourceStorage(MethodResource):
+    @doc(tags=['Project'], description="Get project's resource storage info.")
+    @marshal_with(router_model.ProjectResourceStorageRes)
+    @jwt_required
+    def get(self, project_id):
+        return util.success(get_project_resource_storage_level(project_id))
+
+    @doc(tags=['Project'], description="Update project's resource storage info.")
+    @use_kwargs(router_model.ProjectResourceStorageUpdateSchema, location="json")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def patch(self, project_id, **kwargs):
+        return util.success(update_project_resource_storage_level(project_id, args=kwargs))
+        
