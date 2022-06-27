@@ -209,12 +209,12 @@ class Monitoring:
             redmine.rm_get_project, redmine.rm_list_projects, self.plan_pj_id)
 
     # Gitlab
-    def gitlab_alive(self):
+    def gitlab_alive(self, is_project):
         self.server = "GitLab"
         self.alert_service_id = 201
         gitlab_alive = self.__check_server_alive(
             gitlab.gl_get_project, gitlab.gl_get_user_list, self.gl_pj_id, args={})
-        if not gitlab_alive:
+        if not gitlab_alive or is_project:
             return gitlab_alive
 
         for check_element in [gitlab_projects_storage_limit]:
@@ -224,17 +224,16 @@ class Monitoring:
         
 
     # Harbor
-    def harbor_alive(self):
+    def harbor_alive(self, is_project):
         self.server = "Harbor"
         self.alert_service_id = 301
         harbor_alive = self.__check_server_alive(
             hb_get_project_summary, hb_get_registries, self.hr_pj_id)
-        if not harbor_alive:
-            return harbor_alive
-
+        if not harbor_alive or is_project:
+            return harbor_alive    
         harbor_alive = True
 
-        # offfline env doesn't need to checl pull limit
+        # offline env doesn't need to check pull limit
         check_elements = [harbor_nfs_storage_remain_limit]
         if (config.get("deploy_env") or "online") == "online":
             check_elements.append(docker_image_pull_limit_alert)
@@ -310,13 +309,17 @@ class Monitoring:
         return ret
 
     # all alive
-    def check_project_alive(self):
+    def check_project_alive(self, is_project=False):
+        '''
+        when 'is_project' is True, only check servers are working.
+        '''
+
         plugin_alive_dict = self.check_plugin_alive()
         all_alive = {
             "alive": {
                 "Redmine": self.redmine_alive(),
-                "GitLab": self.gitlab_alive(),
-                "Harbor": self.harbor_alive(),
+                "GitLab": self.gitlab_alive(is_project),
+                "Harbor": self.harbor_alive(is_project),
                 "K8s": self.k8s_alive(),
                 "Sonarqube": self.sonarqube_alive(),
                 "Rancher": self.rancher_alive(),
