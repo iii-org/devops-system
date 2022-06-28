@@ -209,7 +209,7 @@ class Monitoring:
             redmine.rm_get_project, redmine.rm_list_projects, self.plan_pj_id)
 
     # Gitlab
-    def gitlab_alive(self, is_project):
+    def gitlab_alive(self, is_project=False):
         self.server = "GitLab"
         self.alert_service_id = 201
         gitlab_alive = self.__check_server_alive(
@@ -224,7 +224,7 @@ class Monitoring:
         
 
     # Harbor
-    def harbor_alive(self, is_project):
+    def harbor_alive(self, is_project=False):
         self.server = "Harbor"
         self.alert_service_id = 301
         harbor_alive = self.__check_server_alive(
