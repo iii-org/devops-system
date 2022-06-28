@@ -34,7 +34,7 @@ def build_url(path):
 class CMAS(object):
     def __init__(self, task_id):
         self.task = check_cmas_exist(task_id)
-        self.authKey = cm_get_config("authKey")
+        self.auth_key = cm_get_config("authKey")
 
     def __api_request(self, method, path, headers={}, params=(), data={}):
         url = build_url(path)
@@ -65,7 +65,7 @@ class CMAS(object):
             ret = self.__api_post(
                 '/M3AS-REST/api/query/report',
                 data={
-                    'authKey': self.authKey,
+                    'authKey': self.auth_key,
                     'uploadId': self.task.upload_id,
                     'sha256': self.task.sha256,
                     'taskId': self.task.task_id,

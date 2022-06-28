@@ -39,20 +39,20 @@
 							"formdata": [
 								{
 									"key": "username",
-									"value": "{{username}}",
+									"value": "{{username_am}}",
 									"type": "text"
 								},
 								{
 									"key": "password",
-									"value": "{{password}}",
+									"value": "{{password_am}}",
 									"type": "text"
 								}
 							]
 						},
 						"url": {
-							"raw": "{{server_origin}}/user/login",
+							"raw": "{{test_origin}}/user/login",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -78,9 +78,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{server_origin}}/user/role/list",
+							"raw": "{{test_origin}}/user/role/list",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -107,9 +107,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{server_origin}}/user/list",
+							"raw": "{{test_origin}}/user/list",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -189,9 +189,9 @@
 							]
 						},
 						"url": {
-							"raw": "{{server_origin}}/user",
+							"raw": "{{test_origin}}/user",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user"
@@ -270,9 +270,9 @@
 							]
 						},
 						"url": {
-							"raw": "{{server_origin}}/user",
+							"raw": "{{test_origin}}/user",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user"
@@ -331,9 +331,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{server_origin}}/user/{{am_test.user_id.pm}}",
+							"raw": "{{test_origin}}/user/{{am_test.user_id.pm}}",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -377,9 +377,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{server_origin}}/user/{{am_test.user_id.pm}}",
+							"raw": "{{test_origin}}/user/{{am_test.user_id.pm}}",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -405,9 +405,9 @@
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{server_origin}}/user/{{am_test.user_id.rd}}",
+							"raw": "{{test_origin}}/user/{{am_test.user_id.rd}}",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -433,9 +433,9 @@
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{server_origin}}/user/{{am_test.user_id.pm}}",
+							"raw": "{{test_origin}}/user/{{am_test.user_id.pm}}",
 							"host": [
-								"{{server_origin}}"
+								"{{test_origin}}"
 							],
 							"path": [
 								"user",
@@ -446,6 +446,36 @@
 					"response": []
 				}
 			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"correctStatus = pm.variables.get('correctStatus') || 200",
+					"pm.test(\"Status code 檢查\", () => {",
+					"    pm.response.to.have.status(correctStatus);",
+					"});"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
 		}
 	]
 }

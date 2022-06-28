@@ -2,6 +2,8 @@ from marshmallow import Schema, fields
 from util import CommonBasicResponse
 
 
+TIMESAMPLE = "1970-01-01 00:00:00.000000"
+
 #################################### Schema ####################################
 
 ########## API Action ##########
@@ -29,7 +31,7 @@ class ExcalidrawPatchSchema(Schema):
 class ExcalidrawGetRes(CommonBasicResponse):
     data = fields.List(fields.Dict(
         example={
-            "created_at": "1970-01-01 00:00:00.000000",
+            "created_at": TIMESAMPLE,
             "id": 1,
             "issue_ids": [1],
             "name": "name",
@@ -43,7 +45,7 @@ class ExcalidrawGetRes(CommonBasicResponse):
                 "id": 1,
                 "name": "name"
             },
-            "updated_at": "1970-01-01 00:00:00.000000",
+            "updated_at": TIMESAMPLE,
             "url": "https://excalidraw.ingress-dev3.iiidevops.org/#room=0e31e20d11e62bc6c8ea,sf4U2sfVIqY9-WVrBNb-Ft"
         }
     ), required=True)
@@ -51,7 +53,7 @@ class ExcalidrawGetRes(CommonBasicResponse):
 class ExcalidrawPostRes(CommonBasicResponse):
     data = fields.Dict(
         example={
-            "created_at": "1970-01-01 00:00:00.000000",
+            "created_at": TIMESAMPLE,
             "id": 1,
             "issue_ids": [1],
             "name": "name",
