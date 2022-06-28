@@ -634,6 +634,12 @@ class RedmineMail(Resource):
         return util.success(update_mail_config(args))
 
 
+class RedmineMailActive(Resource):
+    @jwt_required
+    def get(self):
+        return util.success(get_mail_config().get("active", False))
+
+
 class RedmineRelease():
     @jwt_required
     def check_redemine_release(self, targets, versions, main_version=None):
