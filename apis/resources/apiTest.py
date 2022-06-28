@@ -407,17 +407,19 @@ def get_the_last_result(project_id, filename_prefix=""):
         model.TestResults.id)).all()
     i = 0
     while i < len(rows):
-        report_str = json.loads(rows[i].report)['json_file']
-        if 'assertions' in report_str:
-            del report_str['assertions']
-        if 'executions' in report_str:
-            del report_str['executions']
-        if len(report_str) == 0:
-            return get_test_report_from_row(rows[i])
-        else:
-            for key, value in report_str.items():
-                if filename_prefix == key:
-                    return get_test_report_from_row(rows[i])
+        report = rows[i].report
+        if report is not None:
+            report_str = json.loads(report)['json_file']
+            if 'assertions' in report_str:
+                del report_str['assertions']
+            if 'executions' in report_str:
+                del report_str['executions']
+            if len(report_str) == 0:
+                return get_test_report_from_row(rows[i])
+            else:
+                for key, value in report_str.items():
+                    if filename_prefix == key:
+                        return get_test_report_from_row(rows[i])
         i += 1
     return {}
 
