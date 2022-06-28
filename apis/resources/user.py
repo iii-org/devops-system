@@ -30,6 +30,7 @@ from resources.project import get_project_list
 import resources
 from sqlalchemy import desc, nullslast
 import gitlab as gitlab_pack
+from resources.mail import mail_server_is_open
 
 # Make a regular expression
 default_role_id = 3
@@ -196,7 +197,6 @@ def login(args):
     user = db.session.query(model.User).filter(
         model.User.login == login_account).first()
     try:
-
         ad_info = {'is_pass': False,
                    'login': login_account, 'data': {}}
 
@@ -857,6 +857,11 @@ def update_user_message_types(user_id, args):
         if notification is not None and get_jwt_identity()["role_id"] != 5:
             users_message_type.notification = notification
         if mail is not None:
+            if not mail_server_is_open() and mail:
+                raise DevOpsError(
+                    400, 
+                    "Mail notificaiton setting can not be opened, when mail server is disable.",
+                    error=apiError.argument_error('mail')
+                )
             users_message_type.mail = mail
-
         db.session.commit()
