@@ -244,7 +244,7 @@ def check_url_alive(url):
     import requests
     try:
         alive = requests.get(url).status_code < 500
-    except:
+    except Exception:
         alive = False
     return alive
 

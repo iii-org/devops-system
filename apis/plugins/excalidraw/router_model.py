@@ -3,6 +3,7 @@ from util import CommonBasicResponse
 
 
 TIMESAMPLE = "1970-01-01 00:00:00.000000"
+EXCALIDRAW_SAMPLE_URL = "https://excalidraw.ingress-dev3.iiidevops.org/#room=0e31e20d11e62bc6c8ea,sf4U2sfVIqY9-WVrBNb-Ft"
 
 #################################### Schema ####################################
 
@@ -46,7 +47,7 @@ class ExcalidrawGetRes(CommonBasicResponse):
                 "name": "name"
             },
             "updated_at": TIMESAMPLE,
-            "url": "https://excalidraw.ingress-dev3.iiidevops.org/#room=0e31e20d11e62bc6c8ea,sf4U2sfVIqY9-WVrBNb-Ft"
+            "url": EXCALIDRAW_SAMPLE_URL
         }
     ), required=True)
 
@@ -58,7 +59,7 @@ class ExcalidrawPostRes(CommonBasicResponse):
             "issue_ids": [1],
             "name": "name",
             "project_id": 1,
-            "url": "https://excalidraw.ingress-dev3.iiidevops.org/#room=0e31e20d11e62bc6c8ea,sf4U2sfVIqY9-WVrBNb-Ft"
+            "url": EXCALIDRAW_SAMPLE_URL
         }, required=True)
 
 
@@ -68,7 +69,7 @@ class ExcalidrawPatchRes(CommonBasicResponse):
             "id": 1,
             "issue_ids": [1],
             "name": "name",
-            "url": "https://excalidraw.ingress-dev3.iiidevops.org/#room=0e31e20d11e62bc6c8ea,sf4U2sfVIqY9-WVrBNb-Ft"
+            "url": EXCALIDRAW_SAMPLE_URL
         }
     , required=True)
 

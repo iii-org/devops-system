@@ -3,6 +3,7 @@
 # plugin directory name.
 # If the plugin only contains one module, make it __init__.py.
 
+from collections import defaultdict
 import json
 import os
 from datetime import datetime
@@ -73,33 +74,30 @@ def system_secret_name(plugin_name):
 def get_plugin_config(plugin_name):
     config = get_plugin_config_file(plugin_name)
     db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one()
-    db_arguments = json.loads(db_row.parameter)
-    system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name))
-    global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name)
+    db_arguments = json.loads(db_row.parameter) or {}
+    system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name)) or {}
+    global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name) or {}
     ret = {
         'name': plugin_name,
         'arguments': [],
         'disabled': db_row.disabled
     }
-    if db_arguments is None:
-        db_arguments = {}
-    if system_secrets is None:
-        system_secrets = {}
-    if global_secrets is None:
-        global_secrets = {}
+
     for item in config['keys']:
         key = item['key']
         item_value = item.get('value')
         store = PluginKeyStore(item['store'])
         value = None
-        if store == PluginKeyStore.DB:
-            value = db_arguments.get(key, None)
-        elif store == PluginKeyStore.SECRET_SYSTEM:
-            value = system_secrets.get(key, None)
-        elif store == PluginKeyStore.SECRET_ALL:
-            value = global_secrets.get(key, None)
-        else:
-            value = f'Wrong store location: {item["store"]}'
+        value_store_mapping = defaultdict(
+            lambda: f'Wrong store location: {item["store"]}', 
+            {
+                PluginKeyStore.DB: db_arguments.get(key, None),
+                PluginKeyStore.SECRET_SYSTEM: system_secrets.get(key, None),
+                PluginKeyStore.SECRET_ALL: global_secrets.get(key, None)
+            }
+        )
+        value = value_store_mapping[store]
+
         # if value is not assign, assign default value
         if value is None and item_value is not None:
             value = item_value
@@ -130,12 +128,10 @@ def update_plugin_config(plugin_name, args):
     if db_arguments is None:
         db_arguments = {}
     system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name))
-    global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name)
+    global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name) or {}
     if system_secrets is None:
         system_secrets_not_exist = True
         system_secrets = {}
-    if global_secrets is None:
-        global_secrets = {}
     key_map = {}
     for item in config['keys']:
         key_map[item['key']] = {
@@ -172,16 +168,11 @@ def update_plugin_config(plugin_name, args):
             # check plugin server alive before set disabled to false.
             plugin_alive_func = plugin_alive_mapping.get(plugin_name, {}).get("func")
             if plugin_alive_func is not None:
-                kwargs = plugin_alive_mapping.get(plugin_name, {}).get("parameters")
-                if kwargs is not None:
-                    alive = plugin_alive_func(**kwargs)["alive"]
-                else:
-                    alive = plugin_alive_func()["alive"]
-
+                kwargs = plugin_alive_mapping.get(plugin_name, {}).get("parameters", {})
+                alive = plugin_alive_func(**kwargs)["alive"]  
                 if not alive:    
                     raise DevOpsError(400, 'Plugin is not alive',
                                     error=apiError.plugin_server_not_alive(plugin_name))
-        
         else:
             # Read alert_message of plugin server is not alive then send notification.
             plugin_alive_id = plugin_alive_mapping.get(plugin_name, {}).get("alert_monitring_id")
