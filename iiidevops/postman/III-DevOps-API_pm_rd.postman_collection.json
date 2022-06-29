@@ -1,9 +1,10 @@
 {
 	"info": {
-		"_postman_id": "3472cc04-2a26-44e3-b85f-79f8e414b3db",
+		"_postman_id": "a49f6296-7b32-4b75-ad3c-8148defac982",
 		"name": "III DevOps API PM/RD 關連測試 Run (Auto)",
 		"description": "# 非測試項目\r\n- Checkmarx、WebInspect、Postman 的建立掃描 API 為 runner 驅動，不測試\r\n- 檔案上傳類因為 postman 限制不測試\r\n- Harbor 的 DELETE artifact/tag API 因為無法重建資料，不測試\r\n- Rancher Pipeline 的新增或修改 CI/CD 會破壞 pipeline 執行，不測試",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "11502387"
 	},
 	"item": [
 		{
@@ -665,30 +666,30 @@
 					"name": "建立測試用議題",
 					"event": [
 						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"儲存議題 ID\", function () {\r",
-									"    var jsonData = pm.response.json();\r",
-									"    var dataKeys  = ['issue_id']\r",
-									"    pm.expect(jsonData.data).to.have.all.keys(dataKeys);\r",
-									"    pm.variables.set('issue_id',pm.response.json().data.issue_id)\r",
-									"});\r",
-									"\r",
-									""
-								],
-								"type": "text/javascript"
-							}
-						},
-						{
 							"listen": "prerequest",
 							"script": {
 								"exec": [
 									"const now = new Date();\r",
 									"const start_date = now.toISOString().split('T')[0];\r",
 									"const due_date = start_date;\r",
+									"\r",
 									"pm.variables.set('issue.start_date', start_date);\r",
 									"pm.variables.set('issue.due_date', due_date);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"儲存議題 ID\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.data).to.have.property('id');\r",
+									"    pm.variables.set('issue_id', jsonData.data.id)\r",
+									"});\r",
+									"\r",
+									""
 								],
 								"type": "text/javascript"
 							}
@@ -721,7 +722,7 @@
 									"type": "text"
 								},
 								{
-									"key": "subject",
+									"key": "name",
 									"value": "本週到期議題",
 									"type": "text"
 								},
@@ -1997,10 +1998,6 @@
 											"originalRequest": {
 												"method": "GET",
 												"header": [],
-												"body": {
-													"mode": "raw",
-													"raw": ""
-												},
 												"url": {
 													"raw": "{{test_origin}}/project/{{project_id}}/issues_by_tree",
 													"host": [
@@ -2093,10 +2090,6 @@
 											"originalRequest": {
 												"method": "GET",
 												"header": [],
-												"body": {
-													"mode": "raw",
-													"raw": ""
-												},
 												"url": {
 													"raw": "{{test_origin}}/project/{{project_id}}/issues_by_date",
 													"host": [
@@ -2197,10 +2190,6 @@
 														"disabled": true
 													}
 												],
-												"body": {
-													"mode": "raw",
-													"raw": ""
-												},
 												"url": {
 													"raw": "{{test_origin}}/project/{{project_id}}/issues_by_status",
 													"host": [
@@ -2290,10 +2279,6 @@
 											"originalRequest": {
 												"method": "GET",
 												"header": [],
-												"body": {
-													"mode": "raw",
-													"raw": ""
-												},
 												"url": {
 													"raw": "{{test_origin}}/project/{{project_id}}/issues?fixed_version_id={{version_id}}",
 													"host": [
@@ -3484,15 +3469,6 @@
 									"originalRequest": {
 										"method": "GET",
 										"header": [],
-										"body": {
-											"mode": "raw",
-											"raw": "",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
 										"url": {
 											"raw": "{{test_origin}}/issues/{{issue_id}}",
 											"host": [
