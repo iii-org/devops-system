@@ -3,6 +3,7 @@
 # plugin directory name.
 # If the plugin only contains one module, make it __init__.py.
 
+from collections import defaultdict
 import json
 import os
 from datetime import datetime
