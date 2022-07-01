@@ -197,7 +197,7 @@ def update_excalidraw(excalidraw_id, name=None, issue_ids=None):
     else:
         excalidraw_issues = ExcalidrawIssueRelation.query.filter_by(excalidraw_id=excalidraw_id).all()
         issue_ids = [excalidraw_issue.issue_id
-            for excalidraw_issue in ExcalidrawIssueRelation.query.filter_by(excalidraw_id=excalidraw_id).all()]
+            for excalidraw_issue in excalidraw_issues]
 
     excalidraw.updated_at = datetime.utcnow()
     db.session.commit()

@@ -88,11 +88,11 @@ def zap_get_latest_full_log(project_name):
 
 
 def process_row(row, project_id):
-    if row.status == 'Scanning':
-        # 12 hour timeout
-        if datetime.now() - row.run_at > timedelta(hours=12):
-            row.status = 'Failed'
-            model.db.session.commit()
+    # 12 hour timeout
+    if row.status == 'Scanning' and \
+        datetime.now() - row.run_at > timedelta(hours=12):
+        row.status = 'Failed'
+        model.db.session.commit()
     r = json.loads(str(row))
     r['issue_link'] = gitlab.commit_id_to_url(project_id, r['commit_id'])
     return r
@@ -107,8 +107,7 @@ class Zap(Resource):
         parser.add_argument('commit_id', type=str)
         args = parser.parse_args()
         role.require_in_project(project_name=args['project_name'])
-        id = zap_start_scan(args)
-        return util.success({'test_id': id})
+        return util.success({'test_id': zap_start_scan(args)})
 
     @jwt_required
     def put(self):

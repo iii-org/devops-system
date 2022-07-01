@@ -233,13 +233,6 @@ class GitLab(object):
         else:
             return self.__api_post(f'/users/{repository_user_id}/unblock')
 
-    def gl_update_user_name(self, repository_user_id, new_name):
-        return self.__api_put(f'/users/{repository_user_id}',
-                              params={
-                                  "name": new_name,
-                                  "skip_reconfirmation": True
-                              })
-
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
 
@@ -472,10 +465,9 @@ class GitLab(object):
         commits = self.gl_get_commits(project_id, branch)
         output = []
         for commit in commits:
-            if commit.get("author_name") != "Administrator" and commit.get("committer_name") != "Administrator":
-                if not commit.get("author_name", "").startswith("專案管理機器人") and not commit.get("committer_name", "").startswith("專案管理機器人"):
-                    output.append(commit)
-
+            if commit.get("author_name") != "Administrator" and commit.get("committer_name") != "Administrator" and \
+                not commit.get("author_name", "").startswith("專案管理機器人") and not commit.get("committer_name", "").startswith("專案管理機器人"):
+                output.append(commit)
         return output
 
     # 用project_id查詢project的網路圖
@@ -925,7 +917,7 @@ def gitlab_status_connection():
         a = ApiK8sClient().read_namespaced_ingress(name="gitlab-ing", namespace="default")
         paths = a.spec.rules[0].http.paths
         return {"status": len(paths) == 1}
-    except:
+    except Exception:
         return {"status": False}
 
     # --------------------- Resources ---------------------

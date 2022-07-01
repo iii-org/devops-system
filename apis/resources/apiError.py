@@ -379,10 +379,10 @@ def login_email_error():
 def redmine_error(response):
     try:
         error_message_list = response.json().get("errors")
-        if isinstance(error_message_list, list):
-            # Parent id error
-            if error_message_list[0] == "Parent task is invalid":
-                return parent_issue_error()
+        # Parent id error
+        if isinstance(error_message_list, list) and \
+            error_message_list[0] == "Parent task is invalid":
+            return parent_issue_error()
     except:
         pass
     return error_3rd_party_api('Redmine', response)

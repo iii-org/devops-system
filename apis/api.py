@@ -93,9 +93,9 @@ docs = FlaskApiSpec(app)
 
 
 def add_resource(classes, level):
-    if config.get("DOCUMENT_LEVEL") == "public" and level in ['public']:
-        docs.register(classes)
-    elif config.get("DOCUMENT_LEVEL") == "private" and level in ['public', 'private']:
+    if (config.get("DOCUMENT_LEVEL") == "public" and level in ['public']) or (
+        config.get("DOCUMENT_LEVEL") == "private" and level in ['public', 'private']
+    ):
         docs.register(classes)
 
 

@@ -168,11 +168,9 @@ def hb_update_user_password(user_id, new_pwd, old_pwd):
     try:
         __api_put(f'/users/{user_id}/password', data=data)
     except DevOpsError as e:
-        if e.status_code == 400 and \
+        if not (e.status_code == 400 and \
                 e.error_value['details']['response']['errors'][0][
-                    'message'] == 'the new password can not be same with the old one':
-            pass
-        else:
+                    'message'] == 'the new password can not be same with the old one'):
             raise e
 
 
