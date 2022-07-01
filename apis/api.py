@@ -103,7 +103,8 @@ app.config['PROPAGATE_EXCEPTIONS'] = True
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
     "pool_recycle": 60,
-    'pool_timeout': 300
+    'pool_timeout': 300,
+    'pool_size': 20
 }
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1000 * 1000
 
@@ -475,6 +476,7 @@ api.add_resource(issue.DumpByIssue, '/dump_by_issue/<issue_id>')
 api.add_resource(redmine.RedmineFile, '/download', '/file/<int:file_id>')
 
 api.add_resource(redmine.RedmineMail, '/mail')
+api.add_resource(redmine.RedmineMailActive, '/mail/active')
 
 system_url(api, add_resource)
 

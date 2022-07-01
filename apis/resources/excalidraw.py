@@ -1,6 +1,6 @@
 from flask_jwt_extended import get_jwt_identity
 from rstr import xeger
-from model import Excalidraw, ExcalidrawJson, ExcalidrawIssueRelation, db, User
+from model import Excalidraw, ExcalidrawJson, ExcalidrawIssueRelation, Project, ProjectUserRole, db, User
 from datetime import datetime
 from accessories import redmine_lib
 import resources.project as project
@@ -9,7 +9,7 @@ from resources.apiError import DevOpsError
 from resources.role import require_in_project
 from plugins import get_plugin_config
 import psycopg2
-import config
+from . import role, user
 
 
 def excalidraw_get_config(key):
@@ -27,8 +27,10 @@ def get_excalidraw_url(excalidraw):
 def nexus_excalidraw(excalidraw_join_issue_relations):
     ret = {}
     for excalidraw_join_issue_relation in excalidraw_join_issue_relations:
-        excalidraw, user = excalidraw_join_issue_relation.Excalidraw, excalidraw_join_issue_relation.User
-        
+        excalidraw = excalidraw_join_issue_relation.Excalidraw
+        user       = excalidraw_join_issue_relation.User
+        project    = excalidraw_join_issue_relation.Project
+
         if excalidraw_join_issue_relation.ExcalidrawIssueRelation is not None:
             issue_id = [excalidraw_join_issue_relation.ExcalidrawIssueRelation.issue_id]
             if ret.get(excalidraw.id) is not None:
@@ -39,13 +41,13 @@ def nexus_excalidraw(excalidraw_join_issue_relations):
         
         ret[excalidraw.id] = {
             "id": excalidraw.id,
+            "issue_ids": issue_id,
             "name": excalidraw.name,
-            "project_id": excalidraw.project_id,
+            "url": get_excalidraw_url(excalidraw),
             "created_at": str(excalidraw.created_at),
             "updated_at": str(excalidraw.updated_at),
-            "url": get_excalidraw_url(excalidraw),
-            "operator": {"id": user.id, "name": user.name, "login": user.login},
-            "issue_ids": issue_id
+            "project":  {"id": project.id, "name": project.name, "display": project.display},
+            "operator": {"id": user.id, "name": user.name, "login": user.login}
         }
     return list(ret.values())
 
@@ -54,6 +56,7 @@ def create_excalidraw(args):
     operator_id = get_jwt_identity()['user_id']
     project_id, issue_ids, name = args["project_id"], args.get("issue_ids"), args["name"]
     has_issue_ids = issue_ids is not None
+    datetime_now = datetime.utcnow()
     require_in_project(project_id=project_id)
 
     # In case it has duplicate room in db
@@ -79,8 +82,8 @@ def create_excalidraw(args):
         room=room,
         key=key,
         operator_id=operator_id,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime_now,
+        updated_at=datetime_now,
     )
     db.session.add(row) 
     db.session.commit()
@@ -95,16 +98,35 @@ def create_excalidraw(args):
         ]
         db.session.add_all(excalidraw_issue_relations)
         db.session.commit()
+    
+    return {
+        "id": row.id,
+        "name": name,
+        "project_id": project_id,
+        "created_at": str(datetime_now),
+        "url": f'{excalidraw_get_config("excalidraw-url")}/#room={room},{key}',
+        "issue_ids": [int(issue_id) for issue_id in issue_ids.split(",")] if \
+            has_issue_ids else []
+    }
 
 
 def get_excalidraws(args):
     project_id, name = args.get("project_id"), args.get("name")
-    excalidraw_rows = db.session.query(Excalidraw, ExcalidrawIssueRelation, User).outerjoin(
-        ExcalidrawIssueRelation, Excalidraw.id==ExcalidrawIssueRelation.excalidraw_id)
-    excalidraw_rows = excalidraw_rows.join(User, Excalidraw.operator_id==User.id)
+    user_id = get_jwt_identity()['user_id']
+    not_admin_user = user.get_role_id(user_id) != role.ADMIN.id
+    excalidraw_rows = db.session.query(Excalidraw, ExcalidrawIssueRelation, User, Project).outerjoin(
+        ExcalidrawIssueRelation, Excalidraw.id==ExcalidrawIssueRelation.excalidraw_id).join(
+        User, Excalidraw.operator_id==User.id).join(Project, Excalidraw.project_id==Project.id)
+    user_project_ids = [
+        project.project_id for project in ProjectUserRole.query.filter_by(user_id=user_id).all()]
     
     if project_id is not None:
+        if project_id not in user_project_ids and not_admin_user:
+            raise apiError.NotInProjectError('You need to be in the project for this operation.')
         excalidraw_rows = excalidraw_rows.filter(Excalidraw.project_id==project_id)
+    elif not_admin_user:
+        excalidraw_rows = excalidraw_rows.filter(Excalidraw.project_id.in_(user_project_ids))
+    
     if name is not None:
         excalidraw_rows = excalidraw_rows.filter(Excalidraw.name.ilike(f'%{name}%'))
     
@@ -112,17 +134,17 @@ def get_excalidraws(args):
 
 
 def get_excalidraw_by_issue_id(issue_id):
-    row = db.session.query(ExcalidrawIssueRelation, Excalidraw). \
-    outerjoin(Excalidraw, ExcalidrawIssueRelation.excalidraw_id==Excalidraw.id). \
-    filter(ExcalidrawIssueRelation.issue_id==issue_id).first()
-    if row is not None:
-        excalidraw = row.Excalidraw
-        row = {
-            "id": excalidraw.id,
-            "exlidraw_url": get_excalidraw_url(excalidraw),
-            "name": excalidraw.name
-        }
-    return row
+    excalidraw_ids = [
+        excalidraw_rel.excalidraw_id for excalidraw_rel in ExcalidrawIssueRelation.query.filter_by(issue_id=issue_id)]
+    if excalidraw_ids == []:
+        return []
+
+    excalidraw_rows = db.session.query(Excalidraw, ExcalidrawIssueRelation, User, Project).join(
+        ExcalidrawIssueRelation, Excalidraw.id==ExcalidrawIssueRelation.excalidraw_id).join(
+        User, Excalidraw.operator_id==User.id).join(Project, Excalidraw.project_id==Project.id).filter(
+        Excalidraw.id.in_(excalidraw_ids))
+    
+    return nexus_excalidraw(excalidraw_rows)
 
 
 def delete_excalidraw(excalidraw_id):
@@ -190,19 +212,20 @@ def update_excalidraw(excalidraw_id, name=None, issue_ids=None):
 
 def sync_excalidraw_db():
     # prod
-    excalidraw_db_url = config.get("EXCALIDRAW_DB_URL").split(":")
-    host=excalidraw_db_url[0]
-    port=int(excalidraw_db_url[1])
-    '''
-    # local
-    host = "10.20.0.96"
-    port = 30503
-    '''
-    password = excalidraw_get_config("excalidraw-db-password")
+    database = excalidraw_get_config("excalidraw-db-database") 
+    user = excalidraw_get_config("excalidraw-db-account") 
+    password = excalidraw_get_config("excalidraw-db-password") 
+    host = excalidraw_get_config("excalidraw-db-host") 
+    port = excalidraw_get_config("excalidraw-db-port")
     excalidraw_keys = ",".join([f"'ROOMS:{excalidraw.room}'" for excalidraw in Excalidraw.query.all()])
     
     conn = psycopg2.connect(
-        database="excalidraw", user="postgres", password="lxVN59Wfi7ua745kEIQ93Afrb", host=host, port=port)
+        database=database,
+        user=user,
+        password=password,
+        host=host,
+        port=port
+    )
     try:
         cur = conn.cursor()
         cur.execute(
@@ -216,3 +239,27 @@ def sync_excalidraw_db():
         print(str(e))
     finally:
         conn.close()
+
+def check_url_alive(url):
+    import requests
+    try:
+        alive = requests.get(url).status_code < 500
+    except Exception:
+        alive = False
+    return alive
+
+
+def check_excalidraw_alive(excalidraw_url=None, excalidraw_socket_url=None):
+    excalidraw_url = excalidraw_url or excalidraw_get_config("excalidraw-url")
+    excalidraw_socket_url = excalidraw_socket_url or excalidraw_get_config("excalidraw-socket-url")
+    
+    not_alive_services = []
+    ret = {"alive": True, "services": {"API": True, "UI": True, "Socket": True}}
+    for service, url in {"UI": excalidraw_url, "Socket": excalidraw_socket_url, "API": f"{excalidraw_url}/api/v2"}.items():
+        if not check_url_alive(url):
+            ret["alive"] = ret["services"][service] = False
+            not_alive_services.append(service)
+    
+    if not_alive_services != []:
+        ret["message"] = f'{", ".join(not_alive_services)} not alive'
+    return ret

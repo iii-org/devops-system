@@ -74,7 +74,7 @@ def get_passing_rate(total, fail):
     try:
         passing_rate = round_off_float(1 - (fail / total))
     except ZeroDivisionError:
-        return passing_rate
+        pass
     return passing_rate
 
 

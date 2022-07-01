@@ -3,6 +3,7 @@
 # plugin directory name.
 # If the plugin only contains one module, make it __init__.py.
 
+from collections import defaultdict
 import json
 import os
 from datetime import datetime
@@ -20,6 +21,7 @@ from resources.apiError import DevOpsError
 from resources.kubernetesClient import read_namespace_secret, SYSTEM_SECRET_NAMESPACE, DEFAULT_NAMESPACE, \
     create_namespace_secret, patch_namespace_secret, delete_namespace_secret
 from resources.rancher import rancher
+from resources.notification_message import close_notification_message, get_unclose_notification_message, create_notification_message
 
 SYSTEM_SECRET_PREFIX = 'system-secret-'
 
@@ -72,33 +74,30 @@ def system_secret_name(plugin_name):
 def get_plugin_config(plugin_name):
     config = get_plugin_config_file(plugin_name)
     db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one()
-    db_arguments = json.loads(db_row.parameter)
-    system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name))
-    global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name)
+    db_arguments = json.loads(db_row.parameter) or {}
+    system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name)) or {}
+    global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name) or {}
     ret = {
         'name': plugin_name,
         'arguments': [],
         'disabled': db_row.disabled
     }
-    if db_arguments is None:
-        db_arguments = {}
-    if system_secrets is None:
-        system_secrets = {}
-    if global_secrets is None:
-        global_secrets = {}
+
     for item in config['keys']:
         key = item['key']
         item_value = item.get('value')
         store = PluginKeyStore(item['store'])
         value = None
-        if store == PluginKeyStore.DB:
-            value = db_arguments.get(key, None)
-        elif store == PluginKeyStore.SECRET_SYSTEM:
-            value = system_secrets.get(key, None)
-        elif store == PluginKeyStore.SECRET_ALL:
-            value = global_secrets.get(key, None)
-        else:
-            value = f'Wrong store location: {item["store"]}'
+        value_store_mapping = defaultdict(
+            lambda: f'Wrong store location: {item["store"]}', 
+            {
+                PluginKeyStore.DB: db_arguments.get(key, None),
+                PluginKeyStore.SECRET_SYSTEM: system_secrets.get(key, None),
+                PluginKeyStore.SECRET_ALL: global_secrets.get(key, None)
+            }
+        )
+        value = value_store_mapping[store]
+
         # if value is not assign, assign default value
         if value is None and item_value is not None:
             value = item_value
@@ -129,25 +128,77 @@ def update_plugin_config(plugin_name, args):
     if db_arguments is None:
         db_arguments = {}
     system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name))
-    global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name)
+    global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name) or {}
     if system_secrets is None:
         system_secrets_not_exist = True
         system_secrets = {}
-    if global_secrets is None:
-        global_secrets = {}
     key_map = {}
     for item in config['keys']:
         key_map[item['key']] = {
             'store': item['store'],
             'type': item['type']
         }
-    if args.get('disabled', None) is not None:
+    if args.get('disabled') is not None:
+        from resources.excalidraw import check_excalidraw_alive
+        plugin_alive_mapping = {
+            "excalidraw": {
+                "func": check_excalidraw_alive, 
+                "alert_monitring_id": 1001,
+                "parameters": {
+                    "excalidraw_url": args.get('arguments').get('excalidraw-url') if \
+                        args.get('arguments') is not None else None,
+                    "excalidraw_socket_url": args.get('arguments').get('excalidraw-socket-url') if \
+                        args.get('arguments') is not None else None
+                }
+            }
+        }
+        if not args['disabled']:
+            # Plugin 
+            if plugin_name == "excalidraw" and system_secrets_not_exist: 
+                excalidraw_url = plugin_alive_mapping["excalidraw"]["parameters"]["excalidraw_url"]
+                excalidraw_socket_url = plugin_alive_mapping["excalidraw"]["parameters"]["excalidraw_socket_url"]
+                if excalidraw_url is None or excalidraw_socket_url is None:
+                    raise DevOpsError(400, 'Argument: excalidraw-url or excalidraw-socket-url can not be blank in first create.',
+                                  error=apiError.argument_error('disabled'))
+                elif not check_excalidraw_alive(
+                    excalidraw_url=excalidraw_url, excalidraw_socket_url=excalidraw_socket_url)["alive"]:
+                    raise DevOpsError(400, "Excalidraw's servers are not alive.",
+                                  error=apiError.argument_error('argument'))
+
+            # check plugin server alive before set disabled to false.
+            plugin_alive_func = plugin_alive_mapping.get(plugin_name, {}).get("func")
+            if plugin_alive_func is not None:
+                kwargs = plugin_alive_mapping.get(plugin_name, {}).get("parameters", {})
+                alive = plugin_alive_func(**kwargs)["alive"]  
+                if not alive:    
+                    raise DevOpsError(400, 'Plugin is not alive',
+                                    error=apiError.plugin_server_not_alive(plugin_name))
+        else:
+            # Read alert_message of plugin server is not alive then send notification.
+            plugin_alive_id = plugin_alive_mapping.get(plugin_name, {}).get("alert_monitring_id")
+            if plugin_alive_id is not None:
+                not_alive_messages = get_unclose_notification_message(plugin_alive_id)
+                if not_alive_messages is not None and len(not_alive_messages) > 0:
+                    for not_alive_message in not_alive_messages:
+                        close_notification_message(not_alive_message["id"])
+                    create_notification_message(
+                        {
+                            "alert_level": 1,
+                            "title": f"Close {plugin_name} alert",
+                            "message": 
+                                f"Close {plugin_name} not alive alert, because plugin has been disabled.",
+                            "type_ids": [4],
+                            "type_parameters": {"role_ids": [5]}
+                        }, 
+                        user_id=1
+                    )
+
         db_row.disabled = bool(args['disabled'])
         #  Update Project Plugin Status
         if bool(config.get('is_pipeline', True)):
             threading.Thread(target=template.update_pj_plugin_status, args=(plugin_name, args["disabled"],)).start()
 
-    if args.get('arguments', None) is not None:
+    if args.get('arguments') is not None:
         for argument in args['arguments']:
             if argument not in key_map:
                 raise DevOpsError(400, f'Argument {argument} is not in the argument list of plugin {plugin_name}.',
@@ -158,6 +209,7 @@ def update_plugin_config(plugin_name, args):
             elif store == PluginKeyStore.SECRET_SYSTEM:
                 if system_secrets_not_exist:
                     create_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), {})
+                    system_secrets_not_exist = False
                 system_secrets[argument] = str(args['arguments'][argument])
                 patch_secret = True
             elif store == PluginKeyStore.SECRET_ALL:
@@ -237,3 +289,19 @@ def create_plugins_api_router(api, add_resource):
         third_part_plugin = getattr(plugins, plugin_name)
         if hasattr(third_part_plugin, "router"):
             third_part_plugin.router(api, add_resource)
+
+
+def handle_plugin(plugin):
+    def decorator(func):
+        def wrap(*args, **kwargs):
+            plugin_software = model.PluginSoftware.query.filter_by(name=plugin).first()
+            if plugin_software is None:
+                raise apiError.DevOpsError(404, plugin,
+                                error=apiError.invalid_plugin_name(plugin))
+            elif plugin_software.disabled:
+                raise apiError.DevOpsError(404, plugin,
+                                error=apiError.plugin_is_disabled(plugin)) 
+
+            return func(*args, **kwargs)
+        return wrap
+    return decorator

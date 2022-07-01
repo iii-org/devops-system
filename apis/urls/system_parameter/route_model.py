@@ -50,3 +50,4 @@ class UpdateFilePostResponse(CommonBasicResponse):
 
 class GetUploadFileDistinctNameResponse(CommonBasicResponse):
     data = fields.List(fields.Str())
+

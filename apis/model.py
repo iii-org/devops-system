@@ -165,17 +165,6 @@ class PipelineLogsCache(db.Model):
     logs = Column(JSON)
 
 
-class TemplateListCache(db.Model):
-    temp_repo_id = Column(Integer, primary_key=True)
-    name = Column(String)
-    path = Column(String)
-    display = Column(String)
-    description = Column(String)
-    version = Column(JSON)
-    update_at = Column(DateTime)
-    group_name = Column(String)
-
-
 class ProjectUserRole(db.Model):
     project_id = Column(Integer, ForeignKey(
         Project.id, ondelete='CASCADE'), primary_key=True)
@@ -872,6 +861,25 @@ class UIRouteJson(db.Model):
     updated_at = Column(DateTime)
 
 
+class UIRouteFile(db.Model):
+    file_name = Column(String, primary_key=True)
+    file_md5 = Column(String)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+
+class UIRouteData(db.Model):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, primary_key=True)
+    role = Column(String, primary_key=True)
+    parent = Column(Integer)
+    old_brother = Column(Integer)
+    visible = Column(Boolean, default=True)
+    ui_route = Column(JSON)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+
 class MonitoringRecord(db.Model):
     id = Column(Integer, primary_key=True)
     server = Column(String)
@@ -969,3 +977,22 @@ class ExcalidrawIssueRelation(db.Model):
     id = Column(Integer, primary_key=True)
     excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete='CASCADE'))
     issue_id = Column(Integer)
+
+
+class ProjectResourceStoragelevel(db.Model):
+    '''
+    {
+        "limit": integer,
+        "comparison": string ("<", ">", "="),
+        "percentage": bool
+    }
+    '''
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
+    gitlab = Column(JSON)
+
+
+class UserMessageType(db.Model):
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
+    notification = Column(Boolean)
+    mail = Column(Boolean)
+    teams = Column(Boolean)

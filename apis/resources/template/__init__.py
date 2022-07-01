@@ -18,10 +18,11 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 from gitlab import Gitlab
 from gitlab.exceptions import GitlabGetError
-from model import PluginSoftware, Project, TemplateListCache, db
+from model import PluginSoftware, Project, db
 from resources import logger
 from resources.apiError import DevOpsError
-from resources.gitlab import gitlab as rs_gitlab
+from resources.gitlab import gitlab as rs_gitlab, get_all_group_projects
+from resources.redis import update_template_cache, get_template_caches_all, count_template_number
 
 
 template_replace_dict = {
@@ -37,6 +38,15 @@ gitlab_private_token = config.get("GITLAB_PRIVATE_TOKEN")
 gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token, ssl_verify=False)
 support_software_json = util.read_json_file("apis/resources/template/supported_software.json")
 TEMPLATE_FOLDER_NAME = "pj_push_template"
+
+TEMPLATE_GROUP_DICT = {
+    "iiidevops-templates": "Public Templates",
+    "local-templates": "Local Templates"
+}
+
+TEMPLATE_SUPPORT_VERSION = None
+with open('apis/resources/template/template_support_version.json') as file:
+    TEMPLATE_SUPPORT_VERSION = json.load(file)
 
 
 def __tm_get_tag_info(pj, tag_name):
@@ -108,7 +118,7 @@ def tm_get_git_pipeline_json(pj, tag_name=None, commit_id=None):
     return pipe_json
 
 
-def __tm_read_pipe_set_json(pj, tag_name=None):
+def tm_read_pipe_set_json(pj, tag_name=None):
     pip_set_json = {}
     try:
         if pj.empty_repo:
@@ -196,11 +206,44 @@ def __compare_tag_version(tag_version, start_version, end_version=None):
             return False
 
 
-def __force_update_template_cache_table():
-    template_support_version = None
-    TemplateListCache.query.delete()
-    db.session.commit()
+def get_tag_info_list_from_pj(pj, group_name):
+    # get all tags
+    tag_list = []
+    for tag in pj.tags.list(all=True):
+        if group_name == "iiidevops-templates" and \
+                TEMPLATE_SUPPORT_VERSION is not None:
+            for temp_name, temp_value in TEMPLATE_SUPPORT_VERSION.items():
+                if temp_name == pj.name:
+                    status = __compare_tag_version(
+                        tag.name, temp_value.get('start_version'),
+                        temp_value.get('end_version'))
+                    if status:
+                        tag_list.append({
+                            "name": tag.name,
+                            "commit_id": tag.commit["id"],
+                            "commit_time": tag.commit["committed_date"]
+                        })
+                    break
+        else:
+            tag_list.append({
+                "name": tag.name,
+                "commit_id": tag.commit["id"],
+                "commit_time": tag.commit["committed_date"]
+            })
+    return tag_list
 
+
+def update_redis_template_cache(pj, group_name, pip_set_json, tag_list):
+    update_template_cache(pj.id, {'name': pj.name,
+                                  'path': pj.path,
+                                  'display': pip_set_json["name"],
+                                  'description': pip_set_json["description"],
+                                  'version': tag_list,
+                                  'update_at': datetime.now(),
+                                  'group_name': TEMPLATE_GROUP_DICT.get(group_name)})
+
+
+def __force_update_template_cache_table():
     output = [{
         "source": "Public Templates",
         "options": []
@@ -208,42 +251,14 @@ def __force_update_template_cache_table():
         "source": "Local Templates",
         "options": []
     }]
-    template_group_dict = {
-        "iiidevops-templates": "Public Templates",
-        "local-templates": "Local Templates"
-    }
-    with open('apis/resources/template/template_support_version.json') as file:
-        template_support_version = json.load(file)
     for group in gl.groups.list(all=True):
-        if group.name in template_group_dict:
-            for group_project in group.projects.list(all=True):
+        if group.name in TEMPLATE_GROUP_DICT:
+            for group_project in get_all_group_projects(group):
                 pj = gl.projects.get(group_project.id)
                 if pj.empty_repo:
                     continue
-                # get all tags
-                tag_list = []
-                for tag in pj.tags.list(all=True):
-                    if group.name == "iiidevops-templates" and \
-                            template_support_version is not None:
-                        for temp_name, temp_value in template_support_version.items():
-                            if temp_name == pj.name:
-                                status = __compare_tag_version(
-                                    tag.name, temp_value.get('start_version'),
-                                    temp_value.get('end_version'))
-                                if status:
-                                    tag_list.append({
-                                        "name": tag.name,
-                                        "commit_id": tag.commit["id"],
-                                        "commit_time": tag.commit["committed_date"]
-                                    })
-                                break
-                    else:
-                        tag_list.append({
-                            "name": tag.name,
-                            "commit_id": tag.commit["id"],
-                            "commit_time": tag.commit["committed_date"]
-                        })
-                pip_set_json = __tm_read_pipe_set_json(pj)
+                tag_list = get_tag_info_list_from_pj(pj, group.name)
+                pip_set_json = tm_read_pipe_set_json(pj)
                 template_data = {
                     "id":
                         pj.id,
@@ -258,24 +273,14 @@ def __force_update_template_cache_table():
                         "version":
                         tag_list
                 }
-                if group.name == "iiidevops-templates" and template_support_version is None:
+                if group.name == "iiidevops-templates" and TEMPLATE_SUPPORT_VERSION is None:
                     output[0]['options'].append(template_data)
-                elif group.name == "iiidevops-templates" and template_support_version is not None \
-                        and pj.name in template_support_version:
+                elif group.name == "iiidevops-templates" and TEMPLATE_SUPPORT_VERSION is not None \
+                        and pj.name in TEMPLATE_SUPPORT_VERSION:
                     output[0]['options'].append(template_data)
                 elif group.name == "local-templates":
                     output[1]['options'].append(template_data)
-                cache_temp = TemplateListCache(
-                    temp_repo_id=pj.id,
-                    name=pj.name,
-                    path=pj.path,
-                    display=pip_set_json["name"],
-                    description=pip_set_json["description"],
-                    version=tag_list,
-                    update_at=datetime.now(),
-                    group_name=template_group_dict.get(group.name))
-                db.session.add(cache_temp)
-                db.session.commit()
+                update_redis_template_cache(pj, group.name, pip_set_json, tag_list)
     return output
 
 
@@ -301,15 +306,12 @@ def lock_project(pj_name, info):
 
 
 def tm_get_template_list(force_update=0):
-    one_day_ago = datetime.fromtimestamp(datetime.utcnow().timestamp() - 86400)
-    total_data = TemplateListCache.query.all()
-    one_day_ago_data = TemplateListCache.query.filter(
-        TemplateListCache.update_at < one_day_ago).first()
     if force_update == 1:
         return __force_update_template_cache_table()
-    elif len(total_data) == 0 or one_day_ago_data:
+    elif count_template_number() == 0:
         return __force_update_template_cache_table()
     else:
+        total_data = get_template_caches_all()
         output = [{
             "source": "Public Templates",
             "options": []
@@ -318,39 +320,34 @@ def tm_get_template_list(force_update=0):
             "options": []
         }]
         for data in total_data:
+            k = list(data.keys())[0]
+            v = list(data.values())[0]
             try:
-                gl.projects.get(data.temp_repo_id)
+                gl.projects.get(k)
             except:
                 continue
-            if data.group_name == "Public Templates":
-                output[0]["options"].append({
-                    "id": data.temp_repo_id,
-                    "name": data.name,
-                    "path": data.path,
-                    "display": data.display,
-                    "description": data.description,
-                    "version": data.version
-                })
+            if v.get('group_name') == "Public Templates":
+                i = 0
             else:
-                output[1]["options"].append({
-                    "id": data.temp_repo_id,
-                    "name": data.name,
-                    "path": data.path,
-                    "display": data.display,
-                    "description": data.description,
-                    "version": data.version
-                })
+                i = 1
+            output[i]["options"].append({
+                "id": k,
+                "name": v.get('name'),
+                "path": v.get('path'),
+                "display": v.get('display'),
+                "description": v.get('description'),
+                "version": v.get('version')
+            })
 
         output[0]["options"].sort(key=lambda x: x["display"])
         output[1]["options"].sort(key=lambda x: x["display"])
-
         return output
 
 
 def tm_get_template(repository_id, tag_name):
     pj = gl.projects.get(repository_id)
     tag_info_dict = __tm_get_tag_info(pj, tag_name)
-    pip_set_json = __tm_read_pipe_set_json(pj, tag_name)
+    pip_set_json = tm_read_pipe_set_json(pj, tag_name)
     output = {"id": int(repository_id), "tag_name": tag_info_dict["tag_name"]}
     if 'name' in pip_set_json:
         output['name'] = pip_set_json['name']
@@ -383,7 +380,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
     tag_info_dict = __tm_get_tag_info(template_pj, tag_name)
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(template_pj,
                                                       tag_name=tag_name)
-    pip_set_json = __tm_read_pipe_set_json(template_pj, tag_name)
+    pip_set_json = tm_read_pipe_set_json(template_pj, tag_name)
 
     pj = gl.projects.get(user_repository_id)
     secret_pj_http_url = tm_get_secret_url(pj)
@@ -422,12 +419,9 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                             fun_value["answers"][
                                                 ans_key] = arg_value
 
-                            # # Add volume uuid in DB and Web answer.
-                            # if stage["iiidevops"] == "deployed-environments":
-                            #     fun_value["answers"]["volumeMounts.enabled"] = True
-                            #     fun_value["answers"]["volumeMounts.project"] = "${CICD_GIT_REPO_NAME}"
-                            #     fun_value["answers"]["volumeMounts.uuid"] = uuids
-                            #     fun_value["answers"]["volumeMounts.mountPath"] = "/project-data"
+                            # Add volume uuid in DB and Web answer.
+                            if fun_value.get("answers", {}).get("volumeMounts.uuid") is not None:
+                                fun_value["answers"]["volumeMounts.uuid"] = uuids
 
                         elif fun_key == "envFrom":
                             pass
@@ -461,6 +455,17 @@ def tm_git_commit_push(pj_path, secret_pj_http_url, folder_name, commit_message)
     subprocess.call(['git', 'push', '-u', 'origin', 'master'],
                     cwd=f"{folder_name}/{pj_path}")
     # Too lazy to handle file deleting issue on Windows, just keep the garbage there
+    try:
+        shutil.rmtree(f"{folder_name}/{pj_path}", ignore_errors=True)
+    except PermissionError:
+        pass
+
+
+def tm_git_mirror_push(pj_path, secret_pj_http_url, folder_name):
+    subprocess.call(['git', 'remote', 'set-url', 'origin', secret_pj_http_url],
+                    cwd=f"{folder_name}/{pj_path}")
+    subprocess.call(['git', 'push', '--mirror'],
+                    cwd=f"{folder_name}/{pj_path}")
     try:
         shutil.rmtree(f"{folder_name}/{pj_path}", ignore_errors=True)
     except PermissionError:
@@ -584,8 +589,8 @@ def update_branches(stage, pipline_soft, branch, enable_key_name, exist_branches
             had_update_branche = True
         elif pipline_soft[enable_key_name] is False and branch in stage_when:
             stage_when.remove(branch)
-            had_update_branche = True 
-        
+            had_update_branche = True
+
         stage_when = [branch for branch in stage_when if branch in exist_branches]
         if len(stage_when) == 0:
             stage_when.append("skip")
@@ -688,10 +693,11 @@ def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
                 stage_out_list["key"] = software["template_key"]
                 if "when" in stage:
                     stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
+                    include_branches = stage_when.branch.include or []
                     if is_default_branch:
-                        stage_out_list["has_default_branch"] = default_branch in stage_when.branch.include
+                        stage_out_list["has_default_branch"] = default_branch in include_branches
                     else:
-                        stage_out_list["branches"] = stage_when.branch.include
+                        stage_out_list["branches"] = include_branches
                 if stage_out_list not in stages_info["stages"]:
                     stages_info["stages"].append(stage_out_list)
                 break
@@ -811,7 +817,7 @@ def update_pj_plugin_status(plugin_name, disable):
 
 
 class TemplateList(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self):
         role.require_pm("Error while getting template list.")
         parser = reqparse.RequestParser()
@@ -830,7 +836,7 @@ class TemplateListForCronJob(Resource):
 
 
 class SingleTemplate(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, repository_id):
         role.require_pm("Error while getting template list.")
         parser = reqparse.RequestParser()
@@ -840,7 +846,7 @@ class SingleTemplate(Resource):
 
 
 class ProjectPipelineBranches(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('all_data', type=bool)
@@ -849,7 +855,7 @@ class ProjectPipelineBranches(Resource):
 
         return util.success(tm_get_pipeline_branches(repository_id, all_data=all_data))
 
-    @jwt_required
+    @ jwt_required
     def put(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('detail', type=dict)
@@ -863,11 +869,11 @@ class ProjectPipelineBranches(Resource):
 
 
 class ProjectPipelineDefaultBranch(Resource):
-    @jwt_required
+    @ jwt_required
     def get(self, repository_id):
         return util.success(tm_get_pipeline_default_branch(repository_id))
 
-    @jwt_required
+    @ jwt_required
     def put(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('detail', type=dict)

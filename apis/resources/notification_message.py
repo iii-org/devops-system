@@ -8,8 +8,9 @@ from time import strptime, mktime
 import json
 import util
 from resources import role
-from model import db, NotificationMessage, NotificationMessageReply, NotificationMessageRecipient, \
+from model import UserMessageType, db, NotificationMessage, NotificationMessageReply, NotificationMessageRecipient, \
     ProjectUserRole, User, SystemParameter, Project
+from resources.mail import Mail
 
 
 '''
@@ -31,14 +32,18 @@ INF = AlertLevel(1, 'INFO', True)
 WAR = AlertLevel(2, 'WARNING', True)
 URG = AlertLevel(3, 'Urgent', True)
 
+# System
 NEW = AlertLevel(101, 'New Version', False)
 SAL = AlertLevel(102, 'System Alert', False)
 SWA = AlertLevel(103, 'System Warming', True)
 
-SWA = AlertLevel(201, 'GitLab Merge Request Notification', True)
+# GitLab
+MR = AlertLevel(201, 'Merge Request', True)
 
-ALL_ALERTS = [INF, WAR, URG, NEW, SAL, SWA]
+# GitHub
+GHT = AlertLevel(301, 'GitHub Token Invalid', False)
 
+ALL_ALERTS = [INF, WAR, URG, NEW, SAL, SWA, MR, GHT]
 
 def get_alert_level(alert_id):
     for alert in ALL_ALERTS:
@@ -197,6 +202,9 @@ def get_notification_message_list(args, admin=False):
 def create_notification_message(args, user_id=None):
     if user_id is None:
         user_id = get_jwt_identity()['user_id']
+    # Do not need to create same notification message if previous one is on read and alert level is 102 or 301
+    if args["alert_level"] in [102, 301] and get_unread_notification_message_list(title=args['title']) != []:
+        return
     row = NotificationMessage(
         alert_level=args['alert_level'],
         title=args['title'],
@@ -316,6 +324,7 @@ def get_unread_notification_message_list(title=None, alert_service_id=None):
     base_query = db.session.query(NotificationMessage, NotificationMessageReply).outerjoin(
         NotificationMessageReply, and_(NotificationMessageReply.user_id.in_(get_am_role_user()),
                                        NotificationMessage.id == NotificationMessageReply.message_id))
+    base_query = base_query.filter(NotificationMessage.close == False)
     if alert_service_id is not None:
         base_query = base_query.filter(NotificationMessage.alert_service_id == alert_service_id)
     if title is not None:
@@ -330,6 +339,29 @@ def get_unclose_notification_message(alert_service_id):
     return [json.loads(str(row)) for row in rows]
 
 
+def send_mail(user_id, title, message):
+    user_objs = db.session.query(UserMessageType, User).join(User, UserMessageType.user_id == User.id). \
+        filter(UserMessageType.user_id == user_id)
+    for user_obj in user_objs:
+        user, user_message_type = user_obj.User, user_obj.UserMessageType
+        if user_message_type is not None and user_message_type.mail:
+            receiver = user.email
+            Mail().send_email(receiver, title, message)
+
+
+def get_notification_is_open(user_id, message_id):
+    from resources.user import get_user_message_type
+    is_not_open = get_user_message_type(user_id).get("notification", True) is False
+    if is_not_open:
+        args = {"message_ids": [message_id]}
+        create_notification_message_reply_slip(user_id, args)
+        if len(choose_send_to_who(message_id)) <= 1:
+            row = NotificationMessage.query.filter_by(id=message_id).first()
+            row.close = True
+            db.session.commit()
+    
+    return not is_not_open 
+
 class NotificationRoom(object):
 
     def send_message_to_all(self, message_id):
@@ -341,7 +373,9 @@ class NotificationRoom(object):
                 from resources.user import NexusUser
                 v["creator"] = NexusUser().set_user_id(v["creator_id"]).to_json()
             v.pop("creator_id", None)
-            emit("create_message", v, namespace="/v2/get_notification_message", to=f"user/{k}")
+            send_mail(k, v["title"], v["message"])
+            if get_notification_is_open(k, message_id):
+                emit("create_message", v, namespace="/v2/get_notification_message", to=f"user/{k}")
 
     def get_message(self, data):
         rows = db.session.query(NotificationMessage, NotificationMessageRecipient).outerjoin(

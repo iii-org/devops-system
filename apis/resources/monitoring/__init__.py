@@ -1,13 +1,15 @@
 import os
 import re
 import subprocess
+import json
 from datetime import datetime
+from time import sleep
 
 import config
 import pandas as pd
 import util
 from github import Github
-from model import MonitoringRecord, NotificationMessage, Project, db
+from model import MonitoringRecord, NotificationMessage, Project, ProjectPluginRelation, db, PluginSoftware
 from nexus import nx_get_project_plugin_relation
 from plugins.sonarqube.sonarqube_main import (sq_get_current_measures,
                                               sq_list_project)
@@ -24,12 +26,15 @@ from resources.notification_message import (
 from resources.rancher import rancher
 from resources.redis import update_server_alive
 from resources.redmine import redmine
+from resources.mail import Mail, mail_server_is_open
 from sqlalchemy import desc
+from resources.resource_storage import get_project_resource_storage_level, compare_operator
 
 DATETIMEFORMAT = "%Y-%m-%d %H:%M:%S"
 AlertServiceIDMapping = {
     "Redmine not alive": 101,
     "GitLab not alive": 201,
+    "Gitlab projects are exceeded its storage limit": 202,
     "Harbor not alive": 301,
     "Harbor pull limit exceed": 302,
     "Harbor NFS out of storage": 303,
@@ -40,7 +45,6 @@ AlertServiceIDMapping = {
 
 
 class Monitoring:
-
     def __init__(self, project_id=None):
         self.server = None
         self.pj_id = project_id
@@ -50,6 +54,7 @@ class Monitoring:
         self.error_title = None
         self.alert_service_id = None
         self.detail = {}
+        self.invalid_project_id_mapping = {}
 
     def __init_ids(self):
         self.plan_pj_id = None
@@ -88,17 +93,21 @@ class Monitoring:
             self.send_notification()
             self.store_in_monitoring_record()
         else:
+            send_back_notifcation_titles = []
             not_alive_messages = get_unclose_notification_message(self.alert_service_id)
             if not_alive_messages is not None and len(not_alive_messages) > 0:
                 for not_alive_message in not_alive_messages:
                     close_notification_message(not_alive_message["id"])
-                self.send_server_back_notification(not_alive_messages[0]["title"])
-            '''
-            not_alive_messages = get_unread_notification_message_list(alert_service_id=self.alert_service_id)
-            if not_alive_messages != []:
-                for not_alive_message in not_alive_messages:
-                    close_notification_message(not_alive_message["id"])
-            '''
+                    not_alive_mes_title = not_alive_message["title"]
+                    
+                    # Do not need to send same recover notification and notification which not 
+                    # in AlertServiceIDMapping's keys
+                    if not_alive_mes_title in AlertServiceIDMapping and \
+                        not_alive_mes_title not in send_back_notifcation_titles:
+                        send_back_notifcation_titles.append(not_alive_mes_title)
+                
+                for send_back_notifcation_title in send_back_notifcation_titles:
+                    self.send_server_back_notification(send_back_notifcation_title)
 
         self.error_title = None
 
@@ -109,6 +118,28 @@ class Monitoring:
             alive = self.__is_server_alive(func, **kwargs)
         self.__update_all_alive(alive)
         return alive
+
+    def __check_plugin_server_alive(self, func):
+        server_alive = func()
+        if not server_alive["alive"]:
+            if server_alive.get("message") is not None:
+                self.error_message = server_alive["message"]
+            else:
+                self.error_message = f"{self.server} not alive"
+        self.__update_all_alive(server_alive["alive"])
+        return server_alive["alive"]
+
+    def __check_server_element_alive(self, func):
+        element_ret = func()
+        element_alive = element_ret["status"]
+        self.error_title = str(element_ret["error_title"])
+        self.alert_service_id = AlertServiceIDMapping[self.error_title]
+        if not element_alive:
+            self.error_message = str(element_ret["message"])
+            self.detail = element_ret
+            self.invalid_project_id_mapping = element_ret.get("invalid_project_id_mapping", {})
+        self.__update_all_alive(element_alive)
+        return element_alive
 
     def send_notification(self):
         title = f"{self.server} not alive" if self.error_title is None else self.error_title
@@ -126,6 +157,22 @@ class Monitoring:
             }
             create_notification_message(args, user_id=1)
 
+            # Send notification to type 2 (project)
+            if self.invalid_project_id_mapping != {}:
+                for pj_id, mes in self.invalid_project_id_mapping.items():
+                    args = {
+                        "alert_level": 102,
+                        "title": str(mes),
+                        "alert_service_id": self.alert_service_id,
+                        "message": str(mes),
+                        "type_ids": [2],
+                        "type_parameters": {"project_ids": [int(pj_id)]}
+                    }
+                    create_notification_message(args, user_id=1)
+                    sleep(0.5)
+                self.invalid_project_id_mapping = {} 
+
+
     def store_in_monitoring_record(self):
         args = {
             "server": self.server,
@@ -133,16 +180,23 @@ class Monitoring:
             "detail": self.detail
         }
         create_monitoring_record(args)
+        self.detail = {}
 
     def send_server_back_notification(self, title):
+        recover_message_mapping = {
+            "Harbor NFS out of storage": "All nodes' nfs folder used percentage back to health level.",
+            "Harbor pull limit exceed": "All nodes' pull remain rate back to health level.",
+            "Gitlab projects are exceeded its storage limit": "All projects' storage are in health level."
+        }
+
         if title.endswith("not alive"):
-            title = f"{self.server} is back"
+            recover_title = f"{self.server} is back"
         else:
-            title = f"{title} is solved"
+            recover_title = f"{title} is solved"
         args = {
             "alert_level": 1,
-            "title": title,
-            "message": title,
+            "title": recover_title,
+            "message": recover_message_mapping.get(title, recover_title),
             "type_ids": [4],
             "type_parameters": {"role_ids": [5]}
         }
@@ -154,23 +208,36 @@ class Monitoring:
         return self.__check_server_alive(
             redmine.rm_get_project, redmine.rm_list_projects, self.plan_pj_id)
 
-    def gitlab_alive(self):
+    # Gitlab
+    def gitlab_alive(self, is_project=False):
         self.server = "GitLab"
         self.alert_service_id = 201
-        return self.__check_server_alive(
+        gitlab_alive = self.__check_server_alive(
             gitlab.gl_get_project, gitlab.gl_get_user_list, self.gl_pj_id, args={})
+        if not gitlab_alive or is_project:
+            return gitlab_alive
+
+        for check_element in [gitlab_projects_storage_limit]:
+            if not self.__check_server_element_alive(check_element):
+                gitlab_alive = False
+        return gitlab_alive
+        
 
     # Harbor
-    def harbor_alive(self):
+    def harbor_alive(self, is_project=False):
         self.server = "Harbor"
         self.alert_service_id = 301
-        server_alive = self.__check_server_alive(
+        harbor_alive = self.__check_server_alive(
             hb_get_project_summary, hb_get_registries, self.hr_pj_id)
-        if not server_alive:
-            return server_alive
-
+        if not harbor_alive or is_project:
+            return harbor_alive    
         harbor_alive = True
-        for check_element in [harbor_nfs_storage_remain_limit, docker_image_pull_limit_alert]:
+
+        # offline env doesn't need to check pull limit
+        check_elements = [harbor_nfs_storage_remain_limit]
+        if (config.get("deploy_env") or "online") == "online":
+            check_elements.append(docker_image_pull_limit_alert)
+        for check_element in check_elements:
             check_element = check_element()
             element_alive = check_element["status"]
             self.error_title = str(check_element["error_title"])
@@ -202,19 +269,64 @@ class Monitoring:
         return self.__check_server_alive(
             rancher.rc_get_pipeline_info, rancher.rc_get_project_pipeline, self.ci_pj_id, self.ci_pipeline_id)
 
+    # Plugins
+    def excalidraw_alive(self):
+        from resources.excalidraw import check_excalidraw_alive
+        self.server = "Excalidraw"
+        self.alert_service_id = 1001
+        return self.__check_plugin_server_alive(check_excalidraw_alive)
+
+    def smtp_alive(self):
+        self.server = "SMTP"
+        self.alert_service_id = 1101
+        return self.__check_plugin_server_alive(check_mail_server)
+
+    def check_plugin_is_open(self, plugin):
+        try:
+            plugin_software = PluginSoftware.query.filter_by(name=plugin).first()
+            plugin_disabled = plugin_software is not None and not plugin_software.disabled
+        except:
+            plugin_disabled = False
+        return plugin_disabled
+
+    def check_plugin_alive(self):
+        ret = {}
+        plugin_mapping = {
+            "excalidraw": {
+                "alive": self.excalidraw_alive,
+            },
+            "mail": {
+                "alive": self.smtp_alive, 
+                "is_open": mail_server_is_open
+            },
+        }
+        for plugin, plugin_info in plugin_mapping.items():
+            in_plugin_db = plugin_info.get("is_open") is None
+            if (in_plugin_db and self.check_plugin_is_open(plugin)) or \
+                (not in_plugin_db and plugin_info["is_open"]()):
+                alive = plugin_info["alive"]()
+                ret[plugin] = alive
+        return ret
+
     # all alive
-    def check_project_alive(self):
+    def check_project_alive(self, is_project=False):
+        '''
+        when 'is_project' is True, only check servers are working.
+        '''
+
+        plugin_alive_dict = self.check_plugin_alive()
         all_alive = {
             "alive": {
                 "Redmine": self.redmine_alive(),
-                "GitLab": self.gitlab_alive(),
-                "Harbor": self.harbor_alive(),
+                "GitLab": self.gitlab_alive(is_project),
+                "Harbor": self.harbor_alive(is_project),
                 "K8s": self.k8s_alive(),
                 "Sonarqube": self.sonarqube_alive(),
                 "Rancher": self.rancher_alive(),
             },
             "all_alive": self.all_alive
         }
+        all_alive["alive"] |= plugin_alive_dict
         return all_alive
 
 
@@ -266,6 +378,18 @@ def verify_github_info(value):
     g = Github(login_or_token=token)
     try:
         login = g.get_user().login
+        not_alive_messages = get_unread_notification_message_list(title="GitHub token is unavailable")
+        if not_alive_messages is not None and len(not_alive_messages) > 0:
+            for not_alive_message in not_alive_messages:
+                close_notification_message(not_alive_message["id"])
+            back_to_alive_title = "GitHub token is back to available."
+            create_notification_message({
+                "alert_level": 1,
+                "title": back_to_alive_title,
+                "message": back_to_alive_title,
+                "type_ids": [4],
+                "type_parameters": {"role_ids": [5]}
+            })
     except:
         raise apiError.DevOpsError(
             400,
@@ -286,57 +410,49 @@ def verify_github_info(value):
 
 
 def docker_image_pull_limit_alert():
-    limit = ""
-    os.chmod('./apis/resources/monitoring/docker_hub_remain_limit.sh', 0o777)
-    results = subprocess.run(
-        './apis/resources/monitoring/docker_hub_remain_limit.sh', stdout=subprocess.PIPE).stdout.decode('utf-8')
-    for result in results.split("\n"):
-        if result.startswith("ratelimit-remaining:"):
-            regex = re.compile(r'ratelimit-remaining:(.\d+)')
-            limit = regex.search(result).group(1).strip()
-            break
-
-    if limit == "":
-        status, message = False, "Can not get number of ratelimit-remaining!"
+    output_str, _ = util.ssh_to_node_by_key(
+            'perl deploy-devops/bin/get-cluster-pull-ratelimit.pl', config.get("DEPLOYER_NODE_IP")) 
+    outputs = output_str.split("\n")
+    if "---" in outputs:
+        nodes_info = outputs[outputs.index("---") + 1]
     else:
-        limit = int(limit)
-        status = limit > 30
-        message = None if status else "Pull remain time close to the limit(30 times)."
+        nodes_info = max(output_str.split("\n"))
+    
+    try:
+        nodes_info = json.loads(nodes_info)
+    except:
+        return {
+            "name": "Harbor proxy remain limit",
+            "error_title": "Harbor pull limit exceed",
+            "status": False,
+            "remain_limit": 0,
+            "message": "Can not get all nodes' pull limit info.",
+            "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+        }
+    error_nodes_message = []
+    for node_info in nodes_info:
+        limit = node_info.get("ratelimit-remaining")
+        if limit is None:
+            error_nodes_message.append(f"Can not get node {node_info.get('node')} pull remain times.")
+        elif limit < 30:
+            error_nodes_message.append(f"Node {node_info.get('node')} pull remain times({limit}) below limit(30 times).")
 
     return {
         "name": "Harbor proxy remain limit",
         "error_title": "Harbor pull limit exceed",
-        "status": status,
-        "remain_limit": limit,
-        "message": message,
+        "status": error_nodes_message == [],
+        "message": "\n".join(error_nodes_message),
         "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
     }
 
 
 def harbor_nfs_storage_remain_limit():
+    output_str, _ = util.ssh_to_node_by_key(
+        'perl deploy-devops/bin/get-cluster-df.pl', config.get("DEPLOYER_NODE_IP"))
+    nodes_storage_info = max(output_str.split('\n'))
     try:
-        output_str, _ = util.ssh_to_node_by_key(
-            'cd /iiidevopsNFS/ ; df -h', config.get("DEPLOYER_NODE_IP"))
-
-        contents = output_str.split("\n")
-        data_frame_contents = [
-            list(filter(lambda a: a != "", content.split(" "))) for content in contents]
-        df = pd.DataFrame(data_frame_contents[1:], columns=data_frame_contents[0][:-1])
-        out_df = df[df.loc[:, "Mounted"] == "/"]
-        ret = out_df.to_dict("records")[0]
-
-        status = int(ret["Use%"].replace("%", "")) < 75
-        return {
-            "name": "Harbor nfs folder storage remain.",
-            "error_title": "Harbor NFS out of storage",
-            "status": status,
-            "total_size": ret["Size"],
-            "used": ret["Used"],
-            "avail": ret["Avail"],
-            "message": "Nfs Folder Used percentage exceeded 75%!" if not status else None,
-            "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
-        }
-    except Exception as e:
+        nodes_storage_info = json.loads(nodes_storage_info)
+    except:
         return {
             "name": "Harbor nfs folder storage remain.",
             "error_title": "Harbor NFS out of storage",
@@ -344,6 +460,60 @@ def harbor_nfs_storage_remain_limit():
             "total_size": None,
             "used": None,
             "avail": None,
-            "message": str(e),
+            "message": "Can not get all nodes' nft storage.",
             "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
         }
+    error_nodes_message = []
+    for node_storage_info in nodes_storage_info:
+        usage = node_storage_info.get("Usage")
+        if usage is None:
+            error_nodes_message.append(f"Can not get node {node_storage_info.get('node')} nfs usage.")
+        elif int(usage.replace("%", "")) > 75:
+            error_nodes_message.append(f"Node {node_storage_info.get('node')} nfs Folder Used percentage({usage}) exceeded 75%!")
+    
+    return {
+        "name": "Harbor nfs folder storage remain.",
+        "error_title": "Harbor NFS out of storage",
+        "status": error_nodes_message == [],
+        "message": "\n".join(error_nodes_message),
+        "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+    }
+
+
+def check_mail_server():
+    ret = {"alive": True, "message": ""}
+    try:
+        Mail.check_mail_server()
+    except Exception as e:
+        ret["alive"], ret["message"] = False, str(e)
+    return ret
+
+
+def gitlab_projects_storage_limit():
+    invalid_project_id_mapping = {}
+    project_rows = db.session.query(Project, ProjectPluginRelation).join(
+        ProjectPluginRelation, Project.id==ProjectPluginRelation.project_id)
+    for project_row in project_rows:
+        project_obj, repo_id = project_row.Project, project_row.ProjectPluginRelation.git_repository_id
+        pj_resource_storage = get_project_resource_storage_level(project_obj.id)
+        gitlab_resource_info = pj_resource_storage.get("gitlab")
+        if gitlab_resource_info is not None:
+            pj_gl_storage_usage_dict = gitlab.gl_get_storage_usage(repo_id)
+            used = int(pj_gl_storage_usage_dict.get("used", {}).get("value", 0)) / 1024 / 1024 / 1024
+            max_used = int(pj_gl_storage_usage_dict.get("quota", {}).get("value", 0)) / 1024 / 1024 / 1024   
+            limit = gitlab_resource_info["limit"]
+            if compare_operator(
+                gitlab_resource_info["comparison"],
+                used,
+                limit,
+                max_used,
+                percentage=gitlab_resource_info["percentage"]
+            ):
+                invalid_project_id_mapping[project_obj.id] = f"Project: {project_obj.name} 在gitlab上的使用量({round(used, 5)}) 超過限制({limit})"
+    message = "\n".join(invalid_project_id_mapping.values())
+    return {
+        "status": message == "", 
+        "message": message,
+        "error_title": "Gitlab projects are exceeded its storage limit",
+        # "invalid_project_id_mapping": invalid_project_id_mapping
+    }

@@ -18,7 +18,7 @@ from . import router_model
 
 
 def parameter_check(args):
-    if args.get("alert_level") not in (1, 2, 3, 101, 102, 103):
+    if args.get("alert_level") not in (1, 2, 3, 101, 102, 103, 301):
         raise DevOpsError(400, 'Argument alert_level not in range.',
                           error=argument_error('alert_level'))
     for type_id in args.get("type_ids"):

@@ -5,7 +5,8 @@ from flask_restful import Resource, reqparse
 import util
 from threading import Thread
 from urls.user import router_model
-from resources.user import login, change_user_status, create_user, NexusUser, delete_user, update_user, user_list, user_sa_config
+from resources.user import login, change_user_status, create_user, NexusUser, delete_user, update_user, user_list, user_sa_config, \
+    get_user_message_types, update_user_message_types, get_user_message_type
 from resources import harbor, role
 from . import router_model
 import json
@@ -165,3 +166,34 @@ class UserSaConfig(Resource):
         role.require_user_himself(user_id, even_pm=False,
                                   err_message="Only admin and PM can access another user's data.")
         return user_sa_config(user_id)
+
+
+class MessageTypes(MethodResource):
+    @doc(tags=['User'], description="Users' message Types open situation.")
+    @use_kwargs(router_model.GetUserMessageTypeSchema, location="query")
+    @marshal_with(router_model.GetUsersMessageTypeRes)
+    @jwt_required
+    def get(self, **kwargs):
+        return util.success(get_user_message_types(**kwargs))
+
+
+class MessageType(MethodResource):
+    @doc(tags=['User'], description="Users' message Types open situation.")
+    @marshal_with(router_model.GetUserMessageTypeRes)
+    @jwt_required
+    def get(self, user_id):
+        role.require_user_himself(user_id)
+        return util.success(get_user_message_type(user_id))
+
+
+
+    @doc(tags=['User'], description="Update Users' message Types open situation.")
+    @use_kwargs(router_model.PatchUserMessageTypeSchema, location="json")
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def patch(self, user_id, **kwargs):
+        role.require_user_himself(user_id)
+        update_user_message_types(user_id, kwargs)
+        return util.success()
+
+

@@ -161,3 +161,66 @@ class GetUserListResponse(Schema):
     message = fields.Str(required=True, doc='message',example="success")
     data = fields.Nested(SingleUserUserListResponse,required=False)
     datetime = fields.Str(required=False,example="2020-02-21T01:00:00.000000")
+
+
+### User Message Type
+
+#################################### Schema ####################################
+
+########## API Action ##########
+
+class GetUserMessageTypeSchema(Schema):
+    limit = fields.Integer(required=True)
+    offset = fields.Integer(required=True)
+
+class PatchUserMessageTypeSchema(Schema):
+    notification = fields.Boolean()
+    mail = fields.Boolean()
+    teams = fields.Boolean()
+
+#################################### Response ####################################
+
+########## Module ##########
+
+########## API Action ##########
+
+
+class GetUserMessageTypeRes(CommonBasicResponse):
+    data = fields.Dict(example=
+        {    
+            "mail": False,
+            "notification": True,
+            "teams": False,
+            "user": {
+                "id": 1,
+                "login": "login",
+                "name": "name"
+            }
+        }
+    )
+
+class GetUsersMessageTypeRes(CommonBasicResponse):
+    data = fields.Dict(example={
+        "page": {
+            "current": 1,
+            "limit": 10,
+            "next": 2,
+            "offset": 0,
+            "pages": 7,
+            "prev": None,
+            "total": 70
+        },
+        "user_message_type": [
+            {
+                "mail": False,
+                "notification": True,
+                "teams": False,
+                "user": {
+                    "id": 1,
+                    "login": "login",
+                    "name": "name"
+                }
+            },
+        ]}
+    )
+    

@@ -5,13 +5,14 @@ from datetime import datetime
 from pathlib import Path
 
 from flask_jwt_extended import get_jwt_identity
-from model import Project, TemplateProject, db
-from nexus import (nx_get_project_plugin_relation, nx_get_user,
-                   nx_get_user_plugin_relation, nx_get_project)
+from model import Project, ProjectUserRole, TemplateProject, db
+from nexus import (nx_get_project, nx_get_project_plugin_relation, nx_get_user,
+                   nx_get_user_plugin_relation)
 from resources import apiError, role
+from sqlalchemy.sql import and_
 
-from . import (gl, set_git_username_config, tm_get_secret_url,
-               tm_git_commit_push)
+from . import (gl, set_git_username_config, tm_get_secret_url, get_tag_info_list_from_pj,
+               tm_git_mirror_push, tm_read_pipe_set_json, update_redis_template_cache)
 
 TEMPLATE_FOLDER_NAME = "template_from_pj"
 
@@ -99,20 +100,18 @@ def update_pipe_set_and_push_to_new_project(from_project_id, name, description):
     old_secret_http_url = tm_get_secret_url(old_project)
     temp_pj_secret_http_url = tm_get_secret_url(template_project)
     Path(TEMPLATE_FOLDER_NAME).mkdir(exist_ok=True)
-    subprocess.call(['git', 'clone', old_secret_http_url, f"{TEMPLATE_FOLDER_NAME}/{old_project.path}"])
+    subprocess.run(['git', 'clone', '--mirror', old_secret_http_url, f"{TEMPLATE_FOLDER_NAME}/{old_project.path}"])
     set_git_username_config(f'{TEMPLATE_FOLDER_NAME}/{template_project.path}')
-    tm_git_commit_push(template_project.path, temp_pj_secret_http_url,
-                       TEMPLATE_FOLDER_NAME, f"專案 {old_project.path} 轉範本commit")
+    tm_git_mirror_push(template_project.path, temp_pj_secret_http_url, TEMPLATE_FOLDER_NAME)
+    tag_list = get_tag_info_list_from_pj(template_project, "local-templates")
+    pip_set_json = tm_read_pipe_set_json(template_project)
+    update_redis_template_cache(template_project, "local-templates", pip_set_json, tag_list)
     return template_project, old_project, pipe_json_temp_name
 
 
 def create_template_from_project(from_project_id, name, description):
     '''
     # if template already exist, call update template function
-    row = TemplateProject.query.filter_by(from_project_id=from_project_id).first()
-    if row:
-        update_template(row.id, name, description)
-        return {"id": row.id}
     '''
 
     # 6. Update template_project table.
@@ -125,24 +124,6 @@ def create_template_from_project(from_project_id, name, description):
     db.session.add(tm)
     db.session.commit()
     return {"id": tm.id}
-
-
-'''
-
-
-def tm_update_pipe_set_json_from_local(pj_path, name, description):
-    Path(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops').mkdir(exist_ok=True)
-    pipeline_settings_json = None
-    if os.path.exists(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops/pipeline_settings.json'):
-        with open(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops/pipeline_settings.json', encoding="utf-8") as f:
-            pipeline_settings_json = json.loads(f.read())
-            if name is not None:
-                pipeline_settings_json['name'] = name
-            if name is not None:
-                pipeline_settings_json['description'] = description
-        with open(f'{TEMPLATE_FOLDER_NAME}/{pj_path}/iiidevops/pipeline_settings.json', 'w') as f:
-            json.dump(pipeline_settings_json, f)
-'''
 
 
 def delete_template(id):
@@ -176,16 +157,10 @@ def tm_update_pipe_set_json_from_api(pj, name, description):
 
 def get_tm_filter_by_tm_member():
     if get_jwt_identity()['role_id'] != role.ADMIN.id:
-        belong_to_me_pj_ids = []
-        git_user_id = nx_get_user_plugin_relation(user_id=get_jwt_identity()['user_id']).repository_user_id
-        user = gl.users.get(git_user_id)
-        memberships = user.memberships.list(type='Project', all=True)
-        for membership in memberships:
-            pj = gl.projects.get(membership.source_id)
-            if pj.namespace['path'] == "local-templates":
-                belong_to_me_pj_ids.append(pj.id)
-        all_templates = TemplateProject.query.filter(
-            TemplateProject.template_repository_id.in_(belong_to_me_pj_ids)).all()
+        # get user template from source project ProjectUserRole.
+        all_templates = db.session.query(TemplateProject).join(ProjectUserRole, and_(
+            ProjectUserRole.user_id == get_jwt_identity()['user_id'],
+            ProjectUserRole.project_id == TemplateProject.from_project_id)).all()
     else:
         all_templates = TemplateProject.query.all()
     return all_templates

@@ -9,7 +9,7 @@ from resources.gitlab import commit_id_to_url
 from . import hb_get_artifact_scan_overview, hb_get_artifact_scan_vulnerabilities_detail
 
 harbor_scan_list_keys = ["Critical", "High", "Low", "Medium", "fixable"]
-
+harbor_scan_report_keys = ["Critical", "High", "Low", "Medium", "Negligible", "Unknown"]
 
 def create_harbor_scan(project_name, branch, commit_id):
     row = Project.query.filter_by(name=project_name).first()
@@ -37,14 +37,18 @@ def get_harbor_scan_report(project_name, branch, commit_id):
             hs_row = HarborScan.query.filter_by(project_id=pj_row.id, branch=branch,
                                                 commit=commit_id).order_by(HarborScan.id.desc()).first()
             out["overview"] = hs_row.scan_overview
+            for scan_key in harbor_scan_report_keys:
+                if out["overview"].get(scan_key) is None:
+                    out["overview"][scan_key] = 0
             return out
 
 def harbor_get_scan_by_commit(project_id, commit_id):
     row = HarborScan.query.filter_by(project_id=project_id, commit=commit_id).first()
     if row is not None:
         ret = json.loads(str(row))
-        ret["run_at"] = ret.pop("created_at", None)
-        for k, v in ret.pop("scan_overview", {}).items():
+        ret["run_at"] = ret.pop("created_at")
+        scan_overview = ret.pop("scan_overview", {}) or {}
+        for k, v in scan_overview.items():
             ret[k] = v
         status = ret.pop("scan_status", None)
         if status == "Success" and ret.get("finished"):

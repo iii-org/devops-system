@@ -735,6 +735,14 @@ class GitLab(object):
             util.write_json_file(f"{base_path}/{pj.id}/{date}.json", result)
 
 
+def get_all_group_projects(group):
+    group_project_list = []
+    item = group.projects.list(as_list=False)
+    for i in range(1, item.total_pages+1):
+        group_project_list.extend(group.projects.list(page=i))
+    return group_project_list
+
+
 def get_all_repo_members(project_id=None):
     gl_users = []
     page = 1
@@ -919,7 +927,6 @@ def gitlab_status_connection():
         return {"status": len(paths) == 1}
     except:
         return {"status": False}
-
 
     # --------------------- Resources ---------------------
 gitlab = GitLab()

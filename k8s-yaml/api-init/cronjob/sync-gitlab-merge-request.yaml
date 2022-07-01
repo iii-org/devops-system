@@ -5,8 +5,8 @@ metadata:
 spec:
   concurrencyPolicy: Forbid
   schedule: "*/3 * * * *"
-  successfulJobsHistoryLimit: 0
-  failedJobsHistoryLimit: 0
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
       backoffLimit: 0
@@ -23,9 +23,5 @@ spec:
                       name: cornjob-bot
                       key: cornjob-token
               command: ["/bin/sh"]
-              args:
-                [
-                  "-c",
-                  'curl -H "Authorization: Bearer $TOKEN" --location --request POST ''http://devopsapi-service:10009/v2/system/send_merge_request_notification''',
-                ]
+              args: ["-c", "curl -H \"Authorization: Bearer $TOKEN\" --location --request GET 'http://devopsapi-service:10009/v2/system/send_merge_request_notification'"]
           restartPolicy: OnFailure
