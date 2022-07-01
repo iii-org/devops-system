@@ -2,7 +2,7 @@ from marshmallow import Schema, fields
 from util import CommonBasicResponse
 import re
 from urls.route_model import BasicIsssueResponse, SingleIssueGetDataAuthorResponse, ProjectExtraResponse, RelationsResponse, \
-    PaginationPageResponse
+    PaginationPageResponse, CommonIssueSchema
 
 ### Project Relation
 
@@ -65,21 +65,6 @@ class ProjectRelationsGetResponse(CommonBasicResponse):
 ### Project issue_list
 
 #################################### Schema ####################################
-
-########## Module ##########
-
-class CommonIssueSchema(Schema):
-    fixed_version_id = fields.Str(doc='fixed_version_id', example="1")
-    status_id = fields.Str(doc='status_id', example="1")
-    tracker_id = fields.Str(doc='tracker_id', example="1")
-    assigned_to_id = fields.Str(doc='assigned_to_id', example="1")
-    priority_id = fields.Str(doc='priority_id', example="1")
-    only_superproject_issues = fields.Bool(doc='only_superproject_issues', example=True, missing=False)
-    limit = fields.Int(doc='limit', example=1)
-    offset = fields.Int(doc='offset', example=1)
-    search = fields.Str(doc='search', example="string")
-    selection = fields.Str(doc='selection', example="string")
-    sort = fields.Str(doc='sort', example="string")
 
 ########## API Action ##########
 
