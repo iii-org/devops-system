@@ -17,7 +17,7 @@ def insert_into_ui_route_table(ui_route_dict, parent_name, old_brother_name):
         parent_row = UIRouteData.query.filter_by(name=parent_name, role=role).first()
         parent_id = parent_row.id if parent_row else 0
     old_brother_id = 0
-    if parent_name != "":
+    if old_brother_name != "":
         old_brother_row = UIRouteData.query.filter_by(name=old_brother_name, role=role).first()
         old_brother_id = old_brother_row.id if old_brother_row else 0
     num = UIRouteData.query.filter_by(name=ui_route_dict['name'], role=role).count()
