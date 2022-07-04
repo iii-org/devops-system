@@ -584,10 +584,6 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
     if 'parent' in redmine_output:
         redmine_output['parent_id'] = redmine_output['parent']['id']
         redmine_output.pop('parent', None)
-    # rm_users = redmine.paging('users',25)
-    # list_user = {}
-    # for rm_user_info in rm_users:
-    #     list_user[rm_user_info['id']] = rm_user_info['firstname'] + ' ' + rm_user_info['lastname']
     if 'journals' in redmine_output:
         i = 0
         while i < len(redmine_output['journals']):
@@ -713,10 +709,10 @@ def create_issue(args, operator_id):
 
     # Check tracker_id is not force to has father issue's tracker
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
-    if project_issue_check is not None and project_issue_check.enable:
-        if args.get("parent_id") is None and args["tracker_id"] in project_issue_check.need_fatherissue_trackers:
-            raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
-                              error=apiError.project_tracker_must_has_father_issue(project_id, args["tracker_id"]))
+    if (project_issue_check is not None and project_issue_check.enable) and \
+        (args.get("parent_id") is None and args["tracker_id"] in project_issue_check.need_fatherissue_trackers):
+        raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
+                            error=apiError.project_tracker_must_has_father_issue(project_id, args["tracker_id"]))
 
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
@@ -1121,9 +1117,8 @@ def get_issue_list_by_user(user_id, args):
     if args.get('from') not in ['author_id', 'assigned_to_id']:
         return []
     # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    elif args.get('search') and default_filters.get('issue_id') is None:
-        return []
-    elif args.get("has_tag_issue", False):
+    elif (args.get('search') and default_filters.get('issue_id') is None) or \
+        args.get("has_tag_issue", False):
         return []
 
     if len(default_filters.get('issue_id', "").split(",")) > 200:
@@ -1402,7 +1397,7 @@ def get_issue_parent(redmine_issue, redmine_obj):
         parent_issue = redmine_obj.issue.filter(**filter_kwargs)
         try:
             ret = NexusIssue().set_redmine_issue_v2(parent_issue[0]).to_json()
-        except:
+        except Exception:
             pass
 
     return ret

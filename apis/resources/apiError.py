@@ -383,7 +383,7 @@ def redmine_error(response):
         if isinstance(error_message_list, list) and \
             error_message_list[0] == "Parent task is invalid":
             return parent_issue_error()
-    except:
+    except Exception:
         pass
     return error_3rd_party_api('Redmine', response)
 
