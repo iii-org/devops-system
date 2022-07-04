@@ -301,7 +301,7 @@ def check_issue_exist(issue_id):
     try:
         redmine.rm_get_issue(issue_id)
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -381,7 +381,6 @@ def update_issue_tags(issue_id, tags, plan_operator_id):
     if new_tag_list != origin_tag_list:
         issue_tags.tag_id = new_tag_list
         db.session.commit()
-        args = {"notes": ""}
         add_tags = check_tags_diff(new_tag_list, origin_tag_list)
         if add_tags != {}:
             for tag_id, tag_name in add_tags.items():
@@ -475,51 +474,40 @@ def get_issue_attr_name(detail, value):
     if not value or value == '-1':
         return value
     else:
-        if detail['name'] == 'status_id':
+        attr_mapping = {
+            "status_id": {
+                "func": redmine_lib.redmine.issue_status,
+                "res_attr": "name"
+            },
+            "tracker_id": {
+                "func": redmine_lib.redmine.tracker,
+                "res_attr": "name"
+            },
+            "priority_id": {
+                "func": redmine_lib.redmine.enumeration,
+                "kwargs": {"resource": 'issue_priorities'},
+                "res_attr": "name"
+            },
+            "fixed_version_id": {
+                "func": redmine_lib.redmine.version,
+                "res_attr": "name"
+            },
+            "parent_id": {
+                "func": redmine_lib.redmine.issue,
+                "res_attr": "subject"
+            },
+        }
+        d_name = detail["name"]
+        if d_name in attr_mapping:
             try:
-                status = redmine_lib.redmine.issue_status.get(int(value))
+                attr = attr_mapping[d_name]
+                kwargs = attr.get("kwargs", {})
+                ret = attr["func"].get(int(value), **kwargs)
             except redminelibError.ResourceNotFoundError:
-                return resource_not_found
+                return resource_not_found    
             return {
-                'id': int(value),
-                'name': status.name
-            }
-        elif detail['name'] == 'tracker_id':
-            try:
-                tracker = redmine_lib.redmine.tracker.get(int(value))
-            except redminelibError.ResourceNotFoundError:
-                return resource_not_found
-            return {
-                'id': int(value),
-                'name': tracker.name
-            }
-        elif detail['name'] == 'priority_id':
-            try:
-                priority = redmine_lib.redmine.enumeration.get(
-                    int(value), resource='issue_priorities')
-            except redminelibError.ResourceNotFoundError:
-                return resource_not_found
-            return {
-                'id': int(value),
-                'name': priority.name
-            }
-        elif detail['name'] == 'fixed_version_id':
-            try:
-                fixed_version = redmine_lib.redmine.version.get(int(value))
-            except redminelibError.ResourceNotFoundError:
-                return resource_not_found
-            return {
-                'id': int(value),
-                'name': fixed_version.name
-            }
-        elif detail['name'] == 'parent_id':
-            try:
-                issue = redmine_lib.redmine.issue.get(int(value))
-            except redminelibError.ResourceNotFoundError:
-                return resource_not_found
-            return {
-                'id': int(value),
-                'name': issue.subject
+                "id": int(value),
+                "name": ret.name if attr["res_attr"] == "name" else ret.subject
             }
         else:
             return value
@@ -596,10 +584,6 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
     if 'parent' in redmine_output:
         redmine_output['parent_id'] = redmine_output['parent']['id']
         redmine_output.pop('parent', None)
-    # rm_users = redmine.paging('users',25)
-    # list_user = {}
-    # for rm_user_info in rm_users:
-    #     list_user[rm_user_info['id']] = rm_user_info['firstname'] + ' ' + rm_user_info['lastname']
     if 'journals' in redmine_output:
         i = 0
         while i < len(redmine_output['journals']):
@@ -725,10 +709,10 @@ def create_issue(args, operator_id):
 
     # Check tracker_id is not force to has father issue's tracker
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
-    if project_issue_check is not None and project_issue_check.enable:
-        if args.get("parent_id") is None and args["tracker_id"] in project_issue_check.need_fatherissue_trackers:
-            raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
-                              error=apiError.project_tracker_must_has_father_issue(project_id, args["tracker_id"]))
+    if (project_issue_check is not None and project_issue_check.enable) and \
+        (args.get("parent_id") is None and args["tracker_id"] in project_issue_check.need_fatherissue_trackers):
+        raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
+                            error=apiError.project_tracker_must_has_father_issue(project_id, args["tracker_id"]))
 
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
@@ -999,67 +983,6 @@ def handle_exceed_limit_length_default_filter(default_filters, issue_ids, defaul
     return handle_exceed_limit_length_default_filter(default_filters, issue_ids[200:], default_filters_list)
 
 
-def get_issue_list_by_project(project_id, args, download=False):
-    nx_issue_params = defaultdict()
-    output = []
-    if util.is_dummy_project(project_id):
-        return []
-    try:
-        nx_project = NexusProject().set_project_id(project_id)
-        nx_issue_params['nx_project'] = nx_project
-        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
-    except NoResultFound:
-        raise DevOpsError(404, "Error while getting issues",
-                          error=apiError.project_not_found(project_id))
-
-    default_filters = get_custom_filters_by_args(args, project_id=plan_id, children=True)
-    # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    if args.get('search') is not None and default_filters.get('issue_id') is None:
-        if args.get("assigned_to_id") is None:
-            return []
-    elif args.get("has_tag_issue", False):
-        return []
-
-    if len(default_filters.get('issue_id', "").split(",")) > 200:
-        issue_ids = default_filters.pop('issue_id').split(",")
-        default_filters_list = handle_exceed_limit_length_default_filter(default_filters, issue_ids, [])
-    else:
-        default_filters_list = [default_filters]
-
-    total_count = 0
-    for default_filters in default_filters_list:
-        if download:
-            all_issues = redmine_lib.redmine.issue.filter(**default_filters)
-        else:
-            if get_jwt_identity()["role_id"] != 7:
-                user_name = get_jwt_identity()["user_account"]
-                all_issues = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
-            else:
-                all_issues = redmine_lib.redmine.issue.filter(**default_filters)
-
-        # 透過 selection params 決定是否顯示 family bool 欄位
-        if not args['selection'] or not strtobool(args['selection']):
-            nx_issue_params['relationship_bool'] = True
-
-        nx_issue_params['users_info'] = user.get_all_user_info()
-        for redmine_issue in all_issues:
-            nx_issue_params['redmine_issue'] = redmine_issue
-            nx_issue_params['with_point'] = args["with_point"]
-            issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
-            output.append(issue)
-
-        total_count += all_issues.total_count
-
-    if download:
-        return output
-
-    if args['limit'] and args['offset'] is not None:
-        page_dict = util.get_pagination(total_count,
-                                        args['limit'], args['offset'])
-        output = {'issue_list': output, 'page': page_dict}
-    return output
-
-
 def get_issue_list_by_project_helper(project_id, args, download=False, operator_id=None):
     nx_issue_params = defaultdict()
     output = []
@@ -1194,9 +1117,8 @@ def get_issue_list_by_user(user_id, args):
     if args.get('from') not in ['author_id', 'assigned_to_id']:
         return []
     # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    elif args.get('search') and default_filters.get('issue_id') is None:
-        return []
-    elif args.get("has_tag_issue", False):
+    elif (args.get('search') and default_filters.get('issue_id') is None) or \
+        args.get("has_tag_issue", False):
         return []
 
     if len(default_filters.get('issue_id', "").split(",")) > 200:
@@ -1475,7 +1397,7 @@ def get_issue_parent(redmine_issue, redmine_obj):
         parent_issue = redmine_obj.issue.filter(**filter_kwargs)
         try:
             ret = NexusIssue().set_redmine_issue_v2(parent_issue[0]).to_json()
-        except:
+        except Exception:
             pass
 
     return ret

@@ -1,7 +1,8 @@
 from marshmallow import Schema, fields, missing
 from util import CommonBasicResponse
 from resources.system_parameter import check_upload_type
-from urls.route_model import BasicIsssueResponse, SingleIssueGetDataAuthorResponse, ProjectExtraResponse, RelationsResponse
+from urls.route_model import BasicIsssueResponse, SingleIssueGetDataAuthorResponse, ProjectExtraResponse, RelationsResponse, \
+    CommonSingleIssueResponse
 
 ### Issue single
 
@@ -90,23 +91,6 @@ class SingleIssueGetDataJournalSchema(Schema):
     details = fields.List(fields.Nested(
        JournalDetailsResponse, required=True))
     private_notes = fields.Bool(required=True)
-
-class CommonSingleIssueResponse(Schema):
-    id = fields.Int(required=True)
-    name = fields.Str(required=True)
-    project = fields.Nested(BasicIsssueResponse, required=True)
-    description = fields.Str(required=True)
-    start_date = fields.Str(required=True, example="1970-01-01", default=None)
-    assigned_to = fields.Nested(SingleIssueGetDataAuthorResponse, default={})
-    fixed_version = fields.Nested(BasicIsssueResponse, default={})
-    due_date = fields.Str(required=True, example="1970-01-01", default=None)
-    done_ratio = fields.Int(required=True)
-    is_closed = fields.Bool(required=True)
-    issue_link = fields.Str(required=True)
-    tracker = fields.Nested(BasicIsssueResponse, default={})
-    priority = fields.Nested(BasicIsssueResponse, default={})
-    status = fields.Nested(BasicIsssueResponse, default={})
-    author = fields.Nested(BasicIsssueResponse, default={})
 
 class ParentResponse(CommonSingleIssueResponse):
     estimated_hours = fields.Float(required=True)

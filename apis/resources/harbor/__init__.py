@@ -168,11 +168,9 @@ def hb_update_user_password(user_id, new_pwd, old_pwd):
     try:
         __api_put(f'/users/{user_id}/password', data=data)
     except DevOpsError as e:
-        if e.status_code == 400 and \
+        if not (e.status_code == 400 and \
                 e.error_value['details']['response']['errors'][0][
-                    'message'] == 'the new password can not be same with the old one':
-            pass
-        else:
+                    'message'] == 'the new password can not be same with the old one'):
             raise e
 
 
@@ -184,11 +182,9 @@ def hb_update_user_email(user_id, user_name, new_email):
     try:
         __api_put(f'/users/{user_id}', data=data)
     except DevOpsError as e:
-        if e.status_code == 400 and \
+        if not (e.status_code == 400 and \
                 e.error_value['details']['response']['errors'][0][
-                    'message'] == 'the new password can not be same with the old one':
-            pass
-        else:
+                    'message'] == 'the new password can not be same with the old one'):
             raise e
 
 
@@ -336,7 +332,7 @@ def hb_get_artifact_scan_overview(project_name, repository_name, commit_id):
         if type(artifact.get("scan_overview")) is dict:
             scan_report = next(iter(artifact.get("scan_overview").values()))
         return scan_report
-    except:
+    except Exception:
         return
 
 
@@ -347,7 +343,7 @@ def hb_get_artifact_scan_vulnerabilities_detail(project_name, repository_name, c
                              f'{__encode(commit_id)}/additions/vulnerabilities').json()
         out = next(iter(artifact.values()))
         return out
-    except:
+    except Exception:
         return
 
 
@@ -367,7 +363,7 @@ def hb_copy_artifact_and_retage(project_name, from_repo_name, dest_repo_name, fr
     try:
         digest = hb_get_artifact(project_name, from_repo_name, from_tag)[0]["digest"]
         print(digest)
-    except:
+    except Exception:
         logger.info(f"Can not find {from_repo_name}:{from_tag}")
         print(f"Can not find {from_repo_name}:{from_tag}")
         return
@@ -376,10 +372,10 @@ def hb_copy_artifact_and_retage(project_name, from_repo_name, dest_repo_name, fr
     try:
         dest_digest = hb_get_artifact(project_name, dest_repo_name, dest_tag)[0]["digest"]
         print(dest_digest)
-        a = hb_delete_artifact(project_name, dest_repo_name, dest_digest)
+        hb_delete_artifact(project_name, dest_repo_name, dest_digest)
         logger.info(f"Replace the old {dest_repo_name}:{dest_digest}")
         print(f"Replace the old {dest_repo_name}:{dest_digest}")
-    except:
+    except Exception:
         pass
 
     from_image = f'{project_name}/{from_repo_name}@{digest}'

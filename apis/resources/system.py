@@ -54,8 +54,8 @@ def filter_and_send_notification(pj_member, mr_obj, p_branches):
         else:
             if upr_row:
                 args = {"alert_level": 201, "title": f"Review merge request: {mr_obj.title}", "alert_service_id": mr_obj.id,
-                        "message_parameter": {"mr_id": mr_obj.id}, "message": f"#### Merge request link:  \n \
-                        [{mr_obj.title}]({mr_obj.web_url}), Full Link: {mr_obj.web_url}",
+                        "message_parameter": {"mr_id": mr_obj.id},
+                        "message": f"#### Merge request link:  \n[{mr_obj.title}]({mr_obj.web_url}), Full Link: {mr_obj.web_url}",
                         "type_ids": [3], "type_parameters": {"user_ids": [upr_row.user_id]}}
                 create_notification_message(args, user_id=1)
 

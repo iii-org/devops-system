@@ -91,7 +91,7 @@ def get_latest_scans(project_name):
         order_by(desc(model.WebInspect.run_at)).first()
     if row is not None:
         if not row.finished:
-            status = wix_get_scan_status(row.scan_id)
+            wix_get_scan_status(row.scan_id)
             row = model.WebInspect.query.filter_by(project_name=project_name). \
                 order_by(desc(model.WebInspect.run_at)).first()
         return json.loads(str(row))

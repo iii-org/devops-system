@@ -84,11 +84,10 @@ class SingleIssueV2(MethodResource):
             except ResourceAttrError:
                 pass
 
-        if start_date is not None and due_date is not None:
-            if due_date < start_date:
-                arg = "due_date" if kwargs.get("due_date") is not None and len(kwargs.get("due_date")) > 0 else "start_date"
-                raise DevOpsError(400, 'Due date must be greater than start date.',
-                                  error=apiError.argument_error(arg))
+        if start_date is not None and due_date is not None and due_date < start_date:
+            arg = "due_date" if kwargs.get("due_date") is not None and len(kwargs.get("due_date")) > 0 else "start_date"
+            raise DevOpsError(400, 'Due date must be greater than start date.',
+                                error=apiError.argument_error(arg))
 
         # Handle removable int parameters
         keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
@@ -121,10 +120,10 @@ class CreateSingleIssueV2(MethodResource):
     @jwt_required
     def post(self, **kwargs):
         # Check due_date is greater than start_date
-        if kwargs.get("start_date") is not None and kwargs.get("due_date") is not None:
-            if kwargs["due_date"] < kwargs["start_date"]:
-                raise DevOpsError(400, 'Due date must be greater than start date.',
-                                  error=apiError.argument_error("due_date"))
+        if kwargs.get("start_date") is not None and kwargs.get("due_date") is not None and \
+            kwargs["due_date"] < kwargs["start_date"]:
+            raise DevOpsError(400, 'Due date must be greater than start date.',
+                                error=apiError.argument_error("due_date"))
 
         # Handle removable int parameters
         keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
@@ -190,10 +189,10 @@ class SingleIssue(Resource):
             check_upload_type(args["upload_file"])
 
         # Check due_date is greater than start_date
-        if args.get("start_date") is not None and args.get("due_date") is not None:
-            if args["due_date"] < args["start_date"]:
-                raise DevOpsError(400, 'Due date must be greater than start date.',
-                                  error=apiError.argument_error("due_date"))
+        if args.get("start_date") is not None and args.get("due_date") is not None and \
+            args["due_date"] < args["start_date"]:
+            raise DevOpsError(400, 'Due date must be greater than start date.',
+                                error=apiError.argument_error("due_date"))
 
         # Handle removable int parameters
         keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
@@ -270,11 +269,10 @@ class SingleIssue(Resource):
             except ResourceAttrError:
                 pass
 
-        if start_date is not None and due_date is not None:
-            if due_date < start_date:
-                arg = "due_date" if args.get("due_date") is not None and len(args.get("due_date")) > 0 else "start_date"
-                raise DevOpsError(400, 'Due date must be greater than start date.',
-                                  error=apiError.argument_error(arg))
+        if start_date is not None and due_date is not None and due_date < start_date:
+            arg = "due_date" if args.get("due_date") is not None and len(args.get("due_date")) > 0 else "start_date"
+            raise DevOpsError(400, 'Due date must be greater than start date.',
+                                error=apiError.argument_error(arg))
 
         # Handle removable int parameters
         keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']

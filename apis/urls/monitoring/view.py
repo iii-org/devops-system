@@ -39,7 +39,6 @@ class ServersAliveHelper(MethodResource):
 class ServersAliveV2(MethodResource):
     @jwt_required
     def get(self, **kwargs):
-        pj_id = kwargs.get("project_id")
         all_alive = get_server_alive()
         if all_alive is None:
             all_alive = Monitoring().check_project_alive()["all_alive"]
@@ -50,10 +49,6 @@ class ServersAliveV2(MethodResource):
 class ServersAlive(Resource):
     @jwt_required
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int)
-        args = parser.parse_args()
-        pj_id = args.get("project_id")
         all_alive = get_server_alive()
         if all_alive is None:
             all_alive = Monitoring().check_project_alive()["all_alive"]
