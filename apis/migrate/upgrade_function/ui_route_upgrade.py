@@ -2,6 +2,7 @@ import os
 import util
 from model import db, UIRouteData
 from datetime import datetime
+import copy
 
 
 UI_ROUTE_FOLDER_NAME = "apis/ui_routes"
@@ -22,11 +23,14 @@ def insert_into_ui_route_table(ui_route_dict, parent_name, old_brother_name):
         old_brother_id = old_brother_row.id if old_brother_row else 0
     num = UIRouteData.query.filter_by(name=ui_route_dict['name'], role=role).count()
     if num == 0:
+        new_ui_route = copy.deepcopy(ui_route_dict)
+        if 'children' in new_ui_route:
+            del (new_ui_route['children'])
         new_row = UIRouteData(name=ui_route_dict['name'],
                               role=role,
                               parent=parent_id,
                               old_brother=old_brother_id,
-                              ui_route=ui_route_dict,
+                              ui_route=new_ui_route,
                               created_at=datetime.utcnow(),
                               updated_at=datetime.utcnow())
         db.session.add(new_row)
