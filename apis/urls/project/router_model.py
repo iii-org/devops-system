@@ -367,16 +367,16 @@ class DownloadProjectSchema(Schema):
     tracker_id = fields.Str(doc='tracker_id',  example='1')
     assigned_to_id = fields.Str(doc='assigned_to_id',  example='1')
     priority_id = fields.Str(doc='fixed_version_id',  example='1')
-    only_superproject_issues = fields.Bool(doc='only_superproject_issues', example=True, missing=False)
+    only_superproject_issues = fields.Bool(doc='only_superproject_issues', example=True, load_default=False)
     search = fields.Str(doc='search', example='string')
     selection = fields.Str(doc='selection',  example='1')
     sort = fields.Str(doc='sort', example="string")
     parent_id = fields.Str(doc='parent_id',  example='1')
     due_date_start = fields.Str(doc='due_date_start', example="1970-01-01")
     due_date_end = fields.Str(doc='due_date_end', example="1970-01-01")
-    with_point = fields.Str(doc='with_point', example=True, missing=True)
+    with_point = fields.Str(doc='with_point', example=True, load_default=True)
     tags = fields.Str(doc='tags', example="1,2,3")
-    levels = fields.Int(doc='levels', example=1, missing=3)
+    levels = fields.Int(doc='levels', example=1, load_default=3)
     deploy_column = fields.List(
         fields.Dict(example={"field": "name", "display": "議題名稱"}),
         doc='deploy_column', 
@@ -961,8 +961,8 @@ class ReleaseExtraGetSchema(Schema):
     branch_name = fields.Str(example="master", required=True)
     not_all = fields.Str(example='true')
     only_image = fields.Str(example='true')
-    limit = fields.Int(example=10, missing=10)
-    offset = fields.Int(example=0, missing=0)
+    limit = fields.Int(example=10, load_default=10)
+    offset = fields.Int(example=0, load_default=0)
 
 class ReleaseTagSchema(Schema):
     tags = fields.Str(required=True)
