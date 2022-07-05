@@ -172,12 +172,14 @@ def update_excalidraw(excalidraw_id, name=None, issue_ids=None):
         plan_project_id = project.get_plan_project_id(project_id)
         redmine_issues = redmine_lib.redmine.issue.filter(project_id=plan_project_id)
         exist_issue_ids = [redmine_issue.id for redmine_issue in redmine_issues]
-        issue_ids = list(map(lambda x: int(x) ,issue_ids.split(",")))
-        
-        for issue_id in issue_ids:
-            if int(issue_id) not in exist_issue_ids:
-                raise DevOpsError(400, f'Argument issue_ids include invalid issue_id.',
-                                    error=apiError.argument_error("issue_ids")) 
+        if issue_ids != "":
+            issue_ids = list(map(lambda x: int(x) ,issue_ids.split(",")))
+            for issue_id in issue_ids:
+                if int(issue_id) not in exist_issue_ids:
+                    raise DevOpsError(400, f'Argument issue_ids include invalid issue_id.',
+                                        error=apiError.argument_error("issue_ids")) 
+        else:
+            issue_ids = []
             
         create_issue_ids = issue_ids.copy()
         excalidraw_issues = ExcalidrawIssueRelation.query.filter_by(excalidraw_id=excalidraw_id).all()
