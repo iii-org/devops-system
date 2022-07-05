@@ -168,7 +168,6 @@ def insert_project_member(project_id, project_name):
 
 
 def insert_all_issues(project_id, sync_date):
-    # issues_list = []
     all_issues = get_issue_by_project(project_id=project_id, args=None)
     for issue in all_issues:
         if 'id' in issue['assigned_to']:
@@ -194,9 +193,6 @@ def insert_all_issues(project_id, sync_date):
             model.db.session.rollback()
         finally:
             model.db.session.close()
-    # issues_list.append(new_issue)
-    # model.db.session.add_all(issues_list)
-    # model.db.session.commit()
 
 
 # --------------------- Complicated Query ---------------------
@@ -588,10 +584,9 @@ class RedmineIssueRank(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('all', type=bool)
         args = parser.parse_args()
-        all = args.get("all") is not None
 
         own_project = get_current_sync_date_project_id_by_user()
-        issue_rank = get_redmine_issue_rank(own_project=own_project, all=all)
+        issue_rank = get_redmine_issue_rank(own_project=own_project, all=args.get("all") is not None)
         return util.success(issue_rank)
 
 

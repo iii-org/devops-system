@@ -139,13 +139,6 @@ class Activity(model.Activity):
             self.action_parts += f'@{str(content)}'
         if self.action_type == ActionType.DELETE_ISSUE:
             self.fill_issue(args['issue_id'])
-        # if self.action_type == ActionType.ADD_TAG:
-        #     self.object_id = str(args["project_id"])
-        #     self.action_parts = args["args"]["name"]
-        # if self.action_type == ActionType.DELETE_TAG:
-        #     tag = model.Tag.query.get(args["tag_id"])
-        #     self.object_id = str(tag.project_id)
-        #     self.action_parts = tag.name
         if self.action_type == ActionType.MODIFY_HOOK:
             issue_commit_relation = model.IssueCommitRelation.query.get(args["args"]["commit_id"])
             action_parts = f"{issue_commit_relation.commit_id[:8]} \

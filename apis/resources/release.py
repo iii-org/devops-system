@@ -190,9 +190,8 @@ def get_release_image_list(project_id, args):
     release_tag_mapping = {release.commit: release.tag_name for release in releases}
 
     last_push_time = None
-    if not_all:
-        if releases != []:
-            last_push_time = releases[-1].create_at
+    if not_all and releases != []:
+        last_push_time = releases[-1].create_at
 
     image_list = hb_list_artifacts_with_params(project_name, branch_name, push_time=last_push_time)
     commits = gitlab.gl_get_commits(get_project_plugin_object(project_id).git_repository_id,
@@ -536,11 +535,10 @@ class Releases(Resource):
             for repo_name, tag in {
                     branch_name: release_name,
                     extra_image_repo: extra_image_tag}.items():
-                if hb_get_artifacts_with_tag(self.project.name, repo_name, tag) != []:
-                    if not forced:
-                        raise apiError.DevOpsError(
-                            500, f'{tag.capitalize()} already exist in this Harbor repository.',
-                            error=apiError.harbor_tag_already_exist(tag, repo_name))
+                if hb_get_artifacts_with_tag(self.project.name, repo_name, tag) != [] and not forced:
+                    raise apiError.DevOpsError(
+                        500, f'{tag.capitalize()} already exist in this Harbor repository.',
+                        error=apiError.harbor_tag_already_exist(tag, repo_name))
 
 
     def release_main(self, project_id, args):
