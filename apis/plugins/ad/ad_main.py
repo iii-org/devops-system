@@ -461,7 +461,7 @@ class AD(object):
 
 
 class SingleADUser(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         try:
             role.require_admin('Only admins can get ad user information.')
@@ -485,7 +485,7 @@ class SingleADUser(Resource):
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_name(invalid_ad_server))
 
-    @ jwt_required
+    @jwt_required()
     def post(self):
         try:
             role.require_admin('Only admins can Add ad user.')
@@ -517,7 +517,7 @@ class SingleADUser(Resource):
 
 
 class ADUsers(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         try:
             res = None
@@ -586,7 +586,7 @@ class ADUsers(Resource):
 
 
 class ADOrganizations(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         try:
             res = None

@@ -96,7 +96,7 @@ class MessageIdV2(MethodResource):
 
 class MessageListV2(MethodResource):
     @doc(tags=['Notification Message'], description="User get notification message history.")
-    @ jwt_required
+    @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('limit', type=int, default=10)
@@ -114,7 +114,7 @@ class MessageListV2(MethodResource):
 
 class MessageListForAdminV2(MethodResource):
     @doc(tags=['Notification Message'], description="Administrator get all notification message. Only for administrator.")
-    @ jwt_required
+    @jwt_required()
     def get(self):
         role.require_admin()
         parser = reqparse.RequestParser()
@@ -133,7 +133,7 @@ class MessageListForAdminV2(MethodResource):
 
 class MessageReplyV2(MethodResource):
     @doc(tags=['Notification Message'], description="Send back after user read message.")
-    @ jwt_required
+    @jwt_required()
     def post(self, user_id):
         role.require_user_himself(user_id, even_admin=True)
         parser = reqparse.RequestParser()
@@ -144,7 +144,7 @@ class MessageReplyV2(MethodResource):
 
 class MessageCloseV2(MethodResource):
     @doc(tags=['Notification Message'], description="Close message (mean all user read message). Only for administrator.")
-    @ jwt_required
+    @jwt_required()
     def post(self, message_id):
         role.require_admin()
         return util.success(close_notification_message(message_id))

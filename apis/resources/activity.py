@@ -198,7 +198,7 @@ class Activity(model.Activity):
 
 # --------------------- Resources ---------------------
 class AllActivities(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         role.require_admin()
         parser = reqparse.RequestParser()
@@ -213,7 +213,7 @@ class AllActivities(Resource):
 
 
 class ProjectActivities(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_pm()
         role.require_in_project(project_id)

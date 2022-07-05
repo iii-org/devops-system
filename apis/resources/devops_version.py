@@ -164,20 +164,20 @@ def get_deployment_info():
 
 # ------------------ Resources ------------------
 class DevOpsVersion(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         return util.success(get_deployment_info())
 
 
 class DevOpsVersionCheck(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         role.require_admin()
         return util.success(has_devops_update())
 
 
 class DevOpsVersionUpdate(Resource):
-    @ jwt_required
+    @jwt_required()
     def patch(self):
         role.require_admin()
         versions = has_devops_update()['latest_version']

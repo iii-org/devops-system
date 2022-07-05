@@ -1676,7 +1676,7 @@ class Applications(Resource):
 
 
 class Application(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, application_id):
         try:
             args = {'application_id': application_id}
@@ -1687,7 +1687,7 @@ class Application(Resource):
                                 _ERROR_GET_DEPLOY_APPLICATION,
                                 error=apiError.get_deploy_application_failed(project_id=args.get('project_id')))
 
-    @ jwt_required
+    @jwt_required()
     def patch(self, application_id):
         try:
             parser = reqparse.RequestParser()
@@ -1700,7 +1700,7 @@ class Application(Resource):
                                 _ERROR_UPDATE_DEPLOY_APPLICATION,
                                 error=apiError.update_deploy_application_failed(application_id=application_id))
 
-    @ jwt_required
+    @jwt_required()
     def delete(self, application_id):
         try:
             output = delete_application(application_id, True)
@@ -1710,7 +1710,7 @@ class Application(Resource):
                                 _ERROR_DELETE_DEPLOY_APPLICATION,
                                 error=apiError.delete_deploy_application_failed(application_id))
 
-    @ jwt_required
+    @jwt_required()
     def put(self, application_id):
         try:
             parser = reqparse.RequestParser()
@@ -1735,7 +1735,7 @@ class Application(Resource):
 
 
 class RedeployApplication(Resource):
-    @ jwt_required
+    @jwt_required()
     def patch(self, application_id):
         try:
             output = redeploy_application(application_id)
@@ -1747,7 +1747,7 @@ class RedeployApplication(Resource):
 
 
 class UpdateApplication(Resource):
-    @ jwt_required
+    @jwt_required()
     def patch(self, application_id):
         try:
             app = model.Application.query.filter_by(id=application_id).first()
@@ -1764,7 +1764,7 @@ class UpdateApplication(Resource):
 
 
 class ReleaseApplication(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, release_id):
         try:
             release_file = release.ReleaseFile(release_id)

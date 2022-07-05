@@ -47,7 +47,7 @@ class UserStatus(Resource):
 @doc(tags=['User'], description='SingleUser API')
 class PostSingleUserV2(MethodResource):
     @use_kwargs(router_model.PostSingleUserSchema, location=('form'))
-    @marshal_with(router_model.CreateSingleUserResponse)  # marshalling
+    @marshal_with(router_model.CreateSingleUserResponse)
     @jwt_required()
     def post(self, **kwargs):
         role.require_admin('Only admins can create user.')
@@ -56,22 +56,21 @@ class PostSingleUserV2(MethodResource):
 
 @doc(tags=['User'], description='SingleUser API')
 class GetSingleUserV2(MethodResource):
-    # @use_kwargs(router_model.PostSingleUserSchema, location="query")
-    # @marshal_with(router_model.SingleUserResponse)  # marshalling
+    # @marshal_with(router_model.SingleUserGetResponse)
     @jwt_required()
     def get(self, user_id):
         role.require_user_himself(user_id, even_pm=False,
                                   err_message="Only admin and PM can access another user's data.")
         return util.success(NexusUser().set_user_id(user_id).to_json())
 
-    @marshal_with(router_model.SingleUserResponse)  # marshalling
+    @marshal_with(router_model.SingleUserResponse)
     @jwt_required()
     def delete(self, user_id):
         role.require_admin("Only admin can delete user.")
         return util.success(delete_user(user_id))
 
     @use_kwargs(router_model.PutSingleUserSchema, location="form")
-    @marshal_with(router_model.SingleUserResponse)  # marshalling
+    @marshal_with(router_model.SingleUserResponse)
     @jwt_required()
     def put(self, user_id, **kwargs):
         role.require_user_himself(user_id)
@@ -175,7 +174,7 @@ class MessageTypes(MethodResource):
     @doc(tags=['User'], description="Users' message Types open situation.")
     @use_kwargs(router_model.GetUserMessageTypeSchema, location="query")
     @marshal_with(router_model.GetUsersMessageTypeRes)
-    @jwt_required
+    @jwt_required()
     def get(self, **kwargs):
         return util.success(get_user_message_types(**kwargs))
 
@@ -183,7 +182,7 @@ class MessageTypes(MethodResource):
 class MessageType(MethodResource):
     @doc(tags=['User'], description="Users' message Types open situation.")
     @marshal_with(router_model.GetUserMessageTypeRes)
-    @jwt_required
+    @jwt_required()
     def get(self, user_id):
         role.require_user_himself(user_id)
         return util.success(get_user_message_type(user_id))
@@ -193,7 +192,7 @@ class MessageType(MethodResource):
     @doc(tags=['User'], description="Update Users' message Types open situation.")
     @use_kwargs(router_model.PatchUserMessageTypeSchema, location="json")
     @marshal_with(util.CommonResponse)
-    @jwt_required
+    @jwt_required()
     def patch(self, user_id, **kwargs):
         role.require_user_himself(user_id)
         update_user_message_types(user_id, kwargs)

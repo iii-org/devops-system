@@ -47,7 +47,7 @@ class ServersAliveV2(MethodResource):
 
 
 class ServersAlive(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         all_alive = get_server_alive()
         if all_alive is None:

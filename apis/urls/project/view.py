@@ -164,7 +164,7 @@ class ProjectRelationsV2(MethodResource):
 @marshal_with(router_model.IssueByProjectResponse, code=200)
 @marshal_with(router_model.IssueByProjectResponseWithPage, code="with_pagination")
 class IssueByProjectV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id, **kwargs):
         role.require_in_project(project_id, 'Error to get issue.')
         kwargs["project_id"] = project_id
@@ -176,7 +176,7 @@ class IssueByProjectV2(MethodResource):
 
 
 class IssueByProject(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
@@ -208,7 +208,7 @@ class IssueByProject(Resource):
 @doc(tags=['Issue'], description="Get issue list by tree by project")
 # @marshal_with(route_model.IssueByTreeByProjectResponse)
 class IssueByTreeByProjectV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         output = get_issue_by_tree_by_project(project_id)
@@ -216,7 +216,7 @@ class IssueByTreeByProjectV2(MethodResource):
 
 
 class IssueByTreeByProject(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         output = get_issue_by_tree_by_project(project_id)
@@ -226,14 +226,14 @@ class IssueByTreeByProject(Resource):
 @doc(tags=['Issue'], description="Get issue list by status by project")
 @marshal_with(router_model.IssueByStatusByProjectResponse)
 class IssueByStatusByProjectV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_in_project(project_id)
         return get_issue_by_status_by_project(project_id)
 
 
 class IssueByStatusByProject(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_in_project(project_id)
         return get_issue_by_status_by_project(project_id)
@@ -252,7 +252,7 @@ class IssuesProgressByProjectV2(MethodResource):
 
 
 class IssuesProgressByProject(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
@@ -267,7 +267,7 @@ class IssuesProgressByProject(Resource):
 @use_kwargs(router_model.IssuesProgressByProjectSchema, location="query")
 @marshal_with(router_model.IssuesStatisticsByProjectResponse)
 class IssuesStatisticsByProjectV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id, **kwargs):
         print(kwargs)
         role.require_in_project(project_id)
@@ -277,7 +277,7 @@ class IssuesStatisticsByProjectV2(MethodResource):
 
 
 class IssuesStatisticsByProject(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
@@ -290,14 +290,14 @@ class IssuesStatisticsByProject(Resource):
 
 @doc(tags=['Pending'], description="Get issue list by date")
 class IssueByDateByProjectV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_in_project(project_id)
         return get_issue_by_date_by_project(project_id)
 
 
 class IssueByDateByProject(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_in_project(project_id)
         return get_issue_by_date_by_project(project_id)
@@ -1721,14 +1721,14 @@ class IssueForceTrackerV2(MethodResource):
 class ProjectResourceStorage(MethodResource):
     @doc(tags=['Project'], description="Get project's resource storage info.")
     @marshal_with(router_model.ProjectResourceStorageRes)
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         return util.success(get_project_resource_storage_level(project_id))
 
     @doc(tags=['Project'], description="Update project's resource storage info.")
     @use_kwargs(router_model.ProjectResourceStorageUpdateSchema, location="json")
     @marshal_with(util.CommonResponse)
-    @jwt_required
+    @jwt_required()
     def patch(self, project_id, **kwargs):
         return util.success(update_project_resource_storage_level(project_id, args=kwargs))
         

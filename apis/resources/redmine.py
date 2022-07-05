@@ -635,7 +635,7 @@ class RedmineMail(Resource):
 
 
 class RedmineMailActive(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return util.success(get_mail_config().get("active", False))
 
