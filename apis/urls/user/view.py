@@ -126,10 +126,10 @@ class UserList(Resource):
     def get(self):
         role.require_pm()
         parser = reqparse.RequestParser()
-        parser.add_argument('role_ids', type=str, location="query")
-        parser.add_argument('page', type=int, location="query")
-        parser.add_argument('per_page', type=int, location="query")
-        parser.add_argument('search', type=str, location="query")
+        parser.add_argument('role_ids', type=str, location="args")
+        parser.add_argument('page', type=int, location="args")
+        parser.add_argument('per_page', type=int, location="args")
+        parser.add_argument('search', type=str, location="args")
         args = parser.parse_args()
         filters = {}
         if args['role_ids'] is not None:

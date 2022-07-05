@@ -286,8 +286,8 @@ class PipelineExec(Resource):
     @jwt_required()
     def get(self, repository_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, location="query")
-        parser.add_argument('start', type=int, location="query")
+        parser.add_argument('limit', type=int, location="args")
+        parser.add_argument('start', type=int, location="args")
         args = parser.parse_args()
         output_array = pipeline_exec_list(repository_id, args)
         return util.success(output_array)
@@ -307,8 +307,8 @@ class PipelineExecLogs(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('repository_id', type=int, required=True, location="query")
-        parser.add_argument('pipelines_exec_run', type=int, required=True, location="query")
+        parser.add_argument('repository_id', type=int, required=True, location="args")
+        parser.add_argument('pipelines_exec_run', type=int, required=True, location="args")
         args = parser.parse_args()
         return pipeline_exec_logs(args)
 
@@ -336,7 +336,7 @@ class PipelineConfig(Resource):
     @jwt_required()
     def get(self, repository_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('pipelines_exec_run', type=int, required=True, location="query")
+        parser.add_argument('pipelines_exec_run', type=int, required=True, location="args")
         args = parser.parse_args()
         return pipeline_config(repository_id, args)
 
@@ -346,7 +346,7 @@ class Pipeline(Resource):
     def post(self, repository_id):
         role.require_in_project(repository_id=repository_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('branch', type=str, required=True, location="form")
         args = parser.parse_args()
         pipeline_action(repository_id, args)
         return util.success()

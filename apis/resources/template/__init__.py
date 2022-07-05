@@ -820,7 +820,7 @@ class TemplateList(Resource):
     def get(self):
         role.require_pm("Error while getting template list.")
         parser = reqparse.RequestParser()
-        parser.add_argument('force_update', type=int, location="query")
+        parser.add_argument('force_update', type=int, location="args")
         args = parser.parse_args()
         return util.success(tm_get_template_list(args["force_update"]))
 
@@ -829,7 +829,7 @@ class TemplateListForCronJob(Resource):
 
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('force_update', type=int, location="query")
+        parser.add_argument('force_update', type=int, location="args")
         args = parser.parse_args()
         return util.success(tm_get_template_list(args["force_update"]))
 
@@ -839,7 +839,7 @@ class SingleTemplate(Resource):
     def get(self, repository_id):
         role.require_pm("Error while getting template list.")
         parser = reqparse.RequestParser()
-        parser.add_argument('tag_name', type=str, location="query")
+        parser.add_argument('tag_name', type=str, location="args")
         args = parser.parse_args()
         return util.success(tm_get_template(repository_id, args["tag_name"]))
 
@@ -848,7 +848,7 @@ class ProjectPipelineBranches(Resource):
     @jwt_required()
     def get(self, repository_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('all_data', type=bool, location="query")
+        parser.add_argument('all_data', type=bool, location="args")
         args = parser.parse_args()
         all_data = args.get("all_data") is not None
 

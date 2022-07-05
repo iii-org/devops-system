@@ -582,7 +582,7 @@ class RedmineIssueRank(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('all', type=bool, location="query")
+        parser.add_argument('all', type=bool, location="args")
         args = parser.parse_args()
 
         own_project = get_current_sync_date_project_id_by_user()

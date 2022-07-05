@@ -466,8 +466,8 @@ class SingleADUser(Resource):
         try:
             role.require_admin('Only admins can get ad user information.')
             parser = reqparse.RequestParser()
-            parser.add_argument('account', type=str, location="query")
-            parser.add_argument('ad_type', type=str, location="query")
+            parser.add_argument('account', type=str, location="args")
+            parser.add_argument('ad_type', type=str, location="args")
             args = parser.parse_args()
             res = []
             hosts, ldap_parameter = check_ad_server_status()
@@ -523,8 +523,8 @@ class ADUsers(Resource):
             res = None
             role.require_admin('Only admins can get ad users information.')
             parser = reqparse.RequestParser()
-            parser.add_argument('ou', action='append', location="query")
-            parser.add_argument('ad_type', type=str, location="query")
+            parser.add_argument('ou', action='append', location="args")
+            parser.add_argument('ad_type', type=str, location="args")
             args = parser.parse_args()
             hosts, ldap_parameter = check_ad_server_status()
             if ldap_parameter is None or len(hosts) == 0:

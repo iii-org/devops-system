@@ -253,12 +253,12 @@ class Clusters(Resource):
             user_id = get_jwt_identity()["user_id"]
             role.require_admin()
             parser = reqparse.RequestParser()
-            parser.add_argument('name', type=str)
+            parser.add_argument('name', type=str, location="form")
             parser.add_argument('k8s_config_file',
                                 type=werkzeug.datastructures.FileStorage,
                                 location='files')
-            parser.add_argument('k8s_config_string', type=str)
-            parser.add_argument('disabled', type=inputs.boolean)
+            parser.add_argument('k8s_config_string', type=str, location="form")
+            parser.add_argument('disabled', type=inputs.boolean, location="form")
             args = parser.parse_args()
             server_name = args.get('name').strip()
             if check_cluster(server_name) is not None:
@@ -293,12 +293,12 @@ class Cluster(Resource):
         try:
             role.require_admin()
             parser = reqparse.RequestParser()
-            parser.add_argument('name', type=str)
+            parser.add_argument('name', type=str, location="form")
             parser.add_argument('k8s_config_file',
                                 type=werkzeug.datastructures.FileStorage,
                                 location='files')
-            parser.add_argument('disabled', type=inputs.boolean)
-            parser.add_argument('k8s_config_string', type=str)
+            parser.add_argument('disabled', type=inputs.boolean, location="form")
+            parser.add_argument('k8s_config_string', type=str, location="form")
             args = parser.parse_args()
             server_name = args.get('name').strip()
             if check_cluster(server_name, cluster_id) is not None:
@@ -1638,7 +1638,7 @@ class Applications(Resource):
     def get(self):
         try:
             parser = reqparse.RequestParser()
-            parser.add_argument('project_id', type=str, location="query")
+            parser.add_argument('project_id', type=str, location="args")
             args = parser.parse_args()
             role_id = get_jwt_identity()['role_id']
             project_id = args.get('project_id', None)

@@ -667,7 +667,7 @@ class Releases(Resource):
         role.require_in_project(project_id, 'Error to get release')
         try:
             parser = reqparse.RequestParser()
-            parser.add_argument('image', type=bool, location="query")
+            parser.add_argument('image', type=bool, location="args")
             args = parser.parse_args()
             return util.success({'releases': get_releases_by_project_id(project_id, args)})
         except NoResultFound:

@@ -34,8 +34,8 @@ class Tags(Resource):
     def get(self):
         try:
             parser = reqparse.RequestParser()
-            parser.add_argument('project_id', type=int, location="query")
-            parser.add_argument('tag_name', type=str, location="query")
+            parser.add_argument('project_id', type=int, location="args")
+            parser.add_argument('tag_name', type=str, location="args")
             args = parser.parse_args()
             if args.get('project_id', None) is None:
                 return util.success({"tags": get_tags()})
@@ -130,7 +130,7 @@ class TagV2(MethodResource):
         except NoResultFound:
             return util.respond(404)
 
-    @use_kwargs(router_model.TagsSchema, location=('form'))
+    @use_kwargs(router_model.TagsSchema, location='form')
     @marshal_with(router_model.PutTagResponse)
     @jwt_required()
     def put(self, tag_id, **kwargs):

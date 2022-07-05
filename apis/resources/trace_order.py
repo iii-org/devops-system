@@ -502,7 +502,7 @@ class TraceOrdersV2(MethodResource):
 class TraceOrders(Resource):
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int, required=True, location="query")
+        parser.add_argument('project_id', type=int, required=True, location="args")
         args = parser.parse_args()
         return util.success(get_trace_order_by_project(args["project_id"]))
 
@@ -631,7 +631,7 @@ class GetTraceResult(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int, required=True, location="query")
+        parser.add_argument('project_id', type=int, required=True, location="args")
         project_id = parser.parse_args()["project_id"]
 
         return util.success(get_trace_result(project_id))
