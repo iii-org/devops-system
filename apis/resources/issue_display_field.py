@@ -38,8 +38,8 @@ class IssueFieldDisplay(Resource):
     def get(self):
         user_id = get_jwt_identity()['user_id']
         parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int, required=True)
-        parser.add_argument('type', type=str, required=True)
+        parser.add_argument('project_id', type=int, required=True, location="query")
+        parser.add_argument('type', type=str, required=True, location="query")
         args = parser.parse_args()
 
         return util.success(get_issue_display_field(user_id, args["project_id"], args["type"]))

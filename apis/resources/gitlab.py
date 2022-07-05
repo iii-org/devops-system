@@ -1071,8 +1071,8 @@ class GitProjectBranchCommits(Resource):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('filter', type=str)
+        parser.add_argument('branch', type=str, required=True, location="query")
+        parser.add_argument('filter', type=str, location="query")
         args = parser.parse_args()
         return util.success(
             gitlab.gl_get_commits_by_author(repository_id, args['branch'], args.get('filter')))
@@ -1084,7 +1084,7 @@ class GitProjectMembersCommits(Resource):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('branch', type=str, required=True, location="query")
         args = parser.parse_args()
         return util.success(
             gitlab.gl_get_commits_by_members(repository_id, args['branch']))
@@ -1106,7 +1106,7 @@ class GitProjectIdFromURL(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('repository_url', type=str, required=True)
+        parser.add_argument('repository_url', type=str, required=True, location="query")
         args = parser.parse_args()
         try:
             return util.success(
@@ -1122,8 +1122,8 @@ class GitProjectURLFromId(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int)
-        parser.add_argument('repository_id', type=int)
+        parser.add_argument('project_id', type=int, location="query")
+        parser.add_argument('repository_id', type=int, location="query")
         args = parser.parse_args()
         project_id = args['project_id']
         if project_id is None:
@@ -1141,11 +1141,11 @@ class GitTheLastHoursCommits(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('the_last_hours', type=int)
-        parser.add_argument('show_commit_rows', type=int)
-        parser.add_argument('git_repository_id', type=int)
-        parser.add_argument('branch_name', type=str)
-        parser.add_argument('user_id', type=int)
+        parser.add_argument('the_last_hours', type=int, location="query")
+        parser.add_argument('show_commit_rows', type=int, location="query")
+        parser.add_argument('git_repository_id', type=int, location="query")
+        parser.add_argument('branch_name', type=str, location="query")
+        parser.add_argument('user_id', type=int, location="query")
         args = parser.parse_args()
         return util.success(
             gitlab.gl_get_the_last_hours_commits(args["the_last_hours"],
@@ -1166,7 +1166,7 @@ class SyncGitCommitIssueRelation(Resource):
     @jwt_required()
     def get(self, project_id, issue_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=10)
+        parser.add_argument('limit', type=int, default=10, location="query")
         args = parser.parse_args()
         return util.success(get_commit_issues_relation(project_id, issue_id, args["limit"]))
 
@@ -1179,7 +1179,7 @@ class SyncGitCommitIssueRelation(Resource):
 class SyncGitCommitIssueRelationByPjName(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_name', type=str, required=True)
+        parser.add_argument('project_name', type=str, required=True, location="query")
         args = parser.parse_args()
         try:
             project = Project.query.filter_by(name=args['project_name']).first()
@@ -1197,8 +1197,8 @@ class GetCommitIssueHookByBranch(Resource):
     @jwt_required()
     def get(self, project_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=10)
-        parser.add_argument('branch_name', type=str, required=True)
+        parser.add_argument('limit', type=int, default=10, location="query")
+        parser.add_argument('branch_name', type=str, required=True, location="query")
         args = parser.parse_args()
         return util.success(get_commit_issues_hook_by_branch(project_id, args["branch_name"], args["limit"]))
 

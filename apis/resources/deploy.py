@@ -1638,7 +1638,7 @@ class Applications(Resource):
     def get(self):
         try:
             parser = reqparse.RequestParser()
-            parser.add_argument('project_id', type=str)
+            parser.add_argument('project_id', type=str, location="query")
             args = parser.parse_args()
             role_id = get_jwt_identity()['role_id']
             project_id = args.get('project_id', None)

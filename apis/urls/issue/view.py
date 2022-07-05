@@ -334,9 +334,9 @@ class MyIssueStatisticsV2(MethodResource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('from_time', type=str, required=True)
-        parser.add_argument('to_time', type=str)
-        parser.add_argument('status_id', type=int)
+        parser.add_argument('from_time', type=str, required=True, location="query")
+        parser.add_argument('to_time', type=str, location="query")
+        parser.add_argument('status_id', type=int, location="query")
         args = parser.parse_args()
         output = get_issue_statistics(args, get_jwt_identity()['user_id'])
         return output
@@ -346,9 +346,9 @@ class MyIssueStatistics(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('from_time', type=str, required=True)
-        parser.add_argument('to_time', type=str)
-        parser.add_argument('status_id', type=int)
+        parser.add_argument('from_time', type=str, required=True, location="query")
+        parser.add_argument('to_time', type=str, location="query")
+        parser.add_argument('status_id', type=int, location="query")
         args = parser.parse_args()
         output = get_issue_statistics(args, get_jwt_identity()['user_id'])
         return output
@@ -492,7 +492,7 @@ class IssueCommitRelation(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('commit_id', type=str, required=True)
+        parser.add_argument('commit_id', type=str, required=True, location="query")
         args = parser.parse_args()
         return util.success(get_commit_hook_issues(commit_id=args["commit_id"]))
 

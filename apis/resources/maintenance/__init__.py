@@ -77,7 +77,7 @@ class UpdateDbRcProjectPipelineId(Resource):
     def get(self):
         role.require_admin()
         parser = reqparse.RequestParser()
-        parser.add_argument('force', type=str)
+        parser.add_argument('force', type=str, location="query")
         args = parser.parse_args()
         update_db_rancher_projectid_and_pipelineid(args['force'])
         return util.success()

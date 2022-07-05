@@ -180,22 +180,22 @@ class IssueByProject(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=str)
-        parser.add_argument('status_id', type=str)
-        parser.add_argument('tracker_id', type=str)
-        parser.add_argument('assigned_to_id', type=str)
-        parser.add_argument('priority_id', type=str)
-        parser.add_argument('only_superproject_issues', type=bool, default=False)
-        parser.add_argument('limit', type=int)
-        parser.add_argument('offset', type=int)
-        parser.add_argument('search', type=str)
-        parser.add_argument('selection', type=str)
-        parser.add_argument('sort', type=str)
-        parser.add_argument('parent_id', type=str)
-        parser.add_argument('due_date_start', type=str)
-        parser.add_argument('due_date_end', type=str)
-        parser.add_argument('with_point', type=bool)
-        parser.add_argument('tags', type=str)
+        parser.add_argument('fixed_version_id', type=str, location="query")
+        parser.add_argument('status_id', type=str, location="query")
+        parser.add_argument('tracker_id', type=str, location="query")
+        parser.add_argument('assigned_to_id', type=str, location="query")
+        parser.add_argument('priority_id', type=str, location="query")
+        parser.add_argument('only_superproject_issues', type=bool, default=False, location="query")
+        parser.add_argument('limit', type=int, location="query")
+        parser.add_argument('offset', type=int, location="query")
+        parser.add_argument('search', type=str, location="query")
+        parser.add_argument('selection', type=str, location="query")
+        parser.add_argument('sort', type=str, location="query")
+        parser.add_argument('parent_id', type=str, location="query")
+        parser.add_argument('due_date_start', type=str, location="query")
+        parser.add_argument('due_date_end', type=str, location="query")
+        parser.add_argument('with_point', type=bool, location="query")
+        parser.add_argument('tags', type=str, location="query")
         args = parser.parse_args()
         args["project_id"] = project_id
         if args.get("search") is not None and len(args["search"]) < 2:
@@ -256,7 +256,7 @@ class IssuesProgressByProject(Resource):
     def get(self, project_id):
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=int)
+        parser.add_argument('fixed_version_id', type=int, location="query")
         args = parser.parse_args()
         output = get_issue_progress_or_statistics_by_project(project_id,
                                                              args, progress=True)
@@ -281,7 +281,7 @@ class IssuesStatisticsByProject(Resource):
     def get(self, project_id):
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id', type=int)
+        parser.add_argument('fixed_version_id', type=int, location="query")
         args = parser.parse_args()
         output = get_issue_progress_or_statistics_by_project(project_id,
                                                              args, statistics=True)
@@ -524,15 +524,15 @@ class ListMyProjects(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('simple', type=str)
-        parser.add_argument('limit', type=int)
-        parser.add_argument('offset', type=int)
-        parser.add_argument('search', type=str)
-        parser.add_argument('disabled', type=int)
-        parser.add_argument('pj_members_count', type=str)
-        parser.add_argument('pj_due_date_start', type=str)
-        parser.add_argument('pj_due_date_end', type=str)
-        parser.add_argument('test_result', type=str)
+        parser.add_argument('simple', type=str, location="query")
+        parser.add_argument('limit', type=int, location="query")
+        parser.add_argument('offset', type=int, location="query")
+        parser.add_argument('search', type=str, location="query")
+        parser.add_argument('disabled', type=int, location="query")
+        parser.add_argument('pj_members_count', type=str, location="query")
+        parser.add_argument('pj_due_date_start', type=str, location="query")
+        parser.add_argument('pj_due_date_end', type=str, location="query")
+        parser.add_argument('test_result', type=str, location="query")
         args = parser.parse_args()
         disabled = None
         if args.get("disabled") is not None:
@@ -562,7 +562,7 @@ class CalculateProjectIssues(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_ids', type=str, required=True)
+        parser.add_argument('project_ids', type=str, required=True, location="query")
         args = parser.parse_args()
         project_ids = args.get("project_ids").split(",")
 
@@ -832,7 +832,7 @@ class ProjectUserList(Resource):
     @jwt_required()
     def get(self, project_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('exclude', type=int)
+        parser.add_argument('exclude', type=int, location="query")
         args = parser.parse_args()
         return util.success({'user_list': user.user_list_by_project(project_id, args)})
 
@@ -1028,7 +1028,7 @@ class ProjectPluginPod(Resource):
         role.require_in_project(
             project_id, "Error while getting project info.")
         parser = reqparse.RequestParser()
-        parser.add_argument('plugin_name', type=str)
+        parser.add_argument('plugin_name', type=str, location="query")
         args = parser.parse_args()
         return project.get_kubernetes_plugin_pods(project_id, args.get("plugin_name"))
 
@@ -1086,7 +1086,7 @@ class ProjectUserResourcePodLog(Resource):
         role.require_in_project(
             project_id, "Error while getting project info.")
         parser = reqparse.RequestParser()
-        parser.add_argument('container_name', type=str)
+        parser.add_argument('container_name', type=str, location="query")
         args = parser.parse_args()
         return project.get_kubernetes_namespace_pod_log(project_id, pod_name, args['container_name'])
 

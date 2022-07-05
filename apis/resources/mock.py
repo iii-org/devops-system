@@ -75,7 +75,7 @@ def mock_sesame_get():
 class MockTestResult(Resource):
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('cm_status', type=int)
+        parser.add_argument('cm_status', type=int, location="query")
         args = parser.parse_args()
 
         if 'cm_status' in args:

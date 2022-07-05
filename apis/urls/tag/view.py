@@ -34,8 +34,8 @@ class Tags(Resource):
     def get(self):
         try:
             parser = reqparse.RequestParser()
-            parser.add_argument('project_id', type=int)
-            parser.add_argument('tag_name', type=str)
+            parser.add_argument('project_id', type=int, location="query")
+            parser.add_argument('tag_name', type=str, location="query")
             args = parser.parse_args()
             if args.get('project_id', None) is None:
                 return util.success({"tags": get_tags()})
@@ -50,8 +50,8 @@ class Tags(Resource):
     def post(self):
         try:
             parser = reqparse.RequestParser()
-            parser.add_argument('project_id', type=str, required=True)
-            parser.add_argument('name', type=str, required=True)
+            parser.add_argument('project_id', type=str, required=True, location="form")
+            parser.add_argument('name', type=str, required=True, location="form")
             args = parser.parse_args()
             tag_name = args.get('name')
             project_id = args.get('project_id')
@@ -64,7 +64,6 @@ class Tags(Resource):
 
 @doc(tags=['Issue'], description='Tags API')
 class TagsV2(MethodResource):
-
     @use_kwargs(router_model.TagsSchema, location="query")
     @marshal_with(router_model.GetTagsResponse)
     @jwt_required()
@@ -79,8 +78,8 @@ class TagsV2(MethodResource):
         except NoResultFound:
             return util.respond(404)
 
-    @use_kwargs(router_model.TagsSchema, location=('form'))
-    @marshal_with(router_model.PutTagResponse)
+    @use_kwargs(router_model.TagsSchema, location='form')
+    @marshal_with(router_model.TagResponse)
     @jwt_required()
     def post(self, **kwargs):
         try:
@@ -106,7 +105,7 @@ class Tag(Resource):
     def put(self, tag_id):
         try:
             parser = reqparse.RequestParser()
-            parser.add_argument('name', type=str, required=True)
+            parser.add_argument('name', type=str, required=True, location="form")
             args = parser.parse_args()
             return util.success({"tag": update_tag(tag_id, args.get('name'))})
         except NoResultFound:

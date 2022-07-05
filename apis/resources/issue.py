@@ -2331,20 +2331,20 @@ class IssueByUser(Resource):
     @jwt_required()
     def get(self, user_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int)
-        parser.add_argument('fixed_version_id', type=str)
-        parser.add_argument('status_id', type=str)
-        parser.add_argument('tracker_id', type=str)
-        parser.add_argument('assigned_to_id', type=str)
-        parser.add_argument('priority_id', type=str)
-        parser.add_argument('only_superproject_issues', type=bool, default=False)
-        parser.add_argument('limit', type=int)
-        parser.add_argument('offset', type=int)
-        parser.add_argument('search', type=str)
-        parser.add_argument('selection', type=str)
-        parser.add_argument('from', type=str)
-        parser.add_argument('sort', type=str)
-        parser.add_argument('tags', type=str)
+        parser.add_argument('project_id', type=int, location="query")
+        parser.add_argument('fixed_version_id', type=str, location="query")
+        parser.add_argument('status_id', type=str, location="query")
+        parser.add_argument('tracker_id', type=str, location="query")
+        parser.add_argument('assigned_to_id', type=str, location="query")
+        parser.add_argument('priority_id', type=str, location="query")
+        parser.add_argument('only_superproject_issues', type=bool, default=False, location="query")
+        parser.add_argument('limit', type=int, location="query")
+        parser.add_argument('offset', type=int, location="query")
+        parser.add_argument('search', type=str, location="query")
+        parser.add_argument('selection', type=str, location="query")
+        parser.add_argument('from', type=str, location="query")
+        parser.add_argument('sort', type=str, location="query")
+        parser.add_argument('tags', type=str, location="query")
         args = parser.parse_args()
 
         if args.get("search") is not None and len(args["search"]) < 2:
@@ -2360,7 +2360,7 @@ class IssueByVersionV2(MethodResource):
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id')
+        parser.add_argument('fixed_version_id', location="query")
         args = parser.parse_args()
 
         return util.success(get_issue_by_project(project_id, args))
@@ -2371,7 +2371,7 @@ class IssueByVersion(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id')
+        parser.add_argument('fixed_version_id', location="query")
         args = parser.parse_args()
 
         return util.success(get_issue_by_project(project_id, args))
@@ -2418,8 +2418,8 @@ class IssueTracker(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('new', type=bool, default=False)
-        parser.add_argument('project_id', type=int)
+        parser.add_argument('new', type=bool, default=False, location="query")
+        parser.add_argument('project_id', type=int, location="query")
         args = parser.parse_args()
         return util.success(get_issue_trackers(new=args.get("new"), project_id=args.get("project_id")))
 

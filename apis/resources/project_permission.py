@@ -184,7 +184,7 @@ class SubadminProjects(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('id', type=str, required=True)
+        parser.add_argument('id', type=str, required=True, location="query")
         args = parser.parse_args()
         all_subadmin_projects = get_subadmin_projects(args)
         return util.success(all_subadmin_projects)

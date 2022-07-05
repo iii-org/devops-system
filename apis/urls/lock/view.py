@@ -19,7 +19,7 @@ class LockStatus(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str, required=True)
+        parser.add_argument('name', type=str, required=True, location="query")
         args = parser.parse_args()
 
         ret = get_lock_status(args["name"])

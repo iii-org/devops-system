@@ -149,7 +149,7 @@ class ExportToPostman(Resource):
     def get(self, project_id):
         role.require_in_project(project_id, "You don't have permission to create collection.")
         parser = reqparse.RequestParser()
-        parser.add_argument('target', type=str, required=True)
+        parser.add_argument('target', type=str, required=True, location="query")
         args = parser.parse_args()
         target = args['target']
         return export_to_postman(project_id, target)

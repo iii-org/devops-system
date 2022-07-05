@@ -75,8 +75,8 @@ class HarborArtifact(Resource):
         project_name, repository_name = extract_names()
         role.require_in_project(project_name=project_name)
         parser = reqparse.RequestParser()
-        parser.add_argument('repository_fullname', type=str)
-        parser.add_argument('tag_name', type=str)
+        parser.add_argument('repository_fullname', type=str, location="query")
+        parser.add_argument('tag_name', type=str, location="query")
         args = parser.parse_args()
         artifacts = hb_list_artifacts(project_name, repository_name)
         if args.get('tag_name', None) is not None:
@@ -194,7 +194,7 @@ class HarborReplicationPolices(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
+        parser.add_argument('name', type=str, location="query")
         args = parser.parse_args()
         policies = hb_get_replication_policies(args)
         return util.success(policies)
@@ -225,7 +225,7 @@ class HarborReplicationExecution(Resource):
     @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('policy_id', type=int)
+        parser.add_argument('policy_id', type=int, location="query")
         args = parser.parse_args()
         output = hb_get_replication_executions(args.get('policy_id'))
         return util.success({'executions': output})
