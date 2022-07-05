@@ -1,11 +1,11 @@
 import datetime
 import json
-from flask_jwt_extended import  get_jwt_identity
+from flask_jwt_extended import get_jwt_identity
 import model
 import plugins
 import util
 from flask_jwt_extended import get_jwt_identity
-from model import UIRouteJson, db
+from model import UIRouteData, db
 from sqlalchemy.sql import and_
 
 key_return_json = ['parameter']
@@ -30,21 +30,25 @@ def get_plugin_software():
             output.append(row_to_dict(plugin))
     return output
 
+
 def display_by_permission():
     ui_route_list = []
-    user_doc = get_jwt_identity()
-    row = UIRouteJson.query.filter_by(name='ui_route').first()
-    for temp in row.ui_route:
-        if temp.get("redirect") == "/404":
-            ui_route_list.append(temp)
-            continue
-        if user_doc.get("role_name") not in temp.get("meta").get("roles"):
-                continue
-        if temp.get("children") is not None:
-            children_list = []
-            for children in temp.get("children"):
-                if user_doc.get("role_name") in temp.get("meta").get("roles"):
-                    children_list.append(children)
-            temp["children"] = children_list
-        ui_route_list.append(temp)
+    role_name = get_jwt_identity()['role_name']
+    ui_routes = UIRouteData.query.filter_by(parent=0, role=role_name).all()
+    for ui_route in ui_routes:
+        ui_route_list.append(get_ui_route(ui_route, role_name))
+    # get error page
+    error_route = UIRouteData.query.filter_by(role="").first()
+    ui_route_list.append(error_route.ui_route)
     return ui_route_list
+
+
+def get_ui_route(ui_route, role_name):
+    child_routes = UIRouteData.query.filter_by(parent=ui_route.id, role=role_name).all()
+    children = []
+    for child_route in child_routes:
+        children.append(get_ui_route(child_route, role_name))
+    ui_route_dict = ui_route.ui_route
+    if len(children) > 0:
+        ui_route_dict['children'] = children
+    return ui_route_dict
