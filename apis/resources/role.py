@@ -63,9 +63,8 @@ def require_in_project(project_id=None,
                        repository_id=None):
     if repository_id is not None:
         project_id = nexus.nx_get_project_plugin_relation(repo_id=repository_id).project_id
-    if project_id is None:
-        if project_name is not None:
-            project_id = nexus.nx_get_project(name=project_name).id
+    if project_id is None and project_name is not None:
+        project_id = nexus.nx_get_project(name=project_name).id
     identity = get_jwt_identity()
     user_id = identity['user_id']
     if not even_admin and identity['role_id'] == ADMIN.id:

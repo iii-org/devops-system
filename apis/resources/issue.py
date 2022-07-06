@@ -576,14 +576,13 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
     redmine_output.pop('total_estimated_hours', None)
     redmine_output.pop('spent_hours', None)
     redmine_output.pop('total_spent_hours', None)
+    redmine_output.pop('closed_on', None)
     if 'created_on' in redmine_output:
         redmine_output['created_date'] = redmine_output.pop('created_on')
     if 'updated_on' in redmine_output:
         redmine_output['updated_date'] = redmine_output.pop('updated_on')
-    redmine_output.pop('closed_on', None)
     if 'parent' in redmine_output:
-        redmine_output['parent_id'] = redmine_output['parent']['id']
-        redmine_output.pop('parent', None)
+        redmine_output['parent_id'] = redmine_output.pop('parent', {}).get('id')
     if 'journals' in redmine_output:
         i = 0
         while i < len(redmine_output['journals']):
@@ -780,13 +779,13 @@ def create_issue(args, operator_id):
 
 
 def check_trackers_in_update_issue(tracker_id, need_fatherissue_trackers, updated_tracker_id, pj_id):
-    if tracker_id not in need_fatherissue_trackers:
-        if updated_tracker_id is not None and updated_tracker_id in need_fatherissue_trackers:
-            tracker_id = updated_tracker_id if updated_tracker_id is not None else tracker_id
-            for tracker in get_issue_trackers():
-                if tracker['id'] == updated_tracker_id:
-                    raise DevOpsError(400, f'Modify of create issue with tacker_id:{tracker["name"]} must has father issue.',
-                                      error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
+    if tracker_id not in need_fatherissue_trackers and \
+        updated_tracker_id is not None and updated_tracker_id in need_fatherissue_trackers:
+        tracker_id = updated_tracker_id if updated_tracker_id is not None else tracker_id
+        for tracker in get_issue_trackers():
+            if tracker['id'] == updated_tracker_id:
+                raise DevOpsError(400, f'Modify of create issue with tacker_id:{tracker["name"]} must has father issue.',
+                                    error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
     elif updated_tracker_id is None or updated_tracker_id in need_fatherissue_trackers:
         tracker_id = updated_tracker_id if updated_tracker_id is not None else tracker_id
         for tracker in get_issue_trackers():

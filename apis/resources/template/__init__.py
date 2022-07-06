@@ -798,9 +798,8 @@ def update_pj_plugin_status(plugin_name, disable):
                             if branch not in stage_when:
                                 stage_when.append(branch)
 
-                    if len(stage_when) > 1:
-                        if "skip" in stage_when:
-                            stage_when.remove("skip")
+                    if len(stage_when) > 1 and "skip" in stage_when:
+                        stage_when.remove("skip")
             # Do not commit if plugin_name has not match any stage.
             if match:
                 next_run = pipeline.get_pipeline_next_run(repository_id)

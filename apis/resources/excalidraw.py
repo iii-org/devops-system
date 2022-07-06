@@ -37,7 +37,7 @@ def nexus_excalidraw(excalidraw_join_issue_relations):
                 ret[excalidraw.id]["issue_ids"] += issue_id
                 continue
         else:
-            issue_id = None
+            issue_id = []
         
         ret[excalidraw.id] = {
             "id": excalidraw.id,

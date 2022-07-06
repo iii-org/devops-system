@@ -18,9 +18,6 @@ from resources.project_permission import get_project_issue_check, create_project
     delete_project_issue_check
 from resources.resource_storage import get_project_resource_storage_level, update_project_resource_storage_level
 
-
-from resources.harbor import hb_copy_artifact_and_retage, hb_get_artifact, hb_delete_artifact_tag, hb_list_repositories, \
-    hb_get_artifacts_with_tag
 from sqlalchemy.orm.exc import NoResultFound
 from model import CustomIssueFilter
 from resources import role
@@ -647,13 +644,13 @@ class SingleProjectV2(MethodResource):
         role.require_in_project(project_id)
         role_id = get_jwt_identity()["role_id"]
         user_id = get_jwt_identity()["user_id"]
-        if role_id == role.QA.id:
-            if not bool(
-                    model.Project.query.filter_by(
-                        id=project_id,
-                        creator_id=user_id
-                    ).count()):
-                raise apiError.NotAllowedError('Error while deleting project.')
+        if role_id == role.QA.id and \
+            not bool(
+                model.Project.query.filter_by(
+                    id=project_id,
+                    creator_id=user_id
+                ).count()):
+            raise apiError.NotAllowedError('Error while deleting project.')
         parser = reqparse.RequestParser()
         parser.add_argument('force_delete_project', type=bool)
         args = parser.parse_args()
@@ -727,13 +724,13 @@ class SingleProject(Resource):
         role.require_in_project(project_id)
         role_id = get_jwt_identity()["role_id"]
         user_id = get_jwt_identity()["user_id"]
-        if role_id == role.QA.id:
-            if not bool(
-                    model.Project.query.filter_by(
-                        id=project_id,
-                        creator_id=user_id
-                    ).count()):
-                raise apiError.NotAllowedError('Error while deleting project.')
+        if role_id == role.QA.id and \
+            not bool(
+                model.Project.query.filter_by(
+                    id=project_id,
+                    creator_id=user_id
+                ).count()):
+            raise apiError.NotAllowedError('Error while deleting project.')
         return project.delete_project(project_id)
 
     @jwt_required
