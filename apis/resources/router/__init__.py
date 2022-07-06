@@ -34,9 +34,15 @@ def get_plugin_software():
 def display_by_permission():
     ui_route_list = []
     role_name = get_jwt_identity()['role_name']
-    ui_routes = UIRouteData.query.filter_by(parent=0, role=role_name).all()
-    for ui_route in ui_routes:
+    i = 0
+    times = 0
+    while True:
+        ui_route = UIRouteData.query.filter_by(parent=0, role=role_name, old_brother=i).first()
+        if ui_route is None or times > 50:
+            break
         ui_route_list.append(get_ui_route(ui_route, role_name))
+        i = ui_route.id
+        times += 1
     # get error page
     error_route = UIRouteData.query.filter_by(role="").first()
     ui_route_list.append(error_route.ui_route)
@@ -44,10 +50,16 @@ def display_by_permission():
 
 
 def get_ui_route(ui_route, role_name):
-    child_routes = UIRouteData.query.filter_by(parent=ui_route.id, role=role_name).all()
     children = []
-    for child_route in child_routes:
+    i = 0
+    times = 0
+    while True:
+        child_route = UIRouteData.query.filter_by(parent=ui_route.id, role=role_name, old_brother=i).first()
+        if child_route is None or times > 50:
+            break
         children.append(get_ui_route(child_route, role_name))
+        i = child_route.id
+        times += 1
     ui_route_dict = ui_route.ui_route
     if len(children) > 0:
         ui_route_dict['children'] = children
