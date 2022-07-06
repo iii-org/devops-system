@@ -582,7 +582,7 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
     if 'updated_on' in redmine_output:
         redmine_output['updated_date'] = redmine_output.pop('updated_on')
     if 'parent' in redmine_output:
-        redmine_output['parent_id'] = redmine_output.pop('parent', None)['id']
+        redmine_output['parent_id'] = redmine_output.pop('parent', {}).get('id')
     if 'journals' in redmine_output:
         i = 0
         while i < len(redmine_output['journals']):

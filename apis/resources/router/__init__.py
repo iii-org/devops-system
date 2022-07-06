@@ -28,7 +28,7 @@ def load_ui_route():
         row.updated_at = datetime.datetime.utcnow()
         db.session.commit()
     else:
-        print("Noting change")
+        print("Nothing change")
 
 
 def row_to_dict(row):
