@@ -89,8 +89,8 @@ class HarborArtifact(Resource):
         project_name, repository_name = extract_names()
         role.require_in_project(project_name=project_name)
         parser = reqparse.RequestParser()
-        parser.add_argument('digest', type=str)
-        parser.add_argument('tag_name', type=str)
+        parser.add_argument('digest', type=str, location="args")
+        parser.add_argument('tag_name', type=str, location="args")
         args = parser.parse_args()
         hb_delete_artifact_tag(project_name, repository_name,
                                args['digest'], args['tag_name'])
@@ -280,7 +280,7 @@ class HarborScanReport(MethodResource):
 
 @doc(tags=['Harbor Scan'], description='List harbor image scan by project')
 class HarborScanList(MethodResource):
-    @use_kwargs(router_model.HarborScanList, location="args")
+    @use_kwargs(router_model.HarborScanList, location="query")
     @jwt_required()
     def get(self, project_id, **kwargs):
         return util.success(harbor_scan.harbor_scan_list(project_id, kwargs))

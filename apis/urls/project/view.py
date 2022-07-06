@@ -144,7 +144,7 @@ class ProjectRelation(Resource):
     @jwt_required()
     def delete(self, project_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('parent_id', type=int, required=True)
+        parser.add_argument('parent_id', type=int, required=True, location="args")
         args = parser.parse_args()
         return remove_relation(project_id, args["parent_id"])
 
@@ -652,7 +652,7 @@ class SingleProjectV2(MethodResource):
                 ).count()):
             raise apiError.NotAllowedError('Error while deleting project.')
         parser = reqparse.RequestParser()
-        parser.add_argument('force_delete_project', type=bool)
+        parser.add_argument('force_delete_project', type=bool, location="args")
         args = parser.parse_args()
         return project.delete_project(project_id)
 
@@ -1456,8 +1456,8 @@ class ProjectVersionList(Resource):
     def get(self, project_id):
         role.require_in_project(project_id)
         root_parser = reqparse.RequestParser()
-        root_parser.add_argument('status', type=str)
-        root_parser.add_argument('force_id', type=str)
+        root_parser.add_argument('status', type=str, location='args')
+        root_parser.add_argument('force_id', type=str, location='args')
         root_args = root_parser.parse_args()
         return util.success(version.get_version_list_by_project(
             project_id, root_args['status'], root_args['force_id']))
@@ -1590,7 +1590,7 @@ class ProjectWiki(Resource):
 ##### Project Release ######
 class ReleaseExtraV2(MethodResource):
     @doc(tags=['Release'], description="Get able to release's image list.")
-    @use_kwargs(router_model.ReleaseExtraGetSchema, location="args")
+    @use_kwargs(router_model.ReleaseExtraGetSchema, location="query")
     @marshal_with(router_model.ReleaseExtraGetResponse)
     @jwt_required()
     def get(self, project_id, **kwargs):

@@ -384,7 +384,7 @@ class PipelineFile(Resource):
     @jwt_required()
     def delete(self, project_name):
         parser = reqparse.RequestParser()
-        parser.add_argument('folder_name', type=str, required=True)
-        parser.add_argument('file_name', type=str, required=True)
+        parser.add_argument('folder_name', type=str, required=True, location="args")
+        parser.add_argument('file_name', type=str, required=True, location="args")
         args = parser.parse_args()
         return util.success(delete_pipeline_file(project_name, args["folder_name"], args["file_name"]))

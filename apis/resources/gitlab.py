@@ -1031,7 +1031,7 @@ class GitProjectFile(Resource):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('commit_message', type=str, required=True)
+        parser.add_argument('commit_message', type=str, required=True, location="args")
         args = parser.parse_args()
         gitlab.gl_delete_file(repository_id, file_path, args, branch_name)
         return util.success()

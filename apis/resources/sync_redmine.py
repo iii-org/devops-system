@@ -225,7 +225,8 @@ def get_current_sync_date_project_id_by_user():
         project_id_collections = project_id_collections.filter(
             model.RedmineProject.project_id.in_(reverse_query_projects)).order_by(
             model.RedmineProject.end_date).all()
-    return list(sum(project_id_collections, ()))
+
+    return [project_id_collection[0] for project_id_collection in project_id_collections]
 
 
 def get_project_by_current_sync_date(detail, own_project):
@@ -245,7 +246,7 @@ def get_user_id_by_project(own_project):
         model.RedmineIssue.project_id.in_(own_project),
         model.RedmineIssue.assigned_to_id.isnot(None)).with_entities(
         model.RedmineIssue.assigned_to_id).distinct().all()
-    return list(sum(user_id_collections, ()))
+    return [user_id_collection[0] for user_id_collection in user_id_collections]
 
 
 def get_current_sync_date_project_by_project_id(project_id, sync_date):

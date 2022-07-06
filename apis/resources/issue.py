@@ -2406,7 +2406,7 @@ class IssuePriority(Resource):
 
 
 @doc(tags=['Issue'], description="Get issue available tracker")
-@use_kwargs(route_model.IssueTrackerSchema, location="args")
+@use_kwargs(route_model.IssueTrackerSchema, location="query")
 @marshal_with(route_model.IssueTrackerResponse)
 class IssueTrackerV2(MethodResource):
     @jwt_required()
