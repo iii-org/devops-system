@@ -82,7 +82,7 @@ def get_young_brother_id(role, name):
     return None
 
 
-def create_ui_route_object(name, role, parent_name, old_brother_name, ui_route_json):
+def create_ui_route_object(name, role, ui_route_json, parent_name, old_brother_name):
     # create a new route ob
     parent_id = get_ui_route_id(role, parent_name)
     old_brother_id = get_ui_route_id(role, old_brother_name)
@@ -93,8 +93,10 @@ def create_ui_route_object(name, role, parent_name, old_brother_name, ui_route_j
                           created_at=datetime.utcnow(), updated_at=datetime.utcnow())
         db.session.add(new)
         db.session.commit()
-        origin_ui_route.old_brother = new.id
-        db.session.commit()
+        if origin_ui_route:
+            origin_ui_route.old_brother = new.id
+            origin_ui_route.updated_at = datetime.utcnow()
+            db.session.commit()
     elif origin_ui_route is None:
         # insert into the last
         new = UIRouteData(name=name, role=role, parent=parent_id, old_brother=old_brother_id, ui_route=ui_route_json,
@@ -108,19 +110,20 @@ def create_ui_route_object(name, role, parent_name, old_brother_name, ui_route_j
         db.session.add(new)
         db.session.commit()
         origin_ui_route.old_brother = new.id
+        origin_ui_route.updated_at = datetime.utcnow()
         db.session.commit()
 
 
-def put_ui_route_object(name, role, parent_name, old_brother_name, ui_route_json):
+def put_ui_route_object(name, role, ui_route_json, parent_name=None, old_brother_name=None):
     # update the route object
-    parent_id = get_ui_route_id(role, parent_name)
-    old_brother_id = get_ui_route_id(role, old_brother_name)
-    route_row = UIRouteData.query.filter_by(role=role, name=name).first()
-    route_row.parent = parent_id
-    route_row.old_brother = old_brother_id
-    route_row.ui_route = ui_route_json
-    route_row.updated_at = datetime.utcnow()
-    db.session.commit()
+    if parent_name is not None or old_brother_name is not None:
+        delete_ui_route_object(name, role)
+        create_ui_route_object(name, role, ui_route_json, parent_name, old_brother_name)
+    else:
+        route_row = UIRouteData.query.filter_by(role=role, name=name).first()
+        route_row.ui_route = ui_route_json
+        route_row.updated_at = datetime.utcnow()
+        db.session.commit()
 
 
 # delete the old route object
@@ -132,12 +135,15 @@ def delete_ui_route_object(name, role):
     db.session.commit()
     if old_brother_id == 0:
         # on the first
-        young_brother.old_brother = 0
-        db.session.commit()
+        if young_brother:
+            young_brother.old_brother = 0
+            young_brother.updated_at = datetime.utcnow()
+            db.session.commit()
     elif young_brother is None:
         # on the last
         pass
     else:
         # insert into the middle
         young_brother.old_brother = old_brother_id
+        young_brother.updated_at = datetime.utcnow()
         db.session.commit()
