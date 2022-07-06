@@ -25,9 +25,9 @@ from resources.harbor import (hb_copy_artifact_and_retage,
 from . import router_model
 
 
-def extract_names():
+def extract_names(location="args"):
     parser = reqparse.RequestParser()
-    parser.add_argument('repository_fullname', type=str)
+    parser.add_argument('repository_fullname', type=str, location=location)
     args = parser.parse_args()
     name = args['repository_fullname']
     names = name.split('/')
@@ -43,7 +43,7 @@ class HarborRepository(Resource):
 
     @jwt_required()
     def put(self):
-        project_name, repository_name = extract_names()
+        project_name, repository_name = extract_names(location="json")
         role.require_in_project(project_name=project_name)
         parser = reqparse.RequestParser()
         parser.add_argument('description', type=str)

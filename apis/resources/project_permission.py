@@ -210,8 +210,8 @@ class SetPermission(Resource):
     @jwt_required()
     def delete(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('user_id', type=int, location="args")
-        parser.add_argument('project_id', type=int, location="args")
+        parser.add_argument('user_id', type=int, location="json")
+        parser.add_argument('project_id', type=int, location="json")
         args = parser.parse_args()
         unset_permission(args)
         return util.success()
