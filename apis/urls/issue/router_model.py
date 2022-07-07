@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields, missing
+from marshmallow import Schema, fields
 from util import CommonBasicResponse
 from resources.system_parameter import check_upload_type
 from urls.route_model import BasicIsssueResponse, SingleIssueGetDataAuthorResponse, ProjectExtraResponse, RelationsResponse, \

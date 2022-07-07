@@ -363,7 +363,7 @@ def get_test_value_by_column(args, order_column=''):
 
 def get_test_result(id):
     row = model.TestResults.query.filter_by(id=id).one()
-    # Yet runner complete or corrupted data by old runners    
+    # Yet runner complete or corrupted data by old runners
     if row.report is None or row.report == 'undefined':
         return util.respond(204)
     result = {
@@ -469,13 +469,13 @@ def __to_json(row, project_id):
 class TestCases(Resource):
 
     # 用testCase id 取得目前測試個案
-    @jwt_required
+    @jwt_required()
     def get(self, tc_id):
         output = get_test_case_by_tc_id(tc_id)
         return util.success(output)
 
     # 用 project_id 建立測試個案
-    @jwt_required
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
@@ -492,19 +492,19 @@ class TestCases(Resource):
 class TestCase(Resource):
 
     # 用testCase id 取得目前測試案例
-    @jwt_required
+    @jwt_required()
     def get(self, tc_id):
         output = get_test_case_by_tc_id(tc_id)
         return util.success(output)
 
     # 用testCase id 刪除目前測試案例
-    @jwt_required
+    @jwt_required()
     def delete(self, tc_id):
         output = del_test_case_by_tc_id(tc_id)
         return util.success(output)
 
     # 用testCase id 更新目前測試案例
-    @jwt_required
+    @jwt_required()
     def put(self, tc_id):
         parser = reqparse.RequestParser()
         parser.add_argument('data')
@@ -519,13 +519,13 @@ class TestCase(Resource):
 class TestCaseByIssue(Resource):
 
     # 用issues ID 取得目前所有的目前測試案例
-    @jwt_required
+    @jwt_required()
     def get(self, issue_id):
         output = get_test_case_by_issue_id(issue_id)
         return util.success(output)
 
     # 用issues ID 新建立測試案例
-    @jwt_required
+    @jwt_required()
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -541,13 +541,13 @@ class TestCaseByIssue(Resource):
 class TestCaseByProject(Resource):
 
     # 用issues ID 取得目前所有的目前測試案例
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         output = get_test_case_by_project_id(project_id)
         return util.success(output)
 
     # 用issues ID 新建立測試案例
-    @jwt_required
+    @jwt_required()
     def post(self, project_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
@@ -562,14 +562,14 @@ class TestCaseByProject(Resource):
 
 
 class GetTestCaseAPIMethod(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         output = get_api_method()
         return util.success(output)
 
 
 class GetTestCaseType(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         output = get_test_case_type_wrapped()
         return util.success(output)
@@ -579,13 +579,13 @@ class GetTestCaseType(Resource):
 class TestItemByTestCase(Resource):
 
     # 用TestCase ID 取得目前所有的目前測試案例
-    @jwt_required
+    @jwt_required()
     def get(self, tc_id):
         output = get_test_item_by_tc_id(tc_id)
         return util.success(output)
 
     # 用TestCase ID 新建立測試案例
-    @jwt_required
+    @jwt_required()
     def post(self, tc_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -600,19 +600,19 @@ class TestItemByTestCase(Resource):
 class TestItem(Resource):
 
     # item_id 取得目前測試項目
-    @jwt_required
+    @jwt_required()
     def get(self, item_id):
         output = get_test_item_by_ti_id(item_id)
         return util.success(output)
 
     # item_id 刪除目前測試項目
-    @jwt_required
+    @jwt_required()
     def delete(self, item_id):
         output = del_test_item_by_ti_id(item_id)
         return util.success(output)
 
     # item_id 更新目前測試項目
-    @jwt_required
+    @jwt_required()
     def put(self, item_id):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
@@ -625,13 +625,13 @@ class TestItem(Resource):
 class TestValueByTestItem(Resource):
 
     # 用issues ID 取得目前所有的目前測試案例
-    @jwt_required
+    @jwt_required()
     def get(self, item_id):
         output = get_test_value_by_ti_id(item_id)
         return util.success(output)
 
     # 用issues ID 新建立測試案例
-    @jwt_required
+    @jwt_required()
     def post(self, item_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -647,14 +647,14 @@ class TestValueByTestItem(Resource):
 
 
 class GetTestValueLocation(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         output = get_test_value_http_location()
         return util.success(output)
 
 
 class GetTestValueType(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         output = get_test_value_http_type()
         return util.success(output)
@@ -662,17 +662,17 @@ class GetTestValueType(Resource):
 
 class TestValue(Resource):
 
-    @jwt_required
+    @jwt_required()
     def get(self, value_id):
         output = get_test_value_by_tv_id(value_id)
         return util.success(output)
 
-    @jwt_required
+    @jwt_required()
     def delete(self, value_id):
         output = del_test_value_by_tv_id(value_id)
         return util.success(output)
 
-    @jwt_required
+    @jwt_required()
     def put(self, value_id):
         parser = reqparse.RequestParser()
         parser.add_argument('key', type=str)

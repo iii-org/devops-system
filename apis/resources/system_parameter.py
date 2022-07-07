@@ -266,18 +266,18 @@ def check_upload_type(file):
 
 
 class SystemParameters(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return util.success(get_system_parameter())
 
-    @jwt_required
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str)
         args = parser.parse_args()
         return util.success(ex_system_parameter(args["name"]))
 
-    @jwt_required
+    @jwt_required()
     def put(self, param_id):
         parser = reqparse.RequestParser()
         parser.add_argument('value', type=str, location='json')
@@ -292,7 +292,7 @@ class SystemParameters(Resource):
 
 
 class ParameterGithubVerifyExecuteStatus(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return util.success(get_github_verify_execute_status())
 

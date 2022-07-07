@@ -660,14 +660,14 @@ class Releases(Resource):
                           error=apiError.uncaught_exception(str(e)))
             
 
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         self.plugin_relation = model.ProjectPluginRelation.query.filter_by(
             project_id=project_id).first()
         role.require_in_project(project_id, 'Error to get release')
         try:
             parser = reqparse.RequestParser()
-            parser.add_argument('image', type=bool)
+            parser.add_argument('image', type=bool, location="args")
             args = parser.parse_args()
             return util.success({'releases': get_releases_by_project_id(project_id, args)})
         except NoResultFound:
@@ -675,7 +675,7 @@ class Releases(Resource):
 
 
 class Release(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, project_id, release_name):
         plugin_relation = model.ProjectPluginRelation.query.filter_by(
             project_id=project_id).first()

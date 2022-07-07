@@ -145,7 +145,7 @@ def check_ad_login(account, password, ad_info=None):
                           error=apiError.uncaught_exception(e))
 
 
-@jwt.user_claims_loader
+@jwt.additional_claims_loader
 def jwt_response_data(id, login, role_id, from_ad):
     return {
         'user_id': id,

@@ -86,6 +86,7 @@ def wi_list_scans(project_name):
         ret.append(d)
     return ret
 
+
 def get_latest_scans(project_name):
     row = model.WebInspect.query.filter_by(project_name=project_name). \
         order_by(desc(model.WebInspect.run_at)).first()
@@ -109,7 +110,7 @@ def wi_get_scan_by_commit(project_id, commit_id):
             wix_get_scan_status(row.scan_id)
             row = model.WebInspect.query.filter_by(project_name=project_name). \
                 order_by(desc(model.WebInspect.run_at)).first()
-        
+
         d = json.loads(str(row))
         d['issue_link'] = gitlab.commit_id_to_url(project_id, d['commit_id'])
         return d
@@ -254,7 +255,7 @@ class WIE:
 
 # --------------------- Resources ---------------------
 class WebInspectScan(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('scan_id', type=str)
@@ -265,25 +266,25 @@ class WebInspectScan(Resource):
         role.require_in_project(project_name=args['project_name'])
         return util.success(wi_create_scan(args))
 
-    @jwt_required
+    @jwt_required()
     def get(self, project_name):
         role.require_in_project(project_name=project_name)
         return util.success(wi_list_scans(project_name))
 
 
 class WebInspectScanStatus(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, scan_id):
         return util.success({'status': wix_get_scan_status(scan_id)})
 
 
 class WebInspectScanStatistics(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, scan_id):
         return util.success({'severity_count': wix_get_scan_statistics(scan_id)})
 
 
 class WebInspectReport(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, scan_id):
         return wix_download_report(scan_id)

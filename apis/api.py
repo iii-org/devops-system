@@ -145,7 +145,7 @@ def internal_error(exception):
 
 
 class NexusVersion(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         row = model.NexusVersion.query.one()
         return util.success({
@@ -153,7 +153,7 @@ class NexusVersion(Resource):
             'deploy_version': row.deploy_version
         })
 
-    @jwt_required
+    @jwt_required()
     def post(self):
         role.require_admin()
         keys = ['api_version', 'deploy_version']
@@ -616,6 +616,7 @@ notification_message_url(api, add_resource, socketio)
 # routine job
 api.add_resource(routine_job.DoJobByMonth, '/routine_job/by_month')
 api.add_resource(routine_job.DoJobByDay, '/routine_job/by_day')
+
 
 
 def start_prod():

@@ -6,7 +6,7 @@ from resources import notification_message, devops_version
 
 
 class DoJobByMonth(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         Thread(target=notification_message.clear_has_expired_notifications_message,
                args=("notification_message_period_of_validity", "months",)).start()
@@ -14,7 +14,7 @@ class DoJobByMonth(Resource):
 
 
 class DoJobByDay(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         Thread(target=devops_version.has_devops_update).start()
         return util.success()

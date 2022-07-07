@@ -18,7 +18,7 @@ from resources import role
 
 
 def record_activity(action_type):
-    # Must be used after @jwt_required decorator!
+    # Must be used after @jwt_required() decorator!
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
@@ -26,8 +26,9 @@ def record_activity(action_type):
                 # Not in request context, do not record activity
                 return fn(*args, **kwargs)
 
-            identity = get_jwt_identity()
-            if identity is None:
+            try:
+                identity = get_jwt_identity()
+            except RuntimeError:
                 identity = {'user_id': 1, 'user_account': 'system'}
             new = Activity(
                 operator_id=identity['user_id'],
@@ -198,31 +199,31 @@ class Activity(model.Activity):
 
 # --------------------- Resources ---------------------
 class AllActivities(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         role.require_admin()
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=10)
-        parser.add_argument('offset', type=int, default=0)
-        parser.add_argument('from_date', type=str)
-        parser.add_argument('to_date', type=str)
-        parser.add_argument('search', type=str)
+        parser.add_argument('limit', type=int, default=10, location="args")
+        parser.add_argument('offset', type=int, default=0, location="args")
+        parser.add_argument('from_date', type=str, location="args")
+        parser.add_argument('to_date', type=str, location="args")
+        parser.add_argument('search', type=str, location="args")
         args = parser.parse_args()
         query = build_query(args)
         return util.success(get_activities(args, query))
 
 
 class ProjectActivities(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_pm()
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=10)
-        parser.add_argument('offset', type=int, default=0)
-        parser.add_argument('from_date', type=str)
-        parser.add_argument('to_date', type=str)
-        parser.add_argument('search', type=str)
+        parser.add_argument('limit', type=int, default=10, location="args")
+        parser.add_argument('offset', type=int, default=0, location="args")
+        parser.add_argument('from_date', type=str, location="args")
+        parser.add_argument('to_date', type=str, location="args")
+        parser.add_argument('search', type=str, location="args")
         args = parser.parse_args()
         query = build_query(args, base_query=limit_to_project(project_id))
         return util.success(get_activities(args, query))
