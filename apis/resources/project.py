@@ -1350,9 +1350,9 @@ def get_projects_by_user(user_id):
         raise apiError.DevOpsError(
             404, 'User id {0} does not exist.'.format(user_id),
             apiError.user_not_found(user_id))
-    projects_id_list = list(sum(
+    projects_id_list = [pj_id[0] for pj_id in 
         model.ProjectUserRole.query.filter_by(
-            user_id=user_id).with_entities(model.ProjectUserRole.project_id), ()))
+            user_id=user_id).with_entities(model.ProjectUserRole.project_id)]
     projects = [NexusProject().set_project_id(id).to_json()
                 for id in projects_id_list if id != -1]
     return projects

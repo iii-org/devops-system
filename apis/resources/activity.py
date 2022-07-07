@@ -26,8 +26,9 @@ def record_activity(action_type):
                 # Not in request context, do not record activity
                 return fn(*args, **kwargs)
 
-            identity = get_jwt_identity()
-            if identity is None:
+            try:
+                identity = get_jwt_identity()
+            except RuntimeError:
                 identity = {'user_id': 1, 'user_account': 'system'}
             new = Activity(
                 operator_id=identity['user_id'],
