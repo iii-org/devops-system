@@ -694,8 +694,8 @@ class RancherCountEachPjPiplinesByDays(Resource):
 class RancherDeleteAPP(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_name', type=str, required=True)
-        parser.add_argument('branch_name', type=str, required=True)
+        parser.add_argument('project_name', type=str, required=True, location="form")
+        parser.add_argument('branch_name', type=str, required=True, location="form")
         args = parser.parse_args()
         prefix = f'{args["project_name"]}-{args["branch_name"]}'
         rancher.rc_del_app_with_prefix(prefix)

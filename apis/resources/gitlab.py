@@ -1179,7 +1179,7 @@ class SyncGitCommitIssueRelation(Resource):
 class SyncGitCommitIssueRelationByPjName(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_name', type=str, required=True)
+        parser.add_argument('project_name', type=str, required=True, location="form")
         args = parser.parse_args()
         try:
             project = Project.query.filter_by(name=args['project_name']).first()
