@@ -361,8 +361,8 @@ class PipelineFile(Resource):
     @jwt_required()
     def post(self, project_name):
         parser = reqparse.RequestParser()
-        parser.add_argument('commit_short_id', type=str, required=True)
-        parser.add_argument('sequence', type=int, required=True)
+        parser.add_argument('commit_short_id', type=str, required=True, location='form')
+        parser.add_argument('sequence', type=int, required=True, location='form')
         parser.add_argument(
             'upload_file', type=werkzeug.datastructures.FileStorage, location='files')
         args = parser.parse_args()

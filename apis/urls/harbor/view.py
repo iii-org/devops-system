@@ -250,11 +250,11 @@ class HarborCopyImageRetage(Resource):
     @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_name', type=str, required=True)
-        parser.add_argument('from_repo_name', type=str, required=True)
-        parser.add_argument('dest_repo_name', type=str, required=True)
-        parser.add_argument('from_tag', type=str, required=True)
-        parser.add_argument('dest_tag', type=str, required=True)
+        parser.add_argument('project_name', type=str, required=True, location="form")
+        parser.add_argument('from_repo_name', type=str, required=True, location="form")
+        parser.add_argument('dest_repo_name', type=str, required=True, location="form")
+        parser.add_argument('from_tag', type=str, required=True, location="form")
+        parser.add_argument('dest_tag', type=str, required=True, location="form")
         args = parser.parse_args()
 
         return util.success(
