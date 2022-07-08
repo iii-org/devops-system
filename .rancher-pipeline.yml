@@ -138,9 +138,9 @@ stages:
         && apt-get install -y jq && export PW=$(rancher kubectl get secret nexus-bot
         -n ${CICD_GIT_REPO_NAME} -o=go-template='{{index .data "password"}}' | base64
         -d) && export UN=$(rancher kubectl get secret nexus-bot -n ${CICD_GIT_REPO_NAME}
-        -o=go-template='{{index .data "username"}}' | base64 -d) && curl --location
-        --request POST ${api_origin}/user/login --header "Content-Type: application/json" 
-        --data-raw '{"username": $UN, "password": $PW}'
+        -o=go-template='{{index .data "username"}}' | base64 -d) && curl --location 
+        --request POST${api_origin}/user/login --header "Content-Type:application/json" 
+        --data-raw {"username":$UN,"password":$PW} 
         | jq -r '.data.token' > token.txt && export APITOKEN=$(cat token.txt) && pwd
         && curl --location --request POST ${api_origin}/harbor/handle_image --header
         "Authorization:Bearer $APITOKEN" --form project_name=${CICD_GIT_REPO_NAME}
