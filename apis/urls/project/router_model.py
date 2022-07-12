@@ -408,6 +408,7 @@ class ListMyProjectsSchema(Schema):
     limit = fields.Int(doc='limit',  example=1)
     offset = fields.Int(doc='offset',  example=1)
     search = fields.Str(doc='search',  example='string')
+    accsearch = fields.Str(doc='search',  example='string')
     disabled = fields.Int(doc='disabled',  example='1')
     test_result = fields.Str(doc='test_result',  example='true')
     pj_members_count = fields.Str(doc='pj_members_count',  example='true')
