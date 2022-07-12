@@ -323,7 +323,7 @@ def tm_get_template_list(force_update=0):
             k = list(data.keys())[0]
             v = list(data.values())[0]
             try:
-                gl.projects.get(k)
+                gl.projects.get(k, lazy=True)
             except:
                 continue
             if v.get('group_name') == "Public Templates":
