@@ -24,7 +24,7 @@ class Mail:
         server = None
 
         try:
-            server = smtplib.SMTP(domain, port)
+            server = smtplib.SMTP(domain, port, timeout=5)
         except Exception as e:
             logger.logger.exception(str(e))
             raise apiError.DevOpsError(404, "Connection refused, port or server are incorrect.",
