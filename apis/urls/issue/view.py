@@ -238,6 +238,7 @@ class SingleIssue(Resource):
         parser.add_argument('notes', type=str, location="form")
         parser.add_argument('point', type=int, location="form")
         parser.add_argument('tags', type=str, location="form")
+        parser.add_argument('close_all', type=bool, location="form")
 
         # Attachment uploadsd
         parser.add_argument(

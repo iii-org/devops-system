@@ -46,6 +46,7 @@ class SingleIssuePutSchema(CommonSingleIssueSchema):
     priority_id = fields.Int(doc='priority_id', example=-1)
     name = fields.Str(doc='name', example="string")
     note = fields.Str(doc='name', example="string")
+    close_all = fields.Bool(doc='close_all', example="True")
 
 class SingleIssueDeleteSchema(Schema):
     force = fields.Bool(doc='force', example="True")

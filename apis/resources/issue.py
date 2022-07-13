@@ -794,6 +794,20 @@ def check_trackers_in_update_issue(tracker_id, need_fatherissue_trackers, update
                                   error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
 
 
+def close_all_issue(issue_id):
+    redmine_issue = get_issue(issue_id)
+    for key, value in redmine_issue.items():
+        if key == "children":
+            sub_issue_list = [sub_issue["id"] for sub_issue in value]
+            for sub_issue_id in sub_issue_list:
+                issue = redmine_lib.redmine.issue.get(sub_issue_id)
+                issue.status_id = 6
+                issue.save()
+    issue = redmine_lib.redmine.issue.get(issue_id)
+    issue.status_id = 6
+    issue.save()
+
+
 def update_issue(issue_id, args, operator_id=None):
     from resources.project_relation import get_project_id
 
@@ -809,6 +823,11 @@ def update_issue(issue_id, args, operator_id=None):
     # Issue can not be updated when its tracker is in its force tracker checking setting' tracker.
     check_issue_project_id = args.get("project_id") or pj_id
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=check_issue_project_id).first()
+
+    # close all issue
+    if args.get("close_all"):
+        close_all_issue(issue_id)
+
     if project_issue_check is not None and project_issue_check.enable:
         if hasattr(issue, 'parent'):
             if args.get("parent_id") is not None and args["parent_id"] == "":
