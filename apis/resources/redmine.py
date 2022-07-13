@@ -570,7 +570,6 @@ def update_mail_config(args):
     
     if active is not None:
         if not active:
-            mail_config.value = DEFAULT_MAIL_CONFIG
             args = DEFAULT_MAIL_CONFIG
             redmine.read_mail_unclose_message("Close SMTP alive alert, because SMTP function has been inactivated.")
         else:
