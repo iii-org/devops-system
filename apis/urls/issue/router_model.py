@@ -37,7 +37,8 @@ class SingleIssuePostSchema(CommonSingleIssueSchema):
     status_id = fields.Int(doc='status_id', example=-1, required=True)
     priority_id = fields.Int(doc='priority_id', example=-1, required=True)
     name = fields.Str(doc='name', example="string", required=True)
-    
+    operator_id = fields.Int(doc='operator_id', example=-1, required=False)
+
 class SingleIssuePutSchema(CommonSingleIssueSchema):
     project_id = fields.Int(doc='project_id', example=-1)
     tracker_id = fields.Int(doc='tracker_id', example=-1)
