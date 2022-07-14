@@ -794,18 +794,38 @@ def check_trackers_in_update_issue(tracker_id, need_fatherissue_trackers, update
                                   error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
 
 
-def close_all_issue(issue_id):
+def filter_sub_issue(issue_id):
     redmine_issue = get_issue(issue_id)
     for key, value in redmine_issue.items():
         if key == "children":
             sub_issue_list = [sub_issue["id"] for sub_issue in value]
-            for sub_issue_id in sub_issue_list:
-                issue = redmine_lib.redmine.issue.get(sub_issue_id)
-                issue.status_id = 6
-                issue.save()
-    issue = redmine_lib.redmine.issue.get(issue_id)
-    issue.status_id = 6
-    issue.save()
+            return sub_issue_list
+
+
+total_issue = []
+close_issue = []
+def close_all_issue(issue_id):
+    total_issue.append(issue_id)
+    close_list = []
+    sub_issue_list = filter_sub_issue(issue_id)
+    if sub_issue_list:
+        for sub_issue_id in sub_issue_list:
+            close_list.append(sub_issue_id)
+            close_all_issue(sub_issue_id)
+        print(close_list)
+        for close_id in close_list:
+            close_issue.append(close_id)
+            issue = redmine_lib.redmine.issue.get(close_id)
+            issue.status_id = 6
+            issue.save()
+    master = total_issue[0]
+    if len(total_issue)-len(close_issue) == 1:
+        issue = redmine_lib.redmine.issue.get(master)
+        issue.status_id = 6
+        issue.save()
+        print("end")
+        # pj_id = get_project_id(issue.project.id)
+        # update_pj_issue_calc(pj_id, closed_count=1)
 
 
 def update_issue(issue_id, args, operator_id=None):
