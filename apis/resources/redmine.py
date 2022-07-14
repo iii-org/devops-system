@@ -469,13 +469,14 @@ class Redmine:
         del (rm_con_json["default"]["email_delivery"]["delivery_method"])
         return rm_con_json["default"]["email_delivery"]
 
-    def pre_check_mail_alive(self, rm_put_mail_dict):
+    def pre_check_mail_alive(self, rm_put_mail_dict, emissoin_email_address):
         from resources.mail import Mail 
         Mail.check_mail_server(
-            rm_put_mail_dict.get("domain"), 
+            rm_put_mail_dict.get("address"), 
             rm_put_mail_dict.get("port"), 
             rm_put_mail_dict.get("user_name"), 
-            rm_put_mail_dict.get("password")
+            rm_put_mail_dict.get("password"),
+            emissoin_email_address,
         )
         self.read_mail_unclose_message()
 
@@ -563,6 +564,7 @@ def get_mail_config():
 def update_mail_config(args):
     args = {k: v for k, v in args.items() if v is not None}
     args.update(args.pop("redmine_mail", {}))
+    args["emission_email_address"] = args.pop("emissoin_email_address", args.get("emission_email_address"))
     active, temp_save = args.pop("active", None), args.pop("temp_save", None)
     
     mail_config = SystemParameter.query.filter_by(name="mail_config").first() 
@@ -573,7 +575,7 @@ def update_mail_config(args):
             args = DEFAULT_MAIL_CONFIG
             redmine.read_mail_unclose_message("Close SMTP alive alert, because SMTP function has been inactivated.")
         else:
-            redmine.pre_check_mail_alive(args.get("smtp_settings") or {})
+            redmine.pre_check_mail_alive(args.get("smtp_settings") or {}, args.get("emission_email_address"))
             mail_config.value = value | args
         mail_config.active = active
         db.session.commit()
