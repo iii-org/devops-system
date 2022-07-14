@@ -103,6 +103,7 @@ class Project(db.Model):
     example_tag = Column(String)
     uuid = Column(String)
     is_inheritance_member = Column(Boolean, default=False)
+    is_empty_project = Column(Boolean, server_default='false')
 
     def __repr__(self):
         fields = {}
