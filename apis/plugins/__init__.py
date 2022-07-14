@@ -3,7 +3,6 @@
 # plugin directory name.
 # If the plugin only contains one module, make it __init__.py.
 
-from collections import defaultdict
 import json
 import os
 from datetime import datetime
@@ -77,6 +76,12 @@ def get_plugin_config(plugin_name):
     db_arguments = json.loads(db_row.parameter) or {}
     system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name)) or {}
     global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name) or {}
+    
+    value_store_mapping = {
+        PluginKeyStore.DB: db_arguments,
+        PluginKeyStore.SECRET_SYSTEM: system_secrets,
+        PluginKeyStore.SECRET_ALL: global_secrets
+    }
     ret = {
         'name': plugin_name,
         'arguments': [],
@@ -88,15 +93,10 @@ def get_plugin_config(plugin_name):
         item_value = item.get('value')
         store = PluginKeyStore(item['store'])
         value = None
-        value_store_mapping = defaultdict(
-            lambda: f'Wrong store location: {item["store"]}', 
-            {
-                PluginKeyStore.DB: db_arguments.get(key, None),
-                PluginKeyStore.SECRET_SYSTEM: system_secrets.get(key, None),
-                PluginKeyStore.SECRET_ALL: global_secrets.get(key, None)
-            }
-        )
-        value = value_store_mapping[store]
+        if store in value_store_mapping:
+            value = value_store_mapping[store].get(key, None)
+        else:
+            value = f'Wrong store location: {item["store"]}'
 
         # if value is not assign, assign default value
         if value is None and item_value is not None:

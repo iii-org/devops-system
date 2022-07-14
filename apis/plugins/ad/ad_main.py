@@ -461,13 +461,13 @@ class AD(object):
 
 
 class SingleADUser(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         try:
             role.require_admin('Only admins can get ad user information.')
             parser = reqparse.RequestParser()
-            parser.add_argument('account', type=str)
-            parser.add_argument('ad_type', type=str)
+            parser.add_argument('account', type=str, location="args")
+            parser.add_argument('ad_type', type=str, location="args")
             args = parser.parse_args()
             res = []
             hosts, ldap_parameter = check_ad_server_status()
@@ -485,7 +485,7 @@ class SingleADUser(Resource):
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_name(invalid_ad_server))
 
-    @ jwt_required
+    @jwt_required()
     def post(self):
         try:
             role.require_admin('Only admins can Add ad user.')
@@ -517,14 +517,14 @@ class SingleADUser(Resource):
 
 
 class ADUsers(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         try:
             res = None
             role.require_admin('Only admins can get ad users information.')
             parser = reqparse.RequestParser()
-            parser.add_argument('ou', action='append')
-            parser.add_argument('ad_type', type=str)
+            parser.add_argument('ou', action='append', location="args")
+            parser.add_argument('ad_type', type=str, location="args")
             args = parser.parse_args()
             hosts, ldap_parameter = check_ad_server_status()
             if ldap_parameter is None or len(hosts) == 0:
@@ -586,7 +586,7 @@ class ADUsers(Resource):
 
 
 class ADOrganizations(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         try:
             res = None

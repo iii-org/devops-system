@@ -93,9 +93,9 @@ docs = FlaskApiSpec(app)
 
 
 def add_resource(classes, level):
-    if config.get("DOCUMENT_LEVEL") == "public" and level in ['public']:
-        docs.register(classes)
-    elif config.get("DOCUMENT_LEVEL") == "private" and level in ['public', 'private']:
+    if (config.get("DOCUMENT_LEVEL") == "public" and level in ['public']) or (
+        config.get("DOCUMENT_LEVEL") == "private" and level in ['public', 'private']
+    ):
         docs.register(classes)
 
 
@@ -145,7 +145,7 @@ def internal_error(exception):
 
 
 class NexusVersion(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         row = model.NexusVersion.query.one()
         return util.success({
@@ -153,7 +153,7 @@ class NexusVersion(Resource):
             'deploy_version': row.deploy_version
         })
 
-    @jwt_required
+    @jwt_required()
     def post(self):
         role.require_admin()
         keys = ['api_version', 'deploy_version']
@@ -618,6 +618,7 @@ api.add_resource(routine_job.DoJobByMonth, '/routine_job/by_month')
 api.add_resource(routine_job.DoJobByDay, '/routine_job/by_day')
 
 
+
 def start_prod():
     try:
         db.init_app(app)
@@ -632,7 +633,6 @@ def start_prod():
         logger.logger.info('Get the public and local template list')
         plugins.create_plugins_api_router(api, add_resource)
         plugins.sync_plugins_in_db_and_code()
-        router.load_ui_route()
         with app.app_context():  # Prevent error appear(Working outside of application context.)
             kubernetesClient.create_cron_secret()
         return app

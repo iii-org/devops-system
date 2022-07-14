@@ -9,18 +9,18 @@ invalid_plugin_name = 'Unable get plugin software'
 
 
 class Plugins(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return util.success(plugins.list_plugins())
 
 
 class Plugin(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, plugin_name):
         role.require_admin('Only admins can get plugin software.')
         return util.success(plugins.get_plugin_config(plugin_name))
 
-    @jwt_required
+    @jwt_required()
     def patch(self, plugin_name):
         role.require_admin('Only admins can modify plugin software.')
         parser = reqparse.RequestParser()
