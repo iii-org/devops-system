@@ -812,7 +812,7 @@ def close_all_issue(issue_id):
         for sub_issue_id in sub_issue_list:
             close_list.append(sub_issue_id)
             close_all_issue(sub_issue_id)
-        print(close_list)
+        # print(close_list)
         for close_id in close_list:
             close_issue.append(close_id)
             issue = redmine_lib.redmine.issue.get(close_id)
@@ -823,9 +823,9 @@ def close_all_issue(issue_id):
         issue = redmine_lib.redmine.issue.get(master)
         issue.status_id = 6
         issue.save()
-        print("end")
-        # pj_id = get_project_id(issue.project.id)
-        # update_pj_issue_calc(pj_id, closed_count=1)
+        from resources.project_relation import get_project_id
+        pj_id = get_project_id(issue.project.id)
+        update_pj_issue_calc(pj_id, closed_count=len(total_issue))
 
 
 def update_issue(issue_id, args, operator_id=None):
