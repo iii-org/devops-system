@@ -802,30 +802,20 @@ def filter_sub_issue(issue_id):
             return sub_issue_list
 
 
-total_issue = []
-close_issue = []
 def close_all_issue(issue_id):
-    total_issue.append(issue_id)
+    from resources.project_relation import get_project_id
     close_list = []
     sub_issue_list = filter_sub_issue(issue_id)
     if sub_issue_list:
         for sub_issue_id in sub_issue_list:
             close_list.append(sub_issue_id)
             close_all_issue(sub_issue_id)
-        # print(close_list)
         for close_id in close_list:
-            close_issue.append(close_id)
             issue = redmine_lib.redmine.issue.get(close_id)
             issue.status_id = 6
             issue.save()
-    master = total_issue[0]
-    if len(total_issue)-len(close_issue) == 1:
-        issue = redmine_lib.redmine.issue.get(master)
-        issue.status_id = 6
-        issue.save()
-        from resources.project_relation import get_project_id
-        pj_id = get_project_id(issue.project.id)
-        update_pj_issue_calc(pj_id, closed_count=len(total_issue))
+            pj_id = get_project_id(issue.project.id)
+            update_pj_issue_calc(pj_id, closed_count=1)
 
 
 def update_issue(issue_id, args, operator_id=None):
@@ -843,10 +833,6 @@ def update_issue(issue_id, args, operator_id=None):
     # Issue can not be updated when its tracker is in its force tracker checking setting' tracker.
     check_issue_project_id = args.get("project_id") or pj_id
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=check_issue_project_id).first()
-
-    # close all issue
-    if args.get("close_all"):
-        close_all_issue(issue_id)
 
     if project_issue_check is not None and project_issue_check.enable:
         if hasattr(issue, 'parent'):
@@ -908,6 +894,10 @@ def update_issue(issue_id, args, operator_id=None):
         if hasattr(issue, 'assigned_to') and issue.assigned_to.id != user_plugin_relation.plan_user_id:
             origin_assigned_to_id = nexus.nx_get_user_plugin_relation(plan_user_id=issue.assigned_to.id).user_id
         args['assigned_to_id'] = user_plugin_relation.plan_user_id
+
+        # close all issue
+    if args.get("close_all"):
+        close_all_issue(issue_id)
 
     point = args.pop("point", None)
     tags = args.pop("tags", None)
