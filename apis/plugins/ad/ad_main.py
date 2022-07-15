@@ -362,7 +362,7 @@ def get_ssl_protocol(protocol_str):
 def check_ad_alive(ldap_parameter):
     error_msg = "Unable to connect with AD server."
     try:
-        alive =  not AD(ldap_parameter).ad_info["is_pass"]
+        alive =  AD(ldap_parameter).ad_info["is_pass"] is True
         ret =  {
             "alive": alive, 
             "message": "Unable to connect with AD server." if not alive else ""
