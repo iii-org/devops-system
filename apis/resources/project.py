@@ -345,7 +345,8 @@ def create_project(user_id, args):
             base_example=template_pj_path,
             example_tag=args["tag_name"],
             uuid=uuids,
-            is_inheritance_member=is_inherit_members
+            is_inheritance_member=is_inherit_members,
+            is_empty_project=args.get("template_id") is None
         )
         db.session.add(new_pjt)
         db.session.commit()
