@@ -1447,7 +1447,6 @@ class ProjectVersionListV2(MethodResource):
     @jwt_required()
     def get(self, project_id, **kwargs):
         role.require_in_project(project_id)
-        print(kwargs)
         return util.success(version.get_version_list_by_project(
             project_id, kwargs.get('status'), kwargs.get('force_id')))
 

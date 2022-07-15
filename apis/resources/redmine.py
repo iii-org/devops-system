@@ -54,6 +54,7 @@ class Redmine:
             headers['Content-Type'] = 'application/json'
 
         url = f"{config.get('REDMINE_INTERNAL_BASE_URL')}{path}{resp_format}"
+        logger.info(f"operator_id:{operator_id} last_operator_id:{self.last_operator_id}")
         if operator_id is not None:
             if operator_id != self.last_operator_id:
                 self.last_operator_id = operator_id
@@ -62,6 +63,7 @@ class Redmine:
             if self.last_operator_id is not None:
                 self.last_operator_id = None
                 self.__refresh_key()
+        logger.info(f"After refresh key----operator_id:{operator_id} last_operator_id:{self.last_operator_id}")
         params['key'] = self.redmine_key
         output = util.api_request(method, url, headers, params, data)
 
