@@ -164,6 +164,11 @@ def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):
     return redis_op.dict_set_certain(PROJECT_ISSUE_CALCULATE_KEY, pj_id, json.dumps(pj_issue_calc))
 
 
+# Template cache
+def update_template_cache_all(dict_all):
+    redis_op.dict_set_all(TEMPLATE_CACHE, dict_all)
+
+
 def update_template_cache(id, dict_val):
     redis_op.dict_set_certain(TEMPLATE_CACHE, id, json.dumps(dict_val, default=str))
 
