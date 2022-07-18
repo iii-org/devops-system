@@ -33,10 +33,13 @@ DEFAULT_MAIL_CONFIG = {
     "emission_email_address": "smtp_username"
 }
 
-def get_redmine_obj(operator_id):
-    operator = UserPluginRelation.query.filter_by(user_id=operator_id).first()
-    operator_id = operator.plan_user_id if operator is not None else None
-    return Redmine(operator_id=operator_id)
+def get_redmine_obj(operator_id=None, plan_user_id=None):
+    if plan_user_id is not None:
+        return Redmine(operator_id=plan_user_id)
+    else:
+        operator = UserPluginRelation.query.filter_by(user_id=operator_id).first()
+        operator_id = operator.plan_user_id if operator is not None else None
+        return Redmine(operator_id=operator_id)
 
 class Redmine:
     def __init__(self, operator_id=None):
@@ -243,9 +246,9 @@ class Redmine:
     def rm_create_issue(self, args):
         return self.__api_post('/issues', data={"issue": args}).json()
 
-    def rm_update_issue(self, issue_id, args, operator_id):
+    def rm_update_issue(self, issue_id, args):
         return self.__api_put('/issues/{0}'.format(issue_id),
-                              data={"issue": args}, operator_id=operator_id)
+                              data={"issue": args})
 
     def rm_delete_issue(self, issue_id):
         params = {'include': 'journals,attachment'}
