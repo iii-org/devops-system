@@ -26,7 +26,7 @@ from data.nexus_project import NexusProject
 from enums.action_type import ActionType
 from model import db, IssueExtensions, CustomIssueFilter
 from resources.apiError import DevOpsError
-from resources.redmine import redmine
+from resources.redmine import redmine, Redmine
 from resources import project as project_module, project, role
 from resources.activity import record_activity
 from resources import tag as tag_py
@@ -700,6 +700,12 @@ def get_issue_assign_to_detail(issue):
 def create_issue(args, operator_id):
     update_cache_issue_family = False
     project_id = args['project_id']
+    plan_operator_id = None
+    if operator_id is not None:
+        operator_plugin_relation = nexus.nx_get_user_plugin_relation(
+            user_id=operator_id)
+        plan_operator_id = operator_plugin_relation.plan_user_id
+    personal_redmine_obj = Redmine(operator_id=plan_operator_id)
 
     # Check project is disabled or not
     if model.Project.query.get(project_id).disabled:
@@ -746,16 +752,11 @@ def create_issue(args, operator_id):
     point = args.pop("point", 0)
     # Get Tags ID
     tags = args.pop("tags", None)
-    attachment = redmine.rm_upload(args)
+    attachment = personal_redmine_obj.rm_upload(args)
     if attachment is not None:
         args['uploads'] = [attachment]
 
-    plan_operator_id = None
-    if operator_id is not None:
-        operator_plugin_relation = nexus.nx_get_user_plugin_relation(
-            user_id=operator_id)
-        plan_operator_id = operator_plugin_relation.plan_user_id
-    created_issue = redmine.rm_create_issue(args, plan_operator_id)
+    created_issue = personal_redmine_obj.rm_create_issue(args)
     created_issue_id = created_issue["issue"]["id"]
     create_issue_extensions(created_issue_id, point=point)
 
@@ -775,6 +776,8 @@ def create_issue(args, operator_id):
     main_pj_id = main_output['project']['id']
     for pj_id in get_all_fathers_project(main_pj_id, []) + [main_pj_id] + get_all_sons_project(main_pj_id, []):
         emit("add_issue", ws_output_list, namespace="/issues/websocket", to=pj_id, broadcast=True)
+    
+    del personal_redmine_obj
     return main_output
 
 

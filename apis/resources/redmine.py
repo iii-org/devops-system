@@ -34,7 +34,7 @@ DEFAULT_MAIL_CONFIG = {
 }
 
 class Redmine:
-    def __init__(self):
+    def __init__(self, operator_id=None):
         self.key_generated = 0.0
         self.last_operator_id = None
         self.redmine_key = None
@@ -42,9 +42,11 @@ class Redmine:
         self.issues = None
         self.closed_status = []
         self.redmine_config_name = "redmine-config"
+        self.operator_id = operator_id
 
     def __api_request(self, method, path, headers=None, params=None, data=None,
                       operator_id=None, resp_format='.json'):
+        logger.info(f"operator_id:{self.operator_id}")
         self.__key_check()
         if headers is None:
             headers = {}
@@ -54,20 +56,6 @@ class Redmine:
             headers['Content-Type'] = 'application/json'
 
         url = f"{config.get('REDMINE_INTERNAL_BASE_URL')}{path}{resp_format}"
-        logger.info(f"operator_id:{operator_id} last_operator_id:{self.last_operator_id}")
-        if operator_id is not None:
-            query = UserPluginRelation.query.filter(
-                UserPluginRelation.plan_user_id == operator_id
-            ).first()
-            if get_jwt_identity()['user_id'] == query.user_id:
-                if operator_id != self.last_operator_id:
-                    self.last_operator_id = operator_id
-                    self.__refresh_key(operator_id)
-        else:
-            if self.last_operator_id is not None:
-                self.last_operator_id = None
-                self.__refresh_key()
-        logger.info(f"After refresh key----operator_id:{operator_id} last_operator_id:{self.last_operator_id}")
         params['key'] = self.redmine_key
         output = util.api_request(method, url, headers, params, data)
 
@@ -108,10 +96,10 @@ class Redmine:
         if self.redmine_key is None or time.time() - self.key_generated >= 7200:
             self.__refresh_key()
 
-    def __refresh_key(self, operator_id=None):
+    def __refresh_key(self):
         protocol = 'https' if config.get('REDMINE_INTERNAL_BASE_URL')[:5] == "https" else 'http'
         host = config.get('REDMINE_INTERNAL_BASE_URL')[len(protocol + '://'):]
-        if operator_id is None:
+        if self.operator_id is None:
             # get redmine_key
             url = f"{protocol}://{config.get('REDMINE_ADMIN_ACCOUNT')}" \
                   f":{quote_plus(config.get('REDMINE_ADMIN_PASSWORD'))}" \
@@ -120,7 +108,7 @@ class Redmine:
         else:
             url = f"{protocol}://{config.get('REDMINE_ADMIN_ACCOUNT')}" \
                   f":{quote_plus(config.get('REDMINE_ADMIN_PASSWORD'))}" \
-                  f"@{host}/users/{operator_id}.json"
+                  f"@{host}/users/{self.operator_id}.json"
         output = requests.get(url, headers={'Content-Type': 'application/json'}, verify=False)
         self.redmine_key = output.json()['user']['api_key']
 
@@ -247,9 +235,8 @@ class Redmine:
             params['status_id'] = '*'
         return self.__api_get('/issues', params=params).json()
 
-    def rm_create_issue(self, args, operator_id):
-        return self.__api_post('/issues', data={"issue": args},
-                               operator_id=operator_id).json()
+    def rm_create_issue(self, args):
+        return self.__api_post('/issues', data={"issue": args}).json()
 
     def rm_update_issue(self, issue_id, args, operator_id):
         return self.__api_put('/issues/{0}'.format(issue_id),
