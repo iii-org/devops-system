@@ -409,7 +409,6 @@ class ListMyProjectsSchema(Schema):
     offset = fields.Int(doc='offset',  example=1)
     search = fields.Str(doc='search',  example='string')
     accsearch = fields.Str(doc='search',  example='string')
-    is_empty_project = fields.Bool(doc='is_empty_project', example=True)
     disabled = fields.Int(doc='disabled',  example='1')
     test_result = fields.Str(doc='test_result',  example='true')
     pj_members_count = fields.Str(doc='pj_members_count',  example='true')
@@ -444,7 +443,8 @@ class ProjectsBasicResponse(BasicIsssueResponse):
     redmine_url = fields.Str(required=True)
     harbor_url = fields.Str(required=True)
     owner_name = fields.Str(required=True)
-    department = fields.Str(required=True)
+    department = fields.Str(required=True)  
+    is_empty_project = fields.Bool()
     
 class ListMyProjectsDataProjectListResponse(ProjectsBasicResponse):
     starred = fields.Bool()
