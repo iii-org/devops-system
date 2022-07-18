@@ -33,6 +33,11 @@ DEFAULT_MAIL_CONFIG = {
     "emission_email_address": "smtp_username"
 }
 
+def get_redmine_obj(operator_id):
+    operator = UserPluginRelation.query.filter_by(user_id=operator_id).first()
+    operator_id = operator.plan_user_id if operator is not None else None
+    return Redmine(operator_id=operator_id)
+
 class Redmine:
     def __init__(self, operator_id=None):
         self.key_generated = 0.0

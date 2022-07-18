@@ -127,7 +127,7 @@ class CreateSingleIssueV2(MethodResource):
             raise DevOpsError(400, 'Due date must be greater than start date.',
                                 error=apiError.argument_error("due_date"))
 
-        if get_jwt_identity()['role_id'] == 5 and kwargs['operator_id'] is not None:
+        if get_jwt_identity()['role_id'] == 5 and kwargs.get('operator_id') is not None:
             operator_id = kwargs.get('operator_id')
         else:
             operator_id = get_jwt_identity()['user_id']
@@ -195,7 +195,7 @@ class SingleIssue(Resource):
 
         args = parser.parse_args()
 
-        if get_jwt_identity()['role_id'] == 5 and args['operator_id'] is not None:
+        if get_jwt_identity()['role_id'] == 5 and args.get('operator_id') is not None:
             operator_id = args.get('operator_id')
         else:
             operator_id = get_jwt_identity()['user_id']

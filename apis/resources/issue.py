@@ -26,7 +26,7 @@ from data.nexus_project import NexusProject
 from enums.action_type import ActionType
 from model import db, IssueExtensions, CustomIssueFilter
 from resources.apiError import DevOpsError
-from resources.redmine import redmine, Redmine
+from resources.redmine import redmine, get_redmine_obj
 from resources import project as project_module, project, role
 from resources.activity import record_activity
 from resources import tag as tag_py
@@ -700,12 +700,12 @@ def get_issue_assign_to_detail(issue):
 def create_issue(args, operator_id):
     update_cache_issue_family = False
     project_id = args['project_id']
+    personal_redmine_obj = get_redmine_obj(operator_id)
     plan_operator_id = None
     if operator_id is not None:
         operator_plugin_relation = nexus.nx_get_user_plugin_relation(
             user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
-    personal_redmine_obj = Redmine(operator_id=plan_operator_id)
 
     # Check project is disabled or not
     if model.Project.query.get(project_id).disabled:
