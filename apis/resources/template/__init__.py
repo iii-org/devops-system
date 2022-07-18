@@ -234,7 +234,7 @@ def get_tag_info_list_from_pj(pj, group_name):
 
 
 def handle_template_cache(pj, group_name, pip_set_json, tag_list):
-    return {pj.id: json.dumps({'name': pj.name,
+    return {str(pj.id): json.dumps({'name': pj.name,
                                   'path': pj.path,
                                   'display': pip_set_json["name"],
                                   'description': pip_set_json["description"],
