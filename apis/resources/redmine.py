@@ -59,6 +59,7 @@ class Redmine:
             query = UserPluginRelation.query.filter(
                 UserPluginRelation.plan_user_id == operator_id
             ).first()
+            logger.info(f"!!!!!current_user:{get_jwt_identity()['user_id']} operator_id_user:{query.user_id}!!!!!")
             if get_jwt_identity()['user_id'] == query.user_id:
                 if operator_id != self.last_operator_id:
                     self.last_operator_id = operator_id
