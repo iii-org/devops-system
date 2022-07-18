@@ -1,8 +1,9 @@
 {
     "info": {
-        "_postman_id": "1157feb3-687a-4db5-b1f9-2d167c8634b2",
-        "name": "Get Issue List",
-        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+        "_postman_id": "9279e9b7-7dfb-417a-9549-0f003cd24b3e",
+        "name": "Get Issue List Copy",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "_exporter_id": "11502387"
     },
     "item": [
         {
@@ -22,7 +23,7 @@
                                     "pm.test(\"JWT Token 檢查\", function () {",
                                     "    const decode_jwt = jwt_decode(pm.response.json().data.token);",
                                     "    pm.environment.set(\"token\", pm.response.json().data.token)",
-                                    "    pm.environment.set(\"user_id\", decode_jwt.identity.user_id)",
+                                    "    pm.environment.set(\"user_id\", decode_jwt.sub.user_id)",
                                     "});",
                                     ""
                                 ],
@@ -34,19 +35,13 @@
                         "method": "POST",
                         "header": [],
                         "body": {
-                            "mode": "formdata",
-                            "formdata": [
-                                {
-                                    "key": "username",
-                                    "value": "{{username_am}}",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "password",
-                                    "value": "{{password_am}}",
-                                    "type": "text"
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"{{username_am}}\",\n    \"password\": \"{{password_am}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
                                 }
-                            ]
+                            }
                         },
                         "url": {
                             "raw": "{{test_origin}}/user/login",
@@ -101,34 +96,8 @@
                         "method": "POST",
                         "header": [],
                         "body": {
-                            "mode": "formdata",
-                            "formdata": [
-                                {
-                                    "key": "name",
-                                    "value": "{{get_issue_list.username.qa}}",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "email",
-                                    "value": "getIssueList@yahoo.com.tw",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "password",
-                                    "value": "{{get_issue_list.password.qa}}",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "login",
-                                    "value": "{{get_issue_list.username.qa}}",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "role_id",
-                                    "value": "7",
-                                    "type": "text"
-                                }
-                            ],
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"{{get_issue_list.username.qa}}\",\n    \"email\": \"getIssueList@yahoo.com.tw\",\n    \"password\": \"{{get_issue_list.password.qa}}\",\n    \"login\": \"{{get_issue_list.username.qa}}\",\n    \"role_id\": 7\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -223,19 +192,13 @@
                         "method": "POST",
                         "header": [],
                         "body": {
-                            "mode": "formdata",
-                            "formdata": [
-                                {
-                                    "key": "username",
-                                    "value": "{{get_issue_list.username.qa}}",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "password",
-                                    "value": "{{get_issue_list.password.qa}}",
-                                    "type": "text"
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"{{get_issue_list.username.qa}}\",\n    \"password\": \"{{get_issue_list.password.qa}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
                                 }
-                            ]
+                            }
                         },
                         "url": {
                             "raw": "{{test_origin}}/user/login",
@@ -449,14 +412,13 @@
                         "method": "POST",
                         "header": [],
                         "body": {
-                            "mode": "formdata",
-                            "formdata": [
-                                {
-                                    "key": "user_id",
-                                    "value": "{{get_issue_list.user_id.qa}}",
-                                    "type": "text"
+                            "mode": "raw",
+                            "raw": "{\n    \"user_id\": \"{{get_issue_list.user_id.qa}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
                                 }
-                            ]
+                            }
                         },
                         "url": {
                             "raw": "{{test_origin}}/project/{{get_issue_list.project_id.qa}}/member",

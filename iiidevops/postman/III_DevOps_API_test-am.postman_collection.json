@@ -23,7 +23,7 @@
 									"pm.test(\"JWT Token 檢查\", function () {",
 									"    const decode_jwt = jwt_decode(pm.response.json().data.token);",
 									"    pm.environment.set(\"token\", pm.response.json().data.token)",
-									"    pm.environment.set(\"user_id\", decode_jwt.identity.user_id)",
+									"    pm.environment.set(\"user_id\", decode_jwt.sub.user_id)",
 									"});",
 									""
 								],
@@ -35,19 +35,13 @@
 						"method": "POST",
 						"header": [],
 						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "username",
-									"value": "{{username_am}}",
-									"type": "text"
-								},
-								{
-									"key": "password",
-									"value": "{{password_am}}",
-									"type": "text"
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{username_am}}\",\n    \"password\": \"{{password_am}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
 								}
-							]
+							}
 						},
 						"url": {
 							"raw": "{{test_origin}}/user/login",
@@ -159,34 +153,13 @@
 						"method": "POST",
 						"header": [],
 						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "name",
-									"value": "{{am_test.username.pm}}",
-									"type": "text"
-								},
-								{
-									"key": "email",
-									"value": "amTestUserPM@yahoo.com.tw",
-									"type": "text"
-								},
-								{
-									"key": "password",
-									"value": "{{am_test.password}}",
-									"type": "text"
-								},
-								{
-									"key": "login",
-									"value": "{{am_test.username.pm}}",
-									"type": "text"
-								},
-								{
-									"key": "role_id",
-									"value": "3",
-									"type": "text"
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"{{am_test.username.pm}}\",\n    \"email\": \"amTestUserPM@yahoo.com.tw\",\n    \"password\": \"{{am_test.password}}\",\n    \"login\": \"{{am_test.username.pm}}\",\n    \"role_id\": 3\n}",
+							"options": {
+								"raw": {
+									"language": "json"
 								}
-							]
+							}
 						},
 						"url": {
 							"raw": "{{test_origin}}/user",
@@ -240,34 +213,13 @@
 						"method": "POST",
 						"header": [],
 						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "name",
-									"value": "{{am_test.username.rd}}",
-									"type": "text"
-								},
-								{
-									"key": "email",
-									"value": "amTestUserRD@yahoo.com.tw",
-									"type": "text"
-								},
-								{
-									"key": "password",
-									"value": "{{am_test.password}}",
-									"type": "text"
-								},
-								{
-									"key": "login",
-									"value": "{{am_test.username.rd}}",
-									"type": "text"
-								},
-								{
-									"key": "role_id",
-									"value": "1",
-									"type": "text"
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"{{am_test.username.rd}}\",\n    \"email\": \"amTestUserRD@yahoo.com.tw\",\n    \"password\": \"{{am_test.password}}\",\n    \"login\": \"{{am_test.username.rd}}\",\n    \"role_id\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
 								}
-							]
+							}
 						},
 						"url": {
 							"raw": "{{test_origin}}/user",
