@@ -17,7 +17,7 @@ from resources.logger import logger
 from . import kubernetesClient, role
 import json
 from urllib.parse import quote_plus
-from model import db, SystemParameter
+from model import db, SystemParameter, UserPluginRelation
 
 
 DEFAULT_MAIL_CONFIG = {
@@ -56,9 +56,13 @@ class Redmine:
         url = f"{config.get('REDMINE_INTERNAL_BASE_URL')}{path}{resp_format}"
         logger.info(f"operator_id:{operator_id} last_operator_id:{self.last_operator_id}")
         if operator_id is not None:
-            if operator_id != self.last_operator_id:
-                self.last_operator_id = operator_id
-                self.__refresh_key(operator_id)
+            query = UserPluginRelation.query.filter(
+                UserPluginRelation.plan_user_id == operator_id
+            ).first()
+            if get_jwt_identity()['user_id'] == query.user_id:
+                if operator_id != self.last_operator_id:
+                    self.last_operator_id = operator_id
+                    self.__refresh_key(operator_id)
         else:
             if self.last_operator_id is not None:
                 self.last_operator_id = None
