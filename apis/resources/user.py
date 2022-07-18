@@ -316,11 +316,11 @@ def update_user(user_id, args, from_ad=False):
             user.update_at = args['update_at']
         else:
             user.update_at = util.date_to_str(datetime.datetime.utcnow())
+     
         if user.from_ad and not from_ad:
             return util.respond(400, 'Error when updating Message',
                                 error=apiError.user_from_ad(user_id))
-        else:
-            db.session.commit()
+        db.session.commit()
     return util.success()
 
 

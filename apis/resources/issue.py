@@ -366,7 +366,7 @@ def create_issue_tags(issue_id, tags, plan_operator_id):
         for tag_id, tag_name in add_tags.items():
             redmine.rm_update_issue(
                 issue_id, {"notes": tags_note_json(tag_id, tag_name)}, plan_operator_id)
-    return new.issue_id
+    return issue_id
 
 
 def update_issue_tags(issue_id, tags, plan_operator_id):
@@ -392,7 +392,7 @@ def update_issue_tags(issue_id, tags, plan_operator_id):
             for tag_id, tag_name in delete_tags.items():
                 redmine.rm_update_issue(
                     issue_id, {"notes": tags_note_json(tag_id, tag_name, add=False)}, plan_operator_id)
-    return issue_tags.issue_id
+    return issue_id
 
 
 def check_tags_diff(fir_tags, sec_tags):
