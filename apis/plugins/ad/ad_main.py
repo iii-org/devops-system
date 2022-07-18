@@ -3,6 +3,7 @@ import ssl
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse, inputs
+import ldap3
 from ldap3 import Server, ServerPool, Connection, ALL_ATTRIBUTES, FIRST, Tls
 from sqlalchemy.orm.exc import NoResultFound
 import datetime
@@ -358,6 +359,22 @@ def get_ssl_protocol(protocol_str):
     return ssl_protocol
 
 
+def check_ad_alive(ldap_parameter):
+    error_msg = "Unable to connect with AD server."
+    try:
+        alive =  AD(ldap_parameter).ad_info["is_pass"] is True
+        ret =  {
+            "alive": alive, 
+            "message": "Unable to connect with AD server." if not alive else ""
+        }
+    except Exception:
+        ret = {
+            "alive": False,
+            "message": error_msg
+        }
+    return ret
+
+
 class AD(object):
     def __init__(self, ldap_parameter, filter_by_ou=False, account=None, password=None):
         self.ad_info = {
@@ -368,7 +385,8 @@ class AD(object):
         self.account = None
         self.password = None
         self.server = None
-        self.server = ServerPool(None, pool_strategy=FIRST, active=True)
+        ldap3.set_config_parameter("POOLING_LOOP_TIMEOUT", 3)
+        self.server = ServerPool(None, pool_strategy=FIRST, active=2)
         hosts = get_ad_servers(ldap_parameter.get('host'))
         is_ssl = bool(ldap_parameter.get('ssl', False))
         ssl_validate = get_ssl_validate_method(ldap_parameter.get('ssl_validate', 'REQUIRED'))

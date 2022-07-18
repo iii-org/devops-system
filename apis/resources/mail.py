@@ -60,7 +60,9 @@ class Mail:
         text['Disposition-Notification-To'] = self.smtp_emission_address
 
         if self.server is not None:
+            logger.logger.info(f"Sending Mail to {receiver}, title: {title}")
             self.server.sendmail(self.smtp_emission_address, receiver, text.as_string())
+            logger.logger.info(f"Sending mail done.")
             self.server.quit()
 
 

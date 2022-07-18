@@ -276,6 +276,12 @@ class Monitoring:
         self.alert_service_id = 1001
         return self.__check_plugin_server_alive(check_excalidraw_alive)
 
+    def ad_alive(self):
+        from plugins.ad.ad_main import check_ad_alive
+        self.server = "ad"
+        self.alert_service_id = 1002
+        return self.__check_plugin_server_alive(check_ad_alive) 
+
     def smtp_alive(self):
         self.server = "SMTP"
         self.alert_service_id = 1101
@@ -313,7 +319,6 @@ class Monitoring:
         '''
         when 'is_project' is True, only check servers are working.
         '''
-
         plugin_alive_dict = self.check_plugin_alive()
         all_alive = {
             "alive": {

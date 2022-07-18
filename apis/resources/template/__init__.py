@@ -22,7 +22,7 @@ from model import PluginSoftware, Project, db
 from resources import logger
 from resources.apiError import DevOpsError
 from resources.gitlab import gitlab as rs_gitlab, get_all_group_projects
-from resources.redis import update_template_cache, get_template_caches_all, count_template_number
+from resources.redis import update_template_cache, get_template_caches_all, count_template_number, update_template_cache_all
 
 
 template_replace_dict = {
@@ -233,6 +233,16 @@ def get_tag_info_list_from_pj(pj, group_name):
     return tag_list
 
 
+def handle_template_cache(pj, group_name, pip_set_json, tag_list):
+    return {str(pj.id): json.dumps({'name': pj.name,
+                                  'path': pj.path,
+                                  'display': pip_set_json["name"],
+                                  'description': pip_set_json["description"],
+                                  'version': tag_list,
+                                  'update_at': datetime.now(),
+                                  'group_name': TEMPLATE_GROUP_DICT.get(group_name)}, default=str)}
+
+
 def update_redis_template_cache(pj, group_name, pip_set_json, tag_list):
     update_template_cache(pj.id, {'name': pj.name,
                                   'path': pj.path,
@@ -251,6 +261,7 @@ def __force_update_template_cache_table():
         "source": "Local Templates",
         "options": []
     }]
+    template_list = {}
     for group in gl.groups.list(all=True):
         if group.name in TEMPLATE_GROUP_DICT:
             for group_project in get_all_group_projects(group):
@@ -280,7 +291,9 @@ def __force_update_template_cache_table():
                     output[0]['options'].append(template_data)
                 elif group.name == "local-templates":
                     output[1]['options'].append(template_data)
-                update_redis_template_cache(pj, group.name, pip_set_json, tag_list)
+                template_list |= handle_template_cache(pj, group.name, pip_set_json, tag_list)
+                # update_redis_template_cache(pj, group.name, pip_set_json, tag_list)
+    update_template_cache_all(template_list)
     return output
 
 
