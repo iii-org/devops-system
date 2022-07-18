@@ -498,6 +498,16 @@ def pm_update_project(project_id, args):
             args['parent_plan_project_id'] = ""
         else:
             args['parent_plan_project_id'] = get_plan_project_id(int(args.get('parent_id')))
+
+    # Update project template
+    project = model.Project.query.filter_by(id=project_id).first()
+    if project.is_empty_project and args.get("template_id") is not None:
+        template_pj = template.get_projects_detail(args["template_id"])
+        args |= {
+            "is_empty_project": False, "base_example": template_pj.path, "example_tag": args["tag_name"]}
+        template.tm_use_template_push_into_pj(args["template_id"], plugin_relation.git_repository_id,
+                                                  args["tag_name"], args.get("arguments"), project.uuid)
+    
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     nexus.nx_update_project(project_id, args)
 
