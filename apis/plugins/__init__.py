@@ -140,6 +140,7 @@ def update_plugin_config(plugin_name, args):
         }
     if args.get('disabled') is not None:
         from resources.excalidraw import check_excalidraw_alive
+        from plugins.ad.ad_main import check_ad_alive
         plugin_alive_mapping = {
             "excalidraw": {
                 "func": check_excalidraw_alive, 
@@ -150,10 +151,17 @@ def update_plugin_config(plugin_name, args):
                     "excalidraw_socket_url": args.get('arguments').get('excalidraw-socket-url') if \
                         args.get('arguments') is not None else None
                 }
+            },
+            "ad": {
+                "func": check_ad_alive,
+                "alert_monitring_id": 1002,
+                "parameters": {
+                    "ldap_parameter": args.get("arguments", {})
+                }
             }
         }
         if not args['disabled']:
-            # Plugin 
+            # Excalidraw first create
             if plugin_name == "excalidraw" and system_secrets_not_exist: 
                 excalidraw_url = plugin_alive_mapping["excalidraw"]["parameters"]["excalidraw_url"]
                 excalidraw_socket_url = plugin_alive_mapping["excalidraw"]["parameters"]["excalidraw_socket_url"]
