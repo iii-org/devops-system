@@ -529,6 +529,7 @@ class ListMyProjects(Resource):
         parser.add_argument('offset', type=int, location="args")
         parser.add_argument('search', type=str, location="args")
         parser.add_argument('accsearch', type=str, location="args")
+        parser.add_argument('is_empty_project', type=bool, location="args")
         parser.add_argument('disabled', type=int, location="args")
         parser.add_argument('pj_members_count', type=str, location="args")
         parser.add_argument('pj_due_date_start', type=str, location="args")

@@ -130,6 +130,7 @@ def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
 def get_project_rows_by_user(user_id, disable, args={}):
     search = args.get("search")
     accsearch = args.get("accsearch")
+    is_empty_project = args.get("is_empty_project")
     limit, offset = args.get("limit"), args.get("offset")
     pj_due_start = datetime.strptime(args.get("pj_due_date_start"),
                                      "%Y-%m-%d").date() if args.get("pj_due_date_start") is not None else None
@@ -169,6 +170,11 @@ def get_project_rows_by_user(user_id, disable, args={}):
     if accsearch is not None and search is None:
         query = query.filter(
             model.Project.name == accsearch
+        )
+
+    if is_empty_project is True:
+        query = query.filter(
+            model.Project.is_empty_project == is_empty_project
         )
 
     if pj_due_start is not None and pj_due_end is not None:
