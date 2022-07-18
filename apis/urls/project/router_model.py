@@ -497,6 +497,9 @@ class SingleProjectPutSchema(Schema):
     owner_id = fields.Int(doc='owner_id', example=1, required=True)
     parent_id = fields.Str(doc='parent_id', example="1")
     is_inheritance_member = fields.Bool(doc='is_inheritance_member', example=True)
+    template_id = fields.Int(doc='template_id', example=1)
+    tag_name = fields.Str(doc='tag_name', example="string")
+    arguments = fields.Str(doc='arguments', example="string")
 
 class SingleProjectPatchSchema(Schema):
     owner_id = fields.Int(doc='owner_id', example=1, required=True)
