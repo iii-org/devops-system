@@ -298,10 +298,10 @@ class Redmine:
         return self.__api_get('/projects/{0}/wiki/{1}'.format(
             project_id, wiki_name)).json()
 
-    def rm_put_wiki(self, project_id, wiki_name, args, operator_id):
+    def rm_put_wiki(self, project_id, wiki_name, args):
         param = {"wiki_page": {"text": args['wiki_text']}}
         return self.__api_put('/projects/{0}/wiki/{1}'.format(project_id, wiki_name),
-                              data=param, operator_id=operator_id)
+                              data=param)
 
     def rm_delete_wiki(self, project_id, wiki_name):
         return self.__api_delete('/projects/{0}/wiki/{1}'.format(
