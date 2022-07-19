@@ -48,7 +48,7 @@ stages:
       catalogTemplate: cattle-global-data:iii-dev-charts3-scan-checkmarx
       name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-cmx
       targetNamespace: ${CICD_GIT_REPO_NAME}
-      version: 0.2.1
+      version: 0.2.2
   when:
     branch:
       include:
@@ -219,7 +219,7 @@ stages:
       catalogTemplate: cattle-global-data:iii-dev-charts3-test-zap
       name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-zap
       targetNamespace: ${CICD_GIT_REPO_NAME}
-      version: 0.2.1
+      version: 0.2.3
   when:
     branch:
       include:
@@ -283,7 +283,7 @@ stages:
       catalogTemplate: cattle-global-data:iii-dev-charts3-test-sideex
       name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-sdx
       targetNamespace: ${CICD_GIT_REPO_NAME}
-      version: 0.3.1
+      version: 0.3.2
   when:
     branch:
       include:
