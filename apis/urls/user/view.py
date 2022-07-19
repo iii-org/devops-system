@@ -10,6 +10,7 @@ from resources.user import login, change_user_status, create_user, NexusUser, de
 from resources import harbor, role
 from . import router_model
 import json
+from model import db, User
 
 security_params = [{"bearer": []}]
 # --------------------- Resources ---------------------
@@ -56,7 +57,7 @@ class PostSingleUserV2(MethodResource):
 
 @doc(tags=['User'], description='SingleUser API')
 class GetSingleUserV2(MethodResource):
-    # @marshal_with(router_model.SingleUserGetResponse)
+    @marshal_with(router_model.SingleUserGetResponse)
     @jwt_required()
     def get(self, user_id):
         role.require_user_himself(user_id, even_pm=False,
@@ -141,6 +142,19 @@ class UserList(Resource):
         if args['search'] is not None:
             filters['search'] = args['search']
         return util.success(user_list(filters))
+
+
+@doc(tags=['User'], description='SingleUser API')
+class GetUserByemailV2(MethodResource):
+    @marshal_with(router_model.SingleUserGetResponse)
+    @jwt_required()
+    def get(self, email):
+        query = User.query.filter(
+            User.email == email
+        ).first()
+        role.require_user_himself(query.id, even_pm=False,
+                                  err_message="Only admin and PM can access another user's data.")
+        return util.success(NexusUser().set_user_id(query.id).to_json())
 
 
 @doc(tags=['User'], description='SingleUser API', security=security_params)
