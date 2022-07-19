@@ -305,6 +305,9 @@ class Monitoring:
                 "alive": self.smtp_alive, 
                 "is_open": mail_server_is_open
             },
+            "ad": {
+                "alive": self.ad_alive,
+            }
         }
         for plugin, plugin_info in plugin_mapping.items():
             in_plugin_db = plugin_info.get("is_open") is None
@@ -323,11 +326,11 @@ class Monitoring:
         all_alive = {
             "alive": {
                 "Redmine": self.redmine_alive(),
-                "GitLab": self.gitlab_alive(is_project),
-                "Harbor": self.harbor_alive(is_project),
-                "K8s": self.k8s_alive(),
-                "Sonarqube": self.sonarqube_alive(),
-                "Rancher": self.rancher_alive(),
+                # "GitLab": self.gitlab_alive(is_project),
+                # "Harbor": self.harbor_alive(is_project),
+                # "K8s": self.k8s_alive(),
+                # "Sonarqube": self.sonarqube_alive(),
+                # "Rancher": self.rancher_alive(),
             },
             "all_alive": self.all_alive
         }

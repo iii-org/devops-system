@@ -410,7 +410,8 @@ def create_project(user_id, args):
             "project_id": project_id,
             "plan_project_id": redmine_pj_id,
             "git_repository_id": gitlab_pj_id,
-            "harbor_project_id": harbor_pj_id
+            "harbor_project_id": harbor_pj_id,
+            "description": args['description']
         }
     except Exception as e:
         redmine.rm_delete_project(redmine_pj_id)
