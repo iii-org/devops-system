@@ -58,7 +58,7 @@ class Mail:
             else config.get("DEPLOYER_NODE_IP")
 
         text = MIMEText(message, 'plain', 'utf-8')
-        text['Subject'] = f"{domain}: {title}"
+        text['Subject'] = f"[{domain}] {title}"
         text['From'] = self.smtp_emission_address
         text['To'] = receiver
         text['Disposition-Notification-To'] = self.smtp_emission_address

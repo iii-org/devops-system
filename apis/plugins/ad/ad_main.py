@@ -359,8 +359,12 @@ def get_ssl_protocol(protocol_str):
     return ssl_protocol
 
 
-def check_ad_alive(ldap_parameter):
+def check_ad_alive(ldap_parameter=None):
+    from resources.kubernetesClient import read_namespace_secret, SYSTEM_SECRET_NAMESPACE
     error_msg = "Unable to connect with AD server."
+    system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, "system-secret-ad") or {}
+    ldap_parameter = ldap_parameter or system_secrets
+
     try:
         alive =  AD(ldap_parameter).ad_info["is_pass"] is True
         ret =  {
