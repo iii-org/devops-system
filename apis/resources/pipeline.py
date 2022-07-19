@@ -10,7 +10,7 @@ from flask import send_file
 
 import resources.apiError as apiError
 import util as util
-from model import db, PipelineLogsCache
+from model import ProjectPluginRelation, db, PipelineLogsCache, Project
 from nexus import nx_get_project_plugin_relation
 from resources import role
 from .gitlab import GitLab, commit_id_to_url
@@ -278,6 +278,23 @@ def delete_pipeline_file(project_name, folder_name, file_name):
     file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
     check_pipeline_folder_exist(file_name, file_path)
     rmtree(file_path)
+
+def delete_rest_pipelines(project_name):
+    project_rows = db.session.query(Project, ProjectPluginRelation).join(
+        ProjectPluginRelation, Project.id==ProjectPluginRelation.project_id).filter(
+        Project.name==project_name)
+    
+    if project_rows.count() == 0:
+        return
+
+    for project_row in project_rows:
+        repository_id = project_row.ProjectPluginRelation.git_repository_id
+
+    output_array = pipeline_exec_list(repository_id, {"limit": 10, "start": 0})
+    pipe_ids = [
+        pipe["id"] for pipe in output_array["pipe_execs"] if pipe["execution_state"] in ["Waiting", "Building", "Queueing"]]
+    for pipe_id in pipe_ids[1:]:
+        pipeline_exec_action(repository_id, {"pipelines_exec_run": pipe_id, "action": "stop"})
 
 # --------------------- Resources ---------------------
 
