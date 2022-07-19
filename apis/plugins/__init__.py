@@ -201,7 +201,6 @@ def update_plugin_config(plugin_name, args):
                         user_id=1
                     )
 
-        db_row.disabled = bool(args['disabled'])
         #  Update Project Plugin Status
         if bool(config.get('is_pipeline', True)):
             threading.Thread(target=template.update_pj_plugin_status, args=(plugin_name, args["disabled"],)).start()
@@ -225,6 +224,10 @@ def update_plugin_config(plugin_name, args):
     if patch_secret:
         patch_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), system_secrets)
     rancher.rc_add_secrets_to_all_namespaces(plugin_name, global_secrets)
+
+    # Putting here to avoid not commit session error
+    if args.get('disabled') is not None:
+        db_row.disabled = bool(args['disabled'])
     db_row.parameter = json.dumps(db_arguments)
     db_row.update_at = datetime.now()
     model.db.session.commit()
