@@ -122,7 +122,7 @@ class Redmine:
 
     # --------------- Normal methods ---------------
 
-    def paging(self, key, page=100, params=None, operator_id=None, with_total_count=False):
+    def paging(self, key, page=100, params=None, with_total_count=False):
         if params is None:
             params = {}
         offset = 0
@@ -130,7 +130,7 @@ class Redmine:
         path = '/{0}'.format(key)
         params['limit'] = page
         while True:
-            issue_json = self.__api_get(path=path, params=params, operator_id=operator_id).json()
+            issue_json = self.__api_get(path=path, params=params).json()
             total_count = issue_json["total_count"]
             res = issue_json.get(key)
             ret.extend(res)
@@ -204,7 +204,7 @@ class Redmine:
         if params.get("limit") is not None:
             issue_info = self.__api_get('/issues', params=params, operator_id=operator_id).json()
             return issue_info["issues"], issue_info["total_count"]
-        issues, total_count = self.paging('issues', paging, params, operator_id, with_total_count=True)
+        issues, total_count = self.paging('issues', paging, params, with_total_count=True)
         return issues, total_count
 
     def rm_get_issues_by_user(self, user_id):
