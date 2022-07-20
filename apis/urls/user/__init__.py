@@ -11,7 +11,7 @@ def user_url(api, add_resource):
 
     # api.add_resource(user.UserForgetPassword, '/user/forgetPassword')
     api.add_resource(view.UserStatus, '/user/<int:user_id>/status')
-    api.add_resource(view.SingleUser, '/user/<int:user_id>')
+    api.add_resource(view.SingleUser, '/user', '/user/<int:user_id>')
     api.add_resource(view.GetUserByemailV2, '/v2/user/<string:email>')
     add_resource(view.GetUserByemailV2, "public")
 
