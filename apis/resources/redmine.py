@@ -410,14 +410,14 @@ class Redmine:
             raise DevOpsError(500, 'Error when downloading an attachment.',
                               error=apiError.uncaught_exception(e))
 
-    def rm_delete_attachment(self, attachment_id, operator_id):
-        if operator_id is not None:
-            operator_plugin_relation = nexus.nx_get_user_plugin_relation(
-                user_id=operator_id)
-            plan_operator_id = operator_plugin_relation.plan_user_id
-        else:
-            plan_operator_id = None
-        output = self.__api_delete('/attachments/{0}'.format(attachment_id), operator_id=plan_operator_id)
+    def rm_delete_attachment(self, attachment_id):
+        # if operator_id is not None:
+        #     operator_plugin_relation = nexus.nx_get_user_plugin_relation(
+        #         user_id=operator_id)
+        #     plan_operator_id = operator_plugin_relation.plan_user_id
+        # else:
+        #     plan_operator_id = None
+        output = self.__api_delete('/attachments/{0}'.format(attachment_id))
         status_code = output.status_code
         if status_code == 204:
             return util.success()
@@ -614,7 +614,8 @@ class RedmineFile(Resource):
 
     @jwt_required()
     def delete(self, file_id):
-        return redmine.rm_delete_attachment(file_id, get_jwt_identity()['user_id'])
+        personal_redmine_obj = get_redmine_obj(operator_id=get_jwt_identity()['user_id'])
+        return personal_redmine_obj.rm_delete_attachment(file_id)
 
 
 class RedmineMail(Resource):
