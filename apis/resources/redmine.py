@@ -33,6 +33,7 @@ DEFAULT_MAIL_CONFIG = {
     "emission_email_address": "smtp_username"
 }
 
+
 def get_redmine_obj(operator_id=None, plan_user_id=None):
     if plan_user_id is not None:
         return Redmine(operator_id=plan_user_id)
@@ -40,6 +41,7 @@ def get_redmine_obj(operator_id=None, plan_user_id=None):
         operator = UserPluginRelation.query.filter_by(user_id=operator_id).first()
         operator_id = operator.plan_user_id if operator is not None else None
         return Redmine(operator_id=operator_id)
+
 
 class Redmine:
     def __init__(self, operator_id=None):
@@ -53,7 +55,7 @@ class Redmine:
         self.operator_id = operator_id
 
     def __api_request(self, method, path, headers=None, params=None, data=None,
-                      operator_id=None, resp_format='.json'):
+                       resp_format='.json'):
         logger.info(f"operator_id:{self.operator_id}")
         self.__key_check()
         if headers is None:
@@ -79,25 +81,25 @@ class Redmine:
                 apiError.redmine_error(output))
         return output
 
-    def __api_get(self, path, params=None, headers=None, operator_id=None,
+    def __api_get(self, path, params=None, headers=None,
                   resp_format='.json'):
         return self.__api_request('GET', path, params=params, headers=headers,
-                                  operator_id=operator_id, resp_format=resp_format)
+                                   resp_format=resp_format)
 
     def __api_post(self, path, params=None, headers=None, data=None,
-                   operator_id=None, resp_format='.json'):
+                    resp_format='.json'):
         return self.__api_request('POST', path, headers=headers, data=data, params=params,
-                                  operator_id=operator_id, resp_format=resp_format)
+                                   resp_format=resp_format)
 
     def __api_put(self, path, params=None, headers=None, data=None,
-                  operator_id=None, resp_format='.json'):
+                   resp_format='.json'):
         return self.__api_request('PUT', path, headers=headers, data=data, params=params,
-                                  operator_id=operator_id, resp_format=resp_format)
+                                   resp_format=resp_format)
 
     def __api_delete(self, path, params=None, headers=None,
-                     operator_id=None, resp_format='.json'):
+                      resp_format='.json'):
         return self.__api_request('DELETE', path, params=params, headers=headers,
-                                  operator_id=operator_id, resp_format=resp_format)
+                                   resp_format=resp_format)
 
     def __key_check(self):
         # Check if key expires first, seems to expire in 2 hours in default?
@@ -411,12 +413,6 @@ class Redmine:
                               error=apiError.uncaught_exception(e))
 
     def rm_delete_attachment(self, attachment_id):
-        # if operator_id is not None:
-        #     operator_plugin_relation = nexus.nx_get_user_plugin_relation(
-        #         user_id=operator_id)
-        #     plan_operator_id = operator_plugin_relation.plan_user_id
-        # else:
-        #     plan_operator_id = None
         output = self.__api_delete('/attachments/{0}'.format(attachment_id))
         status_code = output.status_code
         if status_code == 204:

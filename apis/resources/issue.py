@@ -1057,8 +1057,6 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
             del personal_redmine_obj
         else:
             if get_jwt_identity()["role_id"] != 7:
-                operator_id = model.UserPluginRelation.query. \
-                    filter_by(user_id=get_jwt_identity()["user_id"]).one().plan_user_id
                 personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
                 all_issues, total_count = personal_redmine_obj.rm_list_issues(params=default_filters)
                 del personal_redmine_obj
