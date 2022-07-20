@@ -26,7 +26,7 @@ from data.nexus_project import NexusProject
 from enums.action_type import ActionType
 from model import db, IssueExtensions, CustomIssueFilter
 from resources.apiError import DevOpsError
-from resources.redmine import redmine
+from resources.redmine import redmine, get_redmine_obj
 from resources import project as project_module, project, role
 from resources.activity import record_activity
 from resources import tag as tag_py
@@ -359,14 +359,16 @@ def create_issue_tags(issue_id, tags, plan_operator_id):
     )
     db.session.add(new)
     db.session.commit()
+    personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
 
     # Record issue_tags changes in notes
     add_tags = check_tags_diff(new_tag_list, [])
     if add_tags != {}:
         for tag_id, tag_name in add_tags.items():
-            redmine.rm_update_issue(
-                issue_id, {"notes": tags_note_json(tag_id, tag_name)}, plan_operator_id)
-    return issue_id
+            personal_redmine_obj.rm_update_issue(
+                issue_id, {"notes": tags_note_json(tag_id, tag_name)})
+    del personal_redmine_obj
+    return new.issue_id
 
 
 def update_issue_tags(issue_id, tags, plan_operator_id):
@@ -377,6 +379,7 @@ def update_issue_tags(issue_id, tags, plan_operator_id):
     # Record issue_tags changes in notes
     new_tag_list = sorted(check_tags_id_is_int(tags))
     origin_tag_list = sorted(issue_tags.tag_id)
+    personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
 
     if new_tag_list != origin_tag_list:
         issue_tags.tag_id = new_tag_list
@@ -384,15 +387,16 @@ def update_issue_tags(issue_id, tags, plan_operator_id):
         add_tags = check_tags_diff(new_tag_list, origin_tag_list)
         if add_tags != {}:
             for tag_id, tag_name in add_tags.items():
-                redmine.rm_update_issue(
-                    issue_id, {"notes": tags_note_json(tag_id, tag_name)}, plan_operator_id)
+                personal_redmine_obj.rm_update_issue(
+                    issue_id, {"notes": tags_note_json(tag_id, tag_name)})
 
         delete_tags = check_tags_diff(origin_tag_list, new_tag_list)
         if delete_tags != {}:
             for tag_id, tag_name in delete_tags.items():
-                redmine.rm_update_issue(
-                    issue_id, {"notes": tags_note_json(tag_id, tag_name, add=False)}, plan_operator_id)
-    return issue_id
+                personal_redmine_obj.rm_update_issue(
+                    issue_id, {"notes": tags_note_json(tag_id, tag_name, add=False)})
+    del personal_redmine_obj
+    return issue_tags.issue_id
 
 
 def check_tags_diff(fir_tags, sec_tags):
@@ -700,6 +704,12 @@ def get_issue_assign_to_detail(issue):
 def create_issue(args, operator_id):
     update_cache_issue_family = False
     project_id = args['project_id']
+    personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
+    plan_operator_id = None
+    if operator_id is not None:
+        operator_plugin_relation = nexus.nx_get_user_plugin_relation(
+            user_id=operator_id)
+        plan_operator_id = operator_plugin_relation.plan_user_id
 
     # Check project is disabled or not
     if model.Project.query.get(project_id).disabled:
@@ -746,16 +756,11 @@ def create_issue(args, operator_id):
     point = args.pop("point", 0)
     # Get Tags ID
     tags = args.pop("tags", None)
-    attachment = redmine.rm_upload(args)
+    attachment = personal_redmine_obj.rm_upload(args)
     if attachment is not None:
         args['uploads'] = [attachment]
 
-    plan_operator_id = None
-    if operator_id is not None:
-        operator_plugin_relation = nexus.nx_get_user_plugin_relation(
-            user_id=operator_id)
-        plan_operator_id = operator_plugin_relation.plan_user_id
-    created_issue = redmine.rm_create_issue(args, plan_operator_id)
+    created_issue = personal_redmine_obj.rm_create_issue(args)
     created_issue_id = created_issue["issue"]["id"]
     create_issue_extensions(created_issue_id, point=point)
 
@@ -775,6 +780,8 @@ def create_issue(args, operator_id):
     main_pj_id = main_output['project']['id']
     for pj_id in get_all_fathers_project(main_pj_id, []) + [main_pj_id] + get_all_sons_project(main_pj_id, []):
         emit("add_issue", ws_output_list, namespace="/issues/websocket", to=pj_id, broadcast=True)
+    
+    del personal_redmine_obj
     return main_output
 
 
@@ -901,15 +908,17 @@ def update_issue(issue_id, args, operator_id=None):
 
     point = args.pop("point", None)
     tags = args.pop("tags", None)
-    attachment = redmine.rm_upload(args)
-    if attachment is not None:
-        args['uploads'] = [attachment]
     plan_operator_id = None
     if operator_id is not None:
         operator_plugin_relation = nexus.nx_get_user_plugin_relation(
             user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
-    redmine.rm_update_issue(issue_id, args, plan_operator_id)
+    personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
+    attachment = personal_redmine_obj.rm_upload(args)
+    if attachment is not None:
+        args['uploads'] = [attachment]
+
+    personal_redmine_obj.rm_update_issue(issue_id, args)
 
     # Update cache
     if update_cache_issue_family:
@@ -942,6 +951,7 @@ def update_issue(issue_id, args, operator_id=None):
     main_pj_id = main_output['project']['id']
     for pj_id in get_all_fathers_project(main_pj_id, []) + [main_pj_id] + get_all_sons_project(main_pj_id, []):
         emit("update_issue", ws_output_list, namespace="/issues/websocket", to=pj_id, broadcast=True)
+    del personal_redmine_obj
     return main_output
 
 
@@ -1042,12 +1052,14 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
     for default_filters in default_filters_list:
         default_filters["include"] = "relations"
         if download:
-            all_issues, _ = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
+            personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
+            all_issues, _ = personal_redmine_obj.rm_list_issues(params=default_filters)
+            del personal_redmine_obj
         else:
             if get_jwt_identity()["role_id"] != 7:
-                operator_id = model.UserPluginRelation.query. \
-                    filter_by(user_id=get_jwt_identity()["user_id"]).one().plan_user_id
-                all_issues, total_count = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
+                personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
+                all_issues, total_count = personal_redmine_obj.rm_list_issues(params=default_filters)
+                del personal_redmine_obj
             else:
                 all_issues, total_count = redmine.rm_list_issues(params=default_filters)
 

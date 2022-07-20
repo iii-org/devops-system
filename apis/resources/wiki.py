@@ -8,7 +8,7 @@ import resources.project as project
 import resources.user as user
 import util as util
 from resources import role
-from resources.redmine import redmine
+from resources.redmine import redmine, get_redmine_obj
 
 
 def get_wiki_list_by_project(project_id):
@@ -50,7 +50,9 @@ def put_wiki_by_project(project_id, wiki_name, args, operator_id):
     if operator_id is not None:
         operator_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
-    redmine.rm_put_wiki(plan_id, wiki_name, args, plan_operator_id)
+    personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
+    personal_redmine_obj.rm_put_wiki(plan_id, wiki_name, args)
+    del personal_redmine_obj
     return util.success()
 
 

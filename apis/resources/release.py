@@ -18,7 +18,7 @@ from sqlalchemy import desc
 from resources import apiError, role
 from .gitlab import gitlab, gl_release
 from .harbor import hb_release
-from .redmine import redmine, rm_release
+from .redmine import redmine, rm_release, get_redmine_obj
 
 error_redmine_issues_closed = "Unable closed all issues"
 error_issue_not_all_closed = "Not All Issues are closed in Versions"
@@ -481,14 +481,16 @@ class Releases(Resource):
             operator_plugin_relation = nexus.nx_get_user_plugin_relation(
                 user_id=user_id)
             plan_operator_id = operator_plugin_relation.plan_user_id
+            personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
             for issue in self.redmine_info['issues']:
                 if int(issue['status']['id']) not in self.closed_statuses:
                     data = {
                         'status_id': self.closed_statuses[0]
                     }
                     issue_ids.append(issue['id'])
-                    redmine.rm_update_issue(
-                        issue['id'], data, plan_operator_id)
+                    personal_redmine_obj.rm_update_issue(
+                        issue['id'], data)
+            del personal_redmine_obj
         except NoResultFound:
             return util.respond(404, error_redmine_issues_closed,
                                 error=apiError.redmine_unable_to_forced_closed_issues(issue_ids))
