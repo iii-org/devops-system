@@ -57,7 +57,7 @@ class PostSingleUserV2(MethodResource):
 
 @doc(tags=['User'], description='SingleUser API')
 class GetSingleUserV2(MethodResource):
-    @marshal_with(router_model.SingleUserGetResponse)
+    @marshal_with(router_model.GetSingleUserResponse)
     @jwt_required()
     def get(self, user_id):
         role.require_user_himself(user_id, even_pm=False,
@@ -146,7 +146,7 @@ class UserList(Resource):
 
 @doc(tags=['User'], description='SingleUser API')
 class GetUserByemailV2(MethodResource):
-    @marshal_with(router_model.SingleUserGetResponse)
+    @marshal_with(router_model.GetSingleUserResponse)
     @jwt_required()
     def get(self, email):
         query = User.query.filter(

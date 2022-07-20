@@ -98,7 +98,7 @@ class SingleUserGetResponse(Schema):
     update_at = fields.Str(required=False, doc='2022-07-18T08:08:24.284983')
     from_ad = fields.Boolean(required=False, doc='from_ad', example=False)
     create_at = fields.Str(required=False, example="2021-09-03T05:17:33.565088")
-    default_role = fields.Str(required=False, example={"id": 5,"name": "Administrator"})
+    default_role = fields.Dict(required=False, example={"id": 5, "name": "Administrator"})
     last_login = fields.Str(required=False, example="2022-07-19T02:11:12.289543")
 
 
@@ -108,8 +108,13 @@ class SingleUserResponse(Schema):
     datetime = fields.Str(required=False,example="2020-02-21T01:00:00.000000")
 ########## API Action ##########
 
+
 class CreateSingleUserResponse(SingleUserResponse):
     data = fields.Nested(SingleUserDataResponse,required=False)
+
+class GetSingleUserResponse(CommonBasicResponse):
+    data = fields.Nested(SingleUserListResponse,required=False)
+
 
 ##################################################################
 
