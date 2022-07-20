@@ -366,11 +366,11 @@ class Redmine:
             del args['upload_content_type']
         return ret
 
-    def rm_upload_to_project(self, plan_project_id, args, plan_operator_id):
+    def rm_upload_to_project(self, plan_project_id, args):
         file = args["file"]
 
         headers = {'Content-Type': 'application/octet-stream'}
-        res = self.__api_post('/uploads', data=file, headers=headers, operator_id=plan_operator_id)
+        res = self.__api_post('/uploads', data=file, headers=headers)
         token = res.json().get('upload').get('token')
         filename = args['filename']
         if filename is None:
