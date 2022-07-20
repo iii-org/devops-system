@@ -384,7 +384,7 @@ class Redmine:
         if args.get('version_id') is not None:
             params['version_id'] = args['version_id']
         data = {'file': params}
-        res = self.__api_post('/projects/%d/files' % plan_project_id, data=data, operator_id=plan_operator_id)
+        res = self.__api_post('/projects/%d/files' % plan_project_id, data=data)
         if res.status_code == 204:
             return util.respond(201, None)
         else:

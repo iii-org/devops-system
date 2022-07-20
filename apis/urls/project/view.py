@@ -897,7 +897,7 @@ class ProjectFileV2(MethodResource):
                 user_id=get_jwt_identity()['user_id'])
             plan_operator_id = operator_plugin_relation.plan_user_id
         personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
-        return personal_redmine_obj.rm_upload_to_project(plan_project_id, kwargs, plan_operator_id)
+        return personal_redmine_obj.rm_upload_to_project(plan_project_id, kwargs)
 
     @doc(tags=['File'], description="Get project file list.")
     @marshal_with(router_model.ProjectFileGetResponse)
@@ -938,7 +938,7 @@ class ProjectFile(Resource):
         from resources.system_parameter import check_upload_type
         check_upload_type(file)
         personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
-        return personal_redmine_obj.rm_upload_to_project(plan_project_id, args, plan_operator_id)
+        return personal_redmine_obj.rm_upload_to_project(plan_project_id, args)
 
     @jwt_required()
     def get(self, project_id):
