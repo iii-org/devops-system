@@ -704,7 +704,6 @@ def get_issue_assign_to_detail(issue):
 def create_issue(args, operator_id):
     update_cache_issue_family = False
     project_id = args['project_id']
-    personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
     plan_operator_id = None
     if operator_id is not None:
         operator_plugin_relation = nexus.nx_get_user_plugin_relation(
@@ -756,6 +755,7 @@ def create_issue(args, operator_id):
     point = args.pop("point", 0)
     # Get Tags ID
     tags = args.pop("tags", None)
+    personal_redmine_obj = get_redmine_obj(operator_id=plan_operator_id)
     attachment = personal_redmine_obj.rm_upload(args)
     if attachment is not None:
         args['uploads'] = [attachment]
