@@ -249,6 +249,13 @@ def user_forgot_password(args):
     return 'dummy_response', 200
 
 
+def get_sysadmin_info(login):
+    system_user = model.User.query.filter_by(login=login).first()
+    if system_user is not None:
+        return NexusUser().set_user_id(system_user.id).to_json()
+    return {"id": 1}
+
+
 @record_activity(ActionType.UPDATE_USER)
 def update_user(user_id, args, from_ad=False):
     user = model.User.query.filter_by(id=user_id).first()

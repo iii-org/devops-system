@@ -97,7 +97,14 @@ class SingleIssueV2(MethodResource):
                 kwargs[k] = ''
 
         kwargs["subject"] = kwargs.pop("name", None)
-        output = update_issue(issue_id, kwargs, get_jwt_identity()['user_id'])
+        if get_jwt_identity()['role_id'] == 7:
+            from resources.user import get_sysadmin_info
+            import config
+            operator_id = get_sysadmin_info(config.get('ADMIN_INIT_LOGIN')).get("id")
+        else:
+            operator_id = get_jwt_identity()['user_id']
+
+        output = update_issue(issue_id, kwargs, operator_id)
         return util.success(output)
 
     @doc(tags=['Issue'], description="Delete single issue")
@@ -126,9 +133,14 @@ class CreateSingleIssueV2(MethodResource):
             kwargs["due_date"] < kwargs["start_date"]:
             raise DevOpsError(400, 'Due date must be greater than start date.',
                                 error=apiError.argument_error("due_date"))
-
-        if get_jwt_identity()['role_id'] == 5 and kwargs.get('operator_id') is not None:
+        
+        user_role_id = get_jwt_identity()['role_id']
+        if user_role_id == 5 and kwargs.get('operator_id') is not None:
             operator_id = kwargs.get('operator_id')
+        elif user_role_id == 7:
+            from resources.user import get_sysadmin_info
+            import config
+            operator_id = get_sysadmin_info(config.get('ADMIN_INIT_LOGIN')).get("id")
         else:
             operator_id = get_jwt_identity()['user_id']
 
@@ -139,7 +151,6 @@ class CreateSingleIssueV2(MethodResource):
                 kwargs[k] = ''
 
         kwargs["subject"] = kwargs.pop("name")
-
         return util.success(create_issue(kwargs, operator_id))
 
 
@@ -194,9 +205,13 @@ class SingleIssue(Resource):
         parser.add_argument('upload_content_type', type=str, location="form")
 
         args = parser.parse_args()
-
+        user_role_id = get_jwt_identity()['role_id']
         if get_jwt_identity()['role_id'] == 5 and args.get('operator_id') is not None:
             operator_id = args.get('operator_id')
+        elif user_role_id == 7:
+            from resources.user import get_sysadmin_info
+            import config
+            operator_id = get_sysadmin_info(config.get('ADMIN_INIT_LOGIN')).get("id")
         else:
             operator_id = get_jwt_identity()['user_id']
 
@@ -297,7 +312,15 @@ class SingleIssue(Resource):
                 args[k] = ''
 
         args["subject"] = args.pop("name", None)
-        output = update_issue(issue_id, args, get_jwt_identity()['user_id'])
+
+        if get_jwt_identity()['role_id'] == 7:
+            from resources.user import get_sysadmin_info
+            import config
+            operator_id = get_sysadmin_info(config.get('ADMIN_INIT_LOGIN')).get("id")
+        else:
+            operator_id = get_jwt_identity()['user_id']
+
+        output = update_issue(issue_id, args, operator_id)
         return util.success(output)
 
     @jwt_required()
