@@ -100,6 +100,7 @@ def add_resource(classes, level):
 
 
 app.config['PROPAGATE_EXCEPTIONS'] = True
+# app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
     "pool_recycle": 60,
@@ -616,6 +617,21 @@ notification_message_url(api, add_resource, socketio)
 # routine job
 api.add_resource(routine_job.DoJobByMonth, '/routine_job/by_month')
 api.add_resource(routine_job.DoJobByDay, '/routine_job/by_day')
+
+
+
+@app.route('/user/login', methods=["POST"])
+def login():
+    from flask import request
+    from resources.user import login
+    try:
+        args = request.get_json()
+    except Exception:
+        args = {
+            "username": request.form.get("username"),
+            "password": request.form.get("password"), 
+        }
+    return login(args)
 
 
 

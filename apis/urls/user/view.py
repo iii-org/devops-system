@@ -25,14 +25,14 @@ class LoginV2(MethodResource):
         return login(kwargs)
 
 
-class Login(Resource):
-    # noinspection PyMethodMayBeStatic
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('username', type=str, required=True)
-        parser.add_argument('password', type=str, required=True)
-        args = parser.parse_args()
-        return login(args)
+# class Login(Resource):
+#     # noinspection PyMethodMayBeStatic
+#     def post(self):
+#         parser = reqparse.RequestParser()
+#         parser.add_argument('username', type=str, required=True)
+#         parser.add_argument('password', type=str, required=True)
+#         args = parser.parse_args()
+#         return login(args)
 
 
 class UserStatus(Resource):
