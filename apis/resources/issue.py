@@ -1049,17 +1049,18 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
 
     total_count = 0
     users_info = user.get_all_user_info()
+    personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
     for default_filters in default_filters_list:
         default_filters["include"] = "relations"
         if download:
-            all_issues, _ = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
+            all_issues, _ = personal_redmine_obj.rm_list_issues(params=default_filters, operator_id=operator_id)
         else:
             if get_jwt_identity()["role_id"] != 7:
                 operator_id = model.UserPluginRelation.query. \
                     filter_by(user_id=get_jwt_identity()["user_id"]).one().plan_user_id
-                all_issues, total_count = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
+                all_issues, total_count = personal_redmine_obj.rm_list_issues(params=default_filters, operator_id=operator_id)
             else:
-                all_issues, total_count = redmine.rm_list_issues(params=default_filters)
+                all_issues, total_count = personal_redmine_obj.rm_list_issues(params=default_filters)
 
         # 透過 selection params 決定是否顯示 family bool 欄位
         if not args.get('selection') or not strtobool(args.get('selection')):

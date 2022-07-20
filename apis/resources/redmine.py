@@ -198,11 +198,11 @@ class Redmine:
         headers = {'Content-Type': 'application/xml'}
         return self.__api_put(path, headers=headers).json()
 
-    def rm_list_issues(self, paging=100, params=None, operator_id=None):
+    def rm_list_issues(self, paging=100, params=None):
         if params is None:
             params = {'status_id': '*'}
         if params.get("limit") is not None:
-            issue_info = self.__api_get('/issues', params=params, operator_id=operator_id).json()
+            issue_info = self.__api_get('/issues', params=params).json()
             return issue_info["issues"], issue_info["total_count"]
         issues, total_count = self.paging('issues', paging, params, with_total_count=True)
         return issues, total_count
