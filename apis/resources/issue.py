@@ -913,7 +913,7 @@ def update_issue(issue_id, args, operator_id=None):
         operator_plugin_relation = nexus.nx_get_user_plugin_relation(
             user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
-    personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
+    personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
     attachment = personal_redmine_obj.rm_upload(args)
     if attachment is not None:
         args['uploads'] = [attachment]
