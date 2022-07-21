@@ -709,6 +709,7 @@ def create_issue(args, operator_id):
         operator_plugin_relation = nexus.nx_get_user_plugin_relation(
             user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
+    personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
 
     # Check project is disabled or not
     if model.Project.query.get(project_id).disabled:
@@ -755,7 +756,6 @@ def create_issue(args, operator_id):
     point = args.pop("point", 0)
     # Get Tags ID
     tags = args.pop("tags", None)
-    personal_redmine_obj = get_redmine_obj(operator_id=plan_operator_id)
     attachment = personal_redmine_obj.rm_upload(args)
     if attachment is not None:
         args['uploads'] = [attachment]
