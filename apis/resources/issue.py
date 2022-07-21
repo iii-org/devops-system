@@ -11,7 +11,6 @@ from redminelib import exceptions as redminelibError
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import Any
 from sqlalchemy.orm.exc import NoResultFound
-
 import re
 import os
 import config
@@ -1049,17 +1048,14 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
 
     total_count = 0
     users_info = user.get_all_user_info()
+    personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
     for default_filters in default_filters_list:
         default_filters["include"] = "relations"
         if download:
-            personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
-            all_issues, _ = personal_redmine_obj.rm_list_issues(params=default_filters)
-            del personal_redmine_obj
+            all_issues, _ = personal_redmine_obj.rm_list_issues(params=default_filters) 
         else:
             if get_jwt_identity()["role_id"] != 7:
-                personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
                 all_issues, total_count = personal_redmine_obj.rm_list_issues(params=default_filters)
-                del personal_redmine_obj
             else:
                 all_issues, total_count = redmine.rm_list_issues(params=default_filters)
 
@@ -1068,6 +1064,8 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
             nx_issue_params['relationship_bool'] = True
 
         output += all_issues
+    
+    del personal_redmine_obj
 
     # Parse filter_issues
     for issue in output:

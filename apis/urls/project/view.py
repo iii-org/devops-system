@@ -171,7 +171,7 @@ class IssueByProjectV2(MethodResource):
         if kwargs.get("search") is not None and len(kwargs["search"]) < 2:
             output = []
         else:
-            output = get_issue_list_by_project_helper(project_id, kwargs)
+            output = get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
         return util.success(output)
 
 
@@ -201,7 +201,7 @@ class IssueByProject(Resource):
         if args.get("search") is not None and len(args["search"]) < 2:
             output = []
         else:
-            output = get_issue_list_by_project_helper(project_id, args)
+            output = get_issue_list_by_project_helper(project_id, args ,operator_id=get_jwt_identity()["user_id"])
         return util.success(output)
 
 

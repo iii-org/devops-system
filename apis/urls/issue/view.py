@@ -134,8 +134,8 @@ class CreateSingleIssueV2(MethodResource):
             raise DevOpsError(400, 'Due date must be greater than start date.',
                                 error=apiError.argument_error("due_date"))
         user_role_id = get_jwt_identity()['role_id']
-        if user_role_id == 5 and kwargs.get('creator_id') is not None:
-            creator_id = kwargs.get('creator_id')
+        if user_role_id == 5 and kwargs.get('operator_id') is not None:
+            creator_id = kwargs.pop('creator_id')
         elif user_role_id == 7:
             from resources.user import get_sysadmin_info
             import config
@@ -150,7 +150,6 @@ class CreateSingleIssueV2(MethodResource):
                 kwargs[k] = ''
 
         kwargs["subject"] = kwargs.pop("name")
-        print(kwargs)
         return util.success(create_issue(kwargs, creator_id))
 
 
@@ -206,8 +205,8 @@ class SingleIssue(Resource):
 
         args = parser.parse_args()
         user_role_id = get_jwt_identity()['role_id']
-        if get_jwt_identity()['role_id'] == 5 and args.get('creator_id') is not None:
-            creator_id = args.get('creator_id')
+        if user_role_id == 5 and args.get('creator_id') is not None:
+            creator_id = args.pop('creator_id')
         elif user_role_id == 7:
             from resources.user import get_sysadmin_info
             import config
