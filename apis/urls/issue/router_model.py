@@ -37,7 +37,7 @@ class SingleIssuePostSchema(CommonSingleIssueSchema):
     status_id = fields.Int(doc='status_id', example=-1, required=True)
     priority_id = fields.Int(doc='priority_id', example=-1, required=True)
     name = fields.Str(doc='name', example="string", required=True)
-    creator_id = fields.Int(doc='operator_id', example=-1, required=False)
+    creator_id = fields.Int(doc='creator_id', example=-1, required=False)
 
 class SingleIssuePutSchema(CommonSingleIssueSchema):
     project_id = fields.Int(doc='project_id', example=-1)

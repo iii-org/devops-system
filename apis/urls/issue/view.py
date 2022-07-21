@@ -133,16 +133,15 @@ class CreateSingleIssueV2(MethodResource):
             kwargs["due_date"] < kwargs["start_date"]:
             raise DevOpsError(400, 'Due date must be greater than start date.',
                                 error=apiError.argument_error("due_date"))
-        
         user_role_id = get_jwt_identity()['role_id']
-        if user_role_id == 5 and kwargs.get('operator_id') is not None:
-            operator_id = kwargs.get('operator_id')
+        if user_role_id == 5 and kwargs.get('creator_id') is not None:
+            creator_id = kwargs.get('creator_id')
         elif user_role_id == 7:
             from resources.user import get_sysadmin_info
             import config
-            operator_id = get_sysadmin_info(config.get('ADMIN_INIT_LOGIN')).get("id")
+            creator_id = get_sysadmin_info(config.get('ADMIN_INIT_LOGIN')).get("id")
         else:
-            operator_id = get_jwt_identity()['user_id']
+            creator_id = get_jwt_identity()['user_id']
 
         # Handle removable int parameters
         keys_int_or_null = ['assigned_to_id', 'fixed_version_id', 'parent_id']
@@ -151,7 +150,8 @@ class CreateSingleIssueV2(MethodResource):
                 kwargs[k] = ''
 
         kwargs["subject"] = kwargs.pop("name")
-        return util.success(create_issue(kwargs, operator_id))
+        print(kwargs)
+        return util.success(create_issue(kwargs, creator_id))
 
 
 class SingleIssue(Resource):
@@ -187,7 +187,7 @@ class SingleIssue(Resource):
         parser.add_argument('name', type=str, required=True, location="form")
         parser.add_argument('description', type=str, location="form")
         parser.add_argument('assigned_to_id', type=str, location="form")
-        parser.add_argument('operator_id', type=str, location="form")
+        parser.add_argument('creator_id', type=str, location="form")
         parser.add_argument('parent_id', type=str, location="form")
         parser.add_argument('fixed_version_id', type=str, location="form")
         parser.add_argument('start_date', type=str, location="form")
@@ -206,14 +206,14 @@ class SingleIssue(Resource):
 
         args = parser.parse_args()
         user_role_id = get_jwt_identity()['role_id']
-        if get_jwt_identity()['role_id'] == 5 and args.get('operator_id') is not None:
-            operator_id = args.get('operator_id')
+        if get_jwt_identity()['role_id'] == 5 and args.get('creator_id') is not None:
+            creator_id = args.get('creator_id')
         elif user_role_id == 7:
             from resources.user import get_sysadmin_info
             import config
-            operator_id = get_sysadmin_info(config.get('ADMIN_INIT_LOGIN')).get("id")
+            creator_id = get_sysadmin_info(config.get('ADMIN_INIT_LOGIN')).get("id")
         else:
-            operator_id = get_jwt_identity()['user_id']
+            creator_id = get_jwt_identity()['user_id']
 
         if args.get("upload_file") is not None:
             check_upload_type(args["upload_file"])
@@ -231,7 +231,7 @@ class SingleIssue(Resource):
                 args[k] = ''
 
         args["subject"] = args.pop("name")
-        return util.success(create_issue(args, operator_id))
+        return util.success(create_issue(args, creator_id))
 
     @jwt_required()
     def put(self, issue_id):
