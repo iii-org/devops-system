@@ -16,6 +16,8 @@ import model
 from resources import apiError
 from resources import role
 from resources import template
+from enums.action_type import ActionType
+from resources.activity import record_activity
 from resources.apiError import DevOpsError
 from resources.kubernetesClient import read_namespace_secret, SYSTEM_SECRET_NAMESPACE, DEFAULT_NAMESPACE, \
     create_namespace_secret, patch_namespace_secret, delete_namespace_secret
@@ -117,6 +119,18 @@ def get_plugin_config(plugin_name):
                 o['options'] = role.get_user_roles(True)
         ret['arguments'].append(o)
     return ret
+
+@record_activity(ActionType.ENABLE_PLUGIN)
+def enable_plugin_config(plugin_name):
+    db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one() 
+    db_row.disabled = False
+    model.db.session.commit()
+
+@record_activity(ActionType.DISABLE_PLUGIN)
+def disable_plugin_config(plugin_name):
+    db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one() 
+    db_row.disabled = True
+    model.db.session.commit()
 
 
 def update_plugin_config(plugin_name, args):
@@ -226,11 +240,14 @@ def update_plugin_config(plugin_name, args):
     rancher.rc_add_secrets_to_all_namespaces(plugin_name, global_secrets)
 
     # Putting here to avoid not commit session error
-    if args.get('disabled') is not None:
-        db_row.disabled = bool(args['disabled'])
     db_row.parameter = json.dumps(db_arguments)
     db_row.update_at = datetime.now()
     model.db.session.commit()
+    if args.get('disabled') is not None:
+        if bool(args['disabled']):
+            disable_plugin_config(plugin_name)
+        else:
+            enable_plugin_config(plugin_name)
 
 
 def delete_plugin_row(plugin_name):

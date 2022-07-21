@@ -60,7 +60,7 @@ ONLY_UPDATE_DB_MODELS = [
     '1.15.0.11', '1.15.0.13', '1.15.0.14', '1.15.1.0', '1.15.1.1', '1.15.2.0', '1.15.2.1', '1.15.2.4', '1.16.0.1',
     '1.16.1.0', '1.16.1.2', '1.16.1.3', '1.16.1.4', '1.16.2.0', '1.16.2.1', '1.16.2.2', '1.16.2.3', '1.16.2.4',
     '1.16.2.5', '1.16.2.6', '1.16.2.7', '1.16.3.0', '1.17.1.0', '1.17.1.1', '1.17.2.2', '1.17.2.4', '1.17.2.6',
-    '1.17.2.8', '1.17.2.10', '1.17.2.11', '1.17.2.12', '1.19.0.1', '1.19.0.2']
+    '1.17.2.8', '1.17.2.10', '1.17.2.11', '1.17.2.12', '1.19.0.1', '1.19.0.2', '1.19.0.3']
 
 
 def upgrade(version):
@@ -225,6 +225,19 @@ def upgrade(version):
         UIRouteData.query.delete()
         db.session.commit()
         ui_route_first_version()
+    elif version == '1.19.0.3':
+        insert_rancher_app_revision_limit_in_system_parameter()
+
+
+def insert_rancher_app_revision_limit_in_system_parameter():
+    if SystemParameter.query.filter_by(name="rancher_app_revision_limit").first() is None:
+        row = SystemParameter(
+            name="rancher_app_revision_limit",
+            value={"limit_nums": 3000},
+            active=True
+        )
+        db.session.add(row)
+        db.session.commit()
 
 
 def set_excalidraw_plugin_disabled_is_true():

@@ -109,7 +109,7 @@ def limit_to_project(project_id):
         ActionType.CREATE_PROJECT, ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT,
         ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER, ActionType.DELETE_ISSUE, ActionType.ADD_TAG,
         ActionType.DELETE_TAG, ActionType.MODIFY_HOOK, ActionType.RECREATE_PROJECT, ActionType.ENABLE_ISSUE_CHECK,
-        ActionType.DISABLE_ISSUE_CHECK]
+        ActionType.DISABLE_ISSUE_CHECK, ActionType.ENABLE_PLUGIN, ActionType.DISABLE_PLUGIN]
     ))
     query = query.filter(or_(
         model.Activity.object_id.like(f'%@{project_id}'),
@@ -157,6 +157,12 @@ class Activity(model.Activity):
         if self.action_type == ActionType.DISABLE_ISSUE_CHECK:
             self.object_id = str(args["project_id"])
             self.action_parts = "關閉檢查創建議題之狀態"
+        if self.action_type == ActionType.ENABLE_PLUGIN:
+            self.object_id = get_jwt_identity()["user_id"]
+            self.action_parts = f'Enable plugin: {args["plugin_name"]}'
+        if self.action_type == ActionType.DISABLE_PLUGIN:
+            self.object_id = get_jwt_identity()["user_id"]
+            self.action_parts = f'Disable plugin: {args["plugin_name"]}'
 
     def __get_issue_project_id(self, issue_id):
         row = model.ProjectPluginRelation.query.filter_by(
