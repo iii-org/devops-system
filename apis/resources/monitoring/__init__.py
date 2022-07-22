@@ -9,7 +9,7 @@ import config
 import pandas as pd
 import util
 from github import Github
-from model import MonitoringRecord, NotificationMessage, Project, ProjectPluginRelation, db, PluginSoftware
+from model import MonitoringRecord, NotificationMessage, Project, ProjectPluginRelation, db, PluginSoftware, SystemParameter
 from nexus import nx_get_project_plugin_relation
 from plugins.sonarqube.sonarqube_main import (sq_get_current_measures,
                                               sq_list_project)
@@ -41,6 +41,7 @@ AlertServiceIDMapping = {
     "K8s not alive": 401,
     "Sonarqube not alive": 501,
     "Rancher not alive": 601,
+    "Rancher AppRevision counts out of limit": 602
 }
 
 
@@ -266,8 +267,15 @@ class Monitoring:
     def rancher_alive(self):
         self.server = "Rancher"
         self.alert_service_id = 601
-        return self.__check_server_alive(
+        rancher_alive = self.__check_server_alive(
             rancher.rc_get_pipeline_info, rancher.rc_get_project_pipeline, self.ci_pj_id, self.ci_pipeline_id)
+        if not rancher_alive:
+            return rancher_alive
+
+        for check_element in [rancher_projects_limit_num]:
+            if not self.__check_server_element_alive(check_element):
+                rancher_alive = False
+        return rancher_alive
 
     # Plugins
     def excalidraw_alive(self):
@@ -525,3 +533,20 @@ def gitlab_projects_storage_limit():
         "error_title": "Gitlab projects are exceeded its storage limit",
         # "invalid_project_id_mapping": invalid_project_id_mapping
     }
+
+
+def rancher_projects_limit_num():
+    command = "kubectl get apprevisions -n $(kubectl get project -n local -o jsonpath=\"{.items[?(@.spec.displayName=='Default')].metadata.name}\") | grep -v NAME | wc -l"
+    output_str, _ = util.ssh_to_node_by_key(command, config.get("DEPLOYER_NODE_IP"))
+    parameter = SystemParameter.query.filter_by(name="rancher_app_revision_limit").first()
+    if int(output_str) >= int(parameter.value["limit_nums"]):
+        return {
+            "error_title": "Rancher AppRevision counts out of limit",
+            "status": False,
+            "message": f"Rancher AppRevision counts surpass {parameter.value['limit_nums']}."
+        }
+    else:
+        return {
+            "error_title": "Rancher AppRevision counts out of limit",
+            "status": True
+        }

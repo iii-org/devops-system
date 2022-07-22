@@ -367,6 +367,7 @@ def create_issue_tags(issue_id, tags, plan_operator_id):
         for tag_id, tag_name in add_tags.items():
             personal_redmine_obj.rm_update_issue(
                 issue_id, {"notes": tags_note_json(tag_id, tag_name)})
+    logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
     return new.issue_id
 
@@ -395,6 +396,7 @@ def update_issue_tags(issue_id, tags, plan_operator_id):
             for tag_id, tag_name in delete_tags.items():
                 personal_redmine_obj.rm_update_issue(
                     issue_id, {"notes": tags_note_json(tag_id, tag_name, add=False)})
+    logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
     return issue_tags.issue_id
 
@@ -798,7 +800,8 @@ def create_issue(args, operator_id):
     main_pj_id = main_output['project']['id']
     for pj_id in get_all_fathers_project(main_pj_id, []) + [main_pj_id] + get_all_sons_project(main_pj_id, []):
         emit("add_issue", ws_output_list, namespace="/issues/websocket", to=pj_id, broadcast=True)
-    
+
+    logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
     return main_output
 
@@ -972,6 +975,7 @@ def update_issue(issue_id, args, operator_id=None):
     main_pj_id = main_output['project']['id']
     for pj_id in get_all_fathers_project(main_pj_id, []) + [main_pj_id] + get_all_sons_project(main_pj_id, []):
         emit("update_issue", ws_output_list, namespace="/issues/websocket", to=pj_id, broadcast=True)
+    logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
     return main_output
 
@@ -1086,7 +1090,8 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
             nx_issue_params['relationship_bool'] = True
 
         output += all_issues
-    
+
+    logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
 
     # Parse filter_issues

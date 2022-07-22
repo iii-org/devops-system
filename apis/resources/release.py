@@ -15,7 +15,7 @@ import nexus
 import util as util
 from model import db
 from sqlalchemy import desc
-from resources import apiError, role
+from resources import apiError, role, logger
 from .gitlab import gitlab, gl_release
 from .harbor import hb_release
 from .redmine import redmine, rm_release, get_redmine_obj
@@ -490,6 +490,7 @@ class Releases(Resource):
                     issue_ids.append(issue['id'])
                     personal_redmine_obj.rm_update_issue(
                         issue['id'], data)
+            logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
             del personal_redmine_obj
         except NoResultFound:
             return util.respond(404, error_redmine_issues_closed,

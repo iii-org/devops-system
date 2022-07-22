@@ -7,7 +7,7 @@ import resources.apiError as apiError
 import resources.project as project
 import resources.user as user
 import util as util
-from resources import role
+from resources import role, logger
 from resources.redmine import redmine, get_redmine_obj
 
 
@@ -52,6 +52,7 @@ def put_wiki_by_project(project_id, wiki_name, args, operator_id):
         plan_operator_id = operator_plugin_relation.plan_user_id
     personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
     personal_redmine_obj.rm_put_wiki(plan_id, wiki_name, args)
+    logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
     return util.success()
 
