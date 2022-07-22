@@ -639,6 +639,8 @@ class AlertUnchangeRecord(db.Model):
 class IssueExtensions(db.Model):
     issue_id = Column(Integer, primary_key=True)
     point = Column(Integer)
+    ITSMS_no = Column(String)
+    ITSMS_url = Column(String)
 
 
 class Tag(db.Model):
