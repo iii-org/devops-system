@@ -68,15 +68,15 @@
         "end_version": "v1.19.9"
     },
     "mariadb-dev":{
-        "start_version": "v1.13.0",
+        "start_version": "v1.18.1",
         "end_version": "v1.19.9"
     },
     "mongodb-dev":{
-        "start_version": "v1.13.0",
+        "start_version": "v1.18.1",
         "end_version": "v1.19.9"
     },
     "mssql-dev":{
-        "start_version": "v1.3.1",
+        "start_version": "v1.18.1",
         "end_version": "v1.19.9"
     },
     "nodejs-express-hello":{
@@ -92,7 +92,7 @@
         "end_version": "v1.19.9"
     },
     "postgres-dev":{
-        "start_version": "v1.13.0",
+        "start_version": "v1.18.1",
         "end_version": "v1.19.9"
     },
     "spring-boot-gradle-hello":{
