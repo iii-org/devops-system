@@ -38,6 +38,8 @@ class SingleIssuePostSchema(CommonSingleIssueSchema):
     priority_id = fields.Int(doc='priority_id', example=-1, required=True)
     name = fields.Str(doc='name', example="string", required=True)
     creator_id = fields.Int(doc='creator_id', example=-1, required=False)
+    changeNo = fields.Str(doc="changeNo", examplpe="str")
+    changeUrl = fields.Str(doc="changeUrl", examplpe="str")
 
 class SingleIssuePutSchema(CommonSingleIssueSchema):
     project_id = fields.Int(doc='project_id', example=-1)
@@ -142,6 +144,9 @@ class SingleIssuePostDataResponse(CommonSingleIssueResponse):
     parent = fields.Nested(
         ParentResponse, required=True)
     family = fields.Bool(required=True)
+    changeNo = fields.Str(example="ITSMS_no")
+    changeUrl = fields.Str(example="www.google.com")
+    issue_url = fields.Str(example="www.google.com")
 
 class SingleIssuePutDataResponse(CommonSingleIssueResponse):
     estimated_hours = fields.Float(required=True)

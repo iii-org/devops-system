@@ -239,7 +239,7 @@ class NexusIssue:
             self.data['is_closed'] = True
 
         if with_point:
-            self.data["point"] = get_issue_point(self.data["id"])
+            self.data |= get_issue_extensions(self.data["id"])
         return self
 
     @staticmethod
@@ -263,15 +263,15 @@ class NexusIssue:
         return self.data['tracker']['name']
 
 
-def ws_common_response(issue_id, point=None, tags=None, plan_operator_id=None, update=True):
+def ws_common_response(issue_id, extension_args=None, tags=None, plan_operator_id=None, update=True):
     issue = redmine_lib.redmine.issue.get(issue_id)
     output = NexusIssue().set_redmine_issue_v2(issue).to_json()
-    if point is not None:
+    if extension_args is not None:
         if update:
-            update_issue_point(output["id"], point)
-        output["point"] = point
+            update_issue_extensions(output["id"], extension_args)
+        output |= extension_args
     else:
-        output["point"] = get_issue_point(output["id"])
+        output |= get_issue_extensions(output["id"])
 
     if tags is not None:
         tag_ids = tags.strip().split(',')
@@ -293,6 +293,7 @@ def ws_common_response(issue_id, point=None, tags=None, plan_operator_id=None, u
         output['relations'] = family['relations']
         has_family = True
     output["family"] = has_family
+    output["issue_url"] = f'http://{config.get("DEPLOYMENT_NAME")}/#/project/issues/{issue_id}'
     return output
 
 
@@ -432,29 +433,40 @@ def search_issue_tags_by_tags(tags):
     return [issue.issue_id for issue in issues]
 
 
-def get_issue_point(issue_id):
-    point = 0
+def get_issue_extensions(issue_id):
+    ret = {
+        "point": 0,
+        "changeNo": None,
+        "changeUrl": None
+    }
     issue = IssueExtensions.query.filter_by(issue_id=issue_id).first()
     if issue is not None:
-        point = issue.point
+        ret["point"] = issue.point
+        ret["changeNo"] = issue.ITSMS_no
+        ret["changeUrl"] = issue.ITSMS_url
     else:
-        create_issue_extensions(issue_id, point)
-    return point
+        create_issue_extensions(issue_id, ret)
+    return ret
 
 
-def create_issue_extensions(issue_id, point=0):
-    issue = IssueExtensions(issue_id=issue_id, point=point)
+def create_issue_extensions(issue_id, args):
+    issue = IssueExtensions(
+        issue_id=issue_id, 
+        point=args.get("point"),
+        ITSMS_no=args.get("changeNo"),
+        ITSMS_url=args.get("changeUrl"),
+    )
     db.session.add(issue)
     db.session.commit()
 
 
-def update_issue_point(issue_id, point):
+def update_issue_extensions(issue_id, args):
     issue = IssueExtensions.query.filter_by(issue_id=issue_id).first()
     if issue is not None:
-        issue.point = point
+        issue.point = args.get("point")
         db.session.commit()
     else:
-        create_issue_extensions(issue_id, point)
+        create_issue_extensions(issue_id, args)
 
 
 def delete_issue_extensions(issue_id):
@@ -632,6 +644,7 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
     redmine_output['is_closed'] = False
     if redmine_output['status']['id'] in closed_status:
         redmine_output['is_closed'] = True
+    redmine_output["issue_url"] = f'http://{config.get("DEPLOYMENT_NAME")}/#/project/issues/{redmine_output["id"]}'
     return redmine_output
 
 
@@ -752,7 +765,13 @@ def create_issue(args, operator_id):
         else:
             args['assigned_to_id'] = None
 
-    point = args.pop("point", 0)
+    # Get Issue extension(point, ITSMS)
+    extension_args = {
+        "point": args.pop("point", 0),
+        "changeNo": args.pop("changeNo"),
+        "changeUrl": args.pop("changeUrl")    
+    }
+
     # Get Tags ID
     tags = args.pop("tags", None)
     attachment = personal_redmine_obj.rm_upload(args)
@@ -761,7 +780,7 @@ def create_issue(args, operator_id):
 
     created_issue = personal_redmine_obj.rm_create_issue(args)
     created_issue_id = created_issue["issue"]["id"]
-    create_issue_extensions(created_issue_id, point=point)
+    create_issue_extensions(created_issue_id, extension_args)
 
     # Update cache
     if update_cache_issue_family:
@@ -771,7 +790,7 @@ def create_issue(args, operator_id):
     update_pj_issue_calc(project_id, total_count=1, closed_count=closed_count)
 
     main_output = ws_common_response(
-        created_issue_id, point=point, tags=tags, plan_operator_id=plan_operator_id, update=False)
+        created_issue_id, extension_args=extension_args, tags=tags, plan_operator_id=plan_operator_id, update=False)
     ws_output_list = [main_output]
     if args.get('parent_issue_id') is not None:
         ws_output_list.append(ws_common_response(args['parent_issue_id']))
@@ -905,7 +924,10 @@ def update_issue(issue_id, args, operator_id=None):
     if args.get("close_all"):
         close_all_issue(issue_id)
 
+    # Get issue extension
     point = args.pop("point", None)
+    extension_args = None if point is None else {"point": point}
+
     tags = args.pop("tags", None)
     plan_operator_id = None
     if operator_id is not None:
@@ -934,7 +956,7 @@ def update_issue(issue_id, args, operator_id=None):
         update_pj_issue_calc(pj_id, closed_count=1)
 
     main_output = ws_common_response(
-        issue_id, point=point, tags=tags, plan_operator_id=plan_operator_id)
+        issue_id, extension_args=extension_args, tags=tags, plan_operator_id=plan_operator_id)
     if origin_parent_id is not None:
         main_output["origin_parent_id"] = origin_parent_id
     if origin_fixed_version_id is not None:
@@ -1118,7 +1140,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         issue["has_children"] = has_children
 
         if args.get("with_point", False):
-            issue["point"] = get_issue_point(issue["id"])
+            issue |= get_issue_extensions(issue["id"])
         issue["tags"] = get_issue_tags(issue["id"])
 
         issue.pop("parent", "")

@@ -9,7 +9,7 @@ import util
 import werkzeug
 from redminelib.exceptions import ResourceAttrError
 from . import router_model
-from resources.issue import get_issue, require_issue_visible, get_issue_tags, get_issue_point, \
+from resources.issue import get_issue, require_issue_visible, get_issue_tags, get_issue_extensions, \
     update_issue, get_issue_family, delete_issue, create_issue, NexusIssue, get_issue_statistics, \
     get_open_issue_statistics, get_issue_statistics_in_period, post_issue_relation, put_issue_relation, \
     delete_issue_relation, check_issue_closable, get_commit_hook_issues, modify_hook, sync_issue_relation, \
@@ -39,7 +39,7 @@ class SingleIssueV2(MethodResource):
                 for item in issue_info[items]:
                     item["tags"] = get_issue_tags(item["id"])
         issue_info["name"] = issue_info.pop('subject', None)
-        issue_info["point"] = get_issue_point(issue_id)
+        issue_info |= get_issue_extensions(issue_id)
         issue_info["tags"] = get_issue_tags(issue_id)
         issue_info["excalidraw"] = get_excalidraw_by_issue_id(issue_id)
         return util.success(issue_info)
@@ -134,7 +134,7 @@ class CreateSingleIssueV2(MethodResource):
             raise DevOpsError(400, 'Due date must be greater than start date.',
                                 error=apiError.argument_error("due_date"))
         user_role_id = get_jwt_identity()['role_id']
-        if user_role_id == 5 and kwargs.get('operator_id') is not None:
+        if user_role_id == 5 and kwargs.get('creator_id') is not None:
             creator_id = kwargs.pop('creator_id')
         elif user_role_id == 7:
             from resources.user import get_sysadmin_info
@@ -170,7 +170,7 @@ class SingleIssue(Resource):
                 for item in issue_info[items]:
                     item["tags"] = get_issue_tags(item["id"])
         issue_info["name"] = issue_info.pop('subject', None)
-        issue_info["point"] = get_issue_point(issue_id)
+        issue_info |= get_issue_extensions(issue_id)
         issue_info["tags"] = get_issue_tags(issue_id)
         issue_info["excalidraw"] = get_excalidraw_by_issue_id(issue_id)
 
@@ -195,6 +195,8 @@ class SingleIssue(Resource):
         parser.add_argument('estimated_hours', type=int, location="form")
         parser.add_argument('point', type=int, location="form")
         parser.add_argument('tags', action=str, location="form")
+        parser.add_argument('changeNo', action=str, location="form")
+        parser.add_argument('changeUrl', action=str, location="form")
 
         # Attachment upload
         parser.add_argument(
