@@ -502,6 +502,7 @@ def pm_update_project(project_id, args):
 
     # Update project template
     project = model.Project.query.filter_by(id=project_id).first()
+    project_name = project.name
     if project.is_empty_project and args.get("template_id") is not None:
         template_pj = template.get_projects_detail(args["template_id"])
         args |= {
@@ -517,6 +518,7 @@ def pm_update_project(project_id, args):
     if disabled is not None:
         gitlab.gl_archive_project(
             plugin_relation.git_repository_id, disabled)
+        rancher.rc_del_app_with_prefix(f'{project_name}-')   
 
     # 若有父專案, 加關聯進ProjectParentSonRelation, 須等redmine更新完再寫入
     if args.get('parent_plan_project_id') is not None:
