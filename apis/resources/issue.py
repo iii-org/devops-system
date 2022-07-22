@@ -770,8 +770,8 @@ def create_issue(args, operator_id):
     # Get Issue extension(point, ITSMS)
     extension_args = {
         "point": args.pop("point", 0),
-        "changeNo": args.pop("changeNo"),
-        "changeUrl": args.pop("changeUrl")    
+        "changeNo": args.pop("changeNo", None),
+        "changeUrl": args.pop("changeUrl", None)    
     }
 
     # Get Tags ID
