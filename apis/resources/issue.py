@@ -369,7 +369,7 @@ def create_issue_tags(issue_id, tags, plan_operator_id):
                 issue_id, {"notes": tags_note_json(tag_id, tag_name)})
     logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
-    return new.issue_id
+    return issue_id
 
 
 def update_issue_tags(issue_id, tags, plan_operator_id):
@@ -398,7 +398,7 @@ def update_issue_tags(issue_id, tags, plan_operator_id):
                     issue_id, {"notes": tags_note_json(tag_id, tag_name, add=False)})
     logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
-    return issue_tags.issue_id
+    return issue_id
 
 
 def check_tags_diff(fir_tags, sec_tags):
