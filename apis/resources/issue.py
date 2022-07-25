@@ -2350,7 +2350,7 @@ def sync_issue_relation():
         plan_id = get_plan_id(project.id)
         if plan_id != -1:
             try:
-                all_issues, _ = redmine.rm_list_issues(params={"project_id": plan_id})
+                all_issues, _ = redmine.rm_list_issues(params={"project_id": plan_id, 'status_id': '*'})
                 for issue in all_issues:
                     if issue.get("parent") is not None:
                         parent_id = issue["parent"]["id"]
