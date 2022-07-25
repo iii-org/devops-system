@@ -1,6 +1,5 @@
 from flask_jwt_extended import JWTManager
 from resources.apiError import build
-from resources import role
 
 jsonwebtoken = JWTManager()
 
@@ -14,14 +13,3 @@ def my_expired_token_callback(jwt_header, jwt_payload):
 def custom_error(jwt_header):
     return build(3006, jwt_header), 422
 
-
-def jwt_response():
-    @jsonwebtoken.additional_claims_loader
-    def jwt_response_data(id, login, role_id, from_ad):
-        return {
-            'user_id': id,
-            'user_account': login,
-            'role_id': role_id,
-            'role_name': role.get_role_name(role_id),
-            'from_ad': from_ad
-        }

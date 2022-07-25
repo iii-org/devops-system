@@ -31,10 +31,10 @@ import resources
 from sqlalchemy import desc, nullslast
 import gitlab as gitlab_pack
 from resources.mail import mail_server_is_open
-from jsonwebtoken import jwt_response
 
 # Make a regular expression
 default_role_id = 3
+jwt = JWTManager()
 
 
 # Use lazy loading to avoid redundant db queries, build up this object like:
@@ -145,13 +145,21 @@ def check_ad_login(account, password, ad_info=None):
                           error=apiError.uncaught_exception(e))
 
 
-
+@jwt.additional_claims_loader
+def jwt_response_data(id, login, role_id, from_ad):
+    return {
+        'user_id': id,
+        'user_account': login,
+        'role_id': role_id,
+        'role_name': role.get_role_name(role_id),
+        'from_ad': from_ad
+    }
 
 
 def get_access_token(id, login, role_id, from_ad=True):
     expires = get_token_expires(role_id)
     token = create_access_token(
-        identity=jwt_response(),
+        identity=jwt_response_data(id, login, role_id, from_ad),
         expires_delta=expires
     )
     return token
