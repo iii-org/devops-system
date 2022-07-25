@@ -4,6 +4,7 @@ from resources import logger
 from resources.gitlab import gitlab 
 from resources import pipeline
 import yaml
+from time import sleep
 
 
 
@@ -124,6 +125,9 @@ def update_pipieline_file(version_mapping=None):
                     author_name='iiidevops',
                     commit_message="Testing tool runner version update.")
                 pipeline.stop_and_delete_pipeline(gl_pj_id, next_run, branch=default_branch)
+                sleep(30)
+
+            logger.logger.info(f"Change: {change}")
             logger.logger.info(f"Updating {gl_pj_id} tool version in branch({default_branch}) done.")
         except Exception as e:
             logger.logger.exception(f"Gitlab project id: {gl_pj_id} has exception message ({str(e)})")
