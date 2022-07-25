@@ -369,7 +369,7 @@ def create_issue_tags(issue_id, tags, plan_operator_id):
                 issue_id, {"notes": tags_note_json(tag_id, tag_name)})
     logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
-    return new.issue_id
+    return issue_id
 
 
 def update_issue_tags(issue_id, tags, plan_operator_id):
@@ -398,7 +398,7 @@ def update_issue_tags(issue_id, tags, plan_operator_id):
                     issue_id, {"notes": tags_note_json(tag_id, tag_name, add=False)})
     logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
-    return issue_tags.issue_id
+    return issue_id
 
 
 def check_tags_diff(fir_tags, sec_tags):
@@ -770,8 +770,8 @@ def create_issue(args, operator_id):
     # Get Issue extension(point, ITSMS)
     extension_args = {
         "point": args.pop("point", 0),
-        "changeNo": args.pop("changeNo"),
-        "changeUrl": args.pop("changeUrl")    
+        "changeNo": args.pop("changeNo", None),
+        "changeUrl": args.pop("changeUrl", None)    
     }
 
     # Get Tags ID

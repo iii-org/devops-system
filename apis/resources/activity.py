@@ -107,8 +107,8 @@ def build_query(args, base_query=None):
 def limit_to_project(project_id):
     query = model.Activity.query.filter(model.Activity.action_type.in_([
         ActionType.CREATE_PROJECT, ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT,
-        ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER, ActionType.DELETE_ISSUE, ActionType.ADD_TAG,
-        ActionType.DELETE_TAG, ActionType.MODIFY_HOOK, ActionType.RECREATE_PROJECT, ActionType.ENABLE_ISSUE_CHECK,
+        ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER, ActionType.DELETE_ISSUE, 
+        ActionType.MODIFY_HOOK, ActionType.RECREATE_PROJECT, ActionType.ENABLE_ISSUE_CHECK,
         ActionType.DISABLE_ISSUE_CHECK, ActionType.ENABLE_PLUGIN, ActionType.DISABLE_PLUGIN]
     ))
     query = query.filter(or_(
