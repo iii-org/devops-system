@@ -201,10 +201,10 @@ def get_tasks(repository_id):
 def get_cmas_object(project_id, commit_id=None):
     if commit_id is None:
         cmas_test = db.session.query(Model).join(ProjectPluginRelation).filter(
-        model.ProjectPluginRelation.project_id == project_id).order_by(desc(Model.run_at)).first()
+            model.ProjectPluginRelation.project_id == project_id).order_by(desc(Model.run_at)).first()
     else:
         cmas_test = db.session.query(Model).join(ProjectPluginRelation).filter(
-        model.ProjectPluginRelation.project_id == project_id).filter(
+            model.ProjectPluginRelation.project_id == project_id).filter(
             Model.commit_id == commit_id).order_by(desc(Model.run_at)).first()
     return cmas_test
 
@@ -216,8 +216,8 @@ def get_task_state(project_id, commit_id):
             status = CMAS(cmas_test.task_id).query_report_task().get("status")
             if status == "SUCCESS":
                 cmas_test = get_cmas_object(project_id, commit_id=commit_id)
-       
-        stats = util.is_json(cmas_test.stats) 
+
+        stats = util.is_json(cmas_test.stats)
         if isinstance(stats, dict):
             stats["run_at"] = str(cmas_test.run_at)
         return stats
@@ -242,7 +242,7 @@ def get_latest_state(project_id):
         }
     else:
         return ""
-    
+
 
 def create_task(args, repository_id):
     new = Model(
@@ -300,12 +300,12 @@ def remove_apk():
 
 class CMASTask(Resource):
     # Get all tasks
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id):
         return util.success(get_tasks(repository_id))
 
     # Create new tasks
-    @jwt_required
+    @jwt_required()
     def post(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('task_id', type=str, required=True)
@@ -332,14 +332,14 @@ class CMASTask(Resource):
 
 class CMASRemote(Resource):
     # get task status
-    @jwt_required
+    @jwt_required()
     def get(self, task_id):
         return util.success(CMAS(task_id).query_report_task())
 
 
 class CMASDonwload(Resource):
     # Download reports
-    @jwt_required
+    @jwt_required()
     def get(self, task_id, file_type):
         if file_type == "pdf":
             return CMAS(task_id).download_report()
@@ -348,12 +348,12 @@ class CMASDonwload(Resource):
 
 
 class CMASSecret(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return get_secrets()
 
 
 class CMASAPKREmove(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         return remove_apk()

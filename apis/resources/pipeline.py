@@ -10,7 +10,7 @@ from flask import send_file
 
 import resources.apiError as apiError
 import util as util
-from model import db, PipelineLogsCache
+from model import ProjectPluginRelation, db, PipelineLogsCache, Project
 from nexus import nx_get_project_plugin_relation
 from resources import role
 from .gitlab import GitLab, commit_id_to_url
@@ -249,45 +249,69 @@ def _get_rancher_pipeline_yaml(repository_id, parameter):
             yml_file_can_not_find = True
     return yaml_file_can_not_find, yml_file_can_not_find, get_yaml_data
 
+
 def check_pipeline_folder_exist(file_name, path):
     if file_name not in listdir(path):
         raise apiError.DevOpsError(
-                404, 'The file is not found in provided path.',
-                apiError.file_not_found(file_name, path)) 
+            404, 'The file is not found in provided path.',
+            apiError.file_not_found(file_name, path))
+
 
 def list_pipeline_file(project_name):
     project_folder_path = f"devops-data/project-data/{project_name}/pipeline"
     return {folder: listdir(f"{project_folder_path}/{folder}") for folder in listdir(project_folder_path)}
+
 
 def upload_pipeline_file(project_name, folder_name, file):
     file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
     makedirs(file_path, exist_ok=True)
     file.save(f"{file_path}/{file.filename}")
 
+
 def download_pipeline_file(project_name, folder_name, file_name):
     file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
     check_pipeline_folder_exist(file_name, file_path)
     return send_file(f"../{file_path}/{file_name}")
+
 
 def delete_pipeline_file(project_name, folder_name, file_name):
     file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
     check_pipeline_folder_exist(file_name, file_path)
     rmtree(file_path)
 
+def delete_rest_pipelines(project_name):
+    project_rows = db.session.query(Project, ProjectPluginRelation).join(
+        ProjectPluginRelation, Project.id==ProjectPluginRelation.project_id).filter(
+        Project.name==project_name)
+    
+    if project_rows.count() == 0:
+        return
+
+    for project_row in project_rows:
+        repository_id = project_row.ProjectPluginRelation.git_repository_id
+
+    output_array = pipeline_exec_list(repository_id, {"limit": 10, "start": 0})
+    pipe_ids = [
+        pipe["id"] for pipe in output_array["pipe_execs"] if pipe["execution_state"] in ["Waiting", "Building", "Queueing"]]
+    for pipe_id in pipe_ids[1:]:
+        pipeline_exec_action(repository_id, {"pipelines_exec_run": pipe_id, "action": "stop"})
+
 # --------------------- Resources ---------------------
+
+
 class PipelineExec(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int)
-        parser.add_argument('start', type=int)
+        parser.add_argument('limit', type=int, location="args")
+        parser.add_argument('start', type=int, location="args")
         args = parser.parse_args()
         output_array = pipeline_exec_list(repository_id, args)
         return util.success(output_array)
 
 
 class PipelineExecAction(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('pipelines_exec_run', type=int, required=True)
@@ -297,21 +321,21 @@ class PipelineExecAction(Resource):
 
 
 class PipelineExecLogs(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('repository_id', type=int, required=True)
-        parser.add_argument('pipelines_exec_run', type=int, required=True)
+        parser.add_argument('repository_id', type=int, required=True, location="args")
+        parser.add_argument('pipelines_exec_run', type=int, required=True, location="args")
         args = parser.parse_args()
         return pipeline_exec_logs(args)
 
 
 class PipelineYaml(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id, branch_name):
         return get_ci_yaml(repository_id, branch_name)
 
-    @jwt_required
+    @jwt_required()
     def post(self, repository_id, branch_name):
         parser = reqparse.RequestParser()
         parser.add_argument('detail')
@@ -320,50 +344,51 @@ class PipelineYaml(Resource):
 
 
 class PipelinePhaseYaml(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id, branch_name):
         return get_phase_yaml(repository_id, branch_name)
 
 
 class PipelineConfig(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('pipelines_exec_run', type=int, required=True)
+        parser.add_argument('pipelines_exec_run', type=int, required=True, location="args")
         args = parser.parse_args()
         return pipeline_config(repository_id, args)
 
 
 class Pipeline(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self, repository_id):
         role.require_in_project(repository_id=repository_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('branch', type=str, required=True, location="form")
         args = parser.parse_args()
         pipeline_action(repository_id, args)
         return util.success()
 
+
 class PipelineFile(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, project_name):
         return util.success(list_pipeline_file(project_name))
 
-    # Upload 
-    @jwt_required
+    # Upload
+    @jwt_required()
     def post(self, project_name):
         parser = reqparse.RequestParser()
-        parser.add_argument('commit_short_id', type=str, required=True)
-        parser.add_argument('sequence', type=int, required=True)
+        parser.add_argument('commit_short_id', type=str, required=True, location='form')
+        parser.add_argument('sequence', type=int, required=True, location='form')
         parser.add_argument(
             'upload_file', type=werkzeug.datastructures.FileStorage, location='files')
         args = parser.parse_args()
         folder_name = f'{args["commit_short_id"]}-{args["sequence"]}'
         upload_pipeline_file(project_name, folder_name, args["upload_file"])
         return util.success()
-    
-    # Download 
-    @jwt_required
+
+    # Download
+    @jwt_required()
     def patch(self, project_name):
         parser = reqparse.RequestParser()
         parser.add_argument('commit_short_id', type=str, required=True)
@@ -373,10 +398,10 @@ class PipelineFile(Resource):
         folder_name = f'{args["commit_short_id"]}-{args["sequence"]}'
         return download_pipeline_file(project_name, folder_name, args["file_name"])
 
-    @jwt_required
+    @jwt_required()
     def delete(self, project_name):
         parser = reqparse.RequestParser()
-        parser.add_argument('folder_name', type=str, required=True)
-        parser.add_argument('file_name', type=str, required=True)
+        parser.add_argument('folder_name', type=str, required=True, location="args")
+        parser.add_argument('file_name', type=str, required=True, location="args")
         args = parser.parse_args()
         return util.success(delete_pipeline_file(project_name, args["folder_name"], args["file_name"]))

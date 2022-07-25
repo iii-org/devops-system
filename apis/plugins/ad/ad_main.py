@@ -3,6 +3,7 @@ import ssl
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse, inputs
+import ldap3
 from ldap3 import Server, ServerPool, Connection, ALL_ATTRIBUTES, FIRST, Tls
 from sqlalchemy.orm.exc import NoResultFound
 import datetime
@@ -358,6 +359,26 @@ def get_ssl_protocol(protocol_str):
     return ssl_protocol
 
 
+def check_ad_alive(ldap_parameter=None):
+    from resources.kubernetesClient import read_namespace_secret, SYSTEM_SECRET_NAMESPACE
+    error_msg = "Unable to connect with AD server."
+    system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, "system-secret-ad") or {}
+    ldap_parameter = ldap_parameter or system_secrets
+
+    try:
+        alive =  AD(ldap_parameter).ad_info["is_pass"] is True
+        ret =  {
+            "alive": alive, 
+            "message": "Unable to connect with AD server." if not alive else ""
+        }
+    except Exception:
+        ret = {
+            "alive": False,
+            "message": error_msg
+        }
+    return ret
+
+
 class AD(object):
     def __init__(self, ldap_parameter, filter_by_ou=False, account=None, password=None):
         self.ad_info = {
@@ -368,7 +389,8 @@ class AD(object):
         self.account = None
         self.password = None
         self.server = None
-        self.server = ServerPool(None, pool_strategy=FIRST, active=True)
+        ldap3.set_config_parameter("POOLING_LOOP_TIMEOUT", 3)
+        self.server = ServerPool(None, pool_strategy=FIRST, active=2)
         hosts = get_ad_servers(ldap_parameter.get('host'))
         is_ssl = bool(ldap_parameter.get('ssl', False))
         ssl_validate = get_ssl_validate_method(ldap_parameter.get('ssl_validate', 'REQUIRED'))
@@ -461,13 +483,13 @@ class AD(object):
 
 
 class SingleADUser(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         try:
             role.require_admin('Only admins can get ad user information.')
             parser = reqparse.RequestParser()
-            parser.add_argument('account', type=str)
-            parser.add_argument('ad_type', type=str)
+            parser.add_argument('account', type=str, location="args")
+            parser.add_argument('ad_type', type=str, location="args")
             args = parser.parse_args()
             res = []
             hosts, ldap_parameter = check_ad_server_status()
@@ -485,7 +507,7 @@ class SingleADUser(Resource):
             return util.respond(404, invalid_ad_server,
                                 error=apiError.invalid_plugin_name(invalid_ad_server))
 
-    @ jwt_required
+    @jwt_required()
     def post(self):
         try:
             role.require_admin('Only admins can Add ad user.')
@@ -517,14 +539,14 @@ class SingleADUser(Resource):
 
 
 class ADUsers(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         try:
             res = None
             role.require_admin('Only admins can get ad users information.')
             parser = reqparse.RequestParser()
-            parser.add_argument('ou', action='append')
-            parser.add_argument('ad_type', type=str)
+            parser.add_argument('ou', action='append', location="args")
+            parser.add_argument('ad_type', type=str, location="args")
             args = parser.parse_args()
             hosts, ldap_parameter = check_ad_server_status()
             if ldap_parameter is None or len(hosts) == 0:
@@ -586,7 +608,7 @@ class ADUsers(Resource):
 
 
 class ADOrganizations(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         try:
             res = None

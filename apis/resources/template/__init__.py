@@ -22,7 +22,7 @@ from model import PluginSoftware, Project, db
 from resources import logger
 from resources.apiError import DevOpsError
 from resources.gitlab import gitlab as rs_gitlab, get_all_group_projects
-from resources.redis import update_template_cache, get_template_caches_all, count_template_number
+from resources.redis import update_template_cache, get_template_caches_all, count_template_number, update_template_cache_all
 
 
 template_replace_dict = {
@@ -233,6 +233,16 @@ def get_tag_info_list_from_pj(pj, group_name):
     return tag_list
 
 
+def handle_template_cache(pj, group_name, pip_set_json, tag_list):
+    return {str(pj.id): json.dumps({'name': pj.name,
+                                  'path': pj.path,
+                                  'display': pip_set_json["name"],
+                                  'description': pip_set_json["description"],
+                                  'version': tag_list,
+                                  'update_at': datetime.now(),
+                                  'group_name': TEMPLATE_GROUP_DICT.get(group_name)}, default=str)}
+
+
 def update_redis_template_cache(pj, group_name, pip_set_json, tag_list):
     update_template_cache(pj.id, {'name': pj.name,
                                   'path': pj.path,
@@ -251,6 +261,7 @@ def __force_update_template_cache_table():
         "source": "Local Templates",
         "options": []
     }]
+    template_list = {}
     for group in gl.groups.list(all=True):
         if group.name in TEMPLATE_GROUP_DICT:
             for group_project in get_all_group_projects(group):
@@ -280,7 +291,9 @@ def __force_update_template_cache_table():
                     output[0]['options'].append(template_data)
                 elif group.name == "local-templates":
                     output[1]['options'].append(template_data)
-                update_redis_template_cache(pj, group.name, pip_set_json, tag_list)
+                template_list |= handle_template_cache(pj, group.name, pip_set_json, tag_list)
+                # update_redis_template_cache(pj, group.name, pip_set_json, tag_list)
+    update_template_cache_all(template_list)
     return output
 
 
@@ -323,7 +336,7 @@ def tm_get_template_list(force_update=0):
             k = list(data.keys())[0]
             v = list(data.values())[0]
             try:
-                gl.projects.get(k)
+                gl.projects.get(k, lazy=True)
             except:
                 continue
             if v.get('group_name') == "Public Templates":
@@ -798,9 +811,8 @@ def update_pj_plugin_status(plugin_name, disable):
                             if branch not in stage_when:
                                 stage_when.append(branch)
 
-                    if len(stage_when) > 1:
-                        if "skip" in stage_when:
-                            stage_when.remove("skip")
+                    if len(stage_when) > 1 and "skip" in stage_when:
+                        stage_when.remove("skip")
             # Do not commit if plugin_name has not match any stage.
             if match:
                 next_run = pipeline.get_pipeline_next_run(repository_id)
@@ -817,11 +829,11 @@ def update_pj_plugin_status(plugin_name, disable):
 
 
 class TemplateList(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         role.require_pm("Error while getting template list.")
         parser = reqparse.RequestParser()
-        parser.add_argument('force_update', type=int)
+        parser.add_argument('force_update', type=int, location="args")
         args = parser.parse_args()
         return util.success(tm_get_template_list(args["force_update"]))
 
@@ -830,32 +842,32 @@ class TemplateListForCronJob(Resource):
 
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('force_update', type=int)
+        parser.add_argument('force_update', type=int, location="args")
         args = parser.parse_args()
         return util.success(tm_get_template_list(args["force_update"]))
 
 
 class SingleTemplate(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, repository_id):
         role.require_pm("Error while getting template list.")
         parser = reqparse.RequestParser()
-        parser.add_argument('tag_name', type=str)
+        parser.add_argument('tag_name', type=str, location="args")
         args = parser.parse_args()
         return util.success(tm_get_template(repository_id, args["tag_name"]))
 
 
 class ProjectPipelineBranches(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, repository_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('all_data', type=bool)
+        parser.add_argument('all_data', type=bool, location="args")
         args = parser.parse_args()
         all_data = args.get("all_data") is not None
 
         return util.success(tm_get_pipeline_branches(repository_id, all_data=all_data))
 
-    @ jwt_required
+    @jwt_required()
     def put(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('detail', type=dict)
@@ -869,11 +881,11 @@ class ProjectPipelineBranches(Resource):
 
 
 class ProjectPipelineDefaultBranch(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, repository_id):
         return util.success(tm_get_pipeline_default_branch(repository_id))
 
-    @ jwt_required
+    @jwt_required()
     def put(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('detail', type=dict)

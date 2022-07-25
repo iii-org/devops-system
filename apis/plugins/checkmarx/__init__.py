@@ -5,7 +5,12 @@ ui_route = ["Checkmarx"]
 
 
 def router(api, add_resource):
+    # runner API
     api.add_resource(checkmarx_main.CreateCheckmarxScan, '/checkmarx/create_scan')
+    api.add_resource(checkmarx_main.GetCheckmarxProject,
+                     '/checkmarx/get_cm_project_id/<sint:project_id>')
+    
+    # 
     api.add_resource(checkmarx_main.GetCheckmarxScans,
                      '/checkmarx/scans/<sint:project_id>')
     api.add_resource(checkmarx_main.GetCheckmarxLatestScan,
@@ -23,7 +28,5 @@ def router(api, add_resource):
                      '/checkmarx/report/<scan_id>')
     api.add_resource(checkmarx_main.GetCheckmarxReportStatus,
                      '/checkmarx/report_status/<report_id>')
-    api.add_resource(checkmarx_main.GetCheckmarxProject,
-                     '/checkmarx/get_cm_project_id/<sint:project_id>')
     api.add_resource(checkmarx_main.CancelCheckmarxScan,
                      '/checkmarx/scan/<scan_id>/cancel')

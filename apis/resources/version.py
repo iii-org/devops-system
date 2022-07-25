@@ -7,11 +7,22 @@ import resources.project as project
 import util as util
 from resources import role
 from resources.redmine import redmine
+from resources import logger
+from flask_jwt_extended import get_jwt_identity
+from model import db, ProjectUserRole
 
 EMPTY_VERSIONS = {"versions": [], "total_count": 0}
 
 
 def get_version_list_by_project(project_id, status, force_id):
+    query = ProjectUserRole.query.filter(
+        ProjectUserRole.project_id == project_id
+    ).filter(ProjectUserRole.user_id == get_jwt_identity()['user_id']).all()
+    if query:
+        logger.logger.info(f"project_id:{project_id} user_id:{get_jwt_identity()['user_id']} valid:True")
+    else:
+        logger.logger.info(f"project_id:{project_id} user_id:{get_jwt_identity()['user_id']} valid:False")
+
     if util.is_dummy_project(project_id):
         return util.success(EMPTY_VERSIONS)
     try:

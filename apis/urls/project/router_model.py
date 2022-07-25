@@ -2,7 +2,7 @@ from marshmallow import Schema, fields
 from util import CommonBasicResponse
 import re
 from urls.route_model import BasicIsssueResponse, SingleIssueGetDataAuthorResponse, ProjectExtraResponse, RelationsResponse, \
-    PaginationPageResponse
+    PaginationPageResponse, CommonIssueSchema
 
 ### Project Relation
 
@@ -65,21 +65,6 @@ class ProjectRelationsGetResponse(CommonBasicResponse):
 ### Project issue_list
 
 #################################### Schema ####################################
-
-########## Module ##########
-
-class CommonIssueSchema(Schema):
-    fixed_version_id = fields.Str(doc='fixed_version_id', example="1")
-    status_id = fields.Str(doc='status_id', example="1")
-    tracker_id = fields.Str(doc='tracker_id', example="1")
-    assigned_to_id = fields.Str(doc='assigned_to_id', example="1")
-    priority_id = fields.Str(doc='priority_id', example="1")
-    only_superproject_issues = fields.Bool(doc='only_superproject_issues', example=True, missing=False)
-    limit = fields.Int(doc='limit', example=1)
-    offset = fields.Int(doc='offset', example=1)
-    search = fields.Str(doc='search', example="string")
-    selection = fields.Str(doc='selection', example="string")
-    sort = fields.Str(doc='sort', example="string")
 
 ########## API Action ##########
 
@@ -382,16 +367,16 @@ class DownloadProjectSchema(Schema):
     tracker_id = fields.Str(doc='tracker_id',  example='1')
     assigned_to_id = fields.Str(doc='assigned_to_id',  example='1')
     priority_id = fields.Str(doc='fixed_version_id',  example='1')
-    only_superproject_issues = fields.Bool(doc='only_superproject_issues', example=True, missing=False)
+    only_superproject_issues = fields.Bool(doc='only_superproject_issues', example=True, load_default=False)
     search = fields.Str(doc='search', example='string')
     selection = fields.Str(doc='selection',  example='1')
     sort = fields.Str(doc='sort', example="string")
     parent_id = fields.Str(doc='parent_id',  example='1')
     due_date_start = fields.Str(doc='due_date_start', example="1970-01-01")
     due_date_end = fields.Str(doc='due_date_end', example="1970-01-01")
-    with_point = fields.Str(doc='with_point', example=True, missing=True)
+    with_point = fields.Str(doc='with_point', example=True, load_default=True)
     tags = fields.Str(doc='tags', example="1,2,3")
-    levels = fields.Int(doc='levels', example=1, missing=3)
+    levels = fields.Int(doc='levels', example=1, load_default=3)
     deploy_column = fields.List(
         fields.Dict(example={"field": "name", "display": "議題名稱"}),
         doc='deploy_column', 
@@ -423,6 +408,7 @@ class ListMyProjectsSchema(Schema):
     limit = fields.Int(doc='limit',  example=1)
     offset = fields.Int(doc='offset',  example=1)
     search = fields.Str(doc='search',  example='string')
+    accsearch = fields.Str(doc='search',  example='string')
     disabled = fields.Int(doc='disabled',  example='1')
     test_result = fields.Str(doc='test_result',  example='true')
     pj_members_count = fields.Str(doc='pj_members_count',  example='true')
@@ -457,7 +443,8 @@ class ProjectsBasicResponse(BasicIsssueResponse):
     redmine_url = fields.Str(required=True)
     harbor_url = fields.Str(required=True)
     owner_name = fields.Str(required=True)
-    department = fields.Str(required=True)
+    department = fields.Str(required=True)  
+    is_empty_project = fields.Bool()
     
 class ListMyProjectsDataProjectListResponse(ProjectsBasicResponse):
     starred = fields.Bool()
@@ -511,6 +498,9 @@ class SingleProjectPutSchema(Schema):
     owner_id = fields.Int(doc='owner_id', example=1, required=True)
     parent_id = fields.Str(doc='parent_id', example="1")
     is_inheritance_member = fields.Bool(doc='is_inheritance_member', example=True)
+    template_id = fields.Int(doc='template_id', example=1)
+    tag_name = fields.Str(doc='tag_name', example="string")
+    arguments = fields.Str(doc='arguments', example="string")
 
 class SingleProjectPatchSchema(Schema):
     owner_id = fields.Int(doc='owner_id', example=1, required=True)
@@ -976,8 +966,8 @@ class ReleaseExtraGetSchema(Schema):
     branch_name = fields.Str(example="master", required=True)
     not_all = fields.Str(example='true')
     only_image = fields.Str(example='true')
-    limit = fields.Int(example=10, missing=10)
-    offset = fields.Int(example=0, missing=0)
+    limit = fields.Int(example=10, load_default=10)
+    offset = fields.Int(example=0, load_default=0)
 
 class ReleaseTagSchema(Schema):
     tags = fields.Str(required=True)

@@ -289,9 +289,9 @@ def check_k8s_ns(projects_name):
 
 
 def check_pipeline_hooks():
-    project_git_http_url = list(sum(model.Project.query.filter(
+    project_git_http_url = [pj_url[0] for pj_url in model.Project.query.filter(
         model.Project.id != -1).with_entities(
-        model.Project.http_url).all(), ()))
+        model.Project.http_url).all()]
     rancher.rancher.rc_get_project_id()
     pipeline_list = [pipeline['repositoryUrl'] for pipeline in rancher.rancher.rc_get_project_pipeline()]
     non_exist_pipeline = list(set(project_git_http_url)-set(pipeline_list))
@@ -543,8 +543,8 @@ def unlock_project(pj_id=None, pj_name=None):
 
 def main_process():
     check_bot_list = []
-    projects_name = list(sum(model.Project.query.filter(
-        model.Project.id != -1).with_entities(model.Project.name).all(), ()))
+    projects_name = [pj_name[0] for pj_name in model.Project.query.filter(
+        model.Project.id != -1).with_entities(model.Project.name).all()]
     logger.logger.info('Kubernetes namespaces start.')
     k8s_namespace_process(projects_name, check_bot_list)
     logger.logger.info('Redmine projects start.')
@@ -601,8 +601,8 @@ def check_project_exist():
             lost_project_names[pj_name] = [soft_name]
         return lost_project_names
 
-    projects_name = list(sum(model.Project.query.filter(
-        model.Project.id != -1).with_entities(model.Project.name).all(), ()))
+    projects_name = [pj_name[0] for pj_name in model.Project.query.filter(
+        model.Project.id != -1).with_entities(model.Project.name).all()]
     k8s_ns_list = check_k8s_ns(projects_name)
     rm_pj_list = check_rm_pj(projects_name)
     gl_repo_list = check_gl_repo(projects_name)

@@ -21,8 +21,10 @@ def create_alert_messages(args):
     db.session.commit()
 
 # --------------------- Resources ---------------------
+
+
 class AlertMessages(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('resource_type', type=str, required=True)

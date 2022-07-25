@@ -11,7 +11,6 @@ from redminelib import exceptions as redminelibError
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import Any
 from sqlalchemy.orm.exc import NoResultFound
-
 import re
 import os
 import config
@@ -26,7 +25,7 @@ from data.nexus_project import NexusProject
 from enums.action_type import ActionType
 from model import db, IssueExtensions, CustomIssueFilter
 from resources.apiError import DevOpsError
-from resources.redmine import redmine
+from resources.redmine import redmine, get_redmine_obj
 from resources import project as project_module, project, role
 from resources.activity import record_activity
 from resources import tag as tag_py
@@ -240,7 +239,7 @@ class NexusIssue:
             self.data['is_closed'] = True
 
         if with_point:
-            self.data["point"] = get_issue_point(self.data["id"])
+            self.data |= get_issue_extensions(self.data["id"])
         return self
 
     @staticmethod
@@ -264,15 +263,15 @@ class NexusIssue:
         return self.data['tracker']['name']
 
 
-def ws_common_response(issue_id, point=None, tags=None, plan_operator_id=None, update=True):
+def ws_common_response(issue_id, extension_args=None, tags=None, plan_operator_id=None, update=True):
     issue = redmine_lib.redmine.issue.get(issue_id)
     output = NexusIssue().set_redmine_issue_v2(issue).to_json()
-    if point is not None:
+    if extension_args is not None:
         if update:
-            update_issue_point(output["id"], point)
-        output["point"] = point
+            update_issue_extensions(output["id"], extension_args)
+        output |= extension_args
     else:
-        output["point"] = get_issue_point(output["id"])
+        output |= get_issue_extensions(output["id"])
 
     if tags is not None:
         tag_ids = tags.strip().split(',')
@@ -294,6 +293,7 @@ def ws_common_response(issue_id, point=None, tags=None, plan_operator_id=None, u
         output['relations'] = family['relations']
         has_family = True
     output["family"] = has_family
+    output["issue_url"] = f'http://{config.get("DEPLOYMENT_NAME")}/#/project/issues/{issue_id}'
     return output
 
 
@@ -301,7 +301,7 @@ def check_issue_exist(issue_id):
     try:
         redmine.rm_get_issue(issue_id)
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -359,14 +359,17 @@ def create_issue_tags(issue_id, tags, plan_operator_id):
     )
     db.session.add(new)
     db.session.commit()
+    personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
 
     # Record issue_tags changes in notes
     add_tags = check_tags_diff(new_tag_list, [])
     if add_tags != {}:
         for tag_id, tag_name in add_tags.items():
-            redmine.rm_update_issue(
-                issue_id, {"notes": tags_note_json(tag_id, tag_name)}, plan_operator_id)
-    return new.issue_id
+            personal_redmine_obj.rm_update_issue(
+                issue_id, {"notes": tags_note_json(tag_id, tag_name)})
+    logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
+    del personal_redmine_obj
+    return issue_id
 
 
 def update_issue_tags(issue_id, tags, plan_operator_id):
@@ -377,23 +380,25 @@ def update_issue_tags(issue_id, tags, plan_operator_id):
     # Record issue_tags changes in notes
     new_tag_list = sorted(check_tags_id_is_int(tags))
     origin_tag_list = sorted(issue_tags.tag_id)
+    personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
 
     if new_tag_list != origin_tag_list:
         issue_tags.tag_id = new_tag_list
         db.session.commit()
-        args = {"notes": ""}
         add_tags = check_tags_diff(new_tag_list, origin_tag_list)
         if add_tags != {}:
             for tag_id, tag_name in add_tags.items():
-                redmine.rm_update_issue(
-                    issue_id, {"notes": tags_note_json(tag_id, tag_name)}, plan_operator_id)
+                personal_redmine_obj.rm_update_issue(
+                    issue_id, {"notes": tags_note_json(tag_id, tag_name)})
 
         delete_tags = check_tags_diff(origin_tag_list, new_tag_list)
         if delete_tags != {}:
             for tag_id, tag_name in delete_tags.items():
-                redmine.rm_update_issue(
-                    issue_id, {"notes": tags_note_json(tag_id, tag_name, add=False)}, plan_operator_id)
-    return issue_tags.issue_id
+                personal_redmine_obj.rm_update_issue(
+                    issue_id, {"notes": tags_note_json(tag_id, tag_name, add=False)})
+    logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
+    del personal_redmine_obj
+    return issue_id
 
 
 def check_tags_diff(fir_tags, sec_tags):
@@ -430,29 +435,40 @@ def search_issue_tags_by_tags(tags):
     return [issue.issue_id for issue in issues]
 
 
-def get_issue_point(issue_id):
-    point = 0
+def get_issue_extensions(issue_id):
+    ret = {
+        "point": 0,
+        "changeNo": None,
+        "changeUrl": None
+    }
     issue = IssueExtensions.query.filter_by(issue_id=issue_id).first()
     if issue is not None:
-        point = issue.point
+        ret["point"] = issue.point
+        ret["changeNo"] = issue.ITSMS_no
+        ret["changeUrl"] = issue.ITSMS_url
     else:
-        create_issue_extensions(issue_id, point)
-    return point
+        create_issue_extensions(issue_id, ret)
+    return ret
 
 
-def create_issue_extensions(issue_id, point=0):
-    issue = IssueExtensions(issue_id=issue_id, point=point)
+def create_issue_extensions(issue_id, args):
+    issue = IssueExtensions(
+        issue_id=issue_id, 
+        point=args.get("point"),
+        ITSMS_no=args.get("changeNo"),
+        ITSMS_url=args.get("changeUrl"),
+    )
     db.session.add(issue)
     db.session.commit()
 
 
-def update_issue_point(issue_id, point):
+def update_issue_extensions(issue_id, args):
     issue = IssueExtensions.query.filter_by(issue_id=issue_id).first()
     if issue is not None:
-        issue.point = point
+        issue.point = args.get("point")
         db.session.commit()
     else:
-        create_issue_extensions(issue_id, point)
+        create_issue_extensions(issue_id, args)
 
 
 def delete_issue_extensions(issue_id):
@@ -475,51 +491,40 @@ def get_issue_attr_name(detail, value):
     if not value or value == '-1':
         return value
     else:
-        if detail['name'] == 'status_id':
+        attr_mapping = {
+            "status_id": {
+                "func": redmine_lib.redmine.issue_status,
+                "res_attr": "name"
+            },
+            "tracker_id": {
+                "func": redmine_lib.redmine.tracker,
+                "res_attr": "name"
+            },
+            "priority_id": {
+                "func": redmine_lib.redmine.enumeration,
+                "kwargs": {"resource": 'issue_priorities'},
+                "res_attr": "name"
+            },
+            "fixed_version_id": {
+                "func": redmine_lib.redmine.version,
+                "res_attr": "name"
+            },
+            "parent_id": {
+                "func": redmine_lib.redmine.issue,
+                "res_attr": "subject"
+            },
+        }
+        d_name = detail["name"]
+        if d_name in attr_mapping:
             try:
-                status = redmine_lib.redmine.issue_status.get(int(value))
+                attr = attr_mapping[d_name]
+                kwargs = attr.get("kwargs", {})
+                ret = attr["func"].get(int(value), **kwargs)
             except redminelibError.ResourceNotFoundError:
-                return resource_not_found
+                return resource_not_found    
             return {
-                'id': int(value),
-                'name': status.name
-            }
-        elif detail['name'] == 'tracker_id':
-            try:
-                tracker = redmine_lib.redmine.tracker.get(int(value))
-            except redminelibError.ResourceNotFoundError:
-                return resource_not_found
-            return {
-                'id': int(value),
-                'name': tracker.name
-            }
-        elif detail['name'] == 'priority_id':
-            try:
-                priority = redmine_lib.redmine.enumeration.get(
-                    int(value), resource='issue_priorities')
-            except redminelibError.ResourceNotFoundError:
-                return resource_not_found
-            return {
-                'id': int(value),
-                'name': priority.name
-            }
-        elif detail['name'] == 'fixed_version_id':
-            try:
-                fixed_version = redmine_lib.redmine.version.get(int(value))
-            except redminelibError.ResourceNotFoundError:
-                return resource_not_found
-            return {
-                'id': int(value),
-                'name': fixed_version.name
-            }
-        elif detail['name'] == 'parent_id':
-            try:
-                issue = redmine_lib.redmine.issue.get(int(value))
-            except redminelibError.ResourceNotFoundError:
-                return resource_not_found
-            return {
-                'id': int(value),
-                'name': issue.subject
+                "id": int(value),
+                "name": ret.name if attr["res_attr"] == "name" else ret.subject
             }
         else:
             return value
@@ -588,18 +593,13 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
     redmine_output.pop('total_estimated_hours', None)
     redmine_output.pop('spent_hours', None)
     redmine_output.pop('total_spent_hours', None)
+    redmine_output.pop('closed_on', None)
     if 'created_on' in redmine_output:
         redmine_output['created_date'] = redmine_output.pop('created_on')
     if 'updated_on' in redmine_output:
         redmine_output['updated_date'] = redmine_output.pop('updated_on')
-    redmine_output.pop('closed_on', None)
     if 'parent' in redmine_output:
-        redmine_output['parent_id'] = redmine_output['parent']['id']
-        redmine_output.pop('parent', None)
-    # rm_users = redmine.paging('users',25)
-    # list_user = {}
-    # for rm_user_info in rm_users:
-    #     list_user[rm_user_info['id']] = rm_user_info['firstname'] + ' ' + rm_user_info['lastname']
+        redmine_output['parent_id'] = redmine_output.pop('parent', {}).get('id')
     if 'journals' in redmine_output:
         i = 0
         while i < len(redmine_output['journals']):
@@ -646,6 +646,7 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
     redmine_output['is_closed'] = False
     if redmine_output['status']['id'] in closed_status:
         redmine_output['is_closed'] = True
+    redmine_output["issue_url"] = f'http://{config.get("DEPLOYMENT_NAME")}/#/project/issues/{redmine_output["id"]}'
     return redmine_output
 
 
@@ -717,6 +718,12 @@ def get_issue_assign_to_detail(issue):
 def create_issue(args, operator_id):
     update_cache_issue_family = False
     project_id = args['project_id']
+    plan_operator_id = None
+    if operator_id is not None:
+        operator_plugin_relation = nexus.nx_get_user_plugin_relation(
+            user_id=operator_id)
+        plan_operator_id = operator_plugin_relation.plan_user_id
+    personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
 
     # Check project is disabled or not
     if model.Project.query.get(project_id).disabled:
@@ -725,10 +732,10 @@ def create_issue(args, operator_id):
 
     # Check tracker_id is not force to has father issue's tracker
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
-    if project_issue_check is not None and project_issue_check.enable:
-        if args.get("parent_id") is None and args["tracker_id"] in project_issue_check.need_fatherissue_trackers:
-            raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
-                              error=apiError.project_tracker_must_has_father_issue(project_id, args["tracker_id"]))
+    if (project_issue_check is not None and project_issue_check.enable) and \
+        (args.get("parent_id") is None and args["tracker_id"] in project_issue_check.need_fatherissue_trackers):
+        raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
+                            error=apiError.project_tracker_must_has_father_issue(project_id, args["tracker_id"]))
 
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
@@ -760,21 +767,22 @@ def create_issue(args, operator_id):
         else:
             args['assigned_to_id'] = None
 
-    point = args.pop("point", 0)
+    # Get Issue extension(point, ITSMS)
+    extension_args = {
+        "point": args.pop("point", 0),
+        "changeNo": args.pop("changeNo", None),
+        "changeUrl": args.pop("changeUrl", None)    
+    }
+
     # Get Tags ID
     tags = args.pop("tags", None)
-    attachment = redmine.rm_upload(args)
+    attachment = personal_redmine_obj.rm_upload(args)
     if attachment is not None:
         args['uploads'] = [attachment]
 
-    plan_operator_id = None
-    if operator_id is not None:
-        operator_plugin_relation = nexus.nx_get_user_plugin_relation(
-            user_id=operator_id)
-        plan_operator_id = operator_plugin_relation.plan_user_id
-    created_issue = redmine.rm_create_issue(args, plan_operator_id)
+    created_issue = personal_redmine_obj.rm_create_issue(args)
     created_issue_id = created_issue["issue"]["id"]
-    create_issue_extensions(created_issue_id, point=point)
+    create_issue_extensions(created_issue_id, extension_args)
 
     # Update cache
     if update_cache_issue_family:
@@ -784,7 +792,7 @@ def create_issue(args, operator_id):
     update_pj_issue_calc(project_id, total_count=1, closed_count=closed_count)
 
     main_output = ws_common_response(
-        created_issue_id, point=point, tags=tags, plan_operator_id=plan_operator_id, update=False)
+        created_issue_id, extension_args=extension_args, tags=tags, plan_operator_id=plan_operator_id, update=False)
     ws_output_list = [main_output]
     if args.get('parent_issue_id') is not None:
         ws_output_list.append(ws_common_response(args['parent_issue_id']))
@@ -792,23 +800,50 @@ def create_issue(args, operator_id):
     main_pj_id = main_output['project']['id']
     for pj_id in get_all_fathers_project(main_pj_id, []) + [main_pj_id] + get_all_sons_project(main_pj_id, []):
         emit("add_issue", ws_output_list, namespace="/issues/websocket", to=pj_id, broadcast=True)
+
+    logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
+    del personal_redmine_obj
     return main_output
 
 
 def check_trackers_in_update_issue(tracker_id, need_fatherissue_trackers, updated_tracker_id, pj_id):
-    if tracker_id not in need_fatherissue_trackers:
-        if updated_tracker_id is not None and updated_tracker_id in need_fatherissue_trackers:
-            tracker_id = updated_tracker_id if updated_tracker_id is not None else tracker_id
-            for tracker in get_issue_trackers():
-                if tracker['id'] == updated_tracker_id:
-                    raise DevOpsError(400, f'Modify of create issue with tacker_id:{tracker["name"]} must has father issue.',
-                                      error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
+    if tracker_id not in need_fatherissue_trackers and \
+        updated_tracker_id is not None and updated_tracker_id in need_fatherissue_trackers:
+        tracker_id = updated_tracker_id if updated_tracker_id is not None else tracker_id
+        for tracker in get_issue_trackers():
+            if tracker['id'] == updated_tracker_id:
+                raise DevOpsError(400, f'Modify of create issue with tacker_id:{tracker["name"]} must has father issue.',
+                                    error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
     elif updated_tracker_id is None or updated_tracker_id in need_fatherissue_trackers:
         tracker_id = updated_tracker_id if updated_tracker_id is not None else tracker_id
         for tracker in get_issue_trackers():
             if tracker['id'] == tracker_id:
                 raise DevOpsError(400, f'Modify of create issue with tacker_id:{tracker["name"]} must has father issue.',
                                   error=apiError.project_tracker_must_has_father_issue(pj_id, tracker['name']))
+
+
+def filter_sub_issue(issue_id):
+    redmine_issue = get_issue(issue_id)
+    for key, value in redmine_issue.items():
+        if key == "children":
+            sub_issue_list = [sub_issue["id"] for sub_issue in value]
+            return sub_issue_list
+
+
+def close_all_issue(issue_id):
+    from resources.project_relation import get_project_id
+    close_list = []
+    sub_issue_list = filter_sub_issue(issue_id)
+    if sub_issue_list:
+        for sub_issue_id in sub_issue_list:
+            close_list.append(sub_issue_id)
+            close_all_issue(sub_issue_id)
+        for close_id in close_list:
+            issue = redmine_lib.redmine.issue.get(close_id)
+            issue.status_id = 6
+            issue.save()
+            pj_id = get_project_id(issue.project.id)
+            update_pj_issue_calc(pj_id, closed_count=1)
 
 
 def update_issue(issue_id, args, operator_id=None):
@@ -826,6 +861,7 @@ def update_issue(issue_id, args, operator_id=None):
     # Issue can not be updated when its tracker is in its force tracker checking setting' tracker.
     check_issue_project_id = args.get("project_id") or pj_id
     project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=check_issue_project_id).first()
+
     if project_issue_check is not None and project_issue_check.enable:
         if hasattr(issue, 'parent'):
             if args.get("parent_id") is not None and args["parent_id"] == "":
@@ -887,17 +923,26 @@ def update_issue(issue_id, args, operator_id=None):
             origin_assigned_to_id = nexus.nx_get_user_plugin_relation(plan_user_id=issue.assigned_to.id).user_id
         args['assigned_to_id'] = user_plugin_relation.plan_user_id
 
+        # close all issue
+    if args.get("close_all"):
+        close_all_issue(issue_id)
+
+    # Get issue extension
     point = args.pop("point", None)
+    extension_args = None if point is None else {"point": point}
+
     tags = args.pop("tags", None)
-    attachment = redmine.rm_upload(args)
-    if attachment is not None:
-        args['uploads'] = [attachment]
     plan_operator_id = None
     if operator_id is not None:
         operator_plugin_relation = nexus.nx_get_user_plugin_relation(
             user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
-    redmine.rm_update_issue(issue_id, args, plan_operator_id)
+    personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
+    attachment = personal_redmine_obj.rm_upload(args)
+    if attachment is not None:
+        args['uploads'] = [attachment]
+
+    personal_redmine_obj.rm_update_issue(issue_id, args)
 
     # Update cache
     if update_cache_issue_family:
@@ -914,7 +959,7 @@ def update_issue(issue_id, args, operator_id=None):
         update_pj_issue_calc(pj_id, closed_count=1)
 
     main_output = ws_common_response(
-        issue_id, point=point, tags=tags, plan_operator_id=plan_operator_id)
+        issue_id, extension_args=extension_args, tags=tags, plan_operator_id=plan_operator_id)
     if origin_parent_id is not None:
         main_output["origin_parent_id"] = origin_parent_id
     if origin_fixed_version_id is not None:
@@ -930,6 +975,8 @@ def update_issue(issue_id, args, operator_id=None):
     main_pj_id = main_output['project']['id']
     for pj_id in get_all_fathers_project(main_pj_id, []) + [main_pj_id] + get_all_sons_project(main_pj_id, []):
         emit("update_issue", ws_output_list, namespace="/issues/websocket", to=pj_id, broadcast=True)
+    logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
+    del personal_redmine_obj
     return main_output
 
 
@@ -999,67 +1046,6 @@ def handle_exceed_limit_length_default_filter(default_filters, issue_ids, defaul
     return handle_exceed_limit_length_default_filter(default_filters, issue_ids[200:], default_filters_list)
 
 
-def get_issue_list_by_project(project_id, args, download=False):
-    nx_issue_params = defaultdict()
-    output = []
-    if util.is_dummy_project(project_id):
-        return []
-    try:
-        nx_project = NexusProject().set_project_id(project_id)
-        nx_issue_params['nx_project'] = nx_project
-        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
-    except NoResultFound:
-        raise DevOpsError(404, "Error while getting issues",
-                          error=apiError.project_not_found(project_id))
-
-    default_filters = get_custom_filters_by_args(args, project_id=plan_id, children=True)
-    # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    if args.get('search') is not None and default_filters.get('issue_id') is None:
-        if args.get("assigned_to_id") is None:
-            return []
-    elif args.get("has_tag_issue", False):
-        return []
-
-    if len(default_filters.get('issue_id', "").split(",")) > 200:
-        issue_ids = default_filters.pop('issue_id').split(",")
-        default_filters_list = handle_exceed_limit_length_default_filter(default_filters, issue_ids, [])
-    else:
-        default_filters_list = [default_filters]
-
-    total_count = 0
-    for default_filters in default_filters_list:
-        if download:
-            all_issues = redmine_lib.redmine.issue.filter(**default_filters)
-        else:
-            if get_jwt_identity()["role_id"] != 7:
-                user_name = get_jwt_identity()["user_account"]
-                all_issues = redmine_lib.rm_impersonate(user_name).issue.filter(**default_filters)
-            else:
-                all_issues = redmine_lib.redmine.issue.filter(**default_filters)
-
-        # 透過 selection params 決定是否顯示 family bool 欄位
-        if not args['selection'] or not strtobool(args['selection']):
-            nx_issue_params['relationship_bool'] = True
-
-        nx_issue_params['users_info'] = user.get_all_user_info()
-        for redmine_issue in all_issues:
-            nx_issue_params['redmine_issue'] = redmine_issue
-            nx_issue_params['with_point'] = args["with_point"]
-            issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
-            output.append(issue)
-
-        total_count += all_issues.total_count
-
-    if download:
-        return output
-
-    if args['limit'] and args['offset'] is not None:
-        page_dict = util.get_pagination(total_count,
-                                        args['limit'], args['offset'])
-        output = {'issue_list': output, 'page': page_dict}
-    return output
-
-
 def get_issue_list_by_project_helper(project_id, args, download=False, operator_id=None):
     nx_issue_params = defaultdict()
     output = []
@@ -1088,15 +1074,14 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
 
     total_count = 0
     users_info = user.get_all_user_info()
+    personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
     for default_filters in default_filters_list:
         default_filters["include"] = "relations"
         if download:
-            all_issues, _ = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
+            all_issues, _ = personal_redmine_obj.rm_list_issues(params=default_filters) 
         else:
             if get_jwt_identity()["role_id"] != 7:
-                operator_id = model.UserPluginRelation.query. \
-                    filter_by(user_id=get_jwt_identity()["user_id"]).one().plan_user_id
-                all_issues, total_count = redmine.rm_list_issues(params=default_filters, operator_id=operator_id)
+                all_issues, total_count = personal_redmine_obj.rm_list_issues(params=default_filters)
             else:
                 all_issues, total_count = redmine.rm_list_issues(params=default_filters)
 
@@ -1105,6 +1090,9 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
             nx_issue_params['relationship_bool'] = True
 
         output += all_issues
+
+    logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
+    del personal_redmine_obj
 
     # Parse filter_issues
     for issue in output:
@@ -1157,7 +1145,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         issue["has_children"] = has_children
 
         if args.get("with_point", False):
-            issue["point"] = get_issue_point(issue["id"])
+            issue |= get_issue_extensions(issue["id"])
         issue["tags"] = get_issue_tags(issue["id"])
 
         issue.pop("parent", "")
@@ -1194,9 +1182,8 @@ def get_issue_list_by_user(user_id, args):
     if args.get('from') not in ['author_id', 'assigned_to_id']:
         return []
     # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    elif args.get('search') and default_filters.get('issue_id') is None:
-        return []
-    elif args.get("has_tag_issue", False):
+    elif (args.get('search') and default_filters.get('issue_id') is None) or \
+        args.get("has_tag_issue", False):
         return []
 
     if len(default_filters.get('issue_id', "").split(",")) > 200:
@@ -1475,7 +1462,7 @@ def get_issue_parent(redmine_issue, redmine_obj):
         parent_issue = redmine_obj.issue.filter(**filter_kwargs)
         try:
             ret = NexusIssue().set_redmine_issue_v2(parent_issue[0]).to_json()
-        except:
+        except Exception:
             pass
 
     return ret
@@ -2363,7 +2350,7 @@ def sync_issue_relation():
         plan_id = get_plan_id(project.id)
         if plan_id != -1:
             try:
-                all_issues, _ = redmine.rm_list_issues(params={"project_id": plan_id})
+                all_issues, _ = redmine.rm_list_issues(params={"project_id": plan_id, 'status_id': '*'})
                 for issue in all_issues:
                     if issue.get("parent") is not None:
                         parent_id = issue["parent"]["id"]
@@ -2386,7 +2373,7 @@ def handle_sync_son_issue(value, issue_id):
 
 
 class DumpByIssue(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, issue_id):
         require_issue_visible(issue_id)
         return dump_by_issue(issue_id)
@@ -2396,7 +2383,7 @@ class DumpByIssue(Resource):
 @use_kwargs(route_model.IssueByUserSchema, location="query")
 @marshal_with(route_model.IssueByUserResponseWithPage)
 class IssueByUserV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self, user_id, **kwargs):
         print(kwargs)
         if kwargs.get("search") is not None and len(kwargs["search"]) < 2:
@@ -2407,23 +2394,23 @@ class IssueByUserV2(MethodResource):
 
 
 class IssueByUser(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, user_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int)
-        parser.add_argument('fixed_version_id', type=str)
-        parser.add_argument('status_id', type=str)
-        parser.add_argument('tracker_id', type=str)
-        parser.add_argument('assigned_to_id', type=str)
-        parser.add_argument('priority_id', type=str)
-        parser.add_argument('only_superproject_issues', type=bool, default=False)
-        parser.add_argument('limit', type=int)
-        parser.add_argument('offset', type=int)
-        parser.add_argument('search', type=str)
-        parser.add_argument('selection', type=str)
-        parser.add_argument('from', type=str)
-        parser.add_argument('sort', type=str)
-        parser.add_argument('tags', type=str)
+        parser.add_argument('project_id', type=int, location="args")
+        parser.add_argument('fixed_version_id', type=str, location="args")
+        parser.add_argument('status_id', type=str, location="args")
+        parser.add_argument('tracker_id', type=str, location="args")
+        parser.add_argument('assigned_to_id', type=str, location="args")
+        parser.add_argument('priority_id', type=str, location="args")
+        parser.add_argument('only_superproject_issues', type=bool, default=False, location="args")
+        parser.add_argument('limit', type=int, location="args")
+        parser.add_argument('offset', type=int, location="args")
+        parser.add_argument('search', type=str, location="args")
+        parser.add_argument('selection', type=str, location="args")
+        parser.add_argument('from', type=str, location="args")
+        parser.add_argument('sort', type=str, location="args")
+        parser.add_argument('tags', type=str, location="args")
         args = parser.parse_args()
 
         if args.get("search") is not None and len(args["search"]) < 2:
@@ -2435,22 +2422,22 @@ class IssueByUser(Resource):
 
 @doc(tags=['Pending'], description="Get issue list by version")
 class IssueByVersionV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id')
+        parser.add_argument('fixed_version_id', location="args")
         args = parser.parse_args()
 
         return util.success(get_issue_by_project(project_id, args))
 
 
 class IssueByVersion(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_in_project(project_id, 'Error to get issue.')
         parser = reqparse.RequestParser()
-        parser.add_argument('fixed_version_id')
+        parser.add_argument('fixed_version_id', location="args")
         args = parser.parse_args()
 
         return util.success(get_issue_by_project(project_id, args))
@@ -2459,13 +2446,13 @@ class IssueByVersion(Resource):
 @doc(tags=['Issue'], description="Get issue available status")
 @marshal_with(route_model.IssueStatusResponse)
 class IssueStatusV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         return list_issue_statuses('api')
 
 
 class IssueStatus(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         return list_issue_statuses('api')
 
@@ -2473,13 +2460,13 @@ class IssueStatus(Resource):
 @doc(tags=['Issue'], description="Get issue available priority")
 @marshal_with(route_model.IssuePriorityResponse)
 class IssuePriorityV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         return get_issue_priority()
 
 
 class IssuePriority(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         return get_issue_priority()
 
@@ -2488,17 +2475,17 @@ class IssuePriority(Resource):
 @use_kwargs(route_model.IssueTrackerSchema, location="query")
 @marshal_with(route_model.IssueTrackerResponse)
 class IssueTrackerV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self, **kwargs):
         return util.success(get_issue_trackers(new=kwargs.get("new"), project_id=kwargs.get("project_id")))
 
 
 class IssueTracker(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('new', type=bool, default=False)
-        parser.add_argument('project_id', type=int)
+        parser.add_argument('new', type=bool, default=False, location="args")
+        parser.add_argument('project_id', type=int, location="args")
         args = parser.parse_args()
         return util.success(get_issue_trackers(new=args.get("new"), project_id=args.get("project_id")))
 
@@ -2506,7 +2493,7 @@ class IssueTracker(Resource):
 @doc(tags=['Dashboard'], description="Get user's issues' numbers of each priorities.")
 @marshal_with(route_model.DashboardIssuePriorityResponse)
 class DashboardIssuePriorityV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
@@ -2516,7 +2503,7 @@ class DashboardIssuePriorityV2(MethodResource):
 
 
 class DashboardIssuePriority(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
@@ -2528,7 +2515,7 @@ class DashboardIssuePriority(Resource):
 @doc(tags=['Dashboard'], description="Get user's issues' numbers of each projects.")
 @marshal_with(route_model.DashboardIssueProjectResponse)
 class DashboardIssueProjectV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
@@ -2538,7 +2525,7 @@ class DashboardIssueProjectV2(MethodResource):
 
 
 class DashboardIssueProject(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
@@ -2550,7 +2537,7 @@ class DashboardIssueProject(Resource):
 @doc(tags=['Dashboard'], description="Get user's issues' numbers of each projects.")
 @marshal_with(route_model.DashboardIssueTypeResponse)
 class DashboardIssueTypeV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
@@ -2560,7 +2547,7 @@ class DashboardIssueTypeV2(MethodResource):
 
 
 class DashboardIssueType(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, user_id):
         if int(user_id) == get_jwt_identity()['user_id'] or get_jwt_identity(
         )['role_id'] in (3, 5):
@@ -2572,14 +2559,14 @@ class DashboardIssueType(Resource):
 class RequirementByIssueV2(MethodResource):
     # 用issues ID 取得目前所有的需求清單
     @doc(tags=['Test'], description="Get requirement by issue_id.")
-    @ jwt_required
+    @jwt_required()
     def get(self, issue_id):
         output = get_requirements_by_issue_id(issue_id)
         return util.success(output)
 
     # 用issues ID 新建立需求清單
     @doc(tags=['Test'], description="Create requirement by issue_id.")
-    @ jwt_required
+    @jwt_required()
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -2591,13 +2578,13 @@ class RequirementByIssueV2(MethodResource):
 
 class RequirementByIssue(Resource):
     # 用issues ID 取得目前所有的需求清單
-    @ jwt_required
+    @jwt_required()
     def get(self, issue_id):
         output = get_requirements_by_issue_id(issue_id)
         return util.success(output)
 
     # 用issues ID 新建立需求清單
-    @ jwt_required
+    @jwt_required()
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -2610,21 +2597,21 @@ class RequirementByIssue(Resource):
 class RequirementV2(MethodResource):
     # 用requirement_id 取得目前需求流程
     @doc(tags=['Test'], description="Get requirement by requirement_id.")
-    @ jwt_required
+    @jwt_required()
     def get(self, requirement_id):
         output = get_requirement_by_rqmt_id(requirement_id)
         return util.success(output)
 
     # 用requirement_id 刪除目前需求流程
     @doc(tags=['Test'], description="Delete requirement by requirement_id.")
-    @ jwt_required
+    @jwt_required()
     def delete(self, requirement_id):
         del_requirement_by_rqmt_id(requirement_id)
         return util.success()
 
     # 用requirement_id 更新目前需求流程
     @doc(tags=['Test'], description="Update requirement by requirement_id.")
-    @ jwt_required
+    @jwt_required()
     def put(self, requirement_id):
         parser = reqparse.RequestParser()
         parser.add_argument('flow_info', type=str)
@@ -2635,19 +2622,19 @@ class RequirementV2(MethodResource):
 
 class Requirement(Resource):
     # 用requirement_id 取得目前需求流程
-    @ jwt_required
+    @jwt_required()
     def get(self, requirement_id):
         output = get_requirement_by_rqmt_id(requirement_id)
         return util.success(output)
 
     # 用requirement_id 刪除目前需求流程
-    @ jwt_required
+    @jwt_required()
     def delete(self, requirement_id):
         del_requirement_by_rqmt_id(requirement_id)
         return util.success()
 
     # 用requirement_id 更新目前需求流程
-    @ jwt_required
+    @jwt_required()
     def put(self, requirement_id):
         parser = reqparse.RequestParser()
         parser.add_argument('flow_info', type=str)
@@ -2659,14 +2646,14 @@ class Requirement(Resource):
 @doc(tags=['Test'], description="Get supported flow type.")
 @marshal_with(route_model.GetFlowTypeResponse)
 class GetFlowTypeV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         output = get_flow_support_type()
         return util.success(output)
 
 
 class GetFlowType(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         output = get_flow_support_type()
         return util.success(output)
@@ -2675,7 +2662,7 @@ class GetFlowType(Resource):
 class FlowByIssueV2(MethodResource):
     @doc(tags=['Test'], description="Get flow by issue_id.")
     # 用issues ID 取得目前所有的需求清單
-    @ jwt_required
+    @jwt_required()
     def get(self, issue_id):
         requirement_ids = check_requirement_by_issue_id(issue_id)
         if not requirement_ids:
@@ -2692,7 +2679,7 @@ class FlowByIssueV2(MethodResource):
 
     # 用issues ID 新建立需求清單
     @doc(tags=['Test'], description="Create flow by issue_id.")
-    @ jwt_required
+    @jwt_required()
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -2714,7 +2701,7 @@ class FlowByIssueV2(MethodResource):
 
 class FlowByIssue(Resource):
     # 用issues ID 取得目前所有的需求清單
-    @ jwt_required
+    @jwt_required()
     def get(self, issue_id):
         requirement_ids = check_requirement_by_issue_id(issue_id)
         if not requirement_ids:
@@ -2730,7 +2717,7 @@ class FlowByIssue(Resource):
         return util.success(output)
 
     # 用issues ID 新建立需求清單
-    @ jwt_required
+    @jwt_required()
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -2753,21 +2740,21 @@ class FlowByIssue(Resource):
 class FlowV2(MethodResource):
     @doc(tags=['Test'], description="Get supported flow type.")
     # 用requirement_id 取得目前需求流程
-    @ jwt_required
+    @jwt_required()
     def get(self, flow_id):
         output = get_flow_by_flow_id(flow_id)
         return util.success(output)
 
     @doc(tags=['Test'], description="Create supported flow type.")
     # 用requirement_id 刪除目前需求流程
-    @ jwt_required
+    @jwt_required()
     def delete(self, flow_id):
         output = disabled_flow_by_flow_id(flow_id)
         return util.success(output, has_date_etc=True)
 
     @doc(tags=['Test'], description="Delete supported flow type.")
     # 用requirement_id 更新目前需求流程
-    @ jwt_required
+    @jwt_required()
     def put(self, flow_id):
         parser = reqparse.RequestParser()
         parser.add_argument('serial_id', type=int)
@@ -2781,19 +2768,19 @@ class FlowV2(MethodResource):
 
 class Flow(Resource):
     # 用requirement_id 取得目前需求流程
-    @ jwt_required
+    @jwt_required()
     def get(self, flow_id):
         output = get_flow_by_flow_id(flow_id)
         return util.success(output)
 
     # 用requirement_id 刪除目前需求流程
-    @ jwt_required
+    @jwt_required()
     def delete(self, flow_id):
         output = disabled_flow_by_flow_id(flow_id)
         return util.success(output, has_date_etc=True)
 
     # 用requirement_id 更新目前需求流程
-    @ jwt_required
+    @jwt_required()
     def put(self, flow_id):
         parser = reqparse.RequestParser()
         parser.add_argument('serial_id', type=int)
@@ -2807,14 +2794,14 @@ class Flow(Resource):
 
 @doc(tags=['Test'], description="Get all paramenters' type.")
 class ParameterTypeV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         output = get_parameter_types()
         return util.success(output)
 
 
 class ParameterType(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         output = get_parameter_types()
         return util.success(output)
@@ -2823,14 +2810,14 @@ class ParameterType(Resource):
 class ParameterByIssueV2(MethodResource):
     # 用issues ID 取得目前所有的需求清單
     @doc(tags=['Test'], description="Get paramenter by issue_id.")
-    @ jwt_required
+    @jwt_required()
     def get(self, issue_id):
         output = get_parameters_by_issue_id(issue_id)
         return util.success(output)
 
     # 用issues ID 新建立需求清單
     @doc(tags=['Test'], description="Create paramenter by issue_id.")
-    @ jwt_required
+    @jwt_required()
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -2846,13 +2833,13 @@ class ParameterByIssueV2(MethodResource):
 
 class ParameterByIssue(Resource):
     # 用issues ID 取得目前所有的需求清單
-    @ jwt_required
+    @jwt_required()
     def get(self, issue_id):
         output = get_parameters_by_issue_id(issue_id)
         return util.success(output)
 
     # 用issues ID 新建立需求清單
-    @ jwt_required
+    @jwt_required()
     def post(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument('project_id', type=int)
@@ -2869,21 +2856,21 @@ class ParameterByIssue(Resource):
 class ParameterV2(MethodResource):
     # 用requirement_id 取得目前需求流程
     @doc(tags=['Test'], description="Get paramenter by parameter_id.")
-    @ jwt_required
+    @jwt_required()
     def get(self, parameter_id):
         output = get_parameters_by_param_id(parameter_id)
         return util.success(output)
 
     # 用requirement_id 刪除目前需求流程
     @doc(tags=['Test'], description="Delete paramenter by parameter_id.")
-    @ jwt_required
+    @jwt_required()
     def delete(self, parameter_id):
         output = del_parameters_by_param_id(parameter_id)
         return util.success(output)
 
     # 用requirement_id 更新目前需求流程
     @doc(tags=['Test'], description="Update paramenter by parameter_id.")
-    @ jwt_required
+    @jwt_required()
     def put(self, parameter_id):
         parser = reqparse.RequestParser()
         parser.add_argument('parameter_type_id', type=int)
@@ -2898,19 +2885,19 @@ class ParameterV2(MethodResource):
 
 class Parameter(Resource):
     # 用requirement_id 取得目前需求流程
-    @ jwt_required
+    @jwt_required()
     def get(self, parameter_id):
         output = get_parameters_by_param_id(parameter_id)
         return util.success(output)
 
     # 用requirement_id 刪除目前需求流程
-    @ jwt_required
+    @jwt_required()
     def delete(self, parameter_id):
         output = del_parameters_by_param_id(parameter_id)
         return util.success(output)
 
     # 用requirement_id 更新目前需求流程
-    @ jwt_required
+    @jwt_required()
     def put(self, parameter_id):
         parser = reqparse.RequestParser()
         parser.add_argument('parameter_type_id', type=int)

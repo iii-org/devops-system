@@ -1,6 +1,3 @@
-import os
-import re
-import subprocess
 import json
 from datetime import datetime
 from time import sleep
@@ -9,7 +6,7 @@ import config
 import pandas as pd
 import util
 from github import Github
-from model import MonitoringRecord, NotificationMessage, Project, ProjectPluginRelation, db, PluginSoftware
+from model import MonitoringRecord, NotificationMessage, Project, ProjectPluginRelation, db, PluginSoftware, SystemParameter
 from nexus import nx_get_project_plugin_relation
 from plugins.sonarqube.sonarqube_main import (sq_get_current_measures,
                                               sq_list_project)
@@ -41,6 +38,10 @@ AlertServiceIDMapping = {
     "K8s not alive": 401,
     "Sonarqube not alive": 501,
     "Rancher not alive": 601,
+    "Rancher AppRevision counts out of limit": 602,
+    "Excalidraw not alive": 1001,
+    "ad not alive": 1002,
+    "SMTP not alive": 1101
 }
 
 
@@ -98,6 +99,7 @@ class Monitoring:
             if not_alive_messages is not None and len(not_alive_messages) > 0:
                 for not_alive_message in not_alive_messages:
                     close_notification_message(not_alive_message["id"])
+                    logger.logger.info(f"Close Alert message id: {self.alert_service_id}, server: {self.server}")
                     not_alive_mes_title = not_alive_message["title"]
                     
                     # Do not need to send same recover notification and notification which not 
@@ -156,6 +158,7 @@ class Monitoring:
                 "type_parameters": {"role_ids": [5]}
             }
             create_notification_message(args, user_id=1)
+            logger.logger.exception(f"Send Alert message {title}, error_message: {str(self.error_message)}")
 
             # Send notification to type 2 (project)
             if self.invalid_project_id_mapping != {}:
@@ -201,6 +204,7 @@ class Monitoring:
             "type_parameters": {"role_ids": [5]}
         }
         create_notification_message(args, user_id=1)
+        logger.logger.info(f"Send Server back message {title}")
 
     def redmine_alive(self):
         self.server = "Redmine"
@@ -266,8 +270,15 @@ class Monitoring:
     def rancher_alive(self):
         self.server = "Rancher"
         self.alert_service_id = 601
-        return self.__check_server_alive(
+        rancher_alive = self.__check_server_alive(
             rancher.rc_get_pipeline_info, rancher.rc_get_project_pipeline, self.ci_pj_id, self.ci_pipeline_id)
+        if not rancher_alive:
+            return rancher_alive
+
+        for check_element in [rancher_projects_limit_num]:
+            if not self.__check_server_element_alive(check_element):
+                rancher_alive = False
+        return rancher_alive
 
     # Plugins
     def excalidraw_alive(self):
@@ -275,6 +286,12 @@ class Monitoring:
         self.server = "Excalidraw"
         self.alert_service_id = 1001
         return self.__check_plugin_server_alive(check_excalidraw_alive)
+
+    def ad_alive(self):
+        from plugins.ad.ad_main import check_ad_alive
+        self.server = "ad"
+        self.alert_service_id = 1002
+        return self.__check_plugin_server_alive(check_ad_alive) 
 
     def smtp_alive(self):
         self.server = "SMTP"
@@ -299,6 +316,9 @@ class Monitoring:
                 "alive": self.smtp_alive, 
                 "is_open": mail_server_is_open
             },
+            "ad": {
+                "alive": self.ad_alive,
+            }
         }
         for plugin, plugin_info in plugin_mapping.items():
             in_plugin_db = plugin_info.get("is_open") is None
@@ -313,7 +333,6 @@ class Monitoring:
         '''
         when 'is_project' is True, only check servers are working.
         '''
-
         plugin_alive_dict = self.check_plugin_alive()
         all_alive = {
             "alive": {
@@ -327,6 +346,7 @@ class Monitoring:
             "all_alive": self.all_alive
         }
         all_alive["alive"] |= plugin_alive_dict
+        logger.logger.info(all_alive)
         return all_alive
 
 
@@ -517,3 +537,21 @@ def gitlab_projects_storage_limit():
         "error_title": "Gitlab projects are exceeded its storage limit",
         # "invalid_project_id_mapping": invalid_project_id_mapping
     }
+
+
+def rancher_projects_limit_num():
+    command = "kubectl get apprevisions -n $(kubectl get project -n local -o jsonpath=\"{.items[?(@.spec.displayName=='Default')].metadata.name}\") | grep -v NAME | wc -l"
+    output_str, _ = util.ssh_to_node_by_key(command, config.get("DEPLOYER_NODE_IP"))
+    parameter = SystemParameter.query.filter_by(name="rancher_app_revision_limit").first()
+    logger.logger.info(f"Rancher monitor app limit num. Default: {parameter.value['limit_nums']}, Current: {output_str}")
+    if int(output_str) >= int(parameter.value["limit_nums"]):
+        return {
+            "error_title": "Rancher AppRevision counts out of limit",
+            "status": False,
+            "message": f"Rancher AppRevision counts surpass {parameter.value['limit_nums']}."
+        }
+    else:
+        return {
+            "error_title": "Rancher AppRevision counts out of limit",
+            "status": True
+        }

@@ -1,7 +1,8 @@
-from marshmallow import Schema, fields, missing
+from marshmallow import Schema, fields
 from util import CommonBasicResponse
 from resources.system_parameter import check_upload_type
-from urls.route_model import BasicIsssueResponse, SingleIssueGetDataAuthorResponse, ProjectExtraResponse, RelationsResponse
+from urls.route_model import BasicIsssueResponse, SingleIssueGetDataAuthorResponse, ProjectExtraResponse, RelationsResponse, \
+    CommonSingleIssueResponse
 
 ### Issue single
 
@@ -36,7 +37,10 @@ class SingleIssuePostSchema(CommonSingleIssueSchema):
     status_id = fields.Int(doc='status_id', example=-1, required=True)
     priority_id = fields.Int(doc='priority_id', example=-1, required=True)
     name = fields.Str(doc='name', example="string", required=True)
-    
+    creator_id = fields.Int(doc='creator_id', example=-1, required=False)
+    changeNo = fields.Str(doc="changeNo", examplpe="str")
+    changeUrl = fields.Str(doc="changeUrl", examplpe="str")
+
 class SingleIssuePutSchema(CommonSingleIssueSchema):
     project_id = fields.Int(doc='project_id', example=-1)
     tracker_id = fields.Int(doc='tracker_id', example=-1)
@@ -44,6 +48,7 @@ class SingleIssuePutSchema(CommonSingleIssueSchema):
     priority_id = fields.Int(doc='priority_id', example=-1)
     name = fields.Str(doc='name', example="string")
     note = fields.Str(doc='name', example="string")
+    close_all = fields.Bool(doc='close_all', example="True")
 
 class SingleIssueDeleteSchema(Schema):
     force = fields.Bool(doc='force', example="True")
@@ -90,23 +95,6 @@ class SingleIssueGetDataJournalSchema(Schema):
     details = fields.List(fields.Nested(
        JournalDetailsResponse, required=True))
     private_notes = fields.Bool(required=True)
-
-class CommonSingleIssueResponse(Schema):
-    id = fields.Int(required=True)
-    name = fields.Str(required=True)
-    project = fields.Nested(BasicIsssueResponse, required=True)
-    description = fields.Str(required=True)
-    start_date = fields.Str(required=True, example="1970-01-01", default=None)
-    assigned_to = fields.Nested(SingleIssueGetDataAuthorResponse, default={})
-    fixed_version = fields.Nested(BasicIsssueResponse, default={})
-    due_date = fields.Str(required=True, example="1970-01-01", default=None)
-    done_ratio = fields.Int(required=True)
-    is_closed = fields.Bool(required=True)
-    issue_link = fields.Str(required=True)
-    tracker = fields.Nested(BasicIsssueResponse, default={})
-    priority = fields.Nested(BasicIsssueResponse, default={})
-    status = fields.Nested(BasicIsssueResponse, default={})
-    author = fields.Nested(BasicIsssueResponse, default={})
 
 class ParentResponse(CommonSingleIssueResponse):
     estimated_hours = fields.Float(required=True)
@@ -156,6 +144,9 @@ class SingleIssuePostDataResponse(CommonSingleIssueResponse):
     parent = fields.Nested(
         ParentResponse, required=True)
     family = fields.Bool(required=True)
+    changeNo = fields.Str(example="ITSMS_no")
+    changeUrl = fields.Str(example="www.google.com")
+    issue_url = fields.Str(example="www.google.com")
 
 class SingleIssuePutDataResponse(CommonSingleIssueResponse):
     estimated_hours = fields.Float(required=True)
