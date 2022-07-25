@@ -6,6 +6,7 @@ from flask_apispec.views import MethodResource
 from flask_restful import Resource
 from resources.system import (send_merge_request_notification,
                               system_git_commit_id, system_info_report)
+from resources.check_version import update_pipieline_file
 
 
 class SystemInfoReport(Resource):
@@ -25,3 +26,8 @@ class SendMergeRequestNotification(MethodResource):
     def get(self):
         send_merge_request_notification()
         return util.success()
+
+
+class SystemCheckPipelineUpdate(Resource):
+    def post(self):
+        return util.success(update_pipieline_file())
