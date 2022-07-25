@@ -61,7 +61,7 @@ def get_project_issue_calculation(user_id, project_ids=[]):
             project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
         except:
             project_object = None
-        
+
         if project_object is None:
             recheck_project = True
             calculate_project_issue = {
@@ -129,9 +129,13 @@ def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
 
 def get_project_rows_by_user(user_id, disable, args={}):
     search = args.get("search")
+    accsearch = args.get("accsearch")
+    is_empty_project = args.get("is_empty_project")
     limit, offset = args.get("limit"), args.get("offset")
-    pj_due_start = datetime.strptime(args.get("pj_due_date_start"), "%Y-%m-%d").date() if args.get("pj_due_date_start") is not None else None
-    pj_due_end = datetime.strptime(args.get("pj_due_date_end"), "%Y-%m-%d").date() if args.get("pj_due_date_end") is not None else None
+    pj_due_start = datetime.strptime(args.get("pj_due_date_start"),
+                                     "%Y-%m-%d").date() if args.get("pj_due_date_start") is not None else None
+    pj_due_end = datetime.strptime(args.get("pj_due_date_end"),
+                                   "%Y-%m-%d").date() if args.get("pj_due_date_end") is not None else None
 
     query = model.Project.query.options(
         joinedload(model.Project.user_role, innerjoin=True)
@@ -163,13 +167,22 @@ def get_project_rows_by_user(user_id, disable, args={}):
             search.upper() in star_project.display.upper() or
             search.upper() in star_project.name.upper()]
 
+    if accsearch is not None and search is None:
+        query = query.filter(
+            model.Project.name == accsearch
+        )
+
+    if is_empty_project is True:
+        query = query.filter(
+            model.Project.is_empty_project == is_empty_project
+        )
+
     if pj_due_start is not None and pj_due_end is not None:
         query = query.filter(
             model.Project.due_date.between(pj_due_start, pj_due_end))
         star_projects_obj = [
             star_project for star_project in star_projects_obj
             if pj_due_start <= star_project.due_date <= pj_due_end]
-    
 
     # Remove dump_project and stared_project
     project_ids = [star_project.id for star_project in star_projects_obj]
@@ -338,7 +351,8 @@ def create_project(user_id, args):
             base_example=template_pj_path,
             example_tag=args["tag_name"],
             uuid=uuids,
-            is_inheritance_member=is_inherit_members
+            is_inheritance_member=is_inherit_members,
+            is_empty_project=args.get("template_id") is None
         )
         db.session.add(new_pjt)
         db.session.commit()
@@ -375,10 +389,10 @@ def create_project(user_id, args):
         # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
         if is_inherit_members and args.get('parent_plan_project_id') is not None:
             for row in db.session.query(model.User, ProjectUserRole). \
-            join(model.User).filter(model.ProjectUserRole.project_id==args.get('parent_id')).all():
+                    join(model.User).filter(model.ProjectUserRole.project_id == args.get('parent_id')).all():
                 if row.User.id not in [owner_id, user_id] and \
-                    not row.User.login.startswith("project_bot") and \
-                    row.ProjectUserRole.role_id != 7:
+                        not row.User.login.startswith("project_bot") and \
+                        row.ProjectUserRole.role_id != 7:
                     project_add_member(project_id, row.User.id)
 
         # Commit and push file by template , if template env is not None
@@ -396,7 +410,8 @@ def create_project(user_id, args):
             "project_id": project_id,
             "plan_project_id": redmine_pj_id,
             "git_repository_id": gitlab_pj_id,
-            "harbor_project_id": harbor_pj_id
+            "harbor_project_id": harbor_pj_id,
+            "description": args['description']
         }
     except Exception as e:
         redmine.rm_delete_project(redmine_pj_id)
@@ -484,6 +499,17 @@ def pm_update_project(project_id, args):
             args['parent_plan_project_id'] = ""
         else:
             args['parent_plan_project_id'] = get_plan_project_id(int(args.get('parent_id')))
+
+    # Update project template
+    project = model.Project.query.filter_by(id=project_id).first()
+    project_name = project.name
+    if project.is_empty_project and args.get("template_id") is not None:
+        template_pj = template.get_projects_detail(args["template_id"])
+        args |= {
+            "is_empty_project": False, "base_example": template_pj.path, "example_tag": args["tag_name"]}
+        template.tm_use_template_push_into_pj(args["template_id"], plugin_relation.git_repository_id,
+                                                  args["tag_name"], args.get("arguments"), project.uuid)
+    
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     nexus.nx_update_project(project_id, args)
 
@@ -492,6 +518,7 @@ def pm_update_project(project_id, args):
     if disabled is not None:
         gitlab.gl_archive_project(
             plugin_relation.git_repository_id, disabled)
+        rancher.rc_del_app_with_prefix(f'{project_name}-')   
 
     # 若有父專案, 加關聯進ProjectParentSonRelation, 須等redmine更新完再寫入
     if args.get('parent_plan_project_id') is not None:
@@ -503,7 +530,7 @@ def pm_update_project(project_id, args):
                     son_id=project_id,
                     created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                 )
-                db.session.add(new_father_son_relation) 
+                db.session.add(new_father_son_relation)
         else:
             if args.get('parent_plan_project_id') != "":
                 project_relation = project_relation.first()
@@ -518,11 +545,11 @@ def pm_update_project(project_id, args):
         exist_user_ids = [row.user_id for row in model.ProjectUserRole.query.filter_by(project_id=project_id).all()]
 
         for row in db.session.query(model.User, ProjectUserRole). \
-        join(model.User).filter(model.ProjectUserRole.project_id==args.get('parent_id')).all():
+                join(model.User).filter(model.ProjectUserRole.project_id == args.get('parent_id')).all():
             if row.User.id not in exist_user_ids and \
-                row.User.id != args.get("owner_id") and \
-                not row.User.login.startswith("project_bot") and \
-                row.ProjectUserRole.role_id != 7:
+                    row.User.id != args.get("owner_id") and \
+                    not row.User.login.startswith("project_bot") and \
+                    row.ProjectUserRole.role_id != 7:
                 project_add_member(project_id, row.User.id)
 
 
@@ -809,7 +836,7 @@ def get_test_summary(project_id):
         'result': {},
         'run_at': None,
     }
-    not_found_ret_message = lambda plugin : f"The latest scan is not Found in the {plugin} server"
+    def not_found_ret_message(plugin): return f"The latest scan is not Found in the {plugin} server"
 
     # newman ..
     if not plugins.get_plugin_config('postman')['disabled']:
@@ -866,7 +893,7 @@ def get_test_summary(project_id):
                     'result': {},
                     "run_at": str(scan['run_at']) if scan['run_at'] is not None else None,
                 }
-            else:    
+            else:
                 ret['webinspect'] = {
                     'message': 'It is not finished yet.',
                     'status': 2,
@@ -987,7 +1014,7 @@ def get_test_summary(project_id):
         if scan.get("scan_status") == "Success" and scan.get("finished"):
             ret["harbor"] |= {"message": "success", "status": 1}
         elif (scan.get("scan_status") == "Success" and not scan.get("finished")) or \
-            scan.get("scan_status") in ["Queued", "Scanning", "Complete"]:
+                scan.get("scan_status") in ["Queued", "Scanning", "Complete"]:
             ret["harbor"] |= {"message": "scanning", "status": 2}
         else:
             ret["harbor"] |= {"message": "failed", "status": -1, "run_at": None}
@@ -1078,7 +1105,7 @@ def get_kubernetes_plugin_pods(project_id, plugin_name):
         "container_name": pod["containers"][0]["name"],
         "pod_name": pod["name"],
         "time": pod["containers"][0]["time"]
-    } for pod in pods["data"] \
+    } for pod in pods["data"]
         if len(pod["containers"]) > 0 and pod["containers"][0]["name"].startswith(plugin_name)
     ]
 
@@ -1349,9 +1376,9 @@ def get_projects_by_user(user_id):
         raise apiError.DevOpsError(
             404, 'User id {0} does not exist.'.format(user_id),
             apiError.user_not_found(user_id))
-    projects_id_list = list(sum(
+    projects_id_list = [pj_id[0] for pj_id in 
         model.ProjectUserRole.query.filter_by(
-            user_id=user_id).with_entities(model.ProjectUserRole.project_id), ()))
+            user_id=user_id).with_entities(model.ProjectUserRole.project_id)]
     projects = [NexusProject().set_project_id(id).to_json()
                 for id in projects_id_list if id != -1]
     return projects
@@ -1363,7 +1390,7 @@ def sync_project_issue_calculate():
         pj_id = project.id
         plan_id = get_plan_id(project.id)
         if plan_id != -1:
-            try: 
+            try:
                 project_object = redmine_lib.redmine.project.get(plan_id)
                 rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
                 project_issue_calculate[pj_id] = json.dumps(
@@ -1372,11 +1399,12 @@ def sync_project_issue_calculate():
                 continue
 
     update_pj_issue_calcs(project_issue_calculate)
-    
+
 
 def delete_rancher_app(project_id, branch_name):
     project_info = model.Project.query.filter_by(id=project_id).first()
-    project_deployment = kubernetesClient.list_dev_environment_by_branch(str(project_info.name),str(project_info.http_url))
+    project_deployment = kubernetesClient.list_dev_environment_by_branch(
+        str(project_info.name), str(project_info.http_url))
     for temp in project_deployment:
         if temp.get("branch") == branch_name:
             for pod in temp.get("pods"):
@@ -1386,16 +1414,15 @@ def delete_rancher_app(project_id, branch_name):
 
 # --------------------- Resources ---------------------
 
+
 @doc(tags=['Pending'], description="Get CI pipeline id by git repo id")
 class GitRepoIdToCiPipeIdV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id):
         return git_repo_id_to_ci_pipe_id(repository_id)
 
 
 class GitRepoIdToCiPipeId(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id):
         return git_repo_id_to_ci_pipe_id(repository_id)
-
-

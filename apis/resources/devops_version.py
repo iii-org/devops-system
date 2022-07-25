@@ -96,14 +96,14 @@ def has_devops_update():
         }
     if versions is None:
         raise DevOpsError(500, '/current_version returns no data.')
-    if current_version != versions['version_name']:
-        # Has new version, send notificaation message to administrators
-        if check_message_exist(versions['version_name'], 101) is False:
-            args = {"alert_level": 101, "title": f"New version: {versions['version_name']}", "type_ids": [4],
-                    "type_parameters": {'role_ids': [5]}, "message": f"New version: {versions['version_name']}"}
-            # close old version notification message
-            close_version_notification()
-            create_notification_message(args, user_id=1)
+    # Has new version, send notificaation message to administrators
+    if current_version != versions['version_name'] and \
+        check_message_exist(versions['version_name'], 101) is False:
+        args = {"alert_level": 101, "title": f"New version: {versions['version_name']}", "type_ids": [4],
+                "type_parameters": {'role_ids': [5]}, "message": f"New version: {versions['version_name']}"}
+        # close old version notification message
+        close_version_notification()
+        create_notification_message(args, user_id=1)
     return {
         'has_update': current_version != versions['version_name'],
         'latest_version': versions
@@ -164,20 +164,20 @@ def get_deployment_info():
 
 # ------------------ Resources ------------------
 class DevOpsVersion(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         return util.success(get_deployment_info())
 
 
 class DevOpsVersionCheck(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         role.require_admin()
         return util.success(has_devops_update())
 
 
 class DevOpsVersionUpdate(Resource):
-    @ jwt_required
+    @jwt_required()
     def patch(self):
         role.require_admin()
         versions = has_devops_update()['latest_version']

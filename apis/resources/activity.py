@@ -18,7 +18,7 @@ from resources import role
 
 
 def record_activity(action_type):
-    # Must be used after @jwt_required decorator!
+    # Must be used after @jwt_required() decorator!
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
@@ -26,8 +26,9 @@ def record_activity(action_type):
                 # Not in request context, do not record activity
                 return fn(*args, **kwargs)
 
-            identity = get_jwt_identity()
-            if identity is None:
+            try:
+                identity = get_jwt_identity()
+            except RuntimeError:
                 identity = {'user_id': 1, 'user_account': 'system'}
             new = Activity(
                 operator_id=identity['user_id'],
@@ -106,9 +107,9 @@ def build_query(args, base_query=None):
 def limit_to_project(project_id):
     query = model.Activity.query.filter(model.Activity.action_type.in_([
         ActionType.CREATE_PROJECT, ActionType.UPDATE_PROJECT, ActionType.DELETE_PROJECT,
-        ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER, ActionType.DELETE_ISSUE, ActionType.ADD_TAG,
-        ActionType.DELETE_TAG, ActionType.MODIFY_HOOK, ActionType.RECREATE_PROJECT, ActionType.ENABLE_ISSUE_CHECK,
-        ActionType.DISABLE_ISSUE_CHECK]
+        ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER, ActionType.DELETE_ISSUE, 
+        ActionType.MODIFY_HOOK, ActionType.RECREATE_PROJECT, ActionType.ENABLE_ISSUE_CHECK,
+        ActionType.DISABLE_ISSUE_CHECK, ActionType.ENABLE_PLUGIN, ActionType.DISABLE_PLUGIN]
     ))
     query = query.filter(or_(
         model.Activity.object_id.like(f'%@{project_id}'),
@@ -139,13 +140,6 @@ class Activity(model.Activity):
             self.action_parts += f'@{str(content)}'
         if self.action_type == ActionType.DELETE_ISSUE:
             self.fill_issue(args['issue_id'])
-        # if self.action_type == ActionType.ADD_TAG:
-        #     self.object_id = str(args["project_id"])
-        #     self.action_parts = args["args"]["name"]
-        # if self.action_type == ActionType.DELETE_TAG:
-        #     tag = model.Tag.query.get(args["tag_id"])
-        #     self.object_id = str(tag.project_id)
-        #     self.action_parts = tag.name
         if self.action_type == ActionType.MODIFY_HOOK:
             issue_commit_relation = model.IssueCommitRelation.query.get(args["args"]["commit_id"])
             action_parts = f"{issue_commit_relation.commit_id[:8]} \
@@ -163,6 +157,12 @@ class Activity(model.Activity):
         if self.action_type == ActionType.DISABLE_ISSUE_CHECK:
             self.object_id = str(args["project_id"])
             self.action_parts = "關閉檢查創建議題之狀態"
+        if self.action_type == ActionType.ENABLE_PLUGIN:
+            self.object_id = get_jwt_identity()["user_id"]
+            self.action_parts = f'Enable plugin: {args["plugin_name"]}'
+        if self.action_type == ActionType.DISABLE_PLUGIN:
+            self.object_id = get_jwt_identity()["user_id"]
+            self.action_parts = f'Disable plugin: {args["plugin_name"]}'
 
     def __get_issue_project_id(self, issue_id):
         row = model.ProjectPluginRelation.query.filter_by(
@@ -205,31 +205,31 @@ class Activity(model.Activity):
 
 # --------------------- Resources ---------------------
 class AllActivities(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         role.require_admin()
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=10)
-        parser.add_argument('offset', type=int, default=0)
-        parser.add_argument('from_date', type=str)
-        parser.add_argument('to_date', type=str)
-        parser.add_argument('search', type=str)
+        parser.add_argument('limit', type=int, default=10, location="args")
+        parser.add_argument('offset', type=int, default=0, location="args")
+        parser.add_argument('from_date', type=str, location="args")
+        parser.add_argument('to_date', type=str, location="args")
+        parser.add_argument('search', type=str, location="args")
         args = parser.parse_args()
         query = build_query(args)
         return util.success(get_activities(args, query))
 
 
 class ProjectActivities(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_pm()
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=10)
-        parser.add_argument('offset', type=int, default=0)
-        parser.add_argument('from_date', type=str)
-        parser.add_argument('to_date', type=str)
-        parser.add_argument('search', type=str)
+        parser.add_argument('limit', type=int, default=10, location="args")
+        parser.add_argument('offset', type=int, default=0, location="args")
+        parser.add_argument('from_date', type=str, location="args")
+        parser.add_argument('to_date', type=str, location="args")
+        parser.add_argument('search', type=str, location="args")
         args = parser.parse_args()
         query = build_query(args, base_query=limit_to_project(project_id))
         return util.success(get_activities(args, query))

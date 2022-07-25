@@ -52,7 +52,7 @@ class User(db.Model):
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
             if field in ['starred_project', 'plugin_relation', 'project_role']:
                 continue
             data = self.__getattribute__(field)
@@ -103,11 +103,12 @@ class Project(db.Model):
     example_tag = Column(String)
     uuid = Column(String)
     is_inheritance_member = Column(Boolean, default=False)
+    is_empty_project = Column(Boolean, server_default='false')
 
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
             if field in ['starred_by', 'plugin_relation', 'user_role']:
                 continue
             data = self.__getattribute__(field)
@@ -321,7 +322,7 @@ class WebInspect(db.Model):
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
@@ -380,7 +381,7 @@ class Zap(db.Model):
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
@@ -409,7 +410,7 @@ class Sideex(db.Model):
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
@@ -568,7 +569,7 @@ class Cluster(db.Model):
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
             if field in ['application']:
                 continue
             data = self.__getattribute__(field)
@@ -638,6 +639,8 @@ class AlertUnchangeRecord(db.Model):
 class IssueExtensions(db.Model):
     issue_id = Column(Integer, primary_key=True)
     point = Column(Integer)
+    ITSMS_no = Column(String)
+    ITSMS_url = Column(String)
 
 
 class Tag(db.Model):
@@ -811,7 +814,7 @@ class NotificationMessage(db.Model):
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
@@ -836,7 +839,7 @@ class NotificationMessageRecipient(db.Model):
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
@@ -916,7 +919,7 @@ class TemplateProject(db.Model):
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
@@ -943,7 +946,7 @@ class HarborScan(db.Model):
     def __repr__(self):
         fields = {}
         for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x != 'metadata']:
+                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes

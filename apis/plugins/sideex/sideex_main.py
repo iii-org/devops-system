@@ -90,11 +90,11 @@ def sd_get_latest_test(project_id):
 
 
 def process_row(row, project_id):
-    if row.status == 'Scanning':
-        # 12 hour timeout
-        if datetime.now() - row.run_at > timedelta(hours=1):
-            row.status = 'Failed'
-            model.db.session.commit()
+    # 12 hour timeout
+    if row.status == 'Scanning' and \
+        datetime.now() - row.run_at > timedelta(hours=1):
+        row.status = 'Failed'
+        model.db.session.commit()
     r = json.loads(str(row))
     r['issue_link'] = gitlab.commit_id_to_url(project_id, r['commit_id'])
     return r
@@ -107,7 +107,7 @@ def sd_get_report(test_id):
 
 # --------------------- Resources ---------------------
 class Sideex(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('project_name', type=str)
@@ -115,10 +115,9 @@ class Sideex(Resource):
         parser.add_argument('commit_id', type=str)
         args = parser.parse_args()
         role.require_in_project(project_name=args['project_name'])
-        id = sd_start_test(args)
-        return util.success({'test_id': id})
+        return util.success({'test_id': sd_start_test(args)})
 
-    @jwt_required
+    @jwt_required()
     def put(self):
         parser = reqparse.RequestParser()
         parser.add_argument('test_id', type=int)
@@ -131,14 +130,14 @@ class Sideex(Resource):
         sd_finish_test(args)
         return util.success()
 
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         role.require_in_project(project_id=project_id)
         return util.success(sd_get_tests(project_id))
 
 
 class SideexReport(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, test_id):
         project_name = model.Sideex.query.filter_by(id=test_id).one().project_name
         role.require_in_project(project_name=project_name)

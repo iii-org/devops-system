@@ -86,14 +86,35 @@ class SingleUserListResponse(Schema):
     create_at = fields.Str(required=False,example="2020-02-21T01:00:00.000000")
     default_role = fields.Nested(SingleUserDefaultRoleResponse,required=False)
 
+class SingleUserGetResponse(Schema):
+    phone = fields.Str(required=False, doc='phone', example="0999999999#123")
+    name = fields.Str(required=False, doc='name', example="測試用蒸發RD")
+    email = fields.Email(required=False, doc='email', example="tech@iii-devops.org")
+    login = fields.Str(required=False, doc='login', example="postman_test_rd")
+    status = fields.Str(required=False, doc='status', example="enable")
+    department = fields.Str(required=False, doc='department', example="數位轉型研究所")
+    title = fields.Str(required=False, doc='title', example="工程師")
+    id = fields.Integer(required=False, doc='role_id', example=1)
+    update_at = fields.Str(required=False, doc='2022-07-18T08:08:24.284983')
+    from_ad = fields.Boolean(required=False, doc='from_ad', example=False)
+    create_at = fields.Str(required=False, example="2021-09-03T05:17:33.565088")
+    default_role = fields.Dict(required=False, example={"id": 5, "name": "Administrator"})
+    last_login = fields.Str(required=False, example="2022-07-19T02:11:12.289543")
+
+
 class SingleUserResponse(Schema):
     message = fields.Str(required=True, doc='message',example="success")
     data = fields.Nested(SingleUserListResponse,required=False)
     datetime = fields.Str(required=False,example="2020-02-21T01:00:00.000000")
 ########## API Action ##########
 
+
 class CreateSingleUserResponse(SingleUserResponse):
     data = fields.Nested(SingleUserDataResponse,required=False)
+
+class GetSingleUserResponse(CommonBasicResponse):
+    data = fields.Nested(SingleUserListResponse,required=False)
+
 
 ##################################################################
 

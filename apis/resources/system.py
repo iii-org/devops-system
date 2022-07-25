@@ -75,7 +75,7 @@ def system_info_report():
         if r.status_code >= 200 and r.status_code < 300:
             headers = {"Authorization": f"Bearer {json.loads(r.text)['data']['access_token']}",
                        'Content-Type': 'application/json'}
-            r = requests.post(f'{version_center_url}/report_info', headers=headers,
+            requests.post(f'{version_center_url}/report_info', headers=headers,
                               params={'uuid': row.deployment_uuid}, data=json.dumps(output_str))
         else:
             raise apiError.DevOpsError(503, "Can not get version-center token")

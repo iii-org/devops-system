@@ -43,9 +43,11 @@ class ActionType(Enum):
     UPDATE_USER = 7  # Requires argument "user_id"
     DELETE_USER = 8  # Requires argument "user_id"
     DELETE_ISSUE = 9  # Requires argument "issue_id"
-    ADD_TAG = 10  # Requires argument "project_id"
-    DELETE_TAG = 11  # Requires argument "project_id"
+    # ADD_TAG = 10  # Requires argument "project_id"
+    # DELETE_TAG = 11  # Requires argument "project_id"
     MODIFY_HOOK = 12 # Requires argument "issue_id"
     RECREATE_PROJECT = 13  # Requires argument "project_id"
     ENABLE_ISSUE_CHECK = 14 # Requires argument "project_id"
     DISABLE_ISSUE_CHECK = 15 # Requires argument "project_id"
+    ENABLE_PLUGIN = 16 # Required user_id
+    DISABLE_PLUGIN = 17 # Required user_id

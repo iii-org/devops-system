@@ -10,7 +10,10 @@ class DevOpsFilter(logging.Filter):
         record.user_id = -1
         record.user_name = ''
         if has_request_context():
-            jwt = get_jwt_identity()
+            try:
+                jwt = get_jwt_identity()
+            except RuntimeError:
+                jwt = None
             if jwt is None:
                 record.user_id = 1
                 record.user_name = 'system'

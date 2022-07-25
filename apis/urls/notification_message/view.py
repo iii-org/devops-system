@@ -65,7 +65,7 @@ class MessageV2(MethodResource):
     @doc(tags=['Notification Message'], description="Create a notification message. Only for administrator")
     # @use_kwargs(router_model.CreateNotificationMessageSchema, location="form")
     @marshal_with(util.CommonResponse)
-    @jwt_required
+    @jwt_required()
     def post(self):
         role.require_admin()
         parser = reqparse.RequestParser()
@@ -88,7 +88,7 @@ class MessageV2(MethodResource):
 class MessageIdV2(MethodResource):
     @doc(tags=['Notification Message'], description="Delete the notification message. Only for administrator")
     @marshal_with(util.CommonResponse)
-    @jwt_required
+    @jwt_required()
     def delete(self, message_id):
         role.require_admin()
         return util.success(delete_notification_message(message_id))
@@ -96,16 +96,16 @@ class MessageIdV2(MethodResource):
 
 class MessageListV2(MethodResource):
     @doc(tags=['Notification Message'], description="User get notification message history.")
-    @ jwt_required
+    @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=10)
-        parser.add_argument('offset', type=int, default=0)
-        parser.add_argument('from_date', type=str)
-        parser.add_argument('to_date', type=str)
-        parser.add_argument('search', type=str)
-        parser.add_argument('alert_ids', type=str)
-        parser.add_argument('unread', type=bool)
+        parser.add_argument('limit', type=int, default=10, location="args")
+        parser.add_argument('offset', type=int, default=0, location="args")
+        parser.add_argument('from_date', type=str, location="args")
+        parser.add_argument('to_date', type=str, location="args")
+        parser.add_argument('search', type=str, location="args")
+        parser.add_argument('alert_ids', type=str, location="args")
+        parser.add_argument('unread', type=bool, location="args")
         args = parser.parse_args()
         if args["alert_ids"]:
             args["alert_ids"] = json.loads(args["alert_ids"].replace("\'", "\""))
@@ -114,17 +114,17 @@ class MessageListV2(MethodResource):
 
 class MessageListForAdminV2(MethodResource):
     @doc(tags=['Notification Message'], description="Administrator get all notification message. Only for administrator.")
-    @ jwt_required
+    @jwt_required()
     def get(self):
         role.require_admin()
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=10)
-        parser.add_argument('offset', type=int, default=0)
-        parser.add_argument('from_date', type=str)
-        parser.add_argument('to_date', type=str)
-        parser.add_argument('search', type=str)
-        parser.add_argument('alert_ids', type=str)
-        parser.add_argument('include_system_message', type=bool)
+        parser.add_argument('limit', type=int, default=10, location="args")
+        parser.add_argument('offset', type=int, default=0, location="args")
+        parser.add_argument('from_date', type=str, location="args")
+        parser.add_argument('to_date', type=str, location="args")
+        parser.add_argument('search', type=str, location="args")
+        parser.add_argument('alert_ids', type=str, location="args")
+        parser.add_argument('include_system_message', type=bool, location="args")
         args = parser.parse_args()
         if args["alert_ids"]:
             args["alert_ids"] = json.loads(args["alert_ids"].replace("\'", "\""))
@@ -133,7 +133,7 @@ class MessageListForAdminV2(MethodResource):
 
 class MessageReplyV2(MethodResource):
     @doc(tags=['Notification Message'], description="Send back after user read message.")
-    @ jwt_required
+    @jwt_required()
     def post(self, user_id):
         role.require_user_himself(user_id, even_admin=True)
         parser = reqparse.RequestParser()
@@ -144,7 +144,7 @@ class MessageReplyV2(MethodResource):
 
 class MessageCloseV2(MethodResource):
     @doc(tags=['Notification Message'], description="Close message (mean all user read message). Only for administrator.")
-    @ jwt_required
+    @jwt_required()
     def post(self, message_id):
         role.require_admin()
         return util.success(close_notification_message(message_id))

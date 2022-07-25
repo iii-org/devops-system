@@ -25,6 +25,6 @@ class RecreateProjectV2(MethodResource):
 @ marshal_with(route_model.IsProjectExists)
 class CheckProjectExistV2(MethodResource):
 
-    @ jwt_required
+    @jwt_required()
     def get(self):
         return util.success(sync_project.check_project_exist())

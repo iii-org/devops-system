@@ -18,13 +18,13 @@ from . import route_model
 @ use_kwargs(route_model.IsUserExistsSchema, location="form")
 @ marshal_with(route_model.IsUserExistsResponse)
 class CheckUserExistV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def post(self, **kwargs):
         return util.success(sync_user.check_user_exist(kwargs["router"]))
 
 
 @doc(tags=['System'], description="Recreate third part users")
 class RecreateUserV2(MethodResource):
-    @ jwt_required
+    @jwt_required()
     def post(self, user_id):
         return util.success(sync_user.recreate_user(user_id))

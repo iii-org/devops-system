@@ -21,7 +21,7 @@ class RedisOperator:
         '''
         # local
         self.pool = redis.ConnectionPool(
-            host='10.20.0.93', 
+            host='10.20.0.96', 
             port='31852',
             decode_responses=True
         )
@@ -162,6 +162,13 @@ def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):
 
     pj_issue_calc["updated_time"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     return redis_op.dict_set_certain(PROJECT_ISSUE_CALCULATE_KEY, pj_id, json.dumps(pj_issue_calc))
+
+
+# Template cache
+def update_template_cache_all(dict_all):
+    redis_op.dict_delete_all(TEMPLATE_CACHE)
+    if dict_all != {}:
+        redis_op.dict_set_all(TEMPLATE_CACHE, dict_all)
 
 
 def update_template_cache(id, dict_val):

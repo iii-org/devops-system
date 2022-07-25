@@ -7,7 +7,7 @@ from migrate.upgrade_function.ui_route_upgrade import ui_route_first_version
 from migrate.upgrade_function.upload_file_types import upload_file_types
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware, \
     DefaultAlertDays, TraceOrder, TraceResult, Application, IssueExtensions, Lock, RedmineProject, ServerType, SystemParameter, \
-    ProjectResourceStoragelevel, UserMessageType
+    ProjectResourceStoragelevel, UserMessageType, UIRouteData
 from plugins.sonarqube.sonarqube_main import sq_create_project, sq_create_user
 from resources import harbor, kubernetesClient, role, devops_version
 from resources.apiError import DevOpsError
@@ -42,7 +42,8 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.16.0.1', '1.16.1.0', '1.16.1.1', '1.16.1.2', '1.16.1.3', '1.16.1.4', '1.16.1.5', '1.16.2.0', '1.16.2.1',
             '1.16.2.2', '1.16.2.3', '1.16.2.4', '1.16.2.5', '1.16.2.6', '1.16.2.7', '1.16.3.0', '1.16.3.1', '1.17.1.0', '1.17.1.1', '1.17.2.1',
             '1.17.2.2', '1.17.2.3', '1.17.2.4', '1.17.2.5', '1.17.2.6', '1.17.2.7', '1.17.2.8', '1.17.2.9', '1.17.2.10', '1.17.2.11',
-            '1.17.2.12', '1.17.2.13', '1.17.2.14', '1.17.2.15', '1.17.2.16', '1.17.2.17', '1.17.2.18']
+            '1.17.2.12', '1.17.2.13', '1.17.2.14', '1.17.2.15', '1.17.2.16', '1.17.2.17', '1.17.2.18', '1.18.1.0', '1.19.0.1', '1.19.0.2', '1.19.0.3',
+            '1.19.0.4']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -60,7 +61,7 @@ ONLY_UPDATE_DB_MODELS = [
     '1.15.0.11', '1.15.0.13', '1.15.0.14', '1.15.1.0', '1.15.1.1', '1.15.2.0', '1.15.2.1', '1.15.2.4', '1.16.0.1',
     '1.16.1.0', '1.16.1.2', '1.16.1.3', '1.16.1.4', '1.16.2.0', '1.16.2.1', '1.16.2.2', '1.16.2.3', '1.16.2.4',
     '1.16.2.5', '1.16.2.6', '1.16.2.7', '1.16.3.0', '1.17.1.0', '1.17.1.1', '1.17.2.2', '1.17.2.4', '1.17.2.6',
-    '1.17.2.8', '1.17.2.10', '1.17.2.11', '1.17.2.12']
+    '1.17.2.8', '1.17.2.10', '1.17.2.11', '1.17.2.12', '1.19.0.1', '1.19.0.2', '1.19.0.4']
 
 
 def upgrade(version):
@@ -216,11 +217,28 @@ def upgrade(version):
     elif version == '1.17.2.15':
         insert_mail_info_in_system_parameter()
     elif version == '1.17.2.16':
-        ui_route_first_version()
+        pass
     elif version == '1.17.2.17':
         sync_mail_info_in_system_parameter()
     elif version == '1.17.2.18':
         set_excalidraw_plugin_disabled_is_true()
+    elif version == '1.18.1.0':
+        UIRouteData.query.delete()
+        db.session.commit()
+        ui_route_first_version()
+    elif version == '1.19.0.3':
+        insert_rancher_app_revision_limit_in_system_parameter()
+
+
+def insert_rancher_app_revision_limit_in_system_parameter():
+    if SystemParameter.query.filter_by(name="rancher_app_revision_limit").first() is None:
+        row = SystemParameter(
+            name="rancher_app_revision_limit",
+            value={"limit_nums": 3000},
+            active=True
+        )
+        db.session.add(row)
+        db.session.commit()
 
 
 def set_excalidraw_plugin_disabled_is_true():

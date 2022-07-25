@@ -11,7 +11,7 @@ get_router_error = "Without Router Definition"
 
 
 class Router(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         try:
             return util.success(router.get_plugin_software())
@@ -21,7 +21,7 @@ class Router(Resource):
 
 
 class UI_Router(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         try:
             return util.success(router.display_by_permission())
