@@ -9,3 +9,5 @@ def system_url(api, add_resource):
     api.add_resource(view.SendMergeRequestNotification, '/v2/system/send_merge_request_notification')
 
     add_resource(view.SendMergeRequestNotification, "private")
+
+    api.add_resource(view.SystemCheckPipelineUpdate, '/pipeline/check_update')
