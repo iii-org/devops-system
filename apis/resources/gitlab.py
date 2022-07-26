@@ -541,6 +541,9 @@ class GitLab(object):
         path = f'/projects/{repo_id}/{status}'
         return self.__api_post(path).json()
 
+    def single_commit(self, project_id, commit_id):
+        return self.__api_get(f'/projects/{project_id}/repository/commits/{commit_id}').json()
+
     def __get_projects_commit(self, pjs, out_list, branch_name, days_ago):
         for pj in pjs:
             if (pj.empty_repo is False) and pj.path_with_namespace.split('/')[0] not in iiidevops_system_group:
@@ -1227,3 +1230,10 @@ class GitlabDomainStatus(Resource):
     @jwt_required()
     def get(self):
         return util.success(gitlab_status_connection())
+
+
+class GitlabSingleCommit(Resource):
+    @jwt_required()
+    def get(self, project_id, commit_id):
+        return util.success(gitlab.single_commit(project_id, commit_id))
+

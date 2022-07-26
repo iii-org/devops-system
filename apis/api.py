@@ -299,6 +299,7 @@ api.add_resource(gitlab.GitProjectIdFromURL, '/repositories/id')
 api.add_resource(gitlab.GitProjectURLFromId, '/repositories/url')
 api.add_resource(gitlab.GitlabDomainConnection, '/repositories/is_ip', '/repositories/connection')
 api.add_resource(gitlab.GitlabDomainStatus, '/repositories/connection/status')
+api.add_resource(gitlab.GitlabSingleCommit, '/repositories/<project_id>/<commit_id>')
 
 
 # User
