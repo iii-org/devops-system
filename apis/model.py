@@ -864,13 +864,6 @@ class UIRouteJson(db.Model):
     updated_at = Column(DateTime)
 
 
-class UIRouteFile(db.Model):
-    file_name = Column(String, primary_key=True)
-    file_md5 = Column(String)
-    created_at = Column(DateTime)
-    updated_at = Column(DateTime)
-
-
 class UIRouteData(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, primary_key=True)
