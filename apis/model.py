@@ -857,13 +857,6 @@ class ProjectParentSonRelation(db.Model):
     created_at = Column(DateTime)
 
 
-class UIRouteJson(db.Model):
-    name = Column(String, primary_key=True)
-    ui_route = Column(JSON)
-    created_at = Column(DateTime)
-    updated_at = Column(DateTime)
-
-
 class UIRouteData(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, primary_key=True)
