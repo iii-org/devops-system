@@ -548,7 +548,7 @@ def rancher_projects_limit_num():
         return {
             "error_title": "Rancher AppRevision counts out of limit",
             "status": False,
-            "message": f"Rancher AppRevision counts surpass {parameter.value['limit_nums']}."
+            "message": f"Rancher AppRevision counts surpass {parameter.value['limit_nums']}. Now is {output_str}."
         }
     else:
         return {
