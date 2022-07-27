@@ -1733,13 +1733,14 @@ class KubernetesPodExec(Namespace):
 
 
 def create_cron_secret():
+    from resources.user import jwt_response_data
     '''
     If we not replace the old token when server is redeployed, 
         token sometime can not be used.
     '''
     if read_namespace_secret("default", "cornjob-bot") is not None:
         delete_namespace_secret("default", "cornjob-bot")
-    token = create_access_token(identity={"type": "cornjob_token"}, expires_delta=timedelta(days=36500))
+    token = create_access_token(identity=jwt_response_data(None, None, None, None), expires_delta=timedelta(days=36500))
     create_namespace_secret(
         "default", "cornjob-bot", {'cornjob-token': token})
 

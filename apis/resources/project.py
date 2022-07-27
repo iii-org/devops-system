@@ -22,7 +22,7 @@ import plugins
 import resources.apiError as apiError
 import util as util
 from data.nexus_project import NexusProject, calculate_project_issues, fill_rd_extra_fields
-from model import ProjectPluginRelation, ProjectUserRole, StarredProject, db
+from model import ProjectPluginRelation, ProjectUserRole, StarredProject, db, Project
 from nexus import nx_get_project_plugin_relation
 from plugins.checkmarx.checkmarx_main import checkmarx
 from resources.apiError import DevOpsError
@@ -48,6 +48,23 @@ from flask_apispec import doc
 from flask_apispec.views import MethodResource
 from resources import role
 from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
+
+
+def get_pj_id_by_name(name):
+    ret = {
+        "id": "",
+        "plan_id": "",
+        "repo_id": ""
+    }
+    pj_info = db.session.query(ProjectPluginRelation).join(Project).filter(
+        model.ProjectPluginRelation.project_id == Project.id).filter(
+        model.Project.name == name).first()
+    if pj_info is None:
+        return ret
+    ret["id"] = pj_info.project_id
+    ret["plan_id"] = pj_info.plan_project_id
+    ret["repo_id"] = pj_info.git_repository_id
+    return ret
 
 
 def get_project_issue_calculation(user_id, project_ids=[]):

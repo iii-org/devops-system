@@ -4,10 +4,14 @@ from resources import logger
 from resources.gitlab import gitlab 
 from resources import pipeline
 import yaml
+import os
+from pathlib import Path
 from time import sleep
+import json
+from resources.project import get_pj_id_by_name
 
 
-
+# Runner version's answer
 COMMON_ANSWERS = {
     "git.branch": "${CICD_GIT_BRANCH}",
     "git.commitID": "${CICD_GIT_COMMIT}",
@@ -61,8 +65,31 @@ INITIAL_PIPELINE = [{
     ]
 }]
 
+# Black and white project list default format
+DEFAULT_FORMAT = {
+    "white_list": [],
+    "black_list": []
+}
+
+
+def check_project_list_file_exist():
+    '''
+    ret = {"white_list": [{repo_name}, {repo_name}], "black_list": []}
+    '''
+    path = "devops-data/config/B&W.json"
+    if not os.path.isfile(path):
+        Path("devops-data/config").mkdir(parents=True, exist_ok=True)
+        with open(path, 'w') as w:
+            w.write(json.dumps(DEFAULT_FORMAT))
+        ret = DEFAULT_FORMAT
+    else:
+        with open(path, 'r') as r:
+            ret = json.loads(r.read())
+    return ret
+
 
 def get_default_file_path(pj):
+    file_path = None
     for item in pj.repository_tree(ref=pj.default_branch):
         if item["path"] == ".rancher-pipeline.yml":
             file_path = ".rancher-pipeline.yml"
@@ -77,62 +104,73 @@ def update_pipieline_file(version_mapping=None):
     '''
     if version_mapping is None:
         version_mapping = VERSION_MAPPING
-    project_rows = db.session.query(Project, ProjectPluginRelation).join(
-            ProjectPluginRelation, Project.id==ProjectPluginRelation.project_id).all()
-    gl_pj_ids = [
-        project_row.ProjectPluginRelation.git_repository_id for project_row in project_rows] 
+
+    project_repo_names = check_project_list_file_exist().get("white_list", [])
+    if project_repo_names == []:
+        project_rows = db.session.query(Project, ProjectPluginRelation).join(
+                ProjectPluginRelation, Project.id==ProjectPluginRelation.project_id).all()
+        gl_pj_ids = [project_row.ProjectPluginRelation.git_repository_id for project_row in project_rows]
+    else:
+        gl_pj_ids = list(map(lambda x: get_pj_id_by_name(x)["repo_id"], project_repo_names))
 
     logger.logger.info(f"Updating version_mapping {version_mapping}")
     for gl_pj_id in gl_pj_ids:
-        try:
-            pj = gl.projects.get(gl_pj_id)
-            if pj.empty_repo:
-                continue
-            default_branch = pj.default_branch
-            file_path = get_default_file_path(pj)
+        pj = gl.projects.get(gl_pj_id)
+        if pj.empty_repo:
+            logger.logger.info(f"{gl_pj_id} is empty project.")
+            continue
 
-            f = gitlab.gl_get_file_from_lib(gl_pj_id, file_path)
-            pipe_dict = yaml.safe_load(f.decode())
-            pipe_stages = pipe_dict.get("stages")
-            if pipe_stages is None:
-                continue
-            
-            change = False
-            logger.logger.info(f"Start updating {gl_pj_id} tool version in branch({default_branch}).")
-            if pipe_stages[0].get("iiidevops") != "initial-pipeline":
-                pipe_stages = INITIAL_PIPELINE + pipe_stages
-                change = True
+        file_path = get_default_file_path(pj)
+        if file_path is None:
+            logger.logger.info(f"{gl_pj_id} does not have pipeline.yml file.")
+            continue
+        
+        for br in pj.branches.list(all=True):
+            try:
+                branch = br.name
+                change = False
 
-            for pipe_stage in pipe_stages:
-                iii_stage = version_mapping.get(pipe_stage.get("iiidevops"))
-                if iii_stage is not None:
-                    pipe_stage_step = pipe_stage["steps"][0]
-                    pipe_stage_step_config = pipe_stage_step.get("applyAppConfig", {})
-
-                    if pipe_stage_step_config["version"] == iii_stage["version"]:
-                        continue
-                    pipe_stage_step_config["answers"] = iii_stage["answer"] | pipe_stage_step_config.get("answers", {})
-                    pipe_stage_step_config["version"] = iii_stage["version"]
+                f = gitlab.gl_get_file_from_lib(gl_pj_id, file_path, branch_name=branch)
+                pipe_dict = yaml.safe_load(f.decode())
+                pipe_stages = pipe_dict.get("stages")
+                if pipe_stages is None:
+                    logger.logger.info(f"{gl_pj_id} pipeline.yml format is unexpected.")
+                    continue
+                
+                logger.logger.info(f"Start updating {gl_pj_id} tool version in branch({branch}).")
+                if pipe_stages[0].get("iiidevops") != "initial-pipeline":
+                    pipe_stages = INITIAL_PIPELINE + pipe_stages
                     change = True
 
-            if change:
-                next_run = pipeline.get_pipeline_next_run(gl_pj_id)
-                pipe_dict["stages"] = pipe_stages
-                f.content = yaml.dump(pipe_dict, sort_keys=False)
-                f.save(
-                    branch=default_branch,
-                    author_email='system@iiidevops.org.tw',
-                    author_name='iiidevops',
-                    commit_message="Testing tool runner version update.")
-                pipeline.stop_and_delete_pipeline(gl_pj_id, next_run, branch=default_branch)
-                sleep(30)
+                for pipe_stage in pipe_stages:
+                    iii_stage = version_mapping.get(pipe_stage.get("iiidevops"))
+                    if iii_stage is not None:
+                        pipe_stage_step = pipe_stage["steps"][0]
+                        pipe_stage_step_config = pipe_stage_step.get("applyAppConfig", {})
 
-            logger.logger.info(f"Change: {change}")
-            logger.logger.info(f"Updating {gl_pj_id} tool version in branch({default_branch}) done.")
-        except Exception as e:
-            logger.logger.exception(f"Gitlab project id: {gl_pj_id} has exception message ({str(e)})")
-            continue
-    
+                        if pipe_stage_step_config["version"] == iii_stage["version"]:
+                            continue
+                        pipe_stage_step_config["answers"] = iii_stage["answer"] | pipe_stage_step_config.get("answers", {})
+                        pipe_stage_step_config["version"] = iii_stage["version"]
+                        change = True
+
+                if change:
+                    next_run = pipeline.get_pipeline_next_run(gl_pj_id)
+                    pipe_dict["stages"] = pipe_stages
+                    f.content = yaml.dump(pipe_dict, sort_keys=False)
+                    f.save(
+                        branch=branch,
+                        author_email='system@iiidevops.org.tw',
+                        author_name='iiidevops',
+                        commit_message="Testing tool runner version update.")
+                    pipeline.stop_and_delete_pipeline(gl_pj_id, next_run, branch=branch) 
+                    sleep(30)
+
+                logger.logger.info(f"Change: {change}")
+                logger.logger.info(f"Updating {gl_pj_id} tool version in branch({branch}) done.")
+            except Exception as e:
+                logger.logger.exception(f"Gitlab project id: {gl_pj_id} in branch({branch}) has exception message ({str(e)})")
+                continue
 
 
 
