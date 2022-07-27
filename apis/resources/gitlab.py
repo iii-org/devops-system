@@ -22,7 +22,7 @@ import config
 import model
 import nexus
 import util as util
-from model import GitCommitNumberEachDays, db, SystemParameter, Project
+from model import GitCommitNumberEachDays, db, SystemParameter, Project, ProjectPluginRelation, GitlabSourceCodeLen
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
@@ -1234,6 +1234,34 @@ class GitlabDomainStatus(Resource):
 
 class GitlabSingleCommit(Resource):
     @jwt_required()
-    def get(self, project_id, commit_id):
-        return util.success(gitlab.single_commit(project_id, commit_id))
+    def get(self, repo_id, commit_id):
+        return util.success(gitlab.single_commit(repo_id, commit_id))
 
+
+class GitlabSourceCode(Resource):
+    def get(self, repo_name, branch, commit_id):
+        project_query = Project.query.filter(
+            Project.name == repo_name
+        ).first()
+        query = ProjectPluginRelation.query.filter(
+            ProjectPluginRelation.project_id == project_query.id
+        ).first()
+        result = gitlab.single_commit(query.git_repository_id, commit_id)
+        return util.success({"branch":branch, "commit_id": commit_id, "project_id":project_query.id,
+            "project_name": project_query.name, "repo_id":query.git_repository_id, "source_code_num":result["stats"]["total"]})
+
+    def post(self, repo_name, branch, commit_id):
+        try:
+            result_dict = self.get(repo_name, branch, commit_id)[0]["data"]
+            result_dict.pop("project_name")
+            result_dict.pop("repo_id")
+            result_dict["updated_at"] = datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT)
+            new = GitlabSourceCodeLen(
+                **result_dict
+            )
+            model.db.session.add(new)
+            model.db.session.commit()
+            return "success", 200
+        except IntegrityError:
+            model.db.session.rollback()
+            return "error"

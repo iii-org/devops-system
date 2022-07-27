@@ -299,8 +299,8 @@ api.add_resource(gitlab.GitProjectIdFromURL, '/repositories/id')
 api.add_resource(gitlab.GitProjectURLFromId, '/repositories/url')
 api.add_resource(gitlab.GitlabDomainConnection, '/repositories/is_ip', '/repositories/connection')
 api.add_resource(gitlab.GitlabDomainStatus, '/repositories/connection/status')
-api.add_resource(gitlab.GitlabSingleCommit, '/repositories/<project_id>/<commit_id>')
-
+api.add_resource(gitlab.GitlabSingleCommit, '/repositories/<repo_id>/<commit_id>')
+api.add_resource(gitlab.GitlabSourceCode, '/repositories/<repo_name>/<branch>/<commit_id>/pipline')
 
 # User
 user_url(api, add_resource)
