@@ -1239,6 +1239,7 @@ class GitlabSingleCommit(Resource):
 
 
 class GitlabSourceCode(Resource):
+    @jwt_required()
     def get(self, repo_name, branch, commit_id):
         project_query = Project.query.filter(
             Project.name == repo_name
@@ -1250,6 +1251,7 @@ class GitlabSourceCode(Resource):
         return util.success({"branch":branch, "commit_id": commit_id, "project_id":project_query.id,
             "project_name": project_query.name, "repo_id":query.git_repository_id, "source_code_num":result["stats"]["total"]})
 
+    @jwt_required()
     def post(self, repo_name, branch, commit_id):
         try:
             result_dict = self.get(repo_name, branch, commit_id)[0]["data"]

@@ -234,6 +234,10 @@ def sq_get_history_by_commit(project_id, commit_id):
             }
     return {}
 
+def get_code_length(project_name):
+    METRICS = ('ncloc')
+    api_url = f"/measures/component?component={project_name}&metricKeys={METRICS}"
+    return __api_get(api_url)
 
 # --------------------- Resources ---------------------
 class SonarqubeHistory(Resource):
@@ -253,4 +257,13 @@ class SonarqubeHistoryV2(MethodResource):
         return util.success({
             'link': f'{config.get("SONARQUBE_EXTERNAL_BASE_URL")}/dashboard?id={project_name}',
             'history': sq_get_history_measures(project_name)
+        })
+
+
+class SonarqubeCodelen(Resource):
+    @jwt_required()
+    def get(self, project_name):
+        result = get_code_length(project_name)
+        return util.success({
+                "code_length": result.json()["component"]["measures"][0]["value"]
         })
