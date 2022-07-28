@@ -325,7 +325,7 @@ def update_user(user_id, args, from_ad=False):
                                 error=apiError.user_from_ad(user_id))
         db.session.commit()
         # Putting here to avoid not commit session error
-        if status is not None:
+        if args.get("status") is not None:
             operate_external_user(user_id, status)
     return util.success()
 
