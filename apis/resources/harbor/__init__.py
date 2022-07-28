@@ -403,6 +403,15 @@ def hb_delete_repository(project_name, repository_name):
     return __api_delete(f'/projects/{project_name}/repositories/{__encode(repository_name)}')
 
 
+def hb_get_artifact_wtih_digrest(project_name, repository_name, reference):
+    try:
+        ret = __api_get(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
+                    f'/artifacts/{reference}').json()
+        return ret
+    except Exception as e:
+        return {}
+
+
 def hb_delete_artifact(project_name, repository_name, reference):
     return __api_delete(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
                         f'/artifacts/{reference}')

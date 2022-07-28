@@ -7,7 +7,7 @@ from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 from resources.harbor import hb_list_artifacts_with_params, hb_copy_artifact_and_retage, hb_get_artifact, \
     hb_delete_artifact_tag, hb_create_artifact_tag, hb_list_tags, hb_copy_artifact, hb_list_repositories, \
-    hb_list_tags, hb_delete_artifact, hb_list_artifacts, hb_get_artifacts_with_tag
+    hb_list_tags, hb_delete_artifact, hb_list_artifacts, hb_get_artifacts_with_tag, hb_get_artifact_wtih_digrest
 
 import config
 import model
@@ -269,7 +269,7 @@ def create_release_image_repo(project_id, release_id, args):
             digest = hb_get_artifact(project_name, release.branch, release.tag_name)[0]["digest"]
             try:
                 copy_image = add_tag = False
-                if dest_repo not in repo_list or hb_list_artifacts(project_name, dest_repo) == []:
+                if dest_repo not in repo_list or hb_get_artifact_wtih_digrest(project_name, dest_repo, digest) == {}:
                     hb_copy_artifact(project_name, dest_repo, f"{project_name}/{release.branch}@{digest}")
                     copy_image = True
                     for removed_tag in [hb_tag.get("name") for hb_tag in hb_list_tags(project_name, release.branch, digest) if hb_tag.get("name") is not None]:
