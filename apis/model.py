@@ -987,10 +987,9 @@ class UserMessageType(db.Model):
     teams = Column(Boolean)
 
 
-class GitlabSourceCodeLen(db.Model):
-    id = Column(Integer, primary_key=True)
-    branch = Column(String)
+class GitlabSourceCodeLens(db.Model):
+    branch = Column(String, primary_key=True)
     commit_id = Column(String)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
     source_code_num = Column(Integer)
     updated_at = Column(DateTime)
