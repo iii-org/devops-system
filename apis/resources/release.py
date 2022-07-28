@@ -150,9 +150,10 @@ def analysis_release(release, info, hb_list_tags, image_need):
         ret["docker"] = [{
             "repo": repo,
             "tags": tags,
+            "project": "" if ret["image_paths"] == [] else ret["image_paths"][0].split("/")[0],
             "default": repo == ret["branch"]
         } for repo, tags in repo_mapping.items()]
-        ret["harbor_external_base_url"] = config.get("HARBOR_EXTERNAL_BASE_URL")
+        ret["harbor_external_base_url"] = config.get("HARBOR_EXTERNAL_BASE_URL").split("//")[-1]
 
     if image_need and ret.get('docker') == []:
         ret = None
