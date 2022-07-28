@@ -22,7 +22,7 @@ import config
 import model
 import nexus
 import util as util
-from model import GitCommitNumberEachDays, db, SystemParameter, Project, ProjectPluginRelation, GitlabSourceCodeLen
+from model import GitCommitNumberEachDays, db, SystemParameter, Project, ProjectPluginRelation, GitlabSourceCodeLens
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
@@ -924,6 +924,25 @@ def gitlab_status_connection():
     except Exception:
         return {"status": False}
 
+
+def get_source_code_info(repo_name, branch):
+    project_query = Project.query.filter(
+        Project.name == repo_name
+    ).first()
+    query = ProjectPluginRelation.query.filter(
+        ProjectPluginRelation.project_id == project_query.id
+    ).first()
+    code_len_query = GitlabSourceCodeLens.query.filter(
+        GitlabSourceCodeLens.project_id == project_query.id
+    ).filter(
+        GitlabSourceCodeLens.branch == branch
+    ).first()
+    if code_len_query:
+        return util.success({"branch":branch, "commit_id": code_len_query.commit_id, "project_id":project_query.id,
+            "project_name": project_query.name, "repo_id":query.git_repository_id, "source_code_num":code_len_query.source_code_num})
+    else:
+        return None
+
     # --------------------- Resources ---------------------
 gitlab = GitLab()
 
@@ -1240,30 +1259,35 @@ class GitlabSingleCommit(Resource):
 
 class GitlabSourceCode(Resource):
     @jwt_required()
-    def get(self, repo_name, branch, commit_id):
+    def post(self, repo_name, branch, commit_id):
+        from plugins.sonarqube.sonarqube_main import SonarqubeCodelen
+        sonarqube = SonarqubeCodelen()
         project_query = Project.query.filter(
             Project.name == repo_name
         ).first()
-        query = ProjectPluginRelation.query.filter(
-            ProjectPluginRelation.project_id == project_query.id
-        ).first()
-        result = gitlab.single_commit(query.git_repository_id, commit_id)
-        return util.success({"branch":branch, "commit_id": commit_id, "project_id":project_query.id,
-            "project_name": project_query.name, "repo_id":query.git_repository_id, "source_code_num":result["stats"]["total"]})
+        update_dict = {"branch": branch, "commit_id": commit_id, "project_id": project_query.id,
+                       "source_code_num": sonarqube.get(repo_name)[0]["data"]["code_length"],
+                       "updated_at": datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT)}
+        result = get_source_code_info(repo_name, branch)
+        if result:
+            # update_dict["updated_at"] = datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT)
+            try:
+                print("merge")
+                new = GitlabSourceCodeLens(**update_dict)
+                db.session.merge(new)
+                db.session.commit()
+            except Exception as e:
+                model.db.session.rollback()
+                return util.respond(401,'failed.', error=e)
+        else:
+            try:
+                print("insert")
+                new = GitlabSourceCodeLens(**update_dict)
+                model.db.session.add(new)
+                model.db.session.commit()
+                return util.success()
+            except Exception as e:
+                model.db.session.rollback()
+                return util.respond(401,'failed.', error=e)
 
-    @jwt_required()
-    def post(self, repo_name, branch, commit_id):
-        try:
-            result_dict = self.get(repo_name, branch, commit_id)[0]["data"]
-            result_dict.pop("project_name")
-            result_dict.pop("repo_id")
-            result_dict["updated_at"] = datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT)
-            new = GitlabSourceCodeLen(
-                **result_dict
-            )
-            model.db.session.add(new)
-            model.db.session.commit()
-            return "success", 200
-        except IntegrityError:
-            model.db.session.rollback()
-            return "error"
+
