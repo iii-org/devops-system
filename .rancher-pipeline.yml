@@ -32,8 +32,7 @@ stages:
       include:
       - master
       - develop
-      - test-sonarqube-report
-      - yuwei-1-17
+      - jonathan
 - name: Test--Checkmarx source code scan
   iiidevops: checkmarx
   steps:
@@ -54,7 +53,6 @@ stages:
       include:
       - master
       - develop
-      - yuwei-1-17
 - name: Deploy--Set Web environment variables
   iiidevops: deployed-environments
   steps:
@@ -80,7 +78,6 @@ stages:
       include:
       - master
       - develop
-      - yuwei-1-17
 - name: Build--Build and push docker image
   iiidevops: deployed-environments
   steps:
@@ -101,7 +98,6 @@ stages:
       include:
       - master
       - develop
-      - yuwei-1-17
 - name: Build--Scan docker image
   iiidevops: deployed-environments
   steps:
@@ -118,7 +114,6 @@ stages:
       include:
       - master
       - develop
-      - yuwei-1-17
 - name: Build--Copy Image
   iiidevops: deployed-environments
   steps:
@@ -150,7 +145,6 @@ stages:
       include:
       - master
       - develop
-      - yuwei-1-17
 - name: Deploy--Web
   iiidevops: deployed-environments
   steps:
@@ -176,7 +170,6 @@ stages:
       include:
       - master
       - develop
-      - yuwei-1-17
 - name: Deploy--Wait Web deployment
   iiidevops: deployed-environments
   steps:
@@ -200,7 +193,6 @@ stages:
       include:
       - master
       - develop
-      - yuwei-1-17
 - name: Test--ZAP
   iiidevops: zap
   steps:
@@ -262,7 +254,6 @@ stages:
   when:
     branch:
       include:
-      - skip-develop
       - develop
       - master
 - name: Test--SideeX
