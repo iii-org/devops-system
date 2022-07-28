@@ -301,7 +301,7 @@ api.add_resource(gitlab.GitlabDomainConnection, '/repositories/is_ip', '/reposit
 api.add_resource(gitlab.GitlabDomainStatus, '/repositories/connection/status')
 api.add_resource(gitlab.GitlabSingleCommit, '/repositories/<repo_id>/<commit_id>')
 api.add_resource(gitlab.GitlabSourceCodeV2, '/repositories/pipline')
-# add_resource(gitlab.GitlabSourceCodeV2, 'public')
+add_resource(gitlab.GitlabSourceCodeV2, 'public')
 
 # User
 user_url(api, add_resource)

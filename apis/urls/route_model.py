@@ -21,6 +21,11 @@ class CommonIssueSchema(Schema):
     sort = fields.Str(doc='sort', example="string")
     
 
+class GitlabSourceCodeSchema(Schema):
+    repo_name = fields.Str(doc='repo_name', example="ui-cteate")
+    branch_name = fields.Str(doc='branch_name', example="master")
+    commit_id = fields.Str(doc='commit_id', example="4419301qa")
+    source_code_num = fields.Int(doc='source_code_num', example=3352)
 ########## API Action ##########    
 
 # class FileSchema(Schema):
@@ -33,6 +38,10 @@ class IssueByUserSchema(CommonIssueSchema):
     # this one is reserved word!!!
     # from = fields.Str(doc='from', example="string")
     tags = fields.Str(doc='tags', example="string")
+
+
+class GitlabSourceCodeResponse(CommonBasicResponse):
+    data = fields.Nested(GitlabSourceCodeSchema, required=False)
 
 
 class IssueTrackerSchema(Schema):

@@ -27,6 +27,9 @@ from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from resources.project_relation import get_all_fathers_project, get_all_sons_project, get_root_project_id
+from flask_apispec import marshal_with, doc, use_kwargs
+from urls import route_model
+from flask_apispec.views import MethodResource
 
 
 GITLAB_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
@@ -1257,28 +1260,18 @@ class GitlabSingleCommit(Resource):
         return util.success(gitlab.single_commit(repo_id, commit_id))
 
 
-# from flask_apispec import marshal_with, doc, use_kwargs
-# from urls import route_model
-
-# @doc(tags=['Gitlab'], description="update source code len")
-# @use_kwargs(route_model.GitlabSourceCodeSchema, location="form")
-# @marshal_with(route_model.GitlabSourceCodeSchema)
-class GitlabSourceCodeV2(Resource):
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('repo_name', type=str)
-        parser.add_argument('branch_name', type=str)
-        parser.add_argument('commit_id', type=str)
-        parser.add_argument('source_code_num', type=str)
-        args = parser.parse_args()
-        # print(kwargs)
+@doc(tags=['Gitlab'], description="update source code len")
+@use_kwargs(route_model.GitlabSourceCodeSchema, location="json")
+@marshal_with(route_model.GitlabSourceCodeResponse)
+class GitlabSourceCodeV2(MethodResource):
+    def post(self, **kwargs):
         project_query = Project.query.filter(
-            Project.name == args["repo_name"]
+            Project.name == kwargs["repo_name"]
         ).first()
-        update_dict = {"branch": args["branch_name"], "commit_id": args["commit_id"], "project_id": project_query.id,
-                       "source_code_num": args["source_code_num"],
+        update_dict = {"branch": kwargs["branch_name"], "commit_id": kwargs["commit_id"], "project_id": project_query.id,
+                       "source_code_num": kwargs["source_code_num"],
                        "updated_at": datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT)}
-        result = get_source_code_info(args["repo_name"], args["branch_name"])
+        result = get_source_code_info(kwargs["repo_name"], kwargs["branch_name"])
         if result:
             try:
                 new = GitlabSourceCodeLens(**update_dict)
