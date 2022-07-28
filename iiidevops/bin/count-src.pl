@@ -1,7 +1,8 @@
 #!/usr/bin/perl
 use Carp;
 
+$project = $ENV{'CICD_GIT_REPO_NAME'};
 $branch = $ENV{'CICD_GIT_BRANCH'};
 
-$cmd_msg = `git ls-files | xargs cat | wc -l`;
+$cmd_msg = `cloc . --json`;
 print("\n-----\n$cmd_msg\n-----\n");
