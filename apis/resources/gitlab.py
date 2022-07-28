@@ -1257,37 +1257,45 @@ class GitlabSingleCommit(Resource):
         return util.success(gitlab.single_commit(repo_id, commit_id))
 
 
-class GitlabSourceCode(Resource):
-    @jwt_required()
-    def post(self, repo_name, branch, commit_id):
-        from plugins.sonarqube.sonarqube_main import SonarqubeCodelen
-        sonarqube = SonarqubeCodelen()
+# from flask_apispec import marshal_with, doc, use_kwargs
+# from urls import route_model
+
+# @doc(tags=['Gitlab'], description="update source code len")
+# @use_kwargs(route_model.GitlabSourceCodeSchema, location="form")
+# @marshal_with(route_model.GitlabSourceCodeSchema)
+class GitlabSourceCodeV2(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('repo_name', type=str)
+        parser.add_argument('branch_name', type=str)
+        parser.add_argument('commit_id', type=str)
+        parser.add_argument('source_code_num', type=str)
+        args = parser.parse_args()
+        # print(kwargs)
         project_query = Project.query.filter(
-            Project.name == repo_name
+            Project.name == args["repo_name"]
         ).first()
-        update_dict = {"branch": branch, "commit_id": commit_id, "project_id": project_query.id,
-                       "source_code_num": sonarqube.get(repo_name)[0]["data"]["code_length"],
+        update_dict = {"branch": args["branch_name"], "commit_id": args["commit_id"], "project_id": project_query.id,
+                       "source_code_num": args["source_code_num"],
                        "updated_at": datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT)}
-        result = get_source_code_info(repo_name, branch)
+        result = get_source_code_info(args["repo_name"], args["branch_name"])
         if result:
-            # update_dict["updated_at"] = datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT)
             try:
-                print("merge")
                 new = GitlabSourceCodeLens(**update_dict)
                 db.session.merge(new)
                 db.session.commit()
+                return util.success()
             except Exception as e:
                 model.db.session.rollback()
-                return util.respond(401,'failed.', error=e)
+                return util.respond(401,'update failed.', error=e)
         else:
             try:
-                print("insert")
                 new = GitlabSourceCodeLens(**update_dict)
                 model.db.session.add(new)
                 model.db.session.commit()
                 return util.success()
             except Exception as e:
                 model.db.session.rollback()
-                return util.respond(401,'failed.', error=e)
+                return util.respond(401,'insert failed.', error=e)
 
 
