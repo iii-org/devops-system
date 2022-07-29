@@ -11,7 +11,7 @@ stages:
       shellScript: curl --location -s --request POST ${api_origin}/rancher/delete_app
         --form project_name=${CICD_GIT_REPO_NAME} --form branch_name=${CICD_GIT_BRANCH}
         && curl --location -s --request POST ${api_origin}/project/issues_commit_by_name
-        --form project_name=${CICD_GIT_REPO_NAME} && perl iiidevops/bin/count-src.pl
+        --form project_name=${CICD_GIT_REPO_NAME} && count-src.pl
 - name: Test--SonarQube source code scan
   iiidevops: sonarqube
   steps:
