@@ -469,6 +469,10 @@ class Rancher(object):
         output = self.__api_get(url)
         return output.json()['data']
 
+    def rc_get_templates(self, cat_id):
+        url = f'/templates?catalogId={cat_id}'
+        return self.__api_get(url).json()
+
     def rc_add_catalogs(self, args):
         body = args
         url = '/catalogs'
@@ -631,6 +635,16 @@ def turn_tags_off():
     logger.info("Finish turn tags off.")
 
 
+def version_list(cat_id):
+    result = rancher.rc_get_templates(cat_id)
+    version_dict = {}
+    for key, value in result.items():
+        if key == "data":
+            for data in value:
+                for k, v in data.items():
+                    if k == "versionLinks":
+                        version_dict.update({data["name"]: [version for version, url in v.items()]})
+    return version_dict
 # --------------------- Resources ---------------------
 class Catalogs(Resource):
     @jwt_required()
