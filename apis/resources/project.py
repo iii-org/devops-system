@@ -48,6 +48,7 @@ from flask_apispec import doc
 from flask_apispec.views import MethodResource
 from resources import role
 from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
+import config
 
 
 def get_pj_id_by_name(name):
@@ -428,7 +429,8 @@ def create_project(user_id, args):
             "plan_project_id": redmine_pj_id,
             "git_repository_id": gitlab_pj_id,
             "harbor_project_id": harbor_pj_id,
-            "description": args['description']
+            "description": args['description'],
+            "project_url": f'http://{config.get("DEPLOYMENT_NAME")}/#/plan/{project_name}/overview'
         }
     except Exception as e:
         redmine.rm_delete_project(redmine_pj_id)
