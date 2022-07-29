@@ -624,36 +624,58 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
         return
     exist_branch_list = [br.name for br in pj.branches.list(all=True)]
 
-    for br in pj.branches.list(all=True):
-        had_update_branche = False
-        pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-        if pipe_yaml_file_name is None:
-            return
-        f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br.name)
-        pipe_json = yaml.safe_load(f.decode())
-        for stage in pipe_json["stages"]:
-            if default:
-                for put_pipe_soft in data["stages"]:
+    # Update default branch's pipeline
+    default_branch  = pj.default_branch
+    had_update_branche = False
+    need_running_branches = list(data.keys())
+    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    if pipe_yaml_file_name is None:
+        return   
+    f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=default_branch)
+    default_pipe_json = yaml.safe_load(f.decode())
+    for stage in default_pipe_json["stages"]:
+        if default:
+            for put_pipe_soft in data["stages"]:
+                had_update_branche |= update_branches(
+                    stage, put_pipe_soft, pj.default_branch, "has_default_branch", exist_branch_list)
+        else:
+            for input_branch, multi_software in data.items():
+                for input_soft_enable in multi_software:
                     had_update_branche |= update_branches(
-                        stage, put_pipe_soft, pj.default_branch, "has_default_branch", exist_branch_list)
-            else:
-                for input_branch, multi_software in data.items():
-                    for input_soft_enable in multi_software:
-                        had_update_branche |= update_branches(
-                            stage, input_soft_enable, input_branch, "enable", exist_branch_list)
-        if had_update_branche is True:
-            branch_name_in_data = list(data.keys())[0]
-            if run is False or (run is True and br.name != branch_name_in_data):
-                next_run = pipeline.get_pipeline_next_run(repository_id)
-                print(f"next_run: {next_run}")
-            f.content = yaml.dump(pipe_json, sort_keys=False)
-            f.save(
-                branch=br.name,
-                author_email='system@iiidevops.org.tw',
-                author_name='iiidevops',
-                commit_message=f"{user_account} 編輯 {br.name} 分支 .rancher-pipeline.yaml")
-            if run is False or (run is True and br.name != branch_name_in_data):
-                pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
+                        stage, input_soft_enable, input_branch, "enable", exist_branch_list)
+    if had_update_branche:
+        if not run or default or (run and default_branch not in need_running_branches):
+            next_run = pipeline.get_pipeline_next_run(repository_id)
+            print(f"next_run: {next_run}")
+        f.content = yaml.dump(default_pipe_json, sort_keys=False)
+        f.save(
+            branch=default_branch,
+            author_email='system@iiidevops.org.tw',
+            author_name='iiidevops',
+            commit_message=f"{user_account} 編輯 {default_branch} 分支 .rancher-pipeline.yaml")
+        if not run or default or (run and default_branch not in need_running_branches):
+            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
+
+    # sync default branch pipeline.yml to other branches
+    for br in pj.branches.list(all=True):
+        br_name = br.name
+        if br_name != default_branch:
+            f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br.name)
+            pipe_json = yaml.safe_load(f.decode())
+            had_update_branche = pipe_json != default_pipe_json
+            pipe_json = default_pipe_json
+            if had_update_branche:
+                if not run or (run and br_name not in need_running_branches):
+                    next_run = pipeline.get_pipeline_next_run(repository_id)
+                    print(f"next_run: {next_run}")
+                f.content = yaml.dump(pipe_json, sort_keys=False)
+                f.save(
+                    branch=br_name,
+                    author_email='system@iiidevops.org.tw',
+                    author_name='iiidevops',
+                    commit_message=f"{user_account} 編輯 {br_name} 分支 .rancher-pipeline.yaml")
+                if not run or (run and br_name not in need_running_branches):
+                    pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
 
 
 def initial_rancher_pipline_info(repository_id):
