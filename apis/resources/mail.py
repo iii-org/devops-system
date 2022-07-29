@@ -3,6 +3,7 @@ from email.mime.text import MIMEText
 from resources import apiError
 from resources import logger
 from model import db, SystemParameter
+import config
 
 class Mail:
     def __init__(self):
@@ -53,14 +54,19 @@ class Mail:
             self.server = None
 
     def send_email(self, receiver, title, message):
+        domain = config.get("DEPLOYMENT_NAME") if config.get("DEPLOYMENT_NAME") is not None \
+            else config.get("DEPLOYER_NODE_IP")
+
         text = MIMEText(message, 'plain', 'utf-8')
-        text['Subject'] = title
+        text['Subject'] = f"[{domain}] {title}"
         text['From'] = self.smtp_emission_address
         text['To'] = receiver
         text['Disposition-Notification-To'] = self.smtp_emission_address
 
         if self.server is not None:
+            logger.logger.info(f"Sending Mail to {receiver}, title: {title}")
             self.server.sendmail(self.smtp_emission_address, receiver, text.as_string())
+            logger.logger.info(f"Sending mail done.")
             self.server.quit()
 
 

@@ -168,7 +168,6 @@ def insert_project_member(project_id, project_name):
 
 
 def insert_all_issues(project_id, sync_date):
-    # issues_list = []
     all_issues = get_issue_by_project(project_id=project_id, args=None)
     for issue in all_issues:
         if 'id' in issue['assigned_to']:
@@ -194,9 +193,6 @@ def insert_all_issues(project_id, sync_date):
             model.db.session.rollback()
         finally:
             model.db.session.close()
-    # issues_list.append(new_issue)
-    # model.db.session.add_all(issues_list)
-    # model.db.session.commit()
 
 
 # --------------------- Complicated Query ---------------------
@@ -229,7 +225,8 @@ def get_current_sync_date_project_id_by_user():
         project_id_collections = project_id_collections.filter(
             model.RedmineProject.project_id.in_(reverse_query_projects)).order_by(
             model.RedmineProject.end_date).all()
-    return list(sum(project_id_collections, ()))
+
+    return [project_id_collection[0] for project_id_collection in project_id_collections]
 
 
 def get_project_by_current_sync_date(detail, own_project):
@@ -249,7 +246,7 @@ def get_user_id_by_project(own_project):
         model.RedmineIssue.project_id.in_(own_project),
         model.RedmineIssue.assigned_to_id.isnot(None)).with_entities(
         model.RedmineIssue.assigned_to_id).distinct().all()
-    return list(sum(user_id_collections, ()))
+    return [user_id_collection[0] for user_id_collection in user_id_collections]
 
 
 def get_current_sync_date_project_by_project_id(project_id, sync_date):
@@ -512,7 +509,7 @@ def get_postman_passing_rate(detail, own_project):
 
 
 class SyncRedmine(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         init_data()
         return util.success()
@@ -532,7 +529,7 @@ class SyncRedmineNow(Resource):
 
 
 class ProjectMembersCount(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         project_members_count = get_project_members_count(
@@ -541,7 +538,7 @@ class ProjectMembersCount(Resource):
 
 
 class ProjectMembersDetail(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         project_members_detail = get_project_members_detail(
@@ -550,14 +547,14 @@ class ProjectMembersDetail(Resource):
 
 
 class ProjectMembers(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         project_members = get_project_members(project_id)
         return util.success(project_members)
 
 
 class ProjectOverview(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         project_overview = get_project_overview(own_project=own_project)
@@ -565,7 +562,7 @@ class ProjectOverview(Resource):
 
 
 class RedmineProjects(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         redmine_projects = get_redmine_projects(detail=False,
@@ -574,7 +571,7 @@ class RedmineProjects(Resource):
 
 
 class RedminProjectDetail(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         redmine_project_detail = get_redmine_projects(detail=True,
@@ -583,27 +580,26 @@ class RedminProjectDetail(Resource):
 
 
 class RedmineIssueRank(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('all', type=bool)
+        parser.add_argument('all', type=bool, location="args")
         args = parser.parse_args()
-        all = args.get("all") is not None
 
         own_project = get_current_sync_date_project_id_by_user()
-        issue_rank = get_redmine_issue_rank(own_project=own_project, all=all)
+        issue_rank = get_redmine_issue_rank(own_project=own_project, all=args.get("all") is not None)
         return util.success(issue_rank)
 
 
 class UnclosedIssues(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, user_id):
         unclosed_issues = get_unclosed_issues_by_user(user_id)
         return util.success(unclosed_issues)
 
 
 class PassingRate(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         passing_rate = get_postman_passing_rate(detail=False,
@@ -612,7 +608,7 @@ class PassingRate(Resource):
 
 
 class PassingRateDetail(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         passing_rate_detail = get_postman_passing_rate(detail=True,

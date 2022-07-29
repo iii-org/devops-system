@@ -11,8 +11,8 @@ import json
 from resources.project import get_pj_id_by_name
 
 
-# Runner version's answer
-COMMON_ANSWERS = {
+# Runner answer & version
+COMMON_RUNNER_ANSWERS = {
     "git.branch": "${CICD_GIT_BRANCH}",
     "git.commitID": "${CICD_GIT_COMMIT}",
     "git.repoName": "${CICD_GIT_REPO_NAME}",
@@ -20,31 +20,38 @@ COMMON_ANSWERS = {
     "pipeline.sequence": "${CICD_EXECUTION_SEQUENCE}"
 }
 
-WEB_ANSWERS = {
+RUNNER_WEB_ANSWERS = {
     "web.deployName": "${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-serv",
     "web.port": 80
 }
 
 
-VERSION_MAPPING = {
+RUNNER_VERSION_MAPPING = {
     "checkmarx": {
-       "answer": COMMON_ANSWERS,
+       "answer": COMMON_RUNNER_ANSWERS,
        "version": "0.2.2"
     },
     "zap": {
-        "answer": COMMON_ANSWERS | WEB_ANSWERS, 
+        "answer": COMMON_RUNNER_ANSWERS | RUNNER_WEB_ANSWERS, 
         "version": "0.2.3"
     },
     "sideex": {
-        "answer": COMMON_ANSWERS | WEB_ANSWERS,
+        "answer": COMMON_RUNNER_ANSWERS | RUNNER_WEB_ANSWERS,
         "version": "0.3.2"
     },
     "postman": {
-        "answer": COMMON_ANSWERS | WEB_ANSWERS,
+        "answer": COMMON_RUNNER_ANSWERS | RUNNER_WEB_ANSWERS,
         "version": "0.3.3"
     }
 }
 
+# Image version
+IMAGE_VERSION_MAPPING = {
+    "rancher-cli": "1.0.1" 
+}
+
+
+# Stages
 INITIAL_PIPELINE = [{
     "name": "Integration--initial pipeline",
     "iiidevops": "initial-pipeline",
@@ -58,8 +65,8 @@ INITIAL_PIPELINE = [{
                 }
             ],
             "runScriptConfig": {
-                "image": "iiiorg/rancher-cli:v2.4.6",
-                "shellScript": "curl --location -s --request POST ${api_origin}/rancher/delete_app --form project_name=${CICD_GIT_REPO_NAME} --form branch_name=${CICD_GIT_BRANCH} && curl --location -s --request POST ${api_origin}/project/issues_commit_by_name --form project_name=${CICD_GIT_REPO_NAME}"
+                "image": "iiiorg/rancher-cli:1.0.1",
+                "shellScript": "curl --location -s --request POST ${api_origin}/rancher/delete_app --form project_name=${CICD_GIT_REPO_NAME} --form branch_name=${CICD_GIT_BRANCH} && curl --location -s --request POST ${api_origin}/project/issues_commit_by_name --form project_name=${CICD_GIT_REPO_NAME} && count-src.pl"
             }
         }
     ]
@@ -98,12 +105,12 @@ def get_default_file_path(pj):
     return file_path
 
 
-def update_pipieline_file(version_mapping=None):
+def update_pipieline_file(runner_version_mapping=None, image_version_mapping=None):
     '''
-    version_mapping => {"{server}": {"answer": {pipeline_answer}, "version": "0,2,2"}}
+    runner_version_mapping => {"{server}": {"answer": {pipeline_answer}, "version": "0,2,2"}}
     '''
-    if version_mapping is None:
-        version_mapping = VERSION_MAPPING
+    runner_version_mapping = RUNNER_VERSION_MAPPING or runner_version_mapping
+    image_version_mapping = IMAGE_VERSION_MAPPING or image_version_mapping
 
     project_repo_names = check_project_list_file_exist().get("white_list", [])
     if project_repo_names == []:
@@ -113,7 +120,7 @@ def update_pipieline_file(version_mapping=None):
     else:
         gl_pj_ids = list(map(lambda x: get_pj_id_by_name(x)["repo_id"], project_repo_names))
 
-    logger.logger.info(f"Updating version_mapping {version_mapping}")
+    logger.logger.info(f"Updating runner_version_mapping {runner_version_mapping}, image_version_mapping {image_version_mapping}")
     for gl_pj_id in gl_pj_ids:
         pj = gl.projects.get(gl_pj_id)
         if pj.empty_repo:
@@ -137,22 +144,37 @@ def update_pipieline_file(version_mapping=None):
                     logger.logger.info(f"{gl_pj_id} pipeline.yml format is unexpected.")
                     continue
                 
-                logger.logger.info(f"Start updating {gl_pj_id} tool version in branch({branch}).")
+                logger.logger.info(f"Start updating {gl_pj_id} tool and image version in branch({branch}).")
+                # Update stage 
                 if pipe_stages[0].get("iiidevops") != "initial-pipeline":
                     pipe_stages = INITIAL_PIPELINE + pipe_stages
                     change = True
+                elif pipe_stages[0].get("iiidevops") == "initial-pipeline" and pipe_stages[0] != INITIAL_PIPELINE[0]:
+                    pipe_stages = INITIAL_PIPELINE + pipe_stages[1:]
+                    change = True
 
                 for pipe_stage in pipe_stages:
-                    iii_stage = version_mapping.get(pipe_stage.get("iiidevops"))
+                    pipe_stage_step = pipe_stage["steps"][0]
+                    
+                    # Update runner version mapping
+                    iii_stage = runner_version_mapping.get(pipe_stage.get("iiidevops"))
                     if iii_stage is not None:
-                        pipe_stage_step = pipe_stage["steps"][0]
-                        pipe_stage_step_config = pipe_stage_step.get("applyAppConfig", {})
+                        pipe_stage_app_config = pipe_stage_step.get("applyAppConfig")
 
-                        if pipe_stage_step_config["version"] == iii_stage["version"]:
-                            continue
-                        pipe_stage_step_config["answers"] = iii_stage["answer"] | pipe_stage_step_config.get("answers", {})
-                        pipe_stage_step_config["version"] = iii_stage["version"]
-                        change = True
+                        if pipe_stage_app_config is not None and pipe_stage_app_config["version"] != iii_stage["version"]:
+                            pipe_stage_app_config["answers"] = iii_stage["answer"] | pipe_stage_app_config.get("answers", {})
+                            pipe_stage_app_config["version"] = iii_stage["version"]
+                            change = True
+
+                    # Update image version mapping 
+                    pipe_stage_script_config = pipe_stage_step.get("runScriptConfig")
+                    if pipe_stage_script_config is not None:
+                        temp = pipe_stage_script_config.get("image", "").split(":")
+                        image_repo, image_tag = temp[0], temp[-1]
+                        replace_image_tag = image_version_mapping.get(image_repo.split("/")[-1])
+                        if replace_image_tag is not None and replace_image_tag != image_tag:
+                            pipe_stage_script_config["image"] = f"{image_repo}:{replace_image_tag}"
+                            change = True
 
                 if change:
                     next_run = pipeline.get_pipeline_next_run(gl_pj_id)
@@ -162,7 +184,7 @@ def update_pipieline_file(version_mapping=None):
                         branch=branch,
                         author_email='system@iiidevops.org.tw',
                         author_name='iiidevops',
-                        commit_message="Testing tool runner version update.")
+                        commit_message="Ugrade rancher-pipeline.yml's tools and images version.")
                     pipeline.stop_and_delete_pipeline(gl_pj_id, next_run, branch=branch) 
                     sleep(30)
 

@@ -3,7 +3,6 @@
 # plugin directory name.
 # If the plugin only contains one module, make it __init__.py.
 
-from collections import defaultdict
 import json
 import os
 from datetime import datetime
@@ -17,6 +16,8 @@ import model
 from resources import apiError
 from resources import role
 from resources import template
+from enums.action_type import ActionType
+from resources.activity import record_activity
 from resources.apiError import DevOpsError
 from resources.kubernetesClient import read_namespace_secret, SYSTEM_SECRET_NAMESPACE, DEFAULT_NAMESPACE, \
     create_namespace_secret, patch_namespace_secret, delete_namespace_secret
@@ -77,6 +78,12 @@ def get_plugin_config(plugin_name):
     db_arguments = json.loads(db_row.parameter) or {}
     system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name)) or {}
     global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name) or {}
+    
+    value_store_mapping = {
+        PluginKeyStore.DB: db_arguments,
+        PluginKeyStore.SECRET_SYSTEM: system_secrets,
+        PluginKeyStore.SECRET_ALL: global_secrets
+    }
     ret = {
         'name': plugin_name,
         'arguments': [],
@@ -88,15 +95,10 @@ def get_plugin_config(plugin_name):
         item_value = item.get('value')
         store = PluginKeyStore(item['store'])
         value = None
-        value_store_mapping = defaultdict(
-            lambda: f'Wrong store location: {item["store"]}', 
-            {
-                PluginKeyStore.DB: db_arguments.get(key, None),
-                PluginKeyStore.SECRET_SYSTEM: system_secrets.get(key, None),
-                PluginKeyStore.SECRET_ALL: global_secrets.get(key, None)
-            }
-        )
-        value = value_store_mapping[store]
+        if store in value_store_mapping:
+            value = value_store_mapping[store].get(key, None)
+        else:
+            value = f'Wrong store location: {item["store"]}'
 
         # if value is not assign, assign default value
         if value is None and item_value is not None:
@@ -117,6 +119,18 @@ def get_plugin_config(plugin_name):
                 o['options'] = role.get_user_roles(True)
         ret['arguments'].append(o)
     return ret
+
+@record_activity(ActionType.ENABLE_PLUGIN)
+def enable_plugin_config(plugin_name):
+    db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one() 
+    db_row.disabled = False
+    model.db.session.commit()
+
+@record_activity(ActionType.DISABLE_PLUGIN)
+def disable_plugin_config(plugin_name):
+    db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one() 
+    db_row.disabled = True
+    model.db.session.commit()
 
 
 def update_plugin_config(plugin_name, args):
@@ -140,6 +154,7 @@ def update_plugin_config(plugin_name, args):
         }
     if args.get('disabled') is not None:
         from resources.excalidraw import check_excalidraw_alive
+        from plugins.ad.ad_main import check_ad_alive
         plugin_alive_mapping = {
             "excalidraw": {
                 "func": check_excalidraw_alive, 
@@ -150,10 +165,17 @@ def update_plugin_config(plugin_name, args):
                     "excalidraw_socket_url": args.get('arguments').get('excalidraw-socket-url') if \
                         args.get('arguments') is not None else None
                 }
+            },
+            "ad": {
+                "func": check_ad_alive,
+                "alert_monitring_id": 1002,
+                "parameters": {
+                    "ldap_parameter": args.get("arguments", {})
+                }
             }
         }
         if not args['disabled']:
-            # Plugin 
+            # Excalidraw first create
             if plugin_name == "excalidraw" and system_secrets_not_exist: 
                 excalidraw_url = plugin_alive_mapping["excalidraw"]["parameters"]["excalidraw_url"]
                 excalidraw_socket_url = plugin_alive_mapping["excalidraw"]["parameters"]["excalidraw_socket_url"]
@@ -193,7 +215,6 @@ def update_plugin_config(plugin_name, args):
                         user_id=1
                     )
 
-        db_row.disabled = bool(args['disabled'])
         #  Update Project Plugin Status
         if bool(config.get('is_pipeline', True)):
             threading.Thread(target=template.update_pj_plugin_status, args=(plugin_name, args["disabled"],)).start()
@@ -217,9 +238,16 @@ def update_plugin_config(plugin_name, args):
     if patch_secret:
         patch_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), system_secrets)
     rancher.rc_add_secrets_to_all_namespaces(plugin_name, global_secrets)
+
+    # Putting here to avoid not commit session error
     db_row.parameter = json.dumps(db_arguments)
     db_row.update_at = datetime.now()
     model.db.session.commit()
+    if args.get('disabled') is not None:
+        if bool(args['disabled']):
+            disable_plugin_config(plugin_name)
+        else:
+            enable_plugin_config(plugin_name)
 
 
 def delete_plugin_row(plugin_name):

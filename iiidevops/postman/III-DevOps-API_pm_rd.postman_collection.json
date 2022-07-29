@@ -24,7 +24,7 @@
 									"",
 									"pm.test(\"JWT Token 檢查\", function () {",
 									"    const decode_jwt = jwt_decode(pm.response.json().data.token);",
-									"    pm.variables.set(\"user_id_pm\", decode_jwt.identity.user_id)",
+									"    pm.variables.set(\"user_id_pm\", decode_jwt.sub.user_id)",
 									"    pm.variables.set(\"token_pm\", pm.response.json().data.token)",
 									"});",
 									""
@@ -49,19 +49,13 @@
 						"method": "POST",
 						"header": [],
 						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "username",
-									"value": "{{username_pm}}",
-									"type": "text"
-								},
-								{
-									"key": "password",
-									"value": "{{password_pm}}",
-									"type": "text"
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{username_pm}}\",\n    \"password\": \"{{password_pm}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
 								}
-							]
+							}
 						},
 						"url": {
 							"raw": "{{test_origin}}/user/login",
@@ -144,7 +138,7 @@
 									"",
 									"pm.test(\"JWT Token 檢查\", function () {",
 									"    const decode_jwt = jwt_decode(pm.response.json().data.token);",
-									"    pm.variables.set(\"user_id_rd\", decode_jwt.identity.user_id)",
+									"    pm.variables.set(\"user_id_rd\", decode_jwt.sub.user_id)",
 									"    pm.variables.set(\"token_rd\", pm.response.json().data.token)",
 									"});",
 									""
@@ -169,19 +163,13 @@
 						"method": "POST",
 						"header": [],
 						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "username",
-									"value": "{{username_rd}}",
-									"type": "text"
-								},
-								{
-									"key": "password",
-									"value": "{{password_rd}}",
-									"type": "text"
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{username_rd}}\",\n    \"password\": \"{{password_rd}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
 								}
-							]
+							}
 						},
 						"url": {
 							"raw": "{{test_origin}}/user/login",

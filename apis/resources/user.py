@@ -145,7 +145,7 @@ def check_ad_login(account, password, ad_info=None):
                           error=apiError.uncaught_exception(e))
 
 
-@jwt.user_claims_loader
+@jwt.additional_claims_loader
 def jwt_response_data(id, login, role_id, from_ad):
     return {
         'user_id': id,
@@ -249,6 +249,13 @@ def user_forgot_password(args):
     return 'dummy_response', 200
 
 
+def get_sysadmin_info(login):
+    system_user = model.User.query.filter_by(login=login).first()
+    if system_user is not None:
+        return NexusUser().set_user_id(system_user.id).to_json()
+    return {"id": 1}
+
+
 @record_activity(ActionType.UPDATE_USER)
 def update_user(user_id, args, from_ad=False):
     user = model.User.query.filter_by(id=user_id).first()
@@ -305,22 +312,21 @@ def update_user(user_id, args, from_ad=False):
             user.title = args['title']
         if args["department"] is not None:
             user.department = args['department']
-        if args.get("status", None) is not None:
-            if args.get("status", None) == "disable":
-                user.disabled = True
-                block_external_user(user_id)
-            else:
-                user.disabled = False
-                unblock_external_user(user_id)
+        if args.get("status") is not None:
+            status = args.get("status") == "disable"
+            user.disabled = status
         if from_ad:
             user.update_at = args['update_at']
         else:
             user.update_at = util.date_to_str(datetime.datetime.utcnow())
+     
         if user.from_ad and not from_ad:
             return util.respond(400, 'Error when updating Message',
                                 error=apiError.user_from_ad(user_id))
-        else:
-            db.session.commit()
+        db.session.commit()
+        # Putting here to avoid not commit session error
+        if args.get("status") is not None:
+            operate_external_user(user_id, status)
     return util.success()
 
 
@@ -376,17 +382,23 @@ def update_external_name(user_id, new_name, login, email):
     harbor.hb_update_user_email(relation.harbor_user_id, new_name, email)
     sonarqube.sq_update_user_name(login, new_name)
 
-
-def block_external_user(user_id):
+def operate_external_user(user_id, status):
+    active_id = 3 if status else 1
     relation = nx_get_user_plugin_relation(user_id=user_id)
-    redmine.rm_update_user_active(relation.plan_user_id, 3)
-    gitlab.gl_update_user_state(relation.repository_user_id, True)
+    redmine.rm_update_user_active(relation.plan_user_id, active_id)
+    gitlab.gl_update_user_state(relation.repository_user_id, status)
 
 
-def unblock_external_user(user_id):
-    relation = nx_get_user_plugin_relation(user_id=user_id)
-    redmine.rm_update_user_active(relation.plan_user_id, 1)
-    gitlab.gl_update_user_state(relation.repository_user_id, False)
+# def block_external_user(user_id):
+#     relation = nx_get_user_plugin_relation(user_id=user_id)
+#     redmine.rm_update_user_active(relation.plan_user_id, 3)
+#     gitlab.gl_update_user_state(relation.repository_user_id, True)
+
+
+# def unblock_external_user(user_id):
+#     relation = nx_get_user_plugin_relation(user_id=user_id)
+#     redmine.rm_update_user_active(relation.plan_user_id, 1)
+#     gitlab.gl_update_user_state(relation.repository_user_id, False)
 
 
 def try_to_delete(delete_method, obj):

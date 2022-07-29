@@ -7,11 +7,11 @@ stages:
       sourceName: nexus
       targetKey: api_origin
     runScriptConfig:
-      image: iiiorg/rancher-cli:v2.4.6
+      image: iiiorg/rancher-cli:1.0.1
       shellScript: curl --location -s --request POST ${api_origin}/rancher/delete_app
         --form project_name=${CICD_GIT_REPO_NAME} --form branch_name=${CICD_GIT_BRANCH}
         && curl --location -s --request POST ${api_origin}/project/issues_commit_by_name
-        --form project_name=${CICD_GIT_REPO_NAME}
+        --form project_name=${CICD_GIT_REPO_NAME} && count-src.pl
 - name: Test--SonarQube source code scan
   iiidevops: sonarqube
   steps:
@@ -47,7 +47,7 @@ stages:
       catalogTemplate: cattle-global-data:iii-dev-charts3-scan-checkmarx
       name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-cmx
       targetNamespace: ${CICD_GIT_REPO_NAME}
-      version: 0.2.1
+      version: 0.2.2
   when:
     branch:
       include:
@@ -64,7 +64,7 @@ stages:
       sourceName: rancher
       targetKey: rancher_url
     runScriptConfig:
-      image: iiiorg/rancher-cli:v2.4.6
+      image: harbor-dev3.iiidevops.org/dockerhub/iiiorg/rancher-cli:1.0.1
       shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
         && rancher kubectl delete configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env
         --ignore-not-found=true && perl iiidevops/bin/chk-app-env.pl && rancher kubectl
@@ -106,7 +106,7 @@ stages:
       sourceName: nexus
       targetKey: api_origin
     runScriptConfig:
-      image: iiiorg/rancher-cli:v2.4.6
+      image: harbor-dev3.iiidevops.org/dockerhub/iiiorg/rancher-cli:1.0.1
       shellScript: curl --location -s --request POST ${api_origin}/v2/harbor/${CICD_GIT_REPO_NAME}/scan
         --form branch=${CICD_GIT_BRANCH} --form commit_id=${CICD_GIT_COMMIT}
   when:
@@ -128,16 +128,17 @@ stages:
       sourceName: nexus
       targetKey: api_origin
     runScriptConfig:
-      image: harbor-dev3.iiidevops.org/dockerhub/iiiorg/rancher-cli:v2.4.6
+      image: harbor-dev3.iiidevops.org/dockerhub/iiiorg/rancher-cli:1.0.1
       shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
         && apt-get install -y jq && export PW=$(rancher kubectl get secret nexus-bot
         -n ${CICD_GIT_REPO_NAME} -o=go-template='{{index .data "password"}}' | base64
         -d) && export UN=$(rancher kubectl get secret nexus-bot -n ${CICD_GIT_REPO_NAME}
-        -o=go-template='{{index .data "username"}}' | base64 -d) && curl --location
-        --request POST ${api_origin}/user/login --form username=$UN --form password=$PW
-        | jq -r '.data.token' > token.txt && export APITOKEN=$(cat token.txt) && pwd
-        && curl --location --request POST ${api_origin}/harbor/handle_image --header
-        "Authorization:Bearer $APITOKEN" --form project_name=${CICD_GIT_REPO_NAME}
+        -o=go-template='{{index .data "username"}}' | base64 -d) && export DATARAW=$(printf
+        '{"username":"%s","password":"%s"}' "$UN" "$PW") && curl --location --request
+        POST ${api_origin}/user/login --header "Content-Type:application/json" --data-raw
+        "$DATARAW" | jq -r '.data.token' > token.txt && export APITOKEN=$(cat token.txt)
+        && pwd && curl --location --request POST ${api_origin}/harbor/handle_image
+        --header "Authorization:Bearer $APITOKEN" --form project_name=${CICD_GIT_REPO_NAME}
         --form from_repo_name=${CICD_GIT_BRANCH} --form from_tag=${CICD_GIT_COMMIT}
         --form dest_repo_name=${CICD_GIT_REPO_NAME} --form dest_tag=${CICD_GIT_BRANCH}
   when:
@@ -209,7 +210,7 @@ stages:
       catalogTemplate: cattle-global-data:iii-dev-charts3-test-zap
       name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-zap
       targetNamespace: ${CICD_GIT_REPO_NAME}
-      version: 0.2.1
+      version: 0.2.3
   when:
     branch:
       include:
@@ -272,7 +273,7 @@ stages:
       catalogTemplate: cattle-global-data:iii-dev-charts3-test-sideex
       name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-sdx
       targetNamespace: ${CICD_GIT_REPO_NAME}
-      version: 0.3.1
+      version: 0.3.2
   when:
     branch:
       include:

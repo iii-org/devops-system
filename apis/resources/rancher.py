@@ -469,6 +469,10 @@ class Rancher(object):
         output = self.__api_get(url)
         return output.json()['data']
 
+    def rc_get_templates(self, cat_id):
+        url = f'/templates?catalogId={cat_id}'
+        return self.__api_get(url).json()
+
     def rc_add_catalogs(self, args):
         body = args
         url = '/catalogs'
@@ -631,14 +635,24 @@ def turn_tags_off():
     logger.info("Finish turn tags off.")
 
 
+def version_list(cat_id):
+    result = rancher.rc_get_templates(cat_id)
+    version_dict = {}
+    for key, value in result.items():
+        if key == "data":
+            for data in value:
+                for k, v in data.items():
+                    if k == "versionLinks":
+                        version_dict.update({data["name"]: [version for version, url in v.items()]})
+    return version_dict
 # --------------------- Resources ---------------------
 class Catalogs(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         catalgos_list = rancher.rc_get_catalogs_all()
         return util.success(catalgos_list)
 
-    @jwt_required
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
@@ -651,7 +665,7 @@ class Catalogs(Resource):
         output = rancher.rc_add_catalogs(args)
         return util.success(output)
 
-    @jwt_required
+    @jwt_required()
     def put(self, catalog_name):
         parser = reqparse.RequestParser()
         parser.add_argument('branch', type=str)
@@ -662,14 +676,14 @@ class Catalogs(Resource):
         output = rancher.rc_edit_catalogs(args, catalog_name)
         return util.success(output)
 
-    @jwt_required
+    @jwt_required()
     def delete(self, catalog_name):
         rancher.rc_delete_catalogs(catalog_name)
         return util.success()
 
 
 class Catalogs_Refresh(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         return util.success(rancher.rc_refresh_catalogs())
 
@@ -694,9 +708,12 @@ class RancherCountEachPjPiplinesByDays(Resource):
 class RancherDeleteAPP(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_name', type=str, required=True)
-        parser.add_argument('branch_name', type=str, required=True)
+        parser.add_argument('project_name', type=str, required=True, location="form")
+        parser.add_argument('branch_name', type=str, required=True, location="form")
         args = parser.parse_args()
         prefix = f'{args["project_name"]}-{args["branch_name"]}'
         rancher.rc_del_app_with_prefix(prefix)
+        
+        from resources.pipeline import delete_rest_pipelines
+        delete_rest_pipelines(args["project_name"])
         return util.success()

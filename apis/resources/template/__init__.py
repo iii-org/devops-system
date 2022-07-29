@@ -22,7 +22,7 @@ from model import PluginSoftware, Project, db
 from resources import logger
 from resources.apiError import DevOpsError
 from resources.gitlab import gitlab as rs_gitlab, get_all_group_projects
-from resources.redis import update_template_cache, get_template_caches_all, count_template_number
+from resources.redis import update_template_cache, get_template_caches_all, count_template_number, update_template_cache_all
 
 
 template_replace_dict = {
@@ -233,6 +233,16 @@ def get_tag_info_list_from_pj(pj, group_name):
     return tag_list
 
 
+def handle_template_cache(pj, group_name, pip_set_json, tag_list):
+    return {str(pj.id): json.dumps({'name': pj.name,
+                                  'path': pj.path,
+                                  'display': pip_set_json["name"],
+                                  'description': pip_set_json["description"],
+                                  'version': tag_list,
+                                  'update_at': datetime.now(),
+                                  'group_name': TEMPLATE_GROUP_DICT.get(group_name)}, default=str)}
+
+
 def update_redis_template_cache(pj, group_name, pip_set_json, tag_list):
     update_template_cache(pj.id, {'name': pj.name,
                                   'path': pj.path,
@@ -251,6 +261,7 @@ def __force_update_template_cache_table():
         "source": "Local Templates",
         "options": []
     }]
+    template_list = {}
     for group in gl.groups.list(all=True):
         if group.name in TEMPLATE_GROUP_DICT:
             for group_project in get_all_group_projects(group):
@@ -280,7 +291,9 @@ def __force_update_template_cache_table():
                     output[0]['options'].append(template_data)
                 elif group.name == "local-templates":
                     output[1]['options'].append(template_data)
-                update_redis_template_cache(pj, group.name, pip_set_json, tag_list)
+                template_list |= handle_template_cache(pj, group.name, pip_set_json, tag_list)
+                # update_redis_template_cache(pj, group.name, pip_set_json, tag_list)
+    update_template_cache_all(template_list)
     return output
 
 
@@ -323,7 +336,7 @@ def tm_get_template_list(force_update=0):
             k = list(data.keys())[0]
             v = list(data.values())[0]
             try:
-                gl.projects.get(k)
+                gl.projects.get(k, lazy=True)
             except:
                 continue
             if v.get('group_name') == "Public Templates":
@@ -611,36 +624,58 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
         return
     exist_branch_list = [br.name for br in pj.branches.list(all=True)]
 
-    for br in pj.branches.list(all=True):
-        had_update_branche = False
-        pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-        if pipe_yaml_file_name is None:
-            return
-        f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br.name)
-        pipe_json = yaml.safe_load(f.decode())
-        for stage in pipe_json["stages"]:
-            if default:
-                for put_pipe_soft in data["stages"]:
+    # Update default branch's pipeline
+    default_branch  = pj.default_branch
+    had_update_branche = False
+    need_running_branches = list(data.keys())
+    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+    if pipe_yaml_file_name is None:
+        return   
+    f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=default_branch)
+    default_pipe_json = yaml.safe_load(f.decode())
+    for stage in default_pipe_json["stages"]:
+        if default:
+            for put_pipe_soft in data["stages"]:
+                had_update_branche |= update_branches(
+                    stage, put_pipe_soft, pj.default_branch, "has_default_branch", exist_branch_list)
+        else:
+            for input_branch, multi_software in data.items():
+                for input_soft_enable in multi_software:
                     had_update_branche |= update_branches(
-                        stage, put_pipe_soft, pj.default_branch, "has_default_branch", exist_branch_list)
-            else:
-                for input_branch, multi_software in data.items():
-                    for input_soft_enable in multi_software:
-                        had_update_branche |= update_branches(
-                            stage, input_soft_enable, input_branch, "enable", exist_branch_list)
-        if had_update_branche is True:
-            branch_name_in_data = list(data.keys())[0]
-            if run is False or (run is True and br.name != branch_name_in_data):
-                next_run = pipeline.get_pipeline_next_run(repository_id)
-                print(f"next_run: {next_run}")
-            f.content = yaml.dump(pipe_json, sort_keys=False)
-            f.save(
-                branch=br.name,
-                author_email='system@iiidevops.org.tw',
-                author_name='iiidevops',
-                commit_message=f"{user_account} 編輯 {br.name} 分支 .rancher-pipeline.yaml")
-            if run is False or (run is True and br.name != branch_name_in_data):
-                pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
+                        stage, input_soft_enable, input_branch, "enable", exist_branch_list)
+    if had_update_branche:
+        if not run or default or (run and default_branch not in need_running_branches):
+            next_run = pipeline.get_pipeline_next_run(repository_id)
+            print(f"next_run: {next_run}")
+        f.content = yaml.dump(default_pipe_json, sort_keys=False)
+        f.save(
+            branch=default_branch,
+            author_email='system@iiidevops.org.tw',
+            author_name='iiidevops',
+            commit_message=f"{user_account} 編輯 {default_branch} 分支 .rancher-pipeline.yaml")
+        if not run or default or (run and default_branch not in need_running_branches):
+            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
+
+    # sync default branch pipeline.yml to other branches
+    for br in pj.branches.list(all=True):
+        br_name = br.name
+        if br_name != default_branch:
+            f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br.name)
+            pipe_json = yaml.safe_load(f.decode())
+            had_update_branche = pipe_json != default_pipe_json
+            pipe_json = default_pipe_json
+            if had_update_branche:
+                if not run or (run and br_name not in need_running_branches):
+                    next_run = pipeline.get_pipeline_next_run(repository_id)
+                    print(f"next_run: {next_run}")
+                f.content = yaml.dump(pipe_json, sort_keys=False)
+                f.save(
+                    branch=br_name,
+                    author_email='system@iiidevops.org.tw',
+                    author_name='iiidevops',
+                    commit_message=f"{user_account} 編輯 {br_name} 分支 .rancher-pipeline.yaml")
+                if not run or (run and br_name not in need_running_branches):
+                    pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
 
 
 def initial_rancher_pipline_info(repository_id):
@@ -798,9 +833,8 @@ def update_pj_plugin_status(plugin_name, disable):
                             if branch not in stage_when:
                                 stage_when.append(branch)
 
-                    if len(stage_when) > 1:
-                        if "skip" in stage_when:
-                            stage_when.remove("skip")
+                    if len(stage_when) > 1 and "skip" in stage_when:
+                        stage_when.remove("skip")
             # Do not commit if plugin_name has not match any stage.
             if match:
                 next_run = pipeline.get_pipeline_next_run(repository_id)
@@ -817,11 +851,11 @@ def update_pj_plugin_status(plugin_name, disable):
 
 
 class TemplateList(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self):
         role.require_pm("Error while getting template list.")
         parser = reqparse.RequestParser()
-        parser.add_argument('force_update', type=int)
+        parser.add_argument('force_update', type=int, location="args")
         args = parser.parse_args()
         return util.success(tm_get_template_list(args["force_update"]))
 
@@ -830,32 +864,32 @@ class TemplateListForCronJob(Resource):
 
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('force_update', type=int)
+        parser.add_argument('force_update', type=int, location="args")
         args = parser.parse_args()
         return util.success(tm_get_template_list(args["force_update"]))
 
 
 class SingleTemplate(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, repository_id):
         role.require_pm("Error while getting template list.")
         parser = reqparse.RequestParser()
-        parser.add_argument('tag_name', type=str)
+        parser.add_argument('tag_name', type=str, location="args")
         args = parser.parse_args()
         return util.success(tm_get_template(repository_id, args["tag_name"]))
 
 
 class ProjectPipelineBranches(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, repository_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('all_data', type=bool)
+        parser.add_argument('all_data', type=bool, location="args")
         args = parser.parse_args()
         all_data = args.get("all_data") is not None
 
         return util.success(tm_get_pipeline_branches(repository_id, all_data=all_data))
 
-    @ jwt_required
+    @jwt_required()
     def put(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('detail', type=dict)
@@ -869,11 +903,11 @@ class ProjectPipelineBranches(Resource):
 
 
 class ProjectPipelineDefaultBranch(Resource):
-    @ jwt_required
+    @jwt_required()
     def get(self, repository_id):
         return util.success(tm_get_pipeline_default_branch(repository_id))
 
-    @ jwt_required
+    @jwt_required()
     def put(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('detail', type=dict)

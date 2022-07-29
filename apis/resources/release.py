@@ -7,7 +7,7 @@ from flask_restful import Resource, reqparse
 from sqlalchemy.orm.exc import NoResultFound
 from resources.harbor import hb_list_artifacts_with_params, hb_copy_artifact_and_retage, hb_get_artifact, \
     hb_delete_artifact_tag, hb_create_artifact_tag, hb_list_tags, hb_copy_artifact, hb_list_repositories, \
-    hb_list_tags, hb_delete_artifact, hb_list_artifacts, hb_get_artifacts_with_tag
+    hb_list_tags, hb_delete_artifact, hb_list_artifacts, hb_get_artifacts_with_tag, hb_get_artifact_wtih_digrest
 
 import config
 import model
@@ -15,10 +15,10 @@ import nexus
 import util as util
 from model import db
 from sqlalchemy import desc
-from resources import apiError, role
+from resources import apiError, role, logger
 from .gitlab import gitlab, gl_release
 from .harbor import hb_release
-from .redmine import redmine, rm_release
+from .redmine import redmine, rm_release, get_redmine_obj
 
 error_redmine_issues_closed = "Unable closed all issues"
 error_issue_not_all_closed = "Not All Issues are closed in Versions"
@@ -150,9 +150,10 @@ def analysis_release(release, info, hb_list_tags, image_need):
         ret["docker"] = [{
             "repo": repo,
             "tags": tags,
+            "project": "" if ret["image_paths"] == [] else ret["image_paths"][0].split("/")[0],
             "default": repo == ret["branch"]
         } for repo, tags in repo_mapping.items()]
-        ret["harbor_external_base_url"] = config.get("HARBOR_EXTERNAL_BASE_URL")
+        ret["harbor_external_base_url"] = config.get("HARBOR_EXTERNAL_BASE_URL").split("//")[-1]
 
     if image_need and ret.get('docker') == []:
         ret = None
@@ -190,9 +191,8 @@ def get_release_image_list(project_id, args):
     release_tag_mapping = {release.commit: release.tag_name for release in releases}
 
     last_push_time = None
-    if not_all:
-        if releases != []:
-            last_push_time = releases[-1].create_at
+    if not_all and releases != []:
+        last_push_time = releases[-1].create_at
 
     image_list = hb_list_artifacts_with_params(project_name, branch_name, push_time=last_push_time)
     commits = gitlab.gl_get_commits(get_project_plugin_object(project_id).git_repository_id,
@@ -269,7 +269,7 @@ def create_release_image_repo(project_id, release_id, args):
             digest = hb_get_artifact(project_name, release.branch, release.tag_name)[0]["digest"]
             try:
                 copy_image = add_tag = False
-                if dest_repo not in repo_list or hb_list_artifacts(project_name, dest_repo) == []:
+                if dest_repo not in repo_list or hb_get_artifact_wtih_digrest(project_name, dest_repo, digest) == {}:
                     hb_copy_artifact(project_name, dest_repo, f"{project_name}/{release.branch}@{digest}")
                     copy_image = True
                     for removed_tag in [hb_tag.get("name") for hb_tag in hb_list_tags(project_name, release.branch, digest) if hb_tag.get("name") is not None]:
@@ -482,14 +482,17 @@ class Releases(Resource):
             operator_plugin_relation = nexus.nx_get_user_plugin_relation(
                 user_id=user_id)
             plan_operator_id = operator_plugin_relation.plan_user_id
+            personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
             for issue in self.redmine_info['issues']:
                 if int(issue['status']['id']) not in self.closed_statuses:
                     data = {
                         'status_id': self.closed_statuses[0]
                     }
                     issue_ids.append(issue['id'])
-                    redmine.rm_update_issue(
-                        issue['id'], data, plan_operator_id)
+                    personal_redmine_obj.rm_update_issue(
+                        issue['id'], data)
+            logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
+            del personal_redmine_obj
         except NoResultFound:
             return util.respond(404, error_redmine_issues_closed,
                                 error=apiError.redmine_unable_to_forced_closed_issues(issue_ids))
@@ -536,11 +539,10 @@ class Releases(Resource):
             for repo_name, tag in {
                     branch_name: release_name,
                     extra_image_repo: extra_image_tag}.items():
-                if hb_get_artifacts_with_tag(self.project.name, repo_name, tag) != []:
-                    if not forced:
-                        raise apiError.DevOpsError(
-                            500, f'{tag.capitalize()} already exist in this Harbor repository.',
-                            error=apiError.harbor_tag_already_exist(tag, repo_name))
+                if hb_get_artifacts_with_tag(self.project.name, repo_name, tag) != [] and not forced:
+                    raise apiError.DevOpsError(
+                        500, f'{tag.capitalize()} already exist in this Harbor repository.',
+                        error=apiError.harbor_tag_already_exist(tag, repo_name))
 
 
     def release_main(self, project_id, args):
@@ -662,14 +664,14 @@ class Releases(Resource):
                           error=apiError.uncaught_exception(str(e)))
             
 
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         self.plugin_relation = model.ProjectPluginRelation.query.filter_by(
             project_id=project_id).first()
         role.require_in_project(project_id, 'Error to get release')
         try:
             parser = reqparse.RequestParser()
-            parser.add_argument('image', type=bool)
+            parser.add_argument('image', type=bool, location="args")
             args = parser.parse_args()
             return util.success({'releases': get_releases_by_project_id(project_id, args)})
         except NoResultFound:
@@ -677,7 +679,7 @@ class Releases(Resource):
 
 
 class Release(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, project_id, release_name):
         plugin_relation = model.ProjectPluginRelation.query.filter_by(
             project_id=project_id).first()

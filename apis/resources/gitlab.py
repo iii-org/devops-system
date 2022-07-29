@@ -22,13 +22,17 @@ import config
 import model
 import nexus
 import util as util
-from model import GitCommitNumberEachDays, db, SystemParameter, Project
+from model import GitCommitNumberEachDays, db, SystemParameter, Project, ProjectPluginRelation, GitlabSourceCodeLens
 from resources import apiError, role
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from resources.project_relation import get_all_fathers_project, get_all_sons_project, get_root_project_id
+from flask_apispec import marshal_with, doc, use_kwargs
+from urls import route_model
+from flask_apispec.views import MethodResource
 
 
+GITLAB_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 iiidevops_system_group = ["iiidevops-templates", "local-templates", "iiidevops-catalog"]
 
 
@@ -232,13 +236,6 @@ class GitLab(object):
             return self.__api_post(f'/users/{repository_user_id}/block')
         else:
             return self.__api_post(f'/users/{repository_user_id}/unblock')
-
-    def gl_update_user_name(self, repository_user_id, new_name):
-        return self.__api_put(f'/users/{repository_user_id}',
-                              params={
-                                  "name": new_name,
-                                  "skip_reconfirmation": True
-                              })
 
     def gl_get_user_list(self, args):
         return self.__api_get('/users', params=args)
@@ -472,10 +469,9 @@ class GitLab(object):
         commits = self.gl_get_commits(project_id, branch)
         output = []
         for commit in commits:
-            if commit.get("author_name") != "Administrator" and commit.get("committer_name") != "Administrator":
-                if not commit.get("author_name", "").startswith("專案管理機器人") and not commit.get("committer_name", "").startswith("專案管理機器人"):
-                    output.append(commit)
-
+            if commit.get("author_name") != "Administrator" and commit.get("committer_name") != "Administrator" and \
+                not commit.get("author_name", "").startswith("專案管理機器人") and not commit.get("committer_name", "").startswith("專案管理機器人"):
+                output.append(commit)
         return output
 
     # 用project_id查詢project的網路圖
@@ -547,6 +543,9 @@ class GitLab(object):
         status = "archive" if disabled else "unarchive"
         path = f'/projects/{repo_id}/{status}'
         return self.__api_post(path).json()
+
+    def single_commit(self, project_id, commit_id):
+        return self.__api_get(f'/projects/{project_id}/repository/commits/{commit_id}').json()
 
     def __get_projects_commit(self, pjs, out_list, branch_name, days_ago):
         for pj in pjs:
@@ -702,7 +701,7 @@ class GitLab(object):
 
         # Initialize varialbe
         base_path = "logs/git_commit_history"
-        datetime_now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+        datetime_now = datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT)
         date = datetime_now[:10]
         keep_days = git_commit_history.value["keep_days"]
 
@@ -839,8 +838,8 @@ def sync_commit_issues_relation(project_id):
                         commit_time=datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"),
                         web_url=commit["web_url"],
                         branch=br.name,
-                        created_at=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
-                        updated_at=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+                        created_at=datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT),
+                        updated_at=datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT),
                     )
                     model.db.session.add(new)
                     model.db.session.commit()
@@ -925,15 +924,34 @@ def gitlab_status_connection():
         a = ApiK8sClient().read_namespaced_ingress(name="gitlab-ing", namespace="default")
         paths = a.spec.rules[0].http.paths
         return {"status": len(paths) == 1}
-    except:
+    except Exception:
         return {"status": False}
+
+
+def get_source_code_info(repo_name, branch):
+    project_query = Project.query.filter(
+        Project.name == repo_name
+    ).first()
+    query = ProjectPluginRelation.query.filter(
+        ProjectPluginRelation.project_id == project_query.id
+    ).first()
+    code_len_query = GitlabSourceCodeLens.query.filter(
+        GitlabSourceCodeLens.project_id == project_query.id
+    ).filter(
+        GitlabSourceCodeLens.branch == branch
+    ).first()
+    if code_len_query:
+        return util.success({"branch":branch, "commit_id": code_len_query.commit_id, "project_id":project_query.id,
+            "project_name": project_query.name, "repo_id":query.git_repository_id, "source_code_num":code_len_query.source_code_num})
+    else:
+        return None
 
     # --------------------- Resources ---------------------
 gitlab = GitLab()
 
 
 class GitRelease:
-    @jwt_required
+    @jwt_required()
     def check_gitlab_release(self, repository_id, tag_name, branch_name, commit):
         output = {'check': True, "info": "", "errors": ""}
         branch = gitlab.gl_get_commits(
@@ -956,12 +974,12 @@ gl_release = GitRelease()
 
 
 class GitProjectBranches(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id):
         return util.success(
             {'branch_list': gitlab.gl_get_branches(repository_id)})
 
-    @jwt_required
+    @jwt_required()
     def post(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument('branch', type=str, required=True)
@@ -971,13 +989,13 @@ class GitProjectBranches(Resource):
 
 
 class GitProjectBranch(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id, branch_name):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         return util.success(gitlab.gl_get_branch(repository_id, branch_name))
 
-    @jwt_required
+    @jwt_required()
     def delete(self, repository_id, branch_name):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -986,7 +1004,7 @@ class GitProjectBranch(Resource):
 
 
 class GitProjectRepositories(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id, branch_name):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -995,7 +1013,7 @@ class GitProjectRepositories(Resource):
 
 
 class GitProjectFile(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1011,7 +1029,7 @@ class GitProjectFile(Resource):
         args = parser.parse_args()
         return gitlab.gl_add_file(repository_id, args)
 
-    @jwt_required
+    @jwt_required()
     def put(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1027,32 +1045,32 @@ class GitProjectFile(Resource):
         args = parser.parse_args()
         return gitlab.gl_update_file(repository_id, args)
 
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id, branch_name, file_path):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         return gitlab.gl_get_file(repository_id, branch_name, file_path)
 
-    @jwt_required
+    @jwt_required()
     def delete(self, repository_id, branch_name, file_path):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('commit_message', type=str, required=True)
+        parser.add_argument('commit_message', type=str, required=True, location="args")
         args = parser.parse_args()
         gitlab.gl_delete_file(repository_id, file_path, args, branch_name)
         return util.success()
 
 
 class GitProjectTag(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         res = gitlab.gl_get_tags(repository_id)
         return util.success({'tag_list': res})
 
-    @jwt_required
+    @jwt_required()
     def post(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1064,7 +1082,7 @@ class GitProjectTag(Resource):
         args = parser.parse_args()
         return util.success(gitlab.gl_create_tag(repository_id, args))
 
-    @jwt_required
+    @jwt_required()
     def delete(self, repository_id, tag_name):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1073,47 +1091,47 @@ class GitProjectTag(Resource):
 
 
 class GitProjectBranchCommits(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('filter', type=str)
+        parser.add_argument('branch', type=str, required=True, location="args")
+        parser.add_argument('filter', type=str, location="args")
         args = parser.parse_args()
         return util.success(
             gitlab.gl_get_commits_by_author(repository_id, args['branch'], args.get('filter')))
 
 
 class GitProjectMembersCommits(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('branch', type=str, required=True)
+        parser.add_argument('branch', type=str, required=True, location="args")
         args = parser.parse_args()
         return util.success(
             gitlab.gl_get_commits_by_members(repository_id, args['branch']))
 
 
 class GitProjectNetwork(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id):
         return gitlab.gl_get_network(repository_id)
 
 
 class GitProjectId(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, repository_id):
         return GitLab.gl_get_nexus_project_id(repository_id)
 
 
 class GitProjectIdFromURL(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('repository_url', type=str, required=True)
+        parser.add_argument('repository_url', type=str, required=True, location="args")
         args = parser.parse_args()
         try:
             return util.success(
@@ -1126,11 +1144,11 @@ class GitProjectIdFromURL(Resource):
 
 
 class GitProjectURLFromId(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int)
-        parser.add_argument('repository_id', type=int)
+        parser.add_argument('project_id', type=int, location="args")
+        parser.add_argument('repository_id', type=int, location="args")
         args = parser.parse_args()
         project_id = args['project_id']
         if project_id is None:
@@ -1145,14 +1163,14 @@ class GitProjectURLFromId(Resource):
 
 
 class GitTheLastHoursCommits(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('the_last_hours', type=int)
-        parser.add_argument('show_commit_rows', type=int)
-        parser.add_argument('git_repository_id', type=int)
-        parser.add_argument('branch_name', type=str)
-        parser.add_argument('user_id', type=int)
+        parser.add_argument('the_last_hours', type=int, location="args")
+        parser.add_argument('show_commit_rows', type=int, location="args")
+        parser.add_argument('git_repository_id', type=int, location="args")
+        parser.add_argument('branch_name', type=str, location="args")
+        parser.add_argument('user_id', type=int, location="args")
         args = parser.parse_args()
         return util.success(
             gitlab.gl_get_the_last_hours_commits(args["the_last_hours"],
@@ -1170,14 +1188,14 @@ class GitCountEachPjCommitsByDays(Resource):
 
 
 class SyncGitCommitIssueRelation(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, project_id, issue_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=10)
+        parser.add_argument('limit', type=int, default=10, location="args")
         args = parser.parse_args()
         return util.success(get_commit_issues_relation(project_id, issue_id, args["limit"]))
 
-    @jwt_required
+    @jwt_required()
     def post(self, project_id):
         sync_commit_issues_relation(project_id)
         return util.success()
@@ -1186,7 +1204,7 @@ class SyncGitCommitIssueRelation(Resource):
 class SyncGitCommitIssueRelationByPjName(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_name', type=str, required=True)
+        parser.add_argument('project_name', type=str, required=True, location="form")
         args = parser.parse_args()
         try:
             project = Project.query.filter_by(name=args['project_name']).first()
@@ -1201,17 +1219,17 @@ class SyncGitCommitIssueRelationByPjName(Resource):
 
 
 class GetCommitIssueHookByBranch(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, project_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('limit', type=int, default=10)
-        parser.add_argument('branch_name', type=str, required=True)
+        parser.add_argument('limit', type=int, default=10, location="args")
+        parser.add_argument('branch_name', type=str, required=True, location="args")
         args = parser.parse_args()
         return util.success(get_commit_issues_hook_by_branch(project_id, args["branch_name"], args["limit"]))
 
 
 class GitlabDomainConnection(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         if config.get("GITLAB_DOMAIN_NAME") is None or config.get("GITLAB_DOMAIN_NAME") == "":
             return {"is_ip": True}
@@ -1222,7 +1240,7 @@ class GitlabDomainConnection(Resource):
             is_ip = False
         return {"is_ip": is_ip}
 
-    @jwt_required
+    @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('action', type=str)
@@ -1231,6 +1249,46 @@ class GitlabDomainConnection(Resource):
 
 
 class GitlabDomainStatus(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return util.success(gitlab_status_connection())
+
+
+class GitlabSingleCommit(Resource):
+    @jwt_required()
+    def get(self, repo_id, commit_id):
+        return util.success(gitlab.single_commit(repo_id, commit_id))
+
+
+@doc(tags=['Gitlab'], description="update source code len")
+@use_kwargs(route_model.GitlabSourceCodeSchema, location="json")
+@marshal_with(route_model.GitlabSourceCodeResponse)
+class GitlabSourceCodeV2(MethodResource):
+    def post(self, **kwargs):
+        project_query = Project.query.filter(
+            Project.name == kwargs["repo_name"]
+        ).first()
+        update_dict = {"branch": kwargs["branch_name"], "commit_id": kwargs["commit_id"], "project_id": project_query.id,
+                       "source_code_num": kwargs["source_code_num"],
+                       "updated_at": datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT)}
+        result = get_source_code_info(kwargs["repo_name"], kwargs["branch_name"])
+        if result:
+            try:
+                new = GitlabSourceCodeLens(**update_dict)
+                db.session.merge(new)
+                db.session.commit()
+                return util.success()
+            except Exception as e:
+                model.db.session.rollback()
+                return util.respond(401,'update failed.', error=e)
+        else:
+            try:
+                new = GitlabSourceCodeLens(**update_dict)
+                model.db.session.add(new)
+                model.db.session.commit()
+                return util.success()
+            except Exception as e:
+                model.db.session.rollback()
+                return util.respond(401,'insert failed.', error=e)
+
+

@@ -93,13 +93,14 @@ docs = FlaskApiSpec(app)
 
 
 def add_resource(classes, level):
-    if config.get("DOCUMENT_LEVEL") == "public" and level in ['public']:
-        docs.register(classes)
-    elif config.get("DOCUMENT_LEVEL") == "private" and level in ['public', 'private']:
+    if (config.get("DOCUMENT_LEVEL") == "public" and level in ['public']) or (
+        config.get("DOCUMENT_LEVEL") == "private" and level in ['public', 'private']
+    ):
         docs.register(classes)
 
 
 app.config['PROPAGATE_EXCEPTIONS'] = True
+# app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
     "pool_recycle": 60,
@@ -145,7 +146,7 @@ def internal_error(exception):
 
 
 class NexusVersion(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         row = model.NexusVersion.query.one()
         return util.success({
@@ -153,7 +154,7 @@ class NexusVersion(Resource):
             'deploy_version': row.deploy_version
         })
 
-    @jwt_required
+    @jwt_required()
     def post(self):
         role.require_admin()
         keys = ['api_version', 'deploy_version']
@@ -298,7 +299,9 @@ api.add_resource(gitlab.GitProjectIdFromURL, '/repositories/id')
 api.add_resource(gitlab.GitProjectURLFromId, '/repositories/url')
 api.add_resource(gitlab.GitlabDomainConnection, '/repositories/is_ip', '/repositories/connection')
 api.add_resource(gitlab.GitlabDomainStatus, '/repositories/connection/status')
-
+api.add_resource(gitlab.GitlabSingleCommit, '/repositories/<repo_id>/<commit_id>')
+api.add_resource(gitlab.GitlabSourceCodeV2, '/repositories/pipline')
+add_resource(gitlab.GitlabSourceCodeV2, 'public')
 
 # User
 user_url(api, add_resource)
@@ -618,6 +621,22 @@ api.add_resource(routine_job.DoJobByMonth, '/routine_job/by_month')
 api.add_resource(routine_job.DoJobByDay, '/routine_job/by_day')
 
 
+
+@app.route('/user/login', methods=["POST"])
+def login():
+    from flask import request
+    from resources.user import login
+    try:
+        args = request.get_json()
+    except Exception:
+        args = {
+            "username": request.form.get("username"),
+            "password": request.form.get("password"), 
+        }
+    return login(args)
+
+
+
 def start_prod():
     try:
         db.init_app(app)
@@ -632,7 +651,6 @@ def start_prod():
         logger.logger.info('Get the public and local template list')
         plugins.create_plugins_api_router(api, add_resource)
         plugins.sync_plugins_in_db_and_code()
-        router.load_ui_route()
         with app.app_context():  # Prevent error appear(Working outside of application context.)
             kubernetesClient.create_cron_secret()
         return app

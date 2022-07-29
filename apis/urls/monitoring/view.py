@@ -22,7 +22,7 @@ from resources.monitoring import Monitoring, generate_alive_response, row_to_dic
 @doc(tags=['Monitoring'], description="Check all server is alive and update cache.")
 @marshal_with(util.CommonResponse)
 class ServersAliveHelper(MethodResource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         try:
             all_alive = Monitoring().check_project_alive()["all_alive"]
@@ -37,7 +37,7 @@ class ServersAliveHelper(MethodResource):
 @use_kwargs(router_model.ServersAliveSchema, location="query")
 @marshal_with(router_model.ServersAliveResponse)
 class ServersAliveV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def get(self, **kwargs):
         all_alive = get_server_alive()
         if all_alive is None:
@@ -47,11 +47,8 @@ class ServersAliveV2(MethodResource):
 
 
 class ServersAlive(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('project_id', type=int)
-        args = parser.parse_args()
         all_alive = get_server_alive()
         if all_alive is None:
             all_alive = Monitoring().check_project_alive()["all_alive"]
@@ -63,25 +60,29 @@ class ServersAlive(Resource):
 @doc(tags=['Monitoring'], description="Get Redmine server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class RedmineAliveV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return server_alive("Redmine")
 
+
 class RedmineAlive(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return server_alive("Redmine")
 
 # gitlab
+
+
 @doc(tags=['Monitoring'], description="Get Gitlab server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class GitlabAliveV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return server_alive("GitLab")
 
+
 class GitlabAlive(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return server_alive("GitLab")
 
@@ -90,31 +91,35 @@ class GitlabAlive(Resource):
 @doc(tags=['Monitoring'], description="Get Harbor server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class HarborAliveV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return server_alive("Harbor")
 
+
 class HarborAlive(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return server_alive("Harbor")
+
 
 @doc(tags=['Monitoring'], description="Get Harbor remain time of pull image from docker hub")
 @marshal_with(router_model.HarborProxyResponse)
 class HarborProxyV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return docker_image_pull_limit_alert()
 
+
 class HarborProxy(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return docker_image_pull_limit_alert()
+
 
 @doc(tags=['Monitoring'], description="Get Harbor server's status")
 @marshal_with(router_model.HarborStorageResponse)
 class HarborStorageV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         alive = harbor_nfs_storage_remain_limit()
         update_server_alive(str(alive["status"]))
@@ -122,7 +127,7 @@ class HarborStorageV2(MethodResource):
 
 
 class HarborStorage(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         alive = harbor_nfs_storage_remain_limit()
         update_server_alive(str(alive["status"]))
@@ -133,12 +138,13 @@ class HarborStorage(Resource):
 @doc(tags=['Monitoring'], description="Get SonarQube server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class SonarQubeAliveV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return server_alive("Sonarqube")
 
+
 class SonarQubeAlive(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return server_alive("Sonarqube")
 
@@ -147,12 +153,13 @@ class SonarQubeAlive(Resource):
 @doc(tags=['Monitoring'], description="Get Rancher server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class RancherAliveV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return server_alive("Rancher")
 
+
 class RancherAlive(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return server_alive("Rancher")
 
@@ -160,29 +167,34 @@ class RancherAlive(Resource):
 @doc(tags=['Monitoring'], description="Check Rancher name is changed to default or not")
 @marshal_with(router_model.RancherDefaultNameResponse)
 class RancherDefaultNameV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         rancher.rc_get_cluster_id()
         return {"default_cluster_name": rancher.cluster_id is not None}
 
+
 class RancherDefaultName(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         rancher.rc_get_cluster_id()
         return {"default_cluster_name": rancher.cluster_id is not None}
 
 # k8s
+
+
 @doc(tags=['Monitoring'], description="Get Kubernetes server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class K8sAliveV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return server_alive("K8s")
 
+
 class K8sAlive(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         return server_alive("K8s")
+
 
 class CollectPodRestartTimeV2(MethodResource):
     @doc(tags=['Monitoring'], description="Collect K8s pods' restart time.")
@@ -214,6 +226,7 @@ class CollectPodRestartTimeV2(MethodResource):
         ServerDataCollection.query.filter_by(type_id=1).filter(ServerDataCollection.create_at <= expired_date).delete()
         db.session.commit()
 
+
 class CollectPodRestartTime(Resource):
     def post(self):
         collect_at = datetime.utcnow().strftime("%Y-%m-%d %H:00:00")
@@ -241,7 +254,6 @@ class CollectPodRestartTime(Resource):
         expired_date = datetime.utcnow() - timedelta(days=30)
         ServerDataCollection.query.filter_by(type_id=1).filter(ServerDataCollection.create_at <= expired_date).delete()
         db.session.commit()
-
 
 
 class PodAlertV2(MethodResource):
@@ -286,6 +298,7 @@ class PodAlertV2(MethodResource):
             resource_type="k8s", alert_code=10001).filter(AlertMessage.create_at <= expired_date).delete()
         db.session.commit()
 
+
 class PodAlert(Resource):
     def post(self):
         condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
@@ -326,27 +339,32 @@ class PodAlert(Resource):
             resource_type="k8s", alert_code=10001).filter(AlertMessage.create_at <= expired_date).delete()
         db.session.commit()
 
+
 @doc(tags=['Monitoring'], description="Remove extra k8s executions.")
 class RemoveExtraExecutionsV2(MethodResource):
     def post(self):
         remove_extra_executions()
+
 
 class RemoveExtraExecutions(Resource):
     def post(self):
         remove_extra_executions()
 
 # GitHub
+
+
 @doc(tags=['Monitoring'], description="Validate Github token.")
 @marshal_with(router_model.GithubTokenVerifyResponse)
 class GithubTokenVerifyV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         role.require_admin()
         value = row_to_dict(SystemParameter.query.filter_by(name="github_verify_info").one())["value"]
         return util.success(verify_github_info(value))
 
+
 class GithubTokenVerify(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         role.require_admin()
         value = row_to_dict(SystemParameter.query.filter_by(name="github_verify_info").one())["value"]

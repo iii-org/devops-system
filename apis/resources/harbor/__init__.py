@@ -72,7 +72,7 @@ def hb_get_id_by_name(project_name):
         if project.get("name") == project_name:
             return project["project_id"]
     raise DevOpsError(404, 'Harbor does not have such project.',
-                        error=apiError.project_not_found(project_name))
+                      error=apiError.project_not_found(project_name))
 
 
 def hb_create_project(project_name):
@@ -168,11 +168,9 @@ def hb_update_user_password(user_id, new_pwd, old_pwd):
     try:
         __api_put(f'/users/{user_id}/password', data=data)
     except DevOpsError as e:
-        if e.status_code == 400 and \
+        if not (e.status_code == 400 and \
                 e.error_value['details']['response']['errors'][0][
-                    'message'] == 'the new password can not be same with the old one':
-            pass
-        else:
+                    'message'] == 'the new password can not be same with the old one'):
             raise e
 
 
@@ -184,11 +182,9 @@ def hb_update_user_email(user_id, user_name, new_email):
     try:
         __api_put(f'/users/{user_id}', data=data)
     except DevOpsError as e:
-        if e.status_code == 400 and \
+        if not (e.status_code == 400 and \
                 e.error_value['details']['response']['errors'][0][
-                    'message'] == 'the new password can not be same with the old one':
-            pass
-        else:
+                    'message'] == 'the new password can not be same with the old one'):
             raise e
 
 
@@ -336,7 +332,7 @@ def hb_get_artifact_scan_overview(project_name, repository_name, commit_id):
         if type(artifact.get("scan_overview")) is dict:
             scan_report = next(iter(artifact.get("scan_overview").values()))
         return scan_report
-    except:
+    except Exception:
         return
 
 
@@ -347,7 +343,7 @@ def hb_get_artifact_scan_vulnerabilities_detail(project_name, repository_name, c
                              f'{__encode(commit_id)}/additions/vulnerabilities').json()
         out = next(iter(artifact.values()))
         return out
-    except:
+    except Exception:
         return
 
 
@@ -367,7 +363,7 @@ def hb_copy_artifact_and_retage(project_name, from_repo_name, dest_repo_name, fr
     try:
         digest = hb_get_artifact(project_name, from_repo_name, from_tag)[0]["digest"]
         print(digest)
-    except:
+    except Exception:
         logger.info(f"Can not find {from_repo_name}:{from_tag}")
         print(f"Can not find {from_repo_name}:{from_tag}")
         return
@@ -376,10 +372,10 @@ def hb_copy_artifact_and_retage(project_name, from_repo_name, dest_repo_name, fr
     try:
         dest_digest = hb_get_artifact(project_name, dest_repo_name, dest_tag)[0]["digest"]
         print(dest_digest)
-        a = hb_delete_artifact(project_name, dest_repo_name, dest_digest)
+        hb_delete_artifact(project_name, dest_repo_name, dest_digest)
         logger.info(f"Replace the old {dest_repo_name}:{dest_digest}")
         print(f"Replace the old {dest_repo_name}:{dest_digest}")
-    except:
+    except Exception:
         pass
 
     from_image = f'{project_name}/{from_repo_name}@{digest}'
@@ -405,6 +401,15 @@ def hb_update_repository(project_name, repository_name, args):
 
 def hb_delete_repository(project_name, repository_name):
     return __api_delete(f'/projects/{project_name}/repositories/{__encode(repository_name)}')
+
+
+def hb_get_artifact_wtih_digrest(project_name, repository_name, reference):
+    try:
+        ret = __api_get(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
+                    f'/artifacts/{reference}').json()
+        return ret
+    except Exception as e:
+        return {}
 
 
 def hb_delete_artifact(project_name, repository_name, reference):
@@ -679,7 +684,7 @@ def hb_ping_registries(args):
 
 class HarborRelease():
 
-    @jwt_required
+    @jwt_required()
     def get_list_artifacts(self, project_name, repository_name):
         return hb_list_artifacts(project_name, repository_name)
 
