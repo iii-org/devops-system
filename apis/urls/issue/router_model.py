@@ -33,9 +33,9 @@ class CommonSingleIssueSchema(Schema):
 
 class SingleIssuePostSchema(CommonSingleIssueSchema):
     project_id = fields.Int(doc='project_id', example=-1, required=True)
-    tracker_id = fields.Int(doc='tracker_id', example=-1, required=True)
-    status_id = fields.Int(doc='status_id', example=-1, required=True)
-    priority_id = fields.Int(doc='priority_id', example=-1, required=True)
+    tracker_id = fields.Int(doc='tracker_id', example=-1, missing=1, required=True)
+    status_id = fields.Int(doc='status_id', example=-1, missing=1, required=True)
+    priority_id = fields.Int(doc='priority_id', example=-1, missing=1, required=True)
     name = fields.Str(doc='name', example="string", required=True)
     creator_id = fields.Int(doc='creator_id', example=-1, required=False)
     changeNo = fields.Str(doc="changeNo", examplpe="str")
