@@ -279,20 +279,17 @@ def delete_pipeline_file(project_name, folder_name, file_name):
     check_pipeline_folder_exist(file_name, file_path)
     rmtree(file_path)
 
-def delete_rest_pipelines(project_name):
-    project_rows = db.session.query(Project, ProjectPluginRelation).join(
-        ProjectPluginRelation, Project.id==ProjectPluginRelation.project_id).filter(
-        Project.name==project_name)
+def delete_rest_pipelines(project_name, branch_name):
+    project_row = db.session.query(ProjectPluginRelation).join(Project).filter(
+    Project.id==ProjectPluginRelation.project_id).filter(Project.name==project_name).first()
     
-    if project_rows.count() == 0:
+    if project_row is None:
         return
-
-    for project_row in project_rows:
-        repository_id = project_row.ProjectPluginRelation.git_repository_id
-
-    output_array = pipeline_exec_list(repository_id, {"limit": 10, "start": 0})
+    repository_id = project_row.git_repository_id
+    output_array = pipeline_exec_list(repository_id, {"limit": 15, "start": 0})
     pipe_ids = [
-        pipe["id"] for pipe in output_array["pipe_execs"] if pipe["execution_state"] in ["Waiting", "Building", "Queueing"]]
+        pipe["id"] for pipe in output_array["pipe_execs"] if pipe["execution_state"] in ["Waiting", "Building", "Queueing"] and \
+            pipe["commit_branch"] == branch_name]
     for pipe_id in pipe_ids[1:]:
         pipeline_exec_action(repository_id, {"pipelines_exec_run": pipe_id, "action": "stop"})
 
