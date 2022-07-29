@@ -182,7 +182,7 @@ class SingleIssue(Resource):
         parser.add_argument('project_id', type=int, required=True, location="form")
         parser.add_argument('tracker_id', type=int, default=1, location="form")
         parser.add_argument('status_id', type=int, default=1, location="form")
-        parser.add_argument('priority_id', type=int, default=1, location="form")
+        parser.add_argument('priority_id', type=int, default=3, location="form")
         parser.add_argument('name', type=str, required=True, location="form")
         parser.add_argument('description', type=str, location="form")
         parser.add_argument('assigned_to_id', type=str, location="form")
