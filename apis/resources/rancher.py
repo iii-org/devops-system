@@ -715,5 +715,5 @@ class RancherDeleteAPP(Resource):
         rancher.rc_del_app_with_prefix(prefix)
         
         from resources.pipeline import delete_rest_pipelines
-        delete_rest_pipelines(args["project_name"])
+        delete_rest_pipelines(args["project_name"], args["branch_name"])
         return util.success()

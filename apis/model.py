@@ -993,3 +993,11 @@ class GitlabSourceCodeLens(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
     source_code_num = Column(Integer)
     updated_at = Column(DateTime)
+
+
+class PipelineUpdateVersion(db.Model):
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
+    version = Column(Integer)
+    status = Column(String)
+    message = Column(String)
+    updated_at = Column(DateTime)
