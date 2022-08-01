@@ -240,7 +240,7 @@ def insert_default_value_in_pipeline_update_version():
         if model.PipelineUpdateVersion.query.filter_by(project_id=project_id).first() is None:
             row = model.PipelineUpdateVersion(
                 project_id=project_id,
-                version=0
+                version=1
             )
             db.session.add(row)
             db.session.commit()
