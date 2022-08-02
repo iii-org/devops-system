@@ -26,6 +26,8 @@ from resources.redmine import redmine
 from resources.mail import Mail, mail_server_is_open
 from sqlalchemy import desc
 from resources.resource_storage import get_project_resource_storage_level, compare_operator
+from datetime import timedelta
+from model import ServerDataCollection
 
 DATETIMEFORMAT = "%Y-%m-%d %H:%M:%S"
 AlertServiceIDMapping = {
@@ -39,6 +41,7 @@ AlertServiceIDMapping = {
     "Sonarqube not alive": 501,
     "Rancher not alive": 601,
     "Rancher AppRevision counts out of limit": 602,
+    "Rancher pod restart times out of limits": 603,
     "Excalidraw not alive": 1001,
     "ad not alive": 1002,
     "SMTP not alive": 1101
@@ -275,7 +278,7 @@ class Monitoring:
         if not rancher_alive:
             return rancher_alive
 
-        for check_element in [rancher_projects_limit_num]:
+        for check_element in [rancher_projects_limit_num, rancher_pod_restart_times_outoflimits]:
             if not self.__check_server_element_alive(check_element):
                 rancher_alive = False
         return rancher_alive
@@ -555,3 +558,50 @@ def rancher_projects_limit_num():
             "error_title": "Rancher AppRevision counts out of limit",
             "status": True
         }
+
+
+def rancher_pod_restart_times_outoflimits():
+    condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
+    if not condition.active or condition.active is None:
+        return
+    limit_times = condition.value["limit_times"]
+    # datetime_now = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+
+    limit_hour = datetime.utcnow() - timedelta(hours=1)
+    limit_hour = limit_hour.strftime("%Y-%m-%d %H:00:00")
+    data_collections = ServerDataCollection.query.filter_by(
+        type_id=1).filter(ServerDataCollection.collect_at >= limit_hour)
+
+    mapping = {}
+    for data_collection in data_collections:
+        detail = data_collection.detail
+        restart_times = data_collection.value["value"]
+        mapping.setdefault(
+            f'{data_collection.project_id}=={detail["pod_name"]}=={detail["containers_name"]}', []).append(
+            restart_times)
+
+    invalid_project_id_mapping = {}
+    project_rows = db.session.query(Project, ProjectPluginRelation).join(
+        ProjectPluginRelation, Project.id == ProjectPluginRelation.project_id)
+    for detail, times in mapping.items():
+        details = detail.split("==")
+        total_restart_times = max(times) - min(times)
+        if len(times) >= 2 and (max(times) - min(times)) > limit_times:
+            total_restart_times = max(times) - min(times)
+            details = detail.split("==")
+            for project_row in project_rows:
+                project_obj, repo_id = project_row.Project, project_row.ProjectPluginRelation.git_repository_id
+                invalid_project_id_mapping[
+                    project_obj.id] = f"Project: {project_obj.name} Restart times of pod({details[1]}) belong in container({details[2]}) has surpassed 20 times({total_restart_times}) in 1 hour."
+            message = "\n".join(invalid_project_id_mapping.values())
+            return {
+                "status": message == "",
+                "message": message,
+                "error_title": "Rancher pod restart times out of limits",
+                # "invalid_project_id_mapping": invalid_project_id_mapping
+            }
+        else:
+            return {
+                "error_title": "Rancher pod restart times out of limits",
+                "status": True,
+            }
