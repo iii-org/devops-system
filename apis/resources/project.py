@@ -595,7 +595,7 @@ def delete_project(project_id):
     son_id_list = get_all_sons_project(project_id, [])
     delete_id_list = [project_id] + son_id_list
 
-    server_alive_output = Monitoring().check_project_alive(is_project=True)
+    server_alive_output = Monitoring().check_project_alive(is_project=True, only_server=True)
     if not server_alive_output["all_alive"]:
         not_alive_server = [
             server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive]
