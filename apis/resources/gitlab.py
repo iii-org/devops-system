@@ -956,6 +956,12 @@ def get_source_code_info(repo_name, branch):
     else:
         return None
 
+def unprotect_project(gl_pj_id, branch):
+    for protect_branch in gitlab.gl_list_protect_branches(gl_pj_id):
+        if protect_branch.get("name") == "master":
+            gitlab.gl_unprotect_branch(gl_pj_id, branch)
+            break
+
     # --------------------- Resources ---------------------
 gitlab = GitLab()
 

@@ -37,7 +37,7 @@ from plugins.sonarqube import sonarqube_main as sonarqube
 from plugins.zap import zap_main as zap
 from plugins.sideex import sideex_main as sideex
 from plugins.cmas import cmas_main as cmas
-from .gitlab import gitlab
+from .gitlab import gitlab, unprotect_project
 from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
 from resources.monitoring import Monitoring
@@ -524,10 +524,8 @@ def pm_update_project(project_id, args):
     project_name = project.name
     if project.is_empty_project and args.get("template_id") is not None:
         # Because it needs force push, so remove master from protected branch list
-        for protect_branch in gitlab.gl_list_protect_branches(plugin_relation.git_repository_id):
-            if protect_branch.get("name") == "master":
-                gitlab.gl_unprotect_branch(plugin_relation.git_repository_id, "master")
-                break
+        unprotect_project(plugin_relation.git_repository_id, "master")
+        
         template_pj = template.get_projects_detail(args["template_id"])
         args |= {
             "is_empty_project": False, "base_example": template_pj.path, "example_tag": args["tag_name"]}
