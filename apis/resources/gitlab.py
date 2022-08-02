@@ -345,6 +345,16 @@ class GitLab(object):
             f'/projects/{project_id}/repository/branches/{branch}')
         return output
 
+    def gl_list_protect_branches(self, project_id):
+        output = self.__api_get(
+            f'/projects/{project_id}/protected_branches')
+        return output.json()
+
+    def gl_unprotect_branch(self, project_id, branch):
+        output = self.__api_delete(
+            f'/projects/{project_id}/protected_branches/{branch}')
+        return output
+
     def gl_get_repository_tree(self, repo_id, branch):
         output = self.__api_get(f'/projects/{repo_id}/repository/tree',
                                 params={'ref': branch})
@@ -945,6 +955,12 @@ def get_source_code_info(repo_name, branch):
             "project_name": project_query.name, "repo_id":query.git_repository_id, "source_code_num":code_len_query.source_code_num})
     else:
         return None
+
+def unprotect_project(gl_pj_id, branch):
+    for protect_branch in gitlab.gl_list_protect_branches(gl_pj_id):
+        if protect_branch.get("name") == "master":
+            gitlab.gl_unprotect_branch(gl_pj_id, branch)
+            break
 
     # --------------------- Resources ---------------------
 gitlab = GitLab()

@@ -331,6 +331,7 @@ def hb_get_artifact_scan_overview(project_name, repository_name, commit_id):
                              f'{__encode(commit_id)}', params={'with_scan_overview': True}).json()
         if type(artifact.get("scan_overview")) is dict:
             scan_report = next(iter(artifact.get("scan_overview").values()))
+            scan_report["size"] = f"{round(artifact['size']/(1024*1024),2)}MB"
         return scan_report
     except Exception:
         return
