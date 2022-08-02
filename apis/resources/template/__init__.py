@@ -386,7 +386,7 @@ def tm_get_secret_url(pj):
 
 
 def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
-                                 tag_name, arguments, uuids):
+                                 tag_name, arguments, uuids, force=False):
     __add_plugin_soft_status_json()
     template_pj = gl.projects.get(template_repository_id)
     secret_temp_http_url = tm_get_secret_url(template_pj)
@@ -449,10 +449,10 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
               'w') as file:
         yaml.dump(pipe_json, file, sort_keys=False)
     set_git_username_config(f"{TEMPLATE_FOLDER_NAME}/{pj.path}")
-    tm_git_commit_push(pj.path, secret_pj_http_url, TEMPLATE_FOLDER_NAME, "範本 commit")
+    tm_git_commit_push(pj.path, secret_pj_http_url, TEMPLATE_FOLDER_NAME, "範本 commit", force=force)
 
 
-def tm_git_commit_push(pj_path, secret_pj_http_url, folder_name, commit_message):
+def tm_git_commit_push(pj_path, secret_pj_http_url, folder_name, commit_message, force=False):
     subprocess.call(['git', 'branch'], cwd=f"{folder_name}/{pj_path}")
     # Too lazy to handle file deleting issue on Windows, just keep the garbage there
     try:
@@ -465,8 +465,12 @@ def tm_git_commit_push(pj_path, secret_pj_http_url, folder_name, commit_message)
     subprocess.call(['git', 'add', '.'], cwd=f"{folder_name}/{pj_path}")
     subprocess.call(['git', 'commit', '-m', f'"{commit_message}"'],
                     cwd=f"{folder_name}/{pj_path}")
-    subprocess.call(['git', 'push', '-u', 'origin', 'master'],
+    if force:
+        subprocess.call(['git', 'push', '-u', '-f', 'origin', 'master'],
                     cwd=f"{folder_name}/{pj_path}")
+    else:
+        subprocess.call(['git', 'push', '-u', 'origin', 'master'],
+                        cwd=f"{folder_name}/{pj_path}")
     # Too lazy to handle file deleting issue on Windows, just keep the garbage there
     try:
         shutil.rmtree(f"{folder_name}/{pj_path}", ignore_errors=True)

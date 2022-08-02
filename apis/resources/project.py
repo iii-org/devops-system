@@ -37,7 +37,7 @@ from plugins.sonarqube import sonarqube_main as sonarqube
 from plugins.zap import zap_main as zap
 from plugins.sideex import sideex_main as sideex
 from plugins.cmas import cmas_main as cmas
-from .gitlab import gitlab
+from .gitlab import gitlab, unprotect_project
 from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
 from resources.monitoring import Monitoring
@@ -523,11 +523,14 @@ def pm_update_project(project_id, args):
     project = model.Project.query.filter_by(id=project_id).first()
     project_name = project.name
     if project.is_empty_project and args.get("template_id") is not None:
+        # Because it needs force push, so remove master from protected branch list
+        unprotect_project(plugin_relation.git_repository_id, "master")
+        
         template_pj = template.get_projects_detail(args["template_id"])
         args |= {
             "is_empty_project": False, "base_example": template_pj.path, "example_tag": args["tag_name"]}
         template.tm_use_template_push_into_pj(args["template_id"], plugin_relation.git_repository_id,
-                                                  args["tag_name"], args.get("arguments"), project.uuid)
+                                                  args["tag_name"], args.get("arguments"), project.uuid, force=True)
     
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     nexus.nx_update_project(project_id, args)
@@ -590,7 +593,7 @@ def delete_project(project_id):
     son_id_list = get_all_sons_project(project_id, [])
     delete_id_list = [project_id] + son_id_list
 
-    server_alive_output = Monitoring().check_project_alive(is_project=True)
+    server_alive_output = Monitoring().check_project_alive(is_project=True, only_server=True)
     if not server_alive_output["all_alive"]:
         not_alive_server = [
             server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive]

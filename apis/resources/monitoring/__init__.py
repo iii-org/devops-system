@@ -332,11 +332,13 @@ class Monitoring:
         return ret
 
     # all alive
-    def check_project_alive(self, is_project=False):
+    def check_project_alive(self, is_project=False, only_server=False):
         '''
         when 'is_project' is True, only check servers are working.
         '''
-        plugin_alive_dict = self.check_plugin_alive()
+        if not only_server:
+            plugin_alive_dict = self.check_plugin_alive()
+
         all_alive = {
             "alive": {
                 "Redmine": self.redmine_alive(),
@@ -348,7 +350,8 @@ class Monitoring:
             },
             "all_alive": self.all_alive
         }
-        all_alive["alive"] |= plugin_alive_dict
+        if not only_server:
+            all_alive["alive"] |= plugin_alive_dict
         logger.logger.info(all_alive)
         return all_alive
 
