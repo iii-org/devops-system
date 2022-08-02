@@ -174,7 +174,7 @@ def update_pipieline_file(pj_id, version):
                     branch=branch,
                     author_email='system@iiidevops.org.tw',
                     author_name='iiidevops',
-                    commit_message=f"Ugrade rancher-pipeline.yml's tools and images(API Version: {api_version}).")
+                    commit_message=f"Upgrade rancher-pipeline.yml's tools and images(API Version: {api_version}).")
                 pipeline.stop_and_delete_pipeline(gl_pj_id, next_run, branch=branch) 
                 # sleep(30)
 

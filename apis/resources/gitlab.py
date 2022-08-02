@@ -345,6 +345,16 @@ class GitLab(object):
             f'/projects/{project_id}/repository/branches/{branch}')
         return output
 
+    def gl_list_protect_branches(self, project_id):
+        output = self.__api_get(
+            f'/projects/{project_id}/protected_branches')
+        return output.json()
+
+    def gl_unprotect_branch(self, project_id, branch):
+        output = self.__api_delete(
+            f'/projects/{project_id}/protected_branches/{branch}')
+        return output
+
     def gl_get_repository_tree(self, repo_id, branch):
         output = self.__api_get(f'/projects/{repo_id}/repository/tree',
                                 params={'ref': branch})

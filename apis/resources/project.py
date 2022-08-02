@@ -523,11 +523,16 @@ def pm_update_project(project_id, args):
     project = model.Project.query.filter_by(id=project_id).first()
     project_name = project.name
     if project.is_empty_project and args.get("template_id") is not None:
+        # Because it needs force push, so remove master from protected branch list
+        for protect_branch in gitlab.gl_list_protect_branches(plugin_relation.git_repository_id):
+            if protect_branch.get("name") == "master":
+                gitlab.gl_unprotect_branch(plugin_relation.git_repository_id, "master")
+                break
         template_pj = template.get_projects_detail(args["template_id"])
         args |= {
             "is_empty_project": False, "base_example": template_pj.path, "example_tag": args["tag_name"]}
         template.tm_use_template_push_into_pj(args["template_id"], plugin_relation.git_repository_id,
-                                                  args["tag_name"], args.get("arguments"), project.uuid)
+                                                  args["tag_name"], args.get("arguments"), project.uuid, force=True)
     
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     nexus.nx_update_project(project_id, args)
