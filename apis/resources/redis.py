@@ -1,3 +1,4 @@
+from resources import logger
 import redis
 import config
 import json
@@ -166,6 +167,7 @@ def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):
 
 # Template cache
 def update_template_cache_all(dict_all):
+    logger.logger.info(f"Before data {redis_op.dict_get_all(TEMPLATE_CACHE)}")  
     redis_op.dict_delete_all(TEMPLATE_CACHE)
     if dict_all != {}:
         redis_op.dict_set_all(TEMPLATE_CACHE, dict_all)
