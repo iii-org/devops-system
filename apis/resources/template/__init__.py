@@ -254,6 +254,7 @@ def update_redis_template_cache(pj, group_name, pip_set_json, tag_list):
 
 
 def __force_update_template_cache_table():
+    logger.logger.info("Start updating template cache.")
     output = [{
         "source": "Public Templates",
         "options": []
@@ -294,6 +295,7 @@ def __force_update_template_cache_table():
                 template_list |= handle_template_cache(pj, group.name, pip_set_json, tag_list)
                 # update_redis_template_cache(pj, group.name, pip_set_json, tag_list)
     update_template_cache_all(template_list)
+    logger.logger.info(f"Updated data: {template_list}")
     return output
 
 
