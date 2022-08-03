@@ -143,8 +143,8 @@ def analysis_release(release, info, hb_list_tags, image_need):
         for release_repo_tag in release_repo_tags:
             if release_repo_tag.tag != ret["tag_name"]:
                 tag_mapping.setdefault(release_repo_tag.tag, []).append(release_repo_tag.custom_path)
-            repo_mapping.setdefault(release_repo_tag.custom_path, []).append(release_repo_tag.tag)
-
+            if release_repo_tag.custom_path == info["project_name"]:
+                repo_mapping.setdefault(release_repo_tag.custom_path, []).append(release_repo_tag.tag)
         # Generate field: "image_tags"
         ret["image_tags"] = [{tag: data} for tag, data in tag_mapping.items()]
         ret["docker"] = [{
@@ -234,9 +234,9 @@ def handle_gitlab_datetime(create_time):
     return datetime_obj.strftime("%Y-%m-%dT%H:%M:%S")
 
 
-def get_distinct_repo(release_id):
+def get_distinct_repo(release_id, project_name):
     ret = []
-    for repo_tag in model.ReleaseRepoTag.query.filter_by(release_id=release_id).all():
+    for repo_tag in model.ReleaseRepoTag.query.filter_by(custom_path=project_name).filter_by(release_id=release_id).all():
         if repo_tag.custom_path not in ret:
             ret.append(repo_tag.custom_path)
     return ret
@@ -327,7 +327,7 @@ def create_release_image_tag(project_id, release_id, args):
     if release is not None:
         dest_tags = args["tags"]
         forced = args.get("forced") or False
-        distinct_repos = get_distinct_repo(release.id)
+        distinct_repos = get_distinct_repo(release.id, project_name)
         before_update_at = release.update_at
 
         # Check tag is not exist in target image_paths
@@ -343,15 +343,14 @@ def create_release_image_tag(project_id, release_id, args):
             model.ReleaseRepoTag(
                 release_id=release.id,
                 tag=dest_tags,
-                custom_path=repo
-            ) for repo in distinct_repos
+                custom_path=distinct_repos[0])
         ]
         db.session.add_all(row_list)
         release.update_at = str(datetime.now())
         db.session.commit()
 
         # Then add tag on all image_path
-        digest = hb_get_artifact(project_name, release.branch, release.tag_name)[0]["digest"]
+        digest = hb_get_artifact(project_name, project_name, release.tag_name)[0]["digest"]
         try:
             release_image_tag_helper(
                 project_name, distinct_repos, dest_tags, digest, forced=forced)
