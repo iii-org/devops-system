@@ -663,10 +663,10 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
             pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=default_branch)
 
     # sync default branch pipeline.yml to other branches
-    for br in pj.branches.list(all=True):
-        br_name = br.name
+    rest_branch_names = sorted([br.name for br in pj.branches.list(all=True) if br.name != default_branch])
+    for br_name in rest_branch_names:
         if br_name != default_branch:
-            f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br.name)
+            f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br_name)
             pipe_json = yaml.safe_load(f.decode())
             had_update_branche = pipe_json != default_pipe_json
             pipe_json = default_pipe_json
@@ -681,7 +681,7 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
                     author_name='iiidevops',
                     commit_message=f"{user_account} 編輯 {br_name} 分支 .rancher-pipeline.yaml")
                 if not run or (run and br_name not in need_running_branches):
-                    pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
+                    pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br_name)
 
 
 def initial_rancher_pipline_info(repository_id):
