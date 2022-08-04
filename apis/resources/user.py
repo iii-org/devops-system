@@ -262,9 +262,10 @@ def update_user(user_id, args, from_ad=False):
     if 'role_id' in args:
         update_user_role(user_id, args.get('role_id'))
     user_role_id = -1
-    jwt_token = get_jwt_identity()
-    if jwt_token is not None:
-        user_role_id = jwt_token.get('role_id')
+    if not from_ad:
+        jwt_token = get_jwt_identity()
+        if jwt_token is not None:
+            user_role_id = jwt_token.get('role_id')
     new_email = None
     new_password = None
     # Change Password
