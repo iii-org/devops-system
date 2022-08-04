@@ -372,7 +372,7 @@ def delete_release_image_tag(project_id, release_id, args):
         before_update_at = release.update_at
         if dest_tags == release.tag_name:
             return
-        distinct_repos = get_distinct_repo(release.id)
+        distinct_repos = get_distinct_repo(release.id, project_name)
 
         # Must to update DB first, otherwise the value won't change.
         model.ReleaseRepoTag.query.filter_by(release_id=release_id, tag=dest_tags).delete()
