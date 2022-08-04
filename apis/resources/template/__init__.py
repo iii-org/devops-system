@@ -660,7 +660,7 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
             author_name='iiidevops',
             commit_message=f"{user_account} 編輯 {default_branch} 分支 .rancher-pipeline.yaml")
         if not run or default or (run and default_branch not in need_running_branches):
-            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
+            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=default_branch)
 
     # sync default branch pipeline.yml to other branches
     for br in pj.branches.list(all=True):
