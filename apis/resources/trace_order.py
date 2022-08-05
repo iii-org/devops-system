@@ -207,7 +207,7 @@ class TraceList:
 
     def __get_family(self, issue_id):
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=['children', 'relations'])
-        return issue.get_issue_family(redmine_issue, all=True, user_name='sysadmin')
+        return issue.get_issue_family(redmine_issue, all=True, user_name=config.get('ADMIN_INIT_LOGIN'))
 
     def __remove_id(self, id):
         if id in self.tracker_issue_list:
