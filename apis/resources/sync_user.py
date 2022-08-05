@@ -341,7 +341,7 @@ def recreate_sq_users(args, sq_all_users_login):
         logger.logger.info(f"Change {login_name} sonarqube user's password to DEFAULT_PASSWORD done")
 
 
-def check_user_exist(router):
+def check_user_exist(router=None, all=False):
     lost_user_infos = {}
     rc_users = ResourceUsers()
     
@@ -366,6 +366,7 @@ def check_user_exist(router):
 
     for user in model.User.query. \
         filter(~model.User.login.like('project_bot%')):
+        disabled = False
         args = set_args(user)
         for service, error_message in {
             "SonarQube": check_sq_users(args, rc_users.all_users['sq_all_users_login']),
@@ -377,8 +378,10 @@ def check_user_exist(router):
         }.items():
             if error_message is not None:
                 record_miss_user(args, service, error_message)
-                user.disabled = True
-        db.session.commit()
+                disabled = True
+        if not all:
+            user.disabled = disabled
+            db.session.commit()
 
     # Process data
     ret = []
@@ -393,11 +396,16 @@ def check_user_exist(router):
         missing_servers = [
             server for server in ["Redmine", "GitLab", "Harbor", "SonarQube", "K8s"] \
             if info[server] != ""]
-        notification_message_list.append(
-            f"**{info['login']}** 用戶的帳號在 {' , '.join(missing_servers) } 出現異常")
+        msg = f"**{info['login']}** 用戶的帳號在 {' , '.join(missing_servers) } 出現異常"
+
+        if not all:
+            notification_message_list.append(
+                f"**{info['login']}** 用戶的帳號在 {' , '.join(missing_servers) } 出現異常")
+        else:
+            logger.logger.info(f"**{info['login']}** 用戶的帳號在 {' , '.join(missing_servers) } 出現異常")
 
     # only send notification when the previous waring is read
-    if get_unread_notification_message_list(title="帳號檢測異常通知") == []:
+    if get_unread_notification_message_list(title="帳號檢測異常通知") == [] and not all:
         notification_message = "\n".join(notification_message_list)
         notification_message += f"\n{router}"
         args = {
@@ -412,7 +420,7 @@ def check_user_exist(router):
     return ret
 
 
-def recreate_user(user_id):
+def recreate_user(user_id, all=False):
     user = model.User.query.get(user_id)
     args = set_args(user)
     rc_users = ResourceUsers()
@@ -430,9 +438,18 @@ def recreate_user(user_id):
     recreate_rm_users(args, rc_users.all_users['rm_all_users'], rc_users.all_users['rm_all_users_email'])
     
     user = model.User.query.get(user_id)
-    user.disabled = True
-    db.session.commit()
+    if not all:
+        user.disabled = True
+        db.session.commit()
     logger.logger.info('All done.')
+
+
+def recreate_users():
+    missing_users = check_user_exist(all=True)
+    for missing_user in missing_users:
+        logger.logger.info(f'Start recreating user: {missing_user["login"]}.')
+        recreate_user(missing_user["id"], all=True)
+
 
 # def main_process():
 #     # 取得 admin users id list
