@@ -278,6 +278,7 @@ class Checkmarx(db.Model):
     finished_at = Column(DateTime)
     # True only if report is available
     finished = Column(Boolean)
+    logs = Column(String)
 
 
 class Flows(db.Model):
