@@ -37,7 +37,7 @@ from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, \
     template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, \
-    sync_user, router, deploy, alert, trace_order, tag, lock, system_parameter, alert_message, \
+    sync_user, router, deploy, alert, trace_order, tag, lock, system_parameter, \
     maintenance, issue_display_field
 from apispec import APISpec
 from flask_apispec.extension import FlaskApiSpec
@@ -610,8 +610,6 @@ api.add_resource(system_parameter.ParameterGithubVerifyExecuteStatus, '/system_p
 # Status of Sync
 lock_url(api, add_resource)
 
-# Alert message
-api.add_resource(alert_message.AlertMessages, '/alert_message')
 
 # message
 notification_message_url(api, add_resource, socketio)
