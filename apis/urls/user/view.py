@@ -3,7 +3,6 @@ from flask_apispec.views import MethodResource
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 import util
-from threading import Thread
 from urls.user import router_model
 from resources.user import login, change_user_status, create_user, NexusUser, delete_user, update_user, user_list, user_sa_config, \
     get_user_message_types, update_user_message_types, get_user_message_type
