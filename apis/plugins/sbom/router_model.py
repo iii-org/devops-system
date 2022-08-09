@@ -10,6 +10,7 @@ class SbomPostSchema(Schema):
     project_name = fields.Str(required=True, example="admin")
     branch = fields.Str(required=True, example="master")
     commit = fields.Str(required=True, example="#77777")
+    sequence = fields.Int(example=1)
 
 
 class SbomPatchSchema(Schema):

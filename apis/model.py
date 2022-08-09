@@ -1009,6 +1009,7 @@ class Sbom(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     branch = Column(String)
     commit = Column(String)
+    sequence = Column(Integer)
     scan_status = Column(String)
     package_nums = Column(Integer)
     scan_overview = Column(JSON)

@@ -35,6 +35,15 @@ def update_sboms(sbom_id, kwargs):
     db.session.commit()
 
 
+def parse_sbom_file(sbom_id):
+    sbom = Sbom.query.filter_by(id=sbom_id).first()
+    commit, project_id = sbom.commit, sbom.project_id
+    
+
+
+
+
+
 # --------------------- Resources ---------------------
 
 @doc(tags=['Sbom'], description="Get all project's scan")
@@ -64,8 +73,12 @@ class SbomPatchV2(MethodResource):
         return util.success(update_sboms(sbom_id, kwargs))    
 
 
-
-
+@doc(tags=['Sbom'], description="Parsing Sbom ")
+# @marshal_with(util.CommonResponse)
+class SbomParseV2(MethodResource):
+    @jwt_required
+    def patch(self, sbom_id):
+        return util.success(parse_sbom_file(sbom_id))
 
 
 
