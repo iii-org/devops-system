@@ -53,9 +53,9 @@ import config
 
 def get_pj_id_by_name(name):
     ret = {
-        "id": "",
-        "plan_id": "",
-        "repo_id": ""
+        "id": -1,
+        "plan_id": -1,
+        "repo_id": -1
     }
     pj_info = db.session.query(ProjectPluginRelation).join(Project).filter(
         model.ProjectPluginRelation.project_id == Project.id).filter(

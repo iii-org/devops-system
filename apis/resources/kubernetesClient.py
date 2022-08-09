@@ -503,54 +503,64 @@ class ApiK8sClient:
 MAX_RETRY_APPLY_CRONJOB = 30
 
 
+def get_k8s_cronjob_name_list(api_k8s_client):
+    return [cronjob_json.metadata.name for cronjob_json in api_k8s_client.list_namespaced_cron_job("default").items]
+
+
 def apply_cronjob_yamls():
+    def remove_cronjob():
+        api_k8s_client.delete_namespaced_cron_job(cronjob_name, "default")
+        retry = 0
+        still_has_cj = True
+        while retry < MAX_RETRY_APPLY_CRONJOB and still_has_cj:
+            time.sleep(1)
+            still_has_cj = cronjob_name in get_k8s_cronjob_name_list(api_k8s_client)
+            retry += 1
+        if retry >= MAX_RETRY_APPLY_CRONJOB:
+            logger.critical(
+                f'Cannot delete existing cronjob {cronjob_name}!'
+                f' Cronjob is not applied.')
+
     api_k8s_client = ApiK8sClient()
-    for root, dirs, files in os.walk("k8s-yaml/api-init/cronjob"):
+    k8s_cronjob_name_list = get_k8s_cronjob_name_list(api_k8s_client)
+    logger.info(f"Exist cronjob list {k8s_cronjob_name_list}")
+    need_removed_cronjob_list = k8s_cronjob_name_list.copy()
+
+    # Recreate cronjob
+    for root, _, files in os.walk("k8s-yaml/api-init/cronjob"):
         for file in files:
             if file.endswith(".yaml") or file.endswith(".yml"):
                 with open(os.path.join(root, file)) as f:
                     json_file = yaml.safe_load(f)
-                    for cronjob_json in api_k8s_client.list_namespaced_cron_job(
-                            "default").items:
-                        if cronjob_json.metadata.name == json_file["metadata"][
-                                "name"]:
-                            api_k8s_client.delete_namespaced_cron_job(
-                                cronjob_json.metadata.name, "default")
-                            retry = 0
-                            while retry < MAX_RETRY_APPLY_CRONJOB:
-                                time.sleep(1)
-                                still_has_cj = False
-                                for cj in api_k8s_client.list_namespaced_cron_job(
-                                        "default").items:
-                                    if cronjob_json.metadata.name in cj.metadata.name:
-                                        still_has_cj = True
-                                if still_has_cj is False:
-                                    break
-                                retry += 1
-                            if retry >= MAX_RETRY_APPLY_CRONJOB:
-                                logger.critical(
-                                    f'Cannot delete existing cronjob {cronjob_json.metadata.name}!'
-                                    f' Cronjob is not applied.')
-                                return
-                            for j in api_k8s_client.list_namespaced_job(
-                                    "default").items:
-                                if f"{cronjob_json.metadata.name}-" in j.metadata.name:
-                                    api_k8s_client.delete_namespaced_job(
-                                        j.metadata.name, "default")
-                            for pod in api_k8s_client.list_namespaced_pod(
-                                    "default").items:
-                                if f"{cronjob_json.metadata.name}-" in pod.metadata.name:
-                                    pod = api_k8s_client.delete_namespaced_pod(
-                                        pod.metadata.name, "default")
+                    cronjob_name = json_file["metadata"]["name"]
+                    logger.info(f"Remove {cronjob_name}")
+                    
+                    if cronjob_name in k8s_cronjob_name_list:
+                        need_removed_cronjob_list.remove(cronjob_name)
+                        remove_cronjob()
+                        for j in api_k8s_client.list_namespaced_job("default").items:
+                            if f"{cronjob_name}-" in j.metadata.name:
+                                api_k8s_client.delete_namespaced_job(j.metadata.name, "default")
+                                break
+                        for pod in api_k8s_client.list_namespaced_pod("default").items:
+                            if f"{cronjob_name}-" in pod.metadata.name:
+                                pod = api_k8s_client.delete_namespaced_pod(pod.metadata.name, "default")
+                                break
                 try:
-                    k8s_utils.create_from_yaml(api_k8s_client.get_api_client(),
-                                               os.path.join(root, file))
+                    logger.info(f"Recreate {cronjob_name}")
+                    k8s_utils.create_from_yaml(api_k8s_client.get_api_client(), os.path.join(root, file))
+                    logger.info(f"Recreate {cronjob_name} done")
                 except k8s_utils.FailToCreateError as e:
                     print('e1')
                     info = json.loads(e.api_exceptions[0].body)
                     print(f'e2 {info}')
                     if info.get('reason').lower() != 'alreadyexists':
                         raise e
+
+    logger.info(f"Need remove cronjob list {need_removed_cronjob_list}")
+    # Remove extra cronjob
+    for cronjob_name in need_removed_cronjob_list:
+        remove_cronjob()
 
 
 def list_service_all_namespaces():

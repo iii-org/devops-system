@@ -2,6 +2,8 @@ import json
 import shutil
 import subprocess
 import sys
+import threading
+from time import sleep
 from datetime import datetime
 from pathlib import Path
 
@@ -621,8 +623,7 @@ def update_branches(stage, pipline_soft, branch, enable_key_name, exist_branches
     return had_update_branche
 
 
-def tm_update_pipline_branches(repository_id, data, default=True, run=False):
-    user_account = get_jwt_identity()["user_account"]
+def tm_update_pipline_branches(user_account, repository_id, data, default=True, run=False):
     if run is None:
         run = False
     pj = gl.projects.get(repository_id)
@@ -633,7 +634,8 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
     # Update default branch's pipeline
     default_branch  = pj.default_branch
     had_update_branche = False
-    need_running_branches = list(data.keys())
+    all_branches = [br.name for br in pj.branches.list(all=True)]
+    need_running_branches = [i for i in list(data.keys()) if i in all_branches]
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
     if pipe_yaml_file_name is None:
         return   
@@ -660,29 +662,37 @@ def tm_update_pipline_branches(repository_id, data, default=True, run=False):
             author_name='iiidevops',
             commit_message=f"{user_account} 編輯 {default_branch} 分支 .rancher-pipeline.yaml")
         if not run or default or (run and default_branch not in need_running_branches):
-            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
+            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=default_branch)
 
-    # sync default branch pipeline.yml to other branches
-    for br in pj.branches.list(all=True):
-        br_name = br.name
-        if br_name != default_branch:
-            f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br.name)
-            pipe_json = yaml.safe_load(f.decode())
-            had_update_branche = pipe_json != default_pipe_json
-            pipe_json = default_pipe_json
-            if had_update_branche:
-                if not run or (run and br_name not in need_running_branches):
-                    next_run = pipeline.get_pipeline_next_run(repository_id)
-                    print(f"next_run: {next_run}")
-                f.content = yaml.dump(pipe_json, sort_keys=False)
-                f.save(
-                    branch=br_name,
-                    author_email='system@iiidevops.org.tw',
-                    author_name='iiidevops',
-                    commit_message=f"{user_account} 編輯 {br_name} 分支 .rancher-pipeline.yaml")
-                if not run or (run and br_name not in need_running_branches):
-                    pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br.name)
+    # Sync default branch pipeline.yml to other branches, seperate to two parts to avoid not delete all branches
+    for br_name in need_running_branches:
+        sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name, default_pipe_json, not_run=not run)
 
+    # Rest of branches
+    rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches+[default_branch]])
+    for br_name in rest_branch_names:
+        sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name, default_pipe_json)
+
+
+def sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name, updated_pipe_json, not_run=True):
+    f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br_name)
+    pipe_json = yaml.safe_load(f.decode())
+    had_update_branche = pipe_json != updated_pipe_json
+    pipe_json = updated_pipe_json
+    if had_update_branche:
+        if not_run:
+            next_run = pipeline.get_pipeline_next_run(repository_id)
+            print(f"next_run: {next_run}")
+        f.content = yaml.dump(pipe_json, sort_keys=False)
+        f.save(
+            branch=br_name,
+            author_email='system@iiidevops.org.tw',
+            author_name='iiidevops',
+            commit_message=f"{user_account} 編輯 {br_name} 分支 .rancher-pipeline.yaml")
+        if not_run:
+            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br_name)
+            print(f"stop_and_delete: {next_run}")
+            
 
 def initial_rancher_pipline_info(repository_id):
     try:
@@ -904,7 +914,13 @@ class ProjectPipelineBranches(Resource):
         # Remove duplicate args
         for branch, pip_info in args["detail"].items():
             args["detail"][branch] = [dict(t) for t in {tuple(d.items()) for d in pip_info}]
-        tm_update_pipline_branches(repository_id, args["detail"], default=False, run=args["run"])
+        # thread = threading.Thread(
+        #     target=tm_update_pipline_branches,
+        #     args=(get_jwt_identity()["user_account"], repository_id, args["detail"],),
+        #     kwargs={"default":False, "run": args["run"]}
+        # )
+        # thread.start()
+        tm_update_pipline_branches(get_jwt_identity()["user_account"], repository_id, args["detail"], default=False, run=args["run"])
         return util.success()
 
 
@@ -921,5 +937,5 @@ class ProjectPipelineDefaultBranch(Resource):
 
         # Remove duplicate args
         args["detail"]["stages"] = [dict(t) for t in {tuple(d.items()) for d in args["detail"]["stages"]}]
-        tm_update_pipline_branches(repository_id, args["detail"])
+        tm_update_pipline_branches(get_jwt_identity()["user_account"], repository_id, args["detail"])
         return util.success()

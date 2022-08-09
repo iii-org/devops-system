@@ -278,6 +278,7 @@ class Checkmarx(db.Model):
     finished_at = Column(DateTime)
     # True only if report is available
     finished = Column(Boolean)
+    logs = Column(String)
 
 
 class Flows(db.Model):
@@ -1001,3 +1002,30 @@ class PipelineUpdateVersion(db.Model):
     status = Column(String)
     message = Column(String)
     updated_at = Column(DateTime)
+
+
+class Sbom(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    branch = Column(String)
+    commit = Column(String)
+    scan_status = Column(String)
+    package_nums = Column(Integer)
+    scan_overview = Column(JSON)
+    created_at = Column(DateTime)
+    finished_at = Column(DateTime)
+    finished = Column(Boolean)
+    logs = Column(String)
+
+    def __repr__(self):
+        fields = {}
+        for field in [x for x in dir(self) if
+                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
+            data = self.__getattribute__(field)
+            try:
+                # this will fail on unencodable values, like other classes
+                json.dumps(data)
+                fields[field] = data
+            except TypeError:
+                fields[field] = str(data)
+        return json.dumps(fields)

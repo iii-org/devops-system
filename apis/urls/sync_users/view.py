@@ -8,10 +8,9 @@ from resources import sync_user
 from . import route_model
 
 
-# class SyncProject(Resource):
-#     def get(self):
-#         sync_user.main_process()
-#         return util.success()
+class SyncUsers(Resource):
+    def get(self):
+        return util.success(sync_user.recreate_users())
 
 
 @ doc(tags=['System'], description="Check third part user is exist")

@@ -4,7 +4,6 @@ from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required, get_jwt_identity
 import util
-from threading import Thread
 from urls.tag import router_model
 from resources.tag import get_user_project_ids, get_tags_for_dict, get_tags, check_tags, create_tags, get_tag, update_tag, delete_tag
 
