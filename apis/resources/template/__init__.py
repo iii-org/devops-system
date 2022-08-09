@@ -692,7 +692,7 @@ def sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name, upd
         if not_run:
             pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br_name)
             print(f"stop_and_delete: {next_run}")
-            sleep(5)
+            
 
 def initial_rancher_pipline_info(repository_id):
     try:
@@ -914,13 +914,13 @@ class ProjectPipelineBranches(Resource):
         # Remove duplicate args
         for branch, pip_info in args["detail"].items():
             args["detail"][branch] = [dict(t) for t in {tuple(d.items()) for d in pip_info}]
-        thread = threading.Thread(
-            target=tm_update_pipline_branches,
-            args=(get_jwt_identity()["user_account"], repository_id, args["detail"],),
-            kwargs={"default":False, "run": args["run"]}
-        )
-        thread.start()
-        # tm_update_pipline_branches(repository_id, args["detail"], "default"=False, run=args["run"])
+        # thread = threading.Thread(
+        #     target=tm_update_pipline_branches,
+        #     args=(get_jwt_identity()["user_account"], repository_id, args["detail"],),
+        #     kwargs={"default":False, "run": args["run"]}
+        # )
+        # thread.start()
+        tm_update_pipline_branches(get_jwt_identity()["user_account"], repository_id, args["detail"], default=False, run=args["run"])
         return util.success()
 
 
