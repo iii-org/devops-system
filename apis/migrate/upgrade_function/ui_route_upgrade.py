@@ -131,6 +131,12 @@ def delete_ui_route_object(name, role):
     route_row = UIRouteData.query.filter_by(role=role, name=name).first()
     old_brother_id = route_row.old_brother
     young_brother = get_young_brother_id(role, name)
+    # check ui_route has children or not, if exists, then delete it.
+    chile_route_rows = UIRouteData.query.filter_by(role=role, parent=route_row.id).all()
+    if len(chile_route_rows) > 0:
+        for chile_route_row in chile_route_rows:
+            delete_ui_route_object(chile_route_row.name, role)
+
     db.session.delete(route_row)
     db.session.commit()
     if old_brother_id == 0:
