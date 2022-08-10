@@ -2,7 +2,8 @@ from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 from flask_jwt_extended import jwt_required
 import util
-from model import Sbom, db
+from model import Sbom, db, Project
+import tarfile
 from . import router_model
 from resources.project import get_pj_id_by_name
 import json
@@ -14,6 +15,11 @@ def nexus_sbom(sbom_row):
     sbom = json.loads(str(sbom_row))
     sbom["commit_url"] = commit_id_to_url(sbom["project_id"], sbom["commit"])
     return sbom
+
+
+def decompress_tarfile(file_path, decompress_path):
+    tar = tarfile.open(file_path, 'r:tar')
+    tar.extractall(path=decompress_path)
 
 
 def get_sboms(project_id):
@@ -36,9 +42,18 @@ def update_sboms(sbom_id, kwargs):
 
 
 def parse_sbom_file(sbom_id):
+    # Decompress tar
     sbom = Sbom.query.filter_by(id=sbom_id).first()
-    commit, project_id = sbom.commit, sbom.project_id
+    commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
+    project_name = Project.query.get(project_id).name
+    folder_name = f'{commit}-{sequence}'
+    file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}/"
+    decompress_tarfile(f"{file_path}/grype.sft.tar", file_path)
+
+    # Get package_num
     
+
+    # Get scan_overview
 
 
 
@@ -76,7 +91,7 @@ class SbomPatchV2(MethodResource):
 @doc(tags=['Sbom'], description="Parsing Sbom ")
 # @marshal_with(util.CommonResponse)
 class SbomParseV2(MethodResource):
-    @jwt_required
+    @jwt_required()
     def patch(self, sbom_id):
         return util.success(parse_sbom_file(sbom_id))
 
