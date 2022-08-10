@@ -134,7 +134,8 @@ def delete_ui_route_object(name, role):
     # check ui_route has children or not, if exists, then delete it.
     chile_route_rows = UIRouteData.query.filter_by(role=role, parent=route_row.id).all()
     if len(chile_route_rows) > 0:
-        delete_ui_route_object(chile_route_rows.name, role)
+        for chile_route_row in chile_route_rows:
+            delete_ui_route_object(chile_route_row.name, role)
 
     db.session.delete(route_row)
     db.session.commit()
