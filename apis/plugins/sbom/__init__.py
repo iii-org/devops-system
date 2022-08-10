@@ -11,3 +11,6 @@ def router(api, add_resource):
     # runner API
     api.add_resource(sbom_main.SbomPostV2, '/v2/sbom')
     api.add_resource(sbom_main.SbomPatchV2, '/v2/sbom/<int:sbom_id>')
+    
+    # Cronjob
+    api.add_resource(sbom_main.SbomRemoveExtra, '/v2/sbom/remove')

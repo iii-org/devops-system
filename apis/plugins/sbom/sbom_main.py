@@ -1,3 +1,4 @@
+from resources import logger
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 from flask_jwt_extended import jwt_required
@@ -11,6 +12,7 @@ from datetime import datetime
 from resources.gitlab import commit_id_to_url
 import pandas as pd
 import os
+import shutil
 
 
 def nexus_sbom(sbom_row):
@@ -30,8 +32,11 @@ def get_sboms(project_id):
 
 
 def create_sbom(kwargs):
-    kwargs["project_id"] = get_pj_id_by_name(kwargs.pop("project_name"))["id"]
-    kwargs["created_at"] = datetime.utcnow()
+    kwargs.update({
+        "project_id": get_pj_id_by_name(kwargs.pop("project_name"))["id"],
+        "created_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "scan_status": "Running"
+    })
     row = Sbom(**kwargs)
     db.session.add(row)
     db.session.commit()
@@ -49,9 +54,9 @@ def parse_sbom_file(sbom_id):
     commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
     project_name = Project.query.get(project_id).name
     folder_name = f'{commit}-{sequence}'
-    if os.path.isdir(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/"):
-        file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}/"
-        decompress_tarfile(f"{file_path}/sbom.tar", file_path)
+    if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/sbom.tar"):
+        file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
+        decompress_tarfile(f"{file_path}/sbom.tar", f"{file_path}/")
         update_dict = {"finished": True, "scan_status": "Success",
                        "finished_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
         update_dict.update(package_num(file_path))
@@ -82,6 +87,23 @@ def scan_overview(file_path=None):
     return {"scan_overview": result_dict}
 
 
+def remove_parsing_data():
+    for super_path in [pj[0] for pj in os.walk("./devops-data/project-data") if pj[0].endswith("pipeline")]:
+        for dirpath, dirnames, _ in os.walk(super_path):
+            dirname_num = len(dirnames)
+            if dirname_num > 5:
+                dirnames = sorted(
+                    {int(dirname.split("-")[1]): dirname for dirname in dirnames}.items(),
+                    key=lambda k: k[0],
+                    reverse=True
+                )
+                while dirname_num > 5:
+                    folder_name = dirnames.pop()[1]
+                    path = os.path.join(dirpath, folder_name)
+                    shutil.rmtree(path)
+                    logger.logger.info(f"Remove {path} (sbom files)")
+                    dirname_num -= 1
+            
 
 # --------------------- Resources ---------------------
 
@@ -112,12 +134,18 @@ class SbomPatchV2(MethodResource):
         return util.success(update_sboms(sbom_id, kwargs))    
 
 
-@doc(tags=['Sbom'], description="Parsing Sbom ")
-# @marshal_with(util.CommonResponse)
+@doc(tags=['Sbom'], description="Parsing Sbom")
+@marshal_with(util.CommonResponse)
 class SbomParseV2(MethodResource):
     @jwt_required()
     def patch(self, sbom_id):
         return util.success(parse_sbom_file(sbom_id))
 
 
-
+# Cronjob
+@doc(tags=['Sbom'], description="Remove more more than 5 commits")
+@marshal_with(util.CommonResponse)
+class SbomRemoveExtra(MethodResource):
+    @jwt_required()
+    def patch(self):
+        return util.success(remove_parsing_data())
