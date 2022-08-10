@@ -9,6 +9,8 @@ from resources.project import get_pj_id_by_name
 import json
 from datetime import datetime
 from resources.gitlab import commit_id_to_url
+import pandas as pd
+import os
 
 
 def nexus_sbom(sbom_row):
@@ -47,15 +49,37 @@ def parse_sbom_file(sbom_id):
     commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
     project_name = Project.query.get(project_id).name
     folder_name = f'{commit}-{sequence}'
-    file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}/"
-    decompress_tarfile(f"{file_path}/grype.sft.tar", file_path)
+    if os.path.isdir(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/"):
+        file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}/"
+        decompress_tarfile(f"{file_path}/sbom.tar", file_path)
+        update_dict = {"finished": True, "scan_status": "Success",
+                       "finished_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
+        update_dict.update(package_num(file_path))
+        update_dict.update(scan_overview(file_path))
+        update_sboms(sbom_id, update_dict)
+    else:
+        update_dict = {"finished": True, "scan_status": "Fail", "logs": "didn't find the file",
+                       "finished_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
+        update_sboms(sbom_id, update_dict)
 
-    # Get package_num
-    
 
-    # Get scan_overview
+# Get package_num
+def package_num(file_path=None):
+    with open(f'{file_path}/sbom.syft.json') as json_data:
+        data = json.load(json_data)
+    df = pd.DataFrame(data['artifacts'])
+    return {"package_nums": df.shape[0]}
 
 
+# Get scan_overview
+def scan_overview(file_path=None):
+    with open(f'{file_path}/grype.syft.json') as json_data:
+        data = json.load(json_data)
+    race_sr = pd.Series(
+        [data['matches'][index]['vulnerability']['severity'] for index, value in enumerate(data['matches'])])
+    result_dict = race_sr.value_counts().to_dict()
+    result_dict['total'] = race_sr.shape[0]
+    return {"scan_overview": result_dict}
 
 
 
