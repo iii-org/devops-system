@@ -1122,11 +1122,10 @@ def update_kubernetes_namespace_quota(project_id, resource):
 def get_kubernetes_plugin_pods(project_id, plugin_name):
     pods, _ = get_kubernetes_namespace_pods(project_id)
     ret = {}
-
     pods_data = [{
         "container_name": pod["containers"][0]["name"],
         "pod_name": pod["name"],
-        "time": pod["containers"][0]["time"]
+        "time": pod["created_time"]
     } for pod in pods["data"]
         if len(pod["containers"]) > 0 and pod["containers"][0]["name"].startswith(plugin_name)
     ]
