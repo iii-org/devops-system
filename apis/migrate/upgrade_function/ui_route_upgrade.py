@@ -83,6 +83,10 @@ def get_young_brother_id(role, name):
 
 
 def create_ui_route_object(name, role, ui_route_json, parent_name, old_brother_name):
+    # check existing route
+    row = UIRouteData.query.filter_by(role=role, name=name).first()
+    if row:
+        return
     # create a new route ob
     parent_id = get_ui_route_id(role, parent_name)
     old_brother_id = get_ui_route_id(role, old_brother_name)
