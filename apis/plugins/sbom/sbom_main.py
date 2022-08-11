@@ -105,6 +105,21 @@ def remove_parsing_data():
                     dirname_num -= 1
             
 
+def risk_detail(file_path=None):
+    with open(f'{file_path}/grype.syft.json') as json_data:
+        data = json.load(json_data)
+    df_vulnerability_info = pd.DataFrame(
+        [data['matches'][index]['vulnerability'] for index, value in enumerate(data['matches'])])[['id', 'severity', 'description']]
+    df_artifact_info = pd.DataFrame(
+        [data['matches'][index]['artifact'] for index, value in enumerate(data['matches'])])[['name', 'version']]
+    df_fix_versions = pd.DataFrame(
+        [data['matches'][index]['vulnerability']['fix']['versions'] for index, value in enumerate(data['matches'])])
+    if df_fix_versions.isnull().shape[0] == df_fix_versions.shape[0]:
+        df_result = df_vulnerability_info.join(df_artifact_info)
+        df_result['versions'] = ""
+    else:
+        df_result = df_vulnerability_info.join(df_artifact_info).join(df_fix_versions)
+    return df_result.T.to_dict()
 # --------------------- Resources ---------------------
 
 @doc(tags=['Sbom'], description="Get all project's scan")
@@ -149,3 +164,17 @@ class SbomRemoveExtra(MethodResource):
     @jwt_required()
     def patch(self):
         return util.success(remove_parsing_data())
+
+
+@doc(tags=['Sbom'], description="Get risk detail")
+# @marshal_with(util.CommonResponse)
+class SbomRiskDetail(MethodResource):
+    @jwt_required()
+    def get(self, sbom_id):
+        sbom = Sbom.query.filter_by(id=sbom_id).first()
+        commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
+        project_name = Project.query.get(project_id).name
+        folder_name = f'{commit}-{sequence}'
+        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
+            file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
+            return risk_detail(file_path)

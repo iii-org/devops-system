@@ -14,3 +14,5 @@ def router(api, add_resource):
     
     # Cronjob
     api.add_resource(sbom_main.SbomRemoveExtra, '/v2/sbom/remove')
+
+    api.add_resource(sbom_main.SbomRiskDetail, '/v2/sbom/<int:sbom_id>/riskdetail')
