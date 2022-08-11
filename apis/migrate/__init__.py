@@ -243,8 +243,8 @@ def upgrade(version):
         remove_kubernetes_ui_route_resources()
     elif version == '1.20.0.5':
         rename_ui_route_system_resource()
-    elif version == '1.20.0.6':
-        ui_route_upgrade_history.add_harbor_ui_route_children()
+    # elif version == '1.20.0.6':
+    #    ui_route_upgrade_history.add_harbor_ui_route_children()
 
 
 def rename_ui_route_system_resource():
