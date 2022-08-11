@@ -83,6 +83,10 @@ def get_young_brother_id(role, name):
 
 
 def create_ui_route_object(name, role, ui_route_json, parent_name, old_brother_name):
+    # check existing route
+    row = UIRouteData.query.filter_by(role=role, name=name).first()
+    if row:
+        return
     # create a new route ob
     parent_id = get_ui_route_id(role, parent_name)
     old_brother_id = get_ui_route_id(role, old_brother_name)
@@ -153,3 +157,9 @@ def delete_ui_route_object(name, role):
         young_brother.old_brother = old_brother_id
         young_brother.updated_at = datetime.utcnow()
         db.session.commit()
+
+
+def rename_ui_route(old_name, new_name, role):
+    route_row = UIRouteData.query.filter_by(role=role, name=old_name).first()
+    route_row.name = new_name
+    db.session.commit()
