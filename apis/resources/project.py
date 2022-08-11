@@ -1125,9 +1125,10 @@ def get_kubernetes_plugin_pods(project_id, plugin_name):
     pods_data = [{
         "container_name": pod["containers"][0]["name"],
         "pod_name": pod["name"],
-        "time": pod["created_time"]
+        "time": pod["containers"][0]["time"]
     } for pod in pods["data"]
-        if len(pod["containers"]) > 0 and pod["containers"][0]["name"].startswith(plugin_name)
+        if len(pod["containers"]) > 0 and pod["containers"][0]["name"].startswith(plugin_name) and \
+            pod["containers"][0]["time"] is not None
     ]
 
     ret["has_pod"] = len(pods_data) > 0
