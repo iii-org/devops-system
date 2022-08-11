@@ -5,6 +5,7 @@ import util
 import uuid
 from migrate.upgrade_function.ui_route_upgrade import ui_route_first_version, delete_ui_route_object, \
     create_ui_route_object, rename_ui_route
+from migrate.upgrade_function import ui_route_upgrade_history
 from migrate.upgrade_function.upload_file_types import upload_file_types
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware, \
     DefaultAlertDays, TraceOrder, TraceResult, Application, IssueExtensions, Lock, RedmineProject, ServerType, SystemParameter, \
@@ -45,7 +46,7 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.17.2.2', '1.17.2.3', '1.17.2.4', '1.17.2.5', '1.17.2.6', '1.17.2.7', '1.17.2.8', '1.17.2.9', '1.17.2.10', '1.17.2.11',
             '1.17.2.12', '1.17.2.13', '1.17.2.14', '1.17.2.15', '1.17.2.16', '1.17.2.17', '1.17.2.18', '1.18.1.0', '1.19.0.1', '1.19.0.2', '1.19.0.3',
             '1.19.0.4', '1.19.0.5', '1.19.0.6', '1.19.0.7', '1.19.0.8', '1.19.0.9', '1.19.1.0', '1.20.0.1', '1.20.0.2', '1.20.0.3',
-            '1.20.0.4', '1.20.0.5']
+            '1.20.0.4', '1.20.0.5', '1.20.0.6']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -242,6 +243,8 @@ def upgrade(version):
         remove_kubernetes_ui_route_resources()
     elif version == '1.20.0.5':
         rename_ui_route_system_resource()
+    elif version == '1.20.0.6':
+        ui_route_upgrade_history.add_harbor_ui_route_children()
 
 
 def rename_ui_route_system_resource():
