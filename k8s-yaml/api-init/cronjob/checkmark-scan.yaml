@@ -1,12 +1,12 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: remove-k8s-pods-data
+  name: checkmark-scan
 spec:
   concurrencyPolicy: Forbid
-  successfulJobsHistoryLimit: 0
+  successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
-  schedule: "0 2 * * *"
+  schedule: "30 17 * * *"
   jobTemplate:
     spec:
       backoffLimit: 0
@@ -19,5 +19,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request DELETE 'http://devopsapi-service:10009/monitoring/k8s/collect_pod_restart_times_by_hour'
+            - curl --location --request GET 'http://devopsapi-service:10009/checkmarx/cronjob_scan'
           restartPolicy: OnFailure

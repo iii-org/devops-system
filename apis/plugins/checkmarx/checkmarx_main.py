@@ -17,6 +17,8 @@ from model import db
 from plugins import get_plugin_config
 from resources import apiError, gitlab
 from resources.apiError import DevOpsError
+from datetime import date
+from resources import logger
 
 
 def cm_get_config(key):
@@ -398,8 +400,8 @@ class RegisterCheckmarxReport(Resource):
 
 class GetCheckmarxReportStatus(Resource):
     @jwt_required()
-    def get(self, report_id):
-        status_id, value = checkmarx.get_report_status(report_id)
+    def get(self, scan_id):
+        status_id, value = checkmarx.get_report_status(scan_id)
         return util.success({'id': status_id, 'value': value})
 
 
@@ -419,3 +421,40 @@ class CancelCheckmarxScan(Resource):
         status_code = checkmarx.cancel_scan(scan_id)
         status = "success" if status_code == 200 else "failure"
         return {"status": status, "status_code": status_code}
+
+
+def is_json(string):
+    try:
+        json.loads(string)
+    except ValueError:
+        return False
+    return True
+
+
+def row_to_dict(row):
+    ret = {}
+    if row is None:
+        return row
+    for key in type(row).__table__.columns.keys():
+        value = getattr(row, key)
+        if type(value) is datetime or type(value) is date:
+            ret[key] = str(value)
+        elif isinstance(value, str) and is_json(value):
+            ret[key] = json.loads(value)
+        else:
+            ret[key] = value
+    return ret
+
+
+class CronjobScan(Resource):
+    def get(self):
+        query = Model.query.filter(Model.report_id != -1).filter(Model.stats == None).all()
+        id_list = [row_to_dict(doc)["scan_id"] for doc in query]
+        for id in id_list:
+            try:
+                GetCheckmarxReportStatus().get(id)
+                time.sleep(3)
+            except Exception as e:
+                logger.logger.info(str(e))
+        return util.success()
+
