@@ -1108,6 +1108,12 @@ def get_kubernetes_namespace_quota(project_id):
         secrets = kubernetesClient.list_namespace_secrets(project_name)
         project_quota["quota"]["secrets"] = None
         project_quota["used"]["secrets"] = str(len(secrets))
+    for item in ["configmaps", "cpu", "memory", "persistentvolumeclaims", "pods", "services.nodeports"]:
+        if item not in project_quota["quota"]:
+            project_quota["quota"][item] = "0"
+        if item not in project_quota["used"]:
+            project_quota["used"][item] = "0"
+
     return util.success(project_quota)
 
 
