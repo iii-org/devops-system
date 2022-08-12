@@ -59,3 +59,7 @@ class SbomGetRes(CommonBasicResponse):
 class SbomPostRes(Schema):
     id = fields.Int(required=True)
 
+
+class SbomListResponse(Schema):
+    per_page = fields.Int(required=False, description='Show how many items at one page', example="10")
+    page = fields.Int(required=False, description='Page number', example="1")

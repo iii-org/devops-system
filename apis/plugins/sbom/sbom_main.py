@@ -8,11 +8,34 @@ import tarfile
 from . import router_model
 from resources.project import get_pj_id_by_name
 import json
-from datetime import datetime
+from datetime import datetime, date
 from resources.gitlab import commit_id_to_url
 import pandas as pd
 import os
 import shutil
+
+
+def is_json(string):
+    try:
+        json.loads(string)
+    except ValueError:
+        return False
+    return True
+
+
+def row_to_dict(row):
+    ret = {}
+    if row is None:
+        return row
+    for key in type(row).__table__.columns.keys():
+        value = getattr(row, key)
+        if type(value) is datetime or type(value) is date:
+            ret[key] = str(value)
+        elif isinstance(value, str) and is_json(value):
+            ret[key] = json.loads(value)
+        else:
+            ret[key] = value
+    return ret
 
 
 def nexus_sbom(sbom_row):
@@ -178,3 +201,36 @@ class SbomRiskDetail(MethodResource):
         if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
             return risk_detail(file_path)
+
+
+@doc(tags=['Sbom'], description="Get Sbon List")
+@use_kwargs(router_model.SbomListResponse, location="json")
+class SbomList(MethodResource):
+    @jwt_required()
+    def get(self, project_id, **kwargs):
+        print(kwargs)
+        page_dict = {}
+        query = Sbom.query.filter_by(project_id=project_id).order_by(Sbom.created_at.desc())
+        if 'per_page' in kwargs:
+            per_page = kwargs['per_page']
+        if 'page' in kwargs:
+            paginate_query = query.paginate(
+                page=kwargs['page'],
+                per_page=per_page,
+                error_out=False
+            )
+            page_dict = {
+                'current': paginate_query.page,
+                'prev': paginate_query.prev_num,
+                'next': paginate_query.next_num,
+                'pages': paginate_query.pages,
+                'per_page': paginate_query.per_page,
+                'total': paginate_query.total
+            }
+            rows = paginate_query.items
+        else:
+            rows = query.all()
+        out_dict = {"Sbom_list": [row_to_dict(row) for row in rows], "page": page_dict}
+        if page_dict:
+            out_dict['page'] = page_dict
+        return util.success(out_dict)
