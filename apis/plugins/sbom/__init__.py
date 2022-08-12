@@ -18,3 +18,5 @@ def router(api, add_resource):
     api.add_resource(sbom_main.SbomRiskDetail, '/v2/sbom/<int:sbom_id>/riskdetail')
 
     api.add_resource(sbom_main.SbomList, '/v2/sbom/<int:project_id>/list')
+
+    api.add_resource(sbom_main.SbomGetRiskOverviewV2, '/v2/sbom/<int:sbom_id>/riskoverview')

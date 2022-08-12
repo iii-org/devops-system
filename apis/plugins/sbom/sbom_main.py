@@ -200,7 +200,7 @@ class SbomRiskDetail(MethodResource):
         folder_name = f'{commit}-{sequence}'
         if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-            return risk_detail(file_path)
+            return util.success([value for key, value in risk_detail(file_path).items()])
 
 
 @doc(tags=['Sbom'], description="Get Sbon List")
@@ -234,3 +234,17 @@ class SbomList(MethodResource):
         if page_dict:
             out_dict['page'] = page_dict
         return util.success(out_dict)
+
+
+@doc(tags=['Sbom'], description="Get risk overview")
+# @marshal_with(router_model.SbomGetRes)
+class SbomGetRiskOverviewV2(MethodResource):
+    @jwt_required()
+    def get(self, sbom_id):
+        sbom = Sbom.query.filter_by(id=sbom_id).first()
+        commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
+        project_name = Project.query.get(project_id).name
+        folder_name = f'{commit}-{sequence}'
+        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
+            file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
+            return util.success(scan_overview(file_path)["scan_overview"])
