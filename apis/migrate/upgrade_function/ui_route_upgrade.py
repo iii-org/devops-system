@@ -161,5 +161,9 @@ def delete_ui_route_object(name, role):
 
 def rename_ui_route(old_name, new_name, role):
     route_row = UIRouteData.query.filter_by(role=role, name=old_name).first()
-    route_row.name = new_name
-    db.session.commit()
+    if route_row:
+        route_row.name = new_name
+        route_dict = dict(route_row.ui_route)
+        route_dict['name'] = new_name
+        route_row.ui_route = route_dict
+        db.session.commit()
