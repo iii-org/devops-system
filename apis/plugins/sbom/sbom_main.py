@@ -143,6 +143,21 @@ def risk_detail(file_path=None):
     else:
         df_result = df_vulnerability_info.join(df_artifact_info).join(df_fix_versions)
     return df_result.T.to_dict()
+
+
+def get_sbom_scan_file_list(sbom_id):
+    file_list = []
+    sbom = Sbom.query.filter_by(id=sbom_id).first()
+    if sbom is not None:
+        project_name = Project.query.get(sbom.project_id).name
+        file_path = f"devops-data/project-data/{project_name}/pipeline/{sbom.commit}-{sbom.sequence}"
+        if os.path.isdir(file_path):
+            file_list = os.listdir(file_path)
+            if "sbom.tar" in file_list:
+                file_list.remove("sbom.tar")
+    return file_list
+
+
 # --------------------- Resources ---------------------
 
 @doc(tags=['Sbom'], description="Get all project's scan")
@@ -152,46 +167,9 @@ class SbomGetV2(MethodResource):
     def get(self, project_id):
         return util.success(get_sboms(project_id))
 
-
-#### Runner
-@doc(tags=['Sbom'], description="Create a Sbom scan.")
-@use_kwargs(router_model.SbomPostSchema, location="json")
-@marshal_with(router_model.SbomPostRes)
-class SbomPostV2(MethodResource):
-    @jwt_required()
-    def post(self, **kwargs):
-        return create_sbom(kwargs)
-
-
-@doc(tags=['Sbom'], description="Update a Sbom scan")
-@use_kwargs(router_model.SbomPatchSchema, location="json")
-@marshal_with(util.CommonResponse)
-class SbomPatchV2(MethodResource):
-    @jwt_required()
-    def patch(self, sbom_id, **kwargs):
-        return util.success(update_sboms(sbom_id, kwargs))    
-
-
-@doc(tags=['Sbom'], description="Parsing Sbom")
-@marshal_with(util.CommonResponse)
-class SbomParseV2(MethodResource):
-    @jwt_required()
-    def patch(self, sbom_id):
-        return util.success(parse_sbom_file(sbom_id))
-
-
-# Cronjob
-@doc(tags=['Sbom'], description="Remove more more than 5 commits")
-@marshal_with(util.CommonResponse)
-class SbomRemoveExtra(MethodResource):
-    @jwt_required()
-    def patch(self):
-        return util.success(remove_parsing_data())
-
-
 @doc(tags=['Sbom'], description="Get risk detail")
 # @marshal_with(util.CommonResponse)
-class SbomRiskDetail(MethodResource):
+class SbomRiskDetailV2(MethodResource):
     @jwt_required()
     def get(self, sbom_id):
         sbom = Sbom.query.filter_by(id=sbom_id).first()
@@ -205,10 +183,9 @@ class SbomRiskDetail(MethodResource):
 
 @doc(tags=['Sbom'], description="Get Sbon List")
 @use_kwargs(router_model.SbomListResponse, location="json")
-class SbomList(MethodResource):
+class SbomListV2(MethodResource):
     @jwt_required()
     def get(self, project_id, **kwargs):
-        print(kwargs)
         page_dict = {}
         query = Sbom.query.filter_by(project_id=project_id).order_by(Sbom.created_at.desc())
         if 'per_page' in kwargs:
@@ -248,3 +225,47 @@ class SbomGetRiskOverviewV2(MethodResource):
         if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
             return util.success(scan_overview(file_path)["scan_overview"])
+
+
+class SbomGetScanFileListV2(MethodResource):
+    @doc(tags=['Sbom'], description="Get available file list.")
+    @marshal_with(router_model.SbomGetFileList)
+    @jwt_required()
+    def get(self, sbom_id):
+        return util.success(get_sbom_scan_file_list(sbom_id))
+    
+
+#### Runner
+@doc(tags=['Sbom'], description="Create a Sbom scan.")
+@use_kwargs(router_model.SbomPostSchema, location="json")
+@marshal_with(router_model.SbomPostRes)
+class SbomPostV2(MethodResource):
+    @jwt_required()
+    def post(self, **kwargs):
+        return create_sbom(kwargs)
+
+
+@doc(tags=['Sbom'], description="Update a Sbom scan")
+@use_kwargs(router_model.SbomPatchSchema, location="json")
+@marshal_with(util.CommonResponse)
+class SbomPatchV2(MethodResource):
+    @jwt_required()
+    def patch(self, sbom_id, **kwargs):
+        return util.success(update_sboms(sbom_id, kwargs))    
+
+
+@doc(tags=['Sbom'], description="Parsing Sbom")
+@marshal_with(util.CommonResponse)
+class SbomParseV2(MethodResource):
+    @jwt_required()
+    def patch(self, sbom_id):
+        return util.success(parse_sbom_file(sbom_id))
+
+
+# Cronjob
+@doc(tags=['Sbom'], description="Remove more more than 5 commits")
+@marshal_with(util.CommonResponse)
+class SbomRemoveExtra(MethodResource):
+    @jwt_required()
+    def patch(self):
+        return util.success(remove_parsing_data())

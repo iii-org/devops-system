@@ -63,3 +63,7 @@ class SbomPostRes(Schema):
 class SbomListResponse(Schema):
     per_page = fields.Int(required=False, description='Show how many items at one page', example="10")
     page = fields.Int(required=False, description='Page number', example="1")
+
+
+class SbomGetFileList(CommonBasicResponse):
+    data = fields.List(fields.Str())
