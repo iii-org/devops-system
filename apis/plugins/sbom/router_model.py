@@ -179,3 +179,7 @@ class SbomGetRiskOverviewRes(CommonBasicResponse):
             "Unknown": 4,
             "total": 147
         }, required=True)
+
+
+class SbomDownloadReportRes(Schema):
+    file_name = fields.Str(required=True)

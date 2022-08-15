@@ -1,3 +1,4 @@
+import resources.apiError as apiError
 from resources import logger
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
@@ -13,6 +14,9 @@ from resources.gitlab import commit_id_to_url
 import pandas as pd
 import os
 import shutil
+from flask import send_file, make_response
+from os import listdir
+from resources import gitlab
 
 
 def is_json(string):
@@ -158,6 +162,16 @@ def get_sbom_scan_file_list(sbom_id):
     return file_list
 
 
+def check_folder_exist(file_name, path):
+    if file_name not in listdir(path):
+        raise apiError.DevOpsError(
+            404, 'The file is not found in provided path.',
+            apiError.file_not_found(file_name, path))
+
+
+def download_report_file(file_path, file_name):
+    check_folder_exist(file_name, file_path)
+    return send_file(f"../{file_path}/{file_name}")
 # --------------------- Resources ---------------------
 
 @doc(tags=['Sbom'], description="Get all project's scan")
@@ -167,8 +181,9 @@ class SbomGetV2(MethodResource):
     def get(self, project_id):
         return util.success(get_sboms(project_id))
 
+
 @doc(tags=['Sbom'], description="Get risk detail")
-# @marshal_with(util.CommonResponse)
+@marshal_with(router_model.SbomGetRiskDetailRes)
 class SbomRiskDetailV2(MethodResource):
     @jwt_required()
     def get(self, sbom_id):
@@ -179,38 +194,6 @@ class SbomRiskDetailV2(MethodResource):
         if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
             return util.success([value for key, value in risk_detail(file_path).items()])
-
-
-@doc(tags=['Sbom'], description="Get Sbon List")
-@use_kwargs(router_model.SbomListResponse, location="json")
-class SbomListV2(MethodResource):
-    @jwt_required()
-    def get(self, project_id, **kwargs):
-        page_dict = {}
-        query = Sbom.query.filter_by(project_id=project_id).order_by(Sbom.created_at.desc())
-        if 'per_page' in kwargs:
-            per_page = kwargs['per_page']
-        if 'page' in kwargs:
-            paginate_query = query.paginate(
-                page=kwargs['page'],
-                per_page=per_page,
-                error_out=False
-            )
-            page_dict = {
-                'current': paginate_query.page,
-                'prev': paginate_query.prev_num,
-                'next': paginate_query.next_num,
-                'pages': paginate_query.pages,
-                'per_page': paginate_query.per_page,
-                'total': paginate_query.total
-            }
-            rows = paginate_query.items
-        else:
-            rows = query.all()
-        out_dict = {"Sbom_list": [row_to_dict(row) for row in rows], "page": page_dict}
-        if page_dict:
-            out_dict['page'] = page_dict
-        return util.success(out_dict)
 
 
 @doc(tags=['Sbom'], description="Get risk overview")
@@ -262,28 +245,12 @@ class SbomParseV2(MethodResource):
         return util.success(parse_sbom_file(sbom_id))
 
 
-@doc(tags=['Sbom'], description="Get risk detail")
-@marshal_with(router_model.SbomGetRiskDetailRes)
-@use_kwargs(router_model.SbomGetSbomID, location="json")
-class SbomRiskDetail(MethodResource):
-    @jwt_required()
-    def get(self, sbom_id):
-        sbom = Sbom.query.filter_by(id=sbom_id).first()
-        commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
-        project_name = Project.query.get(project_id).name
-        folder_name = f'{commit}-{sequence}'
-        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
-            file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-            return util.success([value for key, value in risk_detail(file_path).items()])
-
-
 @doc(tags=['Sbom'], description="Get Sbon List")
 @marshal_with(router_model.SbomGetSbonListRes)
-@use_kwargs(router_model.SbomListResponse, location="json")
-class SbomList(MethodResource):
+@use_kwargs(router_model.SbomListResponse, location="query")
+class SbomListV2(MethodResource):
     @jwt_required()
     def get(self, project_id, **kwargs):
-        print(kwargs)
         page_dict = {}
         query = Sbom.query.filter_by(project_id=project_id).order_by(Sbom.created_at.desc())
         if 'per_page' in kwargs:
@@ -305,7 +272,12 @@ class SbomList(MethodResource):
             rows = paginate_query.items
         else:
             rows = query.all()
-        out_dict = {"Sbom_list": [row_to_dict(row) for row in rows], "page": page_dict}
+        sbom_list = []
+        for row in rows:
+            row = row_to_dict(row)
+            row["commit"] = gitlab.commit_id_to_url(project_id, row["commit"])
+            sbom_list.append(row)
+        out_dict = {"Sbom_list": sbom_list, "page": page_dict}
         if page_dict:
             out_dict['page'] = page_dict
         return util.success(out_dict)
@@ -313,7 +285,6 @@ class SbomList(MethodResource):
 
 @doc(tags=['Sbom'], description="Get risk overview")
 @marshal_with(router_model.SbomGetRiskOverviewRes)
-@use_kwargs(router_model.SbomGetSbomID, location="json")
 class SbomGetRiskOverviewV2(MethodResource):
     @jwt_required()
     def get(self, sbom_id):
@@ -324,6 +295,23 @@ class SbomGetRiskOverviewV2(MethodResource):
         if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
             return util.success(scan_overview(file_path)["scan_overview"])
+
+
+@doc(tags=['Sbom'], description="download report")
+@use_kwargs(router_model.SbomDownloadReportRes, location="query")
+@marshal_with(util.CommonResponse)
+class SbomDownloadReportV2(MethodResource):
+    @jwt_required()
+    def get(self, sbom_id, **kwargs):
+        sbom = Sbom.query.filter_by(id=sbom_id).first()
+        commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
+        project_name = Project.query.get(project_id).name
+        folder_name = f'{commit}-{sequence}'
+        file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
+        response = make_response(download_report_file(file_path, kwargs["file_name"]))
+        response.headers["Content-Type"] = "application/octet-stream"
+        response.headers["Content-Disposition"] = f"attachment; filename={kwargs['file_name']}"
+        return response
 
 
 # Cronjob
