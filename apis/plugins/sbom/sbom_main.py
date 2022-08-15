@@ -275,7 +275,7 @@ class SbomListV2(MethodResource):
         sbom_list = []
         for row in rows:
             row = row_to_dict(row)
-            row["commit"] = gitlab.commit_id_to_url(project_id, row["commit"])
+            row["commit_url"] = gitlab.commit_id_to_url(project_id, row["commit"])
             sbom_list.append(row)
         out_dict = {"Sbom_list": sbom_list, "page": page_dict}
         if page_dict:
