@@ -353,23 +353,13 @@ class Redmine:
             filename = file.filename
             ret.append({
                 'token': token,
-                'filename': filename
+                'filename': filename,
+                'content_type': file.content_type
             })
         '''
-        del args['upload_file']
-        if 'upload_filename' in args:
-            filename = args['upload_filename']
-            del args['upload_filename']
-        ret = {
-            'token': token,
-            'filename': filename
-        }
         if 'upload_description' in args:
             ret['description'] = args['upload_description']
             del args['upload_description']
-        if 'upload_content_type' in args:
-            ret['content_type'] = args['upload_content_type']
-            del args['upload_content_type']
         '''
         return ret
 
