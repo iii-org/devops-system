@@ -143,6 +143,21 @@ def risk_detail(file_path=None):
     else:
         df_result = df_vulnerability_info.join(df_artifact_info).join(df_fix_versions)
     return df_result.T.to_dict()
+
+
+def get_sbom_scan_file_list(sbom_id):
+    file_list = []
+    sbom = Sbom.query.filter_by(id=sbom_id).first()
+    if sbom is not None:
+        project_name = Project.query.get(sbom.project_id).name
+        file_path = f"devops-data/project-data/{project_name}/pipeline/{sbom.commit}-{sbom.sequence}"
+        if os.path.isdir(file_path):
+            file_list = os.listdir(file_path)
+            if "sbom.tar" in file_list:
+                file_list.remove("sbom.tar")
+    return file_list
+
+
 # --------------------- Resources ---------------------
 
 @doc(tags=['Sbom'], description="Get all project's scan")
@@ -152,6 +167,73 @@ class SbomGetV2(MethodResource):
     def get(self, project_id):
         return util.success(get_sboms(project_id))
 
+@doc(tags=['Sbom'], description="Get risk detail")
+# @marshal_with(util.CommonResponse)
+class SbomRiskDetailV2(MethodResource):
+    @jwt_required()
+    def get(self, sbom_id):
+        sbom = Sbom.query.filter_by(id=sbom_id).first()
+        commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
+        project_name = Project.query.get(project_id).name
+        folder_name = f'{commit}-{sequence}'
+        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
+            file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
+            return util.success([value for key, value in risk_detail(file_path).items()])
+
+
+@doc(tags=['Sbom'], description="Get Sbon List")
+@use_kwargs(router_model.SbomListResponse, location="json")
+class SbomListV2(MethodResource):
+    @jwt_required()
+    def get(self, project_id, **kwargs):
+        page_dict = {}
+        query = Sbom.query.filter_by(project_id=project_id).order_by(Sbom.created_at.desc())
+        if 'per_page' in kwargs:
+            per_page = kwargs['per_page']
+        if 'page' in kwargs:
+            paginate_query = query.paginate(
+                page=kwargs['page'],
+                per_page=per_page,
+                error_out=False
+            )
+            page_dict = {
+                'current': paginate_query.page,
+                'prev': paginate_query.prev_num,
+                'next': paginate_query.next_num,
+                'pages': paginate_query.pages,
+                'per_page': paginate_query.per_page,
+                'total': paginate_query.total
+            }
+            rows = paginate_query.items
+        else:
+            rows = query.all()
+        out_dict = {"Sbom_list": [row_to_dict(row) for row in rows], "page": page_dict}
+        if page_dict:
+            out_dict['page'] = page_dict
+        return util.success(out_dict)
+
+
+@doc(tags=['Sbom'], description="Get risk overview")
+# @marshal_with(router_model.SbomGetRes)
+class SbomGetRiskOverviewV2(MethodResource):
+    @jwt_required()
+    def get(self, sbom_id):
+        sbom = Sbom.query.filter_by(id=sbom_id).first()
+        commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
+        project_name = Project.query.get(project_id).name
+        folder_name = f'{commit}-{sequence}'
+        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
+            file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
+            return util.success(scan_overview(file_path)["scan_overview"])
+
+
+class SbomGetScanFileListV2(MethodResource):
+    @doc(tags=['Sbom'], description="Get available file list.")
+    @marshal_with(router_model.SbomGetFileList)
+    @jwt_required()
+    def get(self, sbom_id):
+        return util.success(get_sbom_scan_file_list(sbom_id))
+    
 
 #### Runner
 @doc(tags=['Sbom'], description="Create a Sbom scan.")
@@ -187,67 +269,3 @@ class SbomRemoveExtra(MethodResource):
     @jwt_required()
     def patch(self):
         return util.success(remove_parsing_data())
-
-
-@doc(tags=['Sbom'], description="Get risk detail")
-@marshal_with(router_model.SbomGetRiskDetailRes)
-@use_kwargs(router_model.SbomGetSbomID, location="json")
-class SbomRiskDetail(MethodResource):
-    @jwt_required()
-    def get(self, sbom_id):
-        sbom = Sbom.query.filter_by(id=sbom_id).first()
-        commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
-        project_name = Project.query.get(project_id).name
-        folder_name = f'{commit}-{sequence}'
-        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
-            file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-            return util.success([value for key, value in risk_detail(file_path).items()])
-
-
-@doc(tags=['Sbom'], description="Get Sbon List")
-@marshal_with(router_model.SbomGetSbonListRes)
-@use_kwargs(router_model.SbomListResponse, location="json")
-class SbomList(MethodResource):
-    @jwt_required()
-    def get(self, project_id, **kwargs):
-        print(kwargs)
-        page_dict = {}
-        query = Sbom.query.filter_by(project_id=project_id).order_by(Sbom.created_at.desc())
-        if 'per_page' in kwargs:
-            per_page = kwargs['per_page']
-        if 'page' in kwargs:
-            paginate_query = query.paginate(
-                page=kwargs['page'],
-                per_page=per_page,
-                error_out=False
-            )
-            page_dict = {
-                'current': paginate_query.page,
-                'prev': paginate_query.prev_num,
-                'next': paginate_query.next_num,
-                'pages': paginate_query.pages,
-                'per_page': paginate_query.per_page,
-                'total': paginate_query.total
-            }
-            rows = paginate_query.items
-        else:
-            rows = query.all()
-        out_dict = {"Sbom_list": [row_to_dict(row) for row in rows], "page": page_dict}
-        if page_dict:
-            out_dict['page'] = page_dict
-        return util.success(out_dict)
-
-
-@doc(tags=['Sbom'], description="Get risk overview")
-@marshal_with(router_model.SbomGetRiskOverviewRes)
-@use_kwargs(router_model.SbomGetSbomID, location="json")
-class SbomGetRiskOverviewV2(MethodResource):
-    @jwt_required()
-    def get(self, sbom_id):
-        sbom = Sbom.query.filter_by(id=sbom_id).first()
-        commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
-        project_name = Project.query.get(project_id).name
-        folder_name = f'{commit}-{sequence}'
-        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
-            file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-            return util.success(scan_overview(file_path)["scan_overview"])

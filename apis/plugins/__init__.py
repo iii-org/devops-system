@@ -11,6 +11,8 @@ from os.path import dirname, join, exists
 
 from kubernetes.client import ApiException
 
+import subprocess
+from subprocess import Popen, PIPE
 import threading
 import model
 from resources import apiError
@@ -25,7 +27,7 @@ from resources.rancher import rancher
 from resources.notification_message import close_notification_message, get_unclose_notification_message, create_notification_message
 
 SYSTEM_SECRET_PREFIX = 'system-secret-'
-
+ENTERPRISE_PLUGINS = ["sbom"]
 
 class PluginKeyStore(Enum):
     DB = 'db'  # Store in db
@@ -120,6 +122,18 @@ def get_plugin_config(plugin_name):
         ret['arguments'].append(o)
     return ret
 
+
+def validate_license_key(license_key, plugin):
+    if os.path.isfile("apis/plugins/sbom/iii-validate"):
+        session = subprocess.Popen(['apis/plugins/sbom/iii-validation', license_key], stdout=PIPE, stderr=PIPE)
+        stdout, stderr = session.communicate()
+        if not stderr:
+            stdout = stdout.decode('ascii')
+            deployment_uuid = model.NexusVersion.query.first().deployment_uuid
+            return stdout == f"{deployment_uuid}-{plugin}"
+    return False
+
+
 @record_activity(ActionType.ENABLE_PLUGIN)
 def enable_plugin_config(plugin_name):
     db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one() 
@@ -195,6 +209,10 @@ def update_plugin_config(plugin_name, args):
                 if not alive:    
                     raise DevOpsError(400, 'Plugin is not alive',
                                     error=apiError.plugin_server_not_alive(plugin_name))
+
+            # Validate enterprise plugin
+            if plugin_name in ENTERPRISE_PLUGINS and not validate_license_key(plugin_name, args.get('arguments', {}).get('license_key', '')):
+                raise apiError.LicenseKeyError("Your license_key is invalid, please contact AM for assistance.")
         else:
             # Read alert_message of plugin server is not alive then send notification.
             plugin_alive_id = plugin_alive_mapping.get(plugin_name, {}).get("alert_monitring_id")
