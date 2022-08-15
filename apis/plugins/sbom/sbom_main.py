@@ -190,7 +190,8 @@ class SbomRemoveExtra(MethodResource):
 
 
 @doc(tags=['Sbom'], description="Get risk detail")
-# @marshal_with(util.CommonResponse)
+@marshal_with(router_model.SbomGetRiskDetailRes)
+@use_kwargs(router_model.SbomGetSbomID, location="json")
 class SbomRiskDetail(MethodResource):
     @jwt_required()
     def get(self, sbom_id):
@@ -204,6 +205,7 @@ class SbomRiskDetail(MethodResource):
 
 
 @doc(tags=['Sbom'], description="Get Sbon List")
+@marshal_with(router_model.SbomGetSbonListRes)
 @use_kwargs(router_model.SbomListResponse, location="json")
 class SbomList(MethodResource):
     @jwt_required()
@@ -237,7 +239,8 @@ class SbomList(MethodResource):
 
 
 @doc(tags=['Sbom'], description="Get risk overview")
-# @marshal_with(router_model.SbomGetRes)
+@marshal_with(router_model.SbomGetRiskOverviewRes)
+@use_kwargs(router_model.SbomGetSbomID, location="json")
 class SbomGetRiskOverviewV2(MethodResource):
     @jwt_required()
     def get(self, sbom_id):
