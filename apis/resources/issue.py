@@ -937,9 +937,11 @@ def update_issue(issue_id, args, operator_id=None):
             user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
     personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
-    attachment = personal_redmine_obj.rm_upload(args)
-    if attachment is not None:
-        args['uploads'] = [attachment]
+
+    # Operating files
+    attachment_list = personal_redmine_obj.rm_upload(args)
+    if attachment_list is not None:
+        args['uploads'] = attachment_list
 
     personal_redmine_obj.rm_update_issue(issue_id, args)
 
