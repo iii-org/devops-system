@@ -262,6 +262,70 @@ class SbomParseV2(MethodResource):
         return util.success(parse_sbom_file(sbom_id))
 
 
+@doc(tags=['Sbom'], description="Get risk detail")
+@marshal_with(router_model.SbomGetRiskDetailRes)
+@use_kwargs(router_model.SbomGetSbomID, location="json")
+class SbomRiskDetail(MethodResource):
+    @jwt_required()
+    def get(self, sbom_id):
+        sbom = Sbom.query.filter_by(id=sbom_id).first()
+        commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
+        project_name = Project.query.get(project_id).name
+        folder_name = f'{commit}-{sequence}'
+        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
+            file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
+            return util.success([value for key, value in risk_detail(file_path).items()])
+
+
+@doc(tags=['Sbom'], description="Get Sbon List")
+@marshal_with(router_model.SbomGetSbonListRes)
+@use_kwargs(router_model.SbomListResponse, location="json")
+class SbomList(MethodResource):
+    @jwt_required()
+    def get(self, project_id, **kwargs):
+        print(kwargs)
+        page_dict = {}
+        query = Sbom.query.filter_by(project_id=project_id).order_by(Sbom.created_at.desc())
+        if 'per_page' in kwargs:
+            per_page = kwargs['per_page']
+        if 'page' in kwargs:
+            paginate_query = query.paginate(
+                page=kwargs['page'],
+                per_page=per_page,
+                error_out=False
+            )
+            page_dict = {
+                'current': paginate_query.page,
+                'prev': paginate_query.prev_num,
+                'next': paginate_query.next_num,
+                'pages': paginate_query.pages,
+                'per_page': paginate_query.per_page,
+                'total': paginate_query.total
+            }
+            rows = paginate_query.items
+        else:
+            rows = query.all()
+        out_dict = {"Sbom_list": [row_to_dict(row) for row in rows], "page": page_dict}
+        if page_dict:
+            out_dict['page'] = page_dict
+        return util.success(out_dict)
+
+
+@doc(tags=['Sbom'], description="Get risk overview")
+@marshal_with(router_model.SbomGetRiskOverviewRes)
+@use_kwargs(router_model.SbomGetSbomID, location="json")
+class SbomGetRiskOverviewV2(MethodResource):
+    @jwt_required()
+    def get(self, sbom_id):
+        sbom = Sbom.query.filter_by(id=sbom_id).first()
+        commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
+        project_name = Project.query.get(project_id).name
+        folder_name = f'{commit}-{sequence}'
+        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
+            file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
+            return util.success(scan_overview(file_path)["scan_overview"])
+
+
 # Cronjob
 @doc(tags=['Sbom'], description="Remove more more than 5 commits")
 @marshal_with(util.CommonResponse)
