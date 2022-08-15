@@ -776,9 +776,11 @@ def create_issue(args, operator_id):
 
     # Get Tags ID
     tags = args.pop("tags", None)
-    attachment = personal_redmine_obj.rm_upload(args)
-    if attachment is not None:
-        args['uploads'] = [attachment]
+
+    # Operating files
+    attachment_list = personal_redmine_obj.rm_upload(args)
+    if attachment_list is not None:
+        args['uploads'] = attachment_list
 
     created_issue = personal_redmine_obj.rm_create_issue(args)
     created_issue_id = created_issue["issue"]["id"]

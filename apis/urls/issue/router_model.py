@@ -11,6 +11,8 @@ from urls.route_model import BasicIsssueResponse, SingleIssueGetDataAuthorRespon
 ########## Module ##########
 class FileSchema(Schema):
     upload_file = fields.Raw(doc='upload_file', example="(binary)", validate=check_upload_type)
+    upload_files = fields.List(
+        fields.Raw(doc='upload_files', example="(binary)", validate=check_upload_type))
 
 class CommonSingleIssueSchema(Schema):
     description = fields.Str(doc='description', example="string")

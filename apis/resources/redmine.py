@@ -339,19 +339,23 @@ class Redmine:
         return self.__api_get('/projects/{0}/memberships'.format(project_id)).json()
 
     def rm_upload(self, args):
-        if 'upload_file' in args:
-            file = args['upload_file']
-            if file is None:
-                return None
-        else:
+        files = args.pop('upload_files', None) if 'upload_files' in args else None
+        if files is None:
             return None
-        headers = {'Content-Type': 'application/octet-stream'}
-        res = self.__api_post('/uploads', data=file, headers=headers)
-        if res.status_code != 201:
-            raise DevOpsError(res.status_code, "Error while uploading to redmine",
-                              error=apiError.redmine_error(res.text))
-        token = res.json().get('upload').get('token')
-        filename = file.filename
+        ret = []
+        for file in files:
+            headers = {'Content-Type': 'application/octet-stream'}
+            res = self.__api_post('/uploads', data=file, headers=headers)
+            if res.status_code != 201:
+                raise DevOpsError(res.status_code, "Error while uploading to redmine",
+                                error=apiError.redmine_error(res.text))
+            token = res.json().get('upload').get('token')
+            filename = file.filename
+            ret.append({
+                'token': token,
+                'filename': filename
+            })
+        '''
         del args['upload_file']
         if 'upload_filename' in args:
             filename = args['upload_filename']
@@ -366,6 +370,7 @@ class Redmine:
         if 'upload_content_type' in args:
             ret['content_type'] = args['upload_content_type']
             del args['upload_content_type']
+        '''
         return ret
 
     def rm_upload_to_project(self, plan_project_id, args):
