@@ -9,6 +9,7 @@ def router(api, add_resource):
     api.add_resource(sbom_main.SbomParseV2, '/v2/sbom/<int:sbom_id>/parse')
     api.add_resource(sbom_main.SbomListV2, '/v2/sbom/<int:project_id>/list')
     api.add_resource(sbom_main.SbomGetRiskOverviewV2, '/v2/sbom/<int:sbom_id>/riskoverview')
+    add_resource(sbom_main.SbomGetRiskOverviewV2, "public")
     api.add_resource(sbom_main.SbomRiskDetailV2, '/v2/sbom/<int:sbom_id>/riskdetail')
     api.add_resource(sbom_main.SbomGetScanFileListV2, '/v2/sbom/<int:sbom_id>/files')
     
@@ -24,6 +25,3 @@ def router(api, add_resource):
 
     api.add_resource(sbom_main.SbomList, '/v2/sbom/<int:project_id>/list')
     add_resource(sbom_main.SbomList, "public")
-
-    api.add_resource(sbom_main.SbomGetRiskOverviewV2, '/v2/sbom/<int:sbom_id>/riskoverview')
-    add_resource(sbom_main.SbomGetRiskOverviewV2, "public")
