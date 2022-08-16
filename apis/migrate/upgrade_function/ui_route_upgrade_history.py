@@ -1,4 +1,4 @@
-from .ui_route_upgrade import create_ui_route_object
+from .ui_route_upgrade import create_ui_route_object, put_ui_route_object, rename_ui_route
 
 artifacts_dict_dict = {
     "path": "podsLists",
@@ -220,7 +220,6 @@ service_monitoring_dict = {
     }
 }
 
-
 def add_harbor_ui_route_children():
     create_ui_route_object("PodsLists", "Project Manager", artifacts_dict_dict, "Harbors", "Artifacts")
     create_ui_route_object("PodsList", "Project Manager", pod_list_dict, "PodsLists", "")
@@ -256,3 +255,59 @@ def add_harbor_ui_route_children():
     create_ui_route_object("IngressesList", "Engineer", ingress_list_dict, "Harbors", "DeploymentList")
     create_ui_route_object("ServiceMonitoring", "Engineer", service_monitoring_dict,
                            "SystemResource", "PluginResources")
+
+def modify_test_plan_webinspect_and_add_sbom():
+    test_plan_dict = lambda role: {
+        "path": "testPlan", 
+        "name": "TestPlan", 
+        "component": "views/Test/TestPlan",
+        "meta": {
+            "roles": [role]
+        }
+    }
+    webinspect_dict = lambda role: {
+        "path": "report/:scanId", 
+        "name": "WIEReportViewer", 
+        "component": "views/Scan/WIEReportViewer", 
+        "hidden": True, 
+        "meta": {
+            "title": "WIEReportViewer", 
+            "roles": [role]
+        }
+    } 
+    sbom_dict = lambda role: {
+        "path": "sbom",
+        "name": "Sbom",
+        "component": "views/Scan/Sbom",
+        "meta": {
+            "title": 'Sbom',
+            "roles": [role] 
+        }
+    }
+
+    for role in ["Administrator", "Engineer", "QA", "Project Manager"]:
+        put_ui_route_object(
+            "TestPlans", 
+            role, 
+            test_plan_dict(role), 
+            parent_name="Test",
+            old_brother_name="TestFile"
+        )
+        rename_ui_route("TestPlans", "TestPlan", role)
+
+        put_ui_route_object(
+            "WebinspectReport", 
+            role, 
+            webinspect_dict(role), 
+            parent_name="Webinspects",
+            old_brother_name="Webinspect"
+        )
+        rename_ui_route("WebinspectReport", "WIEReportViewer", role)
+
+        create_ui_route_object(
+            "Sbom", 
+            role, 
+            sbom_dict(role), 
+            "Scan",
+            "Checkmarx"
+        )
