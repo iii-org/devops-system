@@ -262,6 +262,7 @@ def modify_test_plan_webinspect_and_add_sbom():
         "name": "TestPlan", 
         "component": "views/Test/TestPlan",
         "meta": {
+            "title": "TestPlan",
             "roles": [role]
         }
     }
@@ -284,14 +285,41 @@ def modify_test_plan_webinspect_and_add_sbom():
             "roles": [role] 
         }
     }
+    test_dict = lambda role: {
+        "path": "/test/:projectName?", 
+        "name": "Test", 
+        "component": "layout", 
+        "redirect": {
+            "name": "TestFile"
+        }, 
+        "meta": {
+            "title": "TestManagement", 
+            "icon": "el-icon-finished", 
+            "roles": [role]
+        }
+    }
+    test_dict_qa = {
+        "path": "/test/:projectName?", 
+        "name": "Test", 
+        "component": "layout", 
+        "redirect": {
+            "name": "TestFile"
+        }, 
+        "meta": {
+            "title": "TestReport", 
+            "icon": "el-icon-finished", 
+            "roles": ["QA"]
+        }
+    }
 
     for role in ["Administrator", "Engineer", "QA", "Project Manager"]:
+        old_bro = "" if role == "QA" else "TestFile"
         put_ui_route_object(
             "TestPlans", 
             role, 
             test_plan_dict(role), 
             parent_name="Test",
-            old_brother_name="TestFile"
+            old_brother_name=old_bro
         )
         rename_ui_route("TestPlans", "TestPlan", role)
 
@@ -311,3 +339,21 @@ def modify_test_plan_webinspect_and_add_sbom():
             "Scan",
             "Checkmarx"
         )
+
+    for role in ["Administrator", "Engineer", "Project Manager"]:
+        put_ui_route_object(
+            "Test", 
+            role, 
+            test_dict(role), 
+            parent_name="",
+            old_brother_name="Progress"
+        )
+    
+    put_ui_route_object(
+        "Test", 
+        "QA", 
+        test_dict_qa, 
+        parent_name="",
+        old_brother_name="Works"
+    )
+
