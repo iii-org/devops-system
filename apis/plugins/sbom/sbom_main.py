@@ -184,7 +184,7 @@ class SbomGetV2(MethodResource):
 
 
 @doc(tags=['Sbom'], description="Get risk detail")
-# @marshal_with(router_model.SbomGetRiskDetailRes)
+@marshal_with(router_model.SbomGetRiskDetailRes)
 class SbomRiskDetailV2(MethodResource):
     @jwt_required()
     def get(self, sbom_id):
@@ -195,6 +195,8 @@ class SbomRiskDetailV2(MethodResource):
         if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
             return util.success([value for key, value in risk_detail(file_path).items()])
+        else:
+            return util.success({})
 
 
 class SbomGetScanFileListV2(MethodResource):
