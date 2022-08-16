@@ -475,6 +475,13 @@ class ApiK8sClient:
                 raise e
 
     # Job
+    def read_namespaced_job(self, name, namespace):
+        try:
+            return self.batch_v1.read_namespaced_job(name, namespace)
+        except Exception as e:
+            print(e)
+
+
     def list_namespaced_job(self, namespace):
         try:
             return self.batch_v1.list_namespaced_job(namespace)

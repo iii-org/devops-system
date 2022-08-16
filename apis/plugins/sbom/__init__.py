@@ -16,6 +16,8 @@ def router(api, add_resource):
     add_resource(sbom_main.SbomGetScanFileListV2, "public")
     api.add_resource(sbom_main.SbomDownloadReportV2, '/v2/sbom/<int:sbom_id>/downloadreport')
     add_resource(sbom_main.SbomDownloadReportV2, "public")
+    api.add_resource(sbom_main.SbomCheckStatusV2, '/v2/sbom/<int:sbom_id>/status')
+    add_resource(sbom_main.SbomCheckStatusV2, "public")
     
     # runner API
     api.add_resource(sbom_main.SbomPostV2, '/v2/sbom')

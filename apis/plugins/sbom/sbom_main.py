@@ -17,6 +17,7 @@ import shutil
 from flask import send_file, make_response
 from os import listdir
 from resources import gitlab
+from resources.kubernetesClient import ApiK8sClient
 
 
 def is_json(string):
@@ -183,7 +184,7 @@ class SbomGetV2(MethodResource):
 
 
 @doc(tags=['Sbom'], description="Get risk detail")
-@marshal_with(router_model.SbomGetRiskDetailRes)
+# @marshal_with(router_model.SbomGetRiskDetailRes)
 class SbomRiskDetailV2(MethodResource):
     @jwt_required()
     def get(self, sbom_id):
@@ -194,20 +195,6 @@ class SbomRiskDetailV2(MethodResource):
         if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
             return util.success([value for key, value in risk_detail(file_path).items()])
-
-
-@doc(tags=['Sbom'], description="Get risk overview")
-# @marshal_with(router_model.SbomGetRes)
-class SbomGetRiskOverviewV2(MethodResource):
-    @jwt_required()
-    def get(self, sbom_id):
-        sbom = Sbom.query.filter_by(id=sbom_id).first()
-        commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
-        project_name = Project.query.get(project_id).name
-        folder_name = f'{commit}-{sequence}'
-        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
-            file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-            return util.success(scan_overview(file_path)["scan_overview"])
 
 
 class SbomGetScanFileListV2(MethodResource):
@@ -295,6 +282,8 @@ class SbomGetRiskOverviewV2(MethodResource):
         if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
             return util.success(scan_overview(file_path)["scan_overview"])
+        else:
+            return util.success({})
 
 
 @doc(tags=['Sbom'], description="download report")
@@ -312,6 +301,26 @@ class SbomDownloadReportV2(MethodResource):
         response.headers["Content-Type"] = "application/octet-stream"
         response.headers["Content-Disposition"] = f"attachment; filename={kwargs['file_name']}"
         return response
+
+
+@doc(tags=['Sbom'], description="update status")
+@marshal_with(util.CommonResponse)
+class SbomCheckStatusV2(MethodResource):
+    @jwt_required()
+    def patch(self, sbom_id):
+        sbom = Sbom.query.filter_by(id=sbom_id).first()
+        branch, project_id, sequence = sbom.branch, sbom.project_id, sbom.sequence
+        project_name = Project.query.get(project_id).name
+        job_name = f"{project_name}-{branch}-sbom-{sequence}"
+        alive = ApiK8sClient().read_namespaced_job(name=job_name, namespace=project_name)
+        if not alive:
+            Sbom.query.filter_by(id=sbom_id).update({
+                "scan_status": "Fail",
+                "logs": "Job is deleted",
+                "finished": True
+            })
+            db.session.commit()
+        return util.success()
 
 
 # Cronjob
