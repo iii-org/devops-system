@@ -357,3 +357,34 @@ def modify_test_plan_webinspect_and_add_sbom():
         old_brother_name="Works"
     )
 
+
+def add_resource_testfile_testplan():
+    test_plan_dict = lambda role: {
+        "path": "testPlan", "name": "TestPlan", "component": "views/Test/TestPlan", "meta": {"title": "TestPlan", "roles": [role]}}
+
+    test_file_dict = lambda role: {
+        "path": "testFile", "name": "TestFile", "component": "views/Test/TestFile", "meta": {"title": "TestFile", "roles": [role]}}
+
+    for role in ["Administrator", "Engineer", "Project Manager"]:
+        create_ui_route_object(
+            "TestFile", 
+            role, 
+            test_file_dict(role), 
+            "Test",
+            ""
+        )
+        create_ui_route_object(
+            "TestPlan", 
+            role, 
+            test_plan_dict(role), 
+            "Test",
+            "TestFile"
+        )
+
+    create_ui_route_object(
+        "TestPlan", 
+        "QA", 
+        test_file_dict("QA"), 
+        "Test",
+        ""
+    )
