@@ -69,7 +69,7 @@ def success(data=None, has_date_etc=False):
     else:
         if has_date_etc:
             return {'message': 'success',
-                    'data': json.dumps(data, cls=DateEncoder),
+                    'data': json.loads(json.dumps(data, cls=DateEncoder)),
                     'datetime': datetime.utcnow().isoformat()}, 200
         else:
             return {'message': 'success', 'data': data,
