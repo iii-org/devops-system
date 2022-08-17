@@ -184,7 +184,7 @@ class SbomGetV2(MethodResource):
 
 
 @doc(tags=['Sbom'], description="Get risk detail")
-@use_kwargs(router_model.PaginationPageResponse, location="query")
+@use_kwargs(router_model.SbomListResponse, location="query")
 @marshal_with(router_model.SbomGetRiskDetailRes)
 class SbomRiskDetailV2(MethodResource):
     @jwt_required()
@@ -196,7 +196,11 @@ class SbomRiskDetailV2(MethodResource):
         output_dict = {}
         if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-            out_list, page_dict = util.list_pagination([value for key, value in risk_detail(file_path).items()], kwargs.get("limit"), kwargs.get("offset"))
+            out_list, page_dict = util.list_pagination([value for key, value in risk_detail(file_path).items()], kwargs.get("per_page"), kwargs.get("page"))
+            page_dict.pop('limit')
+            page_dict.pop('offset')
+            page_dict['pages'] = kwargs.get("page")
+            page_dict['per_page'] = kwargs.get("per_page")
             output_dict.update({"detail_list": out_list, "page": page_dict})
             return util.success(json.loads(json.dumps(
                 output_dict)))

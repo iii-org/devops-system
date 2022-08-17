@@ -108,11 +108,6 @@ class SbomListResponse(Schema):
     page = fields.Int(required=False, description='Page number', example="2")
 
 
-class PaginationPageResponse(Schema):
-    limit = fields.Int(required=True)
-    offset = fields.Int(required=True)
-
-
 class SbomGetRiskDetailRes(CommonBasicResponse):
     data = fields.Dict(example={
         "detail_list": [
