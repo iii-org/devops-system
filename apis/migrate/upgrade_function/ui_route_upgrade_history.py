@@ -220,6 +220,30 @@ service_monitoring_dict = {
     }
 }
 
+sbom_reports_dict = lambda role : {
+    "path": "/sbom-report",
+    "name": "SbomReports",
+    "component": "layout",
+    "redirect": {
+        "name": "SbomReport"
+    },
+    "hidden": True,
+    "meta": {
+        "roles": [role]
+    }
+}
+
+sbom_report_dict = lambda role :  {
+    "path": ":projectId/:commitBranch/:commitId/:sbomId",
+    "component": "views/Scan/Sbom/components/SbomReport",
+    "name": "SbomReport",
+    "meta": {
+        "title": "SbomReport",
+        "roles": [role]
+    }
+}
+
+
 def add_harbor_ui_route_children():
     create_ui_route_object("PodsLists", "Project Manager", artifacts_dict_dict, "Harbors", "Artifacts")
     create_ui_route_object("PodsList", "Project Manager", pod_list_dict, "PodsLists", "")
