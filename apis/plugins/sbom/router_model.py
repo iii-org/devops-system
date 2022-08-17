@@ -108,15 +108,105 @@ class SbomListResponse(Schema):
     page = fields.Int(required=False, description='Page number', example="2")
 
 
+class PaginationPageResponse(Schema):
+    limit = fields.Int(required=True)
+    offset = fields.Int(required=True)
+
+
 class SbomGetRiskDetailRes(CommonBasicResponse):
-    data = fields.List(fields.Dict(example={
-            "description": "description",
-            "id": "id",
-            "name": "name",
-            "severity": "severity",
-            "version": "version",
-            "versions": "versions"
-        }), required=True)
+    data = fields.Dict(example={
+        "detail_list": [
+            {
+                "description": "OpenSSL 0.9.8i on the Gaisler Research LEON3 SoC on the Xilinx Virtex-II Pro FPGA uses a Fixed Width Exponentiation (FWE) algorithm for certain signature calculations, and does not verify the signature before providing it to a caller, which makes it easier for physically proximate attackers to determine the private key via a modified supply voltage for the microprocessor, related to a \"fault-based attack.\"",
+                "id": "CVE-2010-0928",
+                "name": "libssl1.1",
+                "severity": "Negligible",
+                "version": "1.1.1n-0+deb11u3",
+                "versions": ""
+            },
+            {
+                "description": "OpenSSL 0.9.8i on the Gaisler Research LEON3 SoC on the Xilinx Virtex-II Pro FPGA uses a Fixed Width Exponentiation (FWE) algorithm for certain signature calculations, and does not verify the signature before providing it to a caller, which makes it easier for physically proximate attackers to determine the private key via a modified supply voltage for the microprocessor, related to a \"fault-based attack.\"",
+                "id": "CVE-2010-0928",
+                "name": "openssl",
+                "severity": "Negligible",
+                "version": "1.1.1n-0+deb11u3",
+                "versions": ""
+            },
+            {
+                "description": "The glob implementation in the GNU C Library (aka glibc or libc6) allows remote authenticated users to cause a denial of service (CPU and memory consumption) via crafted glob expressions that do not match any pathnames, as demonstrated by glob expressions in STAT commands to an FTP daemon, a different vulnerability than CVE-2010-2632.",
+                "id": "CVE-2010-4756",
+                "name": "libc-bin",
+                "severity": "Negligible",
+                "version": "2.31-13+deb11u3",
+                "versions": ""
+            },
+            {
+                "description": "The glob implementation in the GNU C Library (aka glibc or libc6) allows remote authenticated users to cause a denial of service (CPU and memory consumption) via crafted glob expressions that do not match any pathnames, as demonstrated by glob expressions in STAT commands to an FTP daemon, a different vulnerability than CVE-2010-2632.",
+                "id": "CVE-2010-4756",
+                "name": "libc6",
+                "severity": "Negligible",
+                "version": "2.31-13+deb11u3",
+                "versions": ""
+            },
+            {
+                "description": "It was found that apt-key in apt, all versions, do not correctly validate gpg keys with the master keyring, leading to a potential man-in-the-middle attack.",
+                "id": "CVE-2011-3374",
+                "name": "apt",
+                "severity": "Negligible",
+                "version": "2.2.4",
+                "versions": ""
+            },
+            {
+                "description": "It was found that apt-key in apt, all versions, do not correctly validate gpg keys with the master keyring, leading to a potential man-in-the-middle attack.",
+                "id": "CVE-2011-3374",
+                "name": "libapt-pkg6.0",
+                "severity": "Negligible",
+                "version": "2.2.4",
+                "versions": ""
+            },
+            {
+                "description": "The SSL protocol, as used in certain configurations in Microsoft Windows and Microsoft Internet Explorer, Mozilla Firefox, Google Chrome, Opera, and other products, encrypts data by using CBC mode with chained initialization vectors, which allows man-in-the-middle attackers to obtain plaintext HTTP headers via a blockwise chosen-boundary attack (BCBA) on an HTTPS session, in conjunction with JavaScript code that uses (1) the HTML5 WebSocket API, (2) the Java URLConnection API, or (3) the Silverlight WebClient API, aka a \"BEAST\" attack.",
+                "id": "CVE-2011-3389",
+                "name": "libgnutls30",
+                "severity": "Medium",
+                "version": "3.7.1-5+deb11u1",
+                "versions": ""
+            },
+            {
+                "description": "_is_safe in the File::Temp module for Perl does not properly handle symlinks.",
+                "id": "CVE-2011-4116",
+                "name": "perl-base",
+                "severity": "Negligible",
+                "version": "5.32.1-4+deb11u2",
+                "versions": ""
+            },
+            {
+                "description": "The default configuration of nginx, possibly 1.3.13 and earlier, uses world-readable permissions for the (1) access.log and (2) error.log files, which allows local users to obtain sensitive information by reading the files.",
+                "id": "CVE-2013-0337",
+                "name": "nginx",
+                "severity": "Low",
+                "version": "1.22.0-1~bullseye",
+                "versions": ""
+            },
+            {
+                "description": "expat 2.1.0 and earlier does not properly handle entities expansion unless an application developer uses the XML_SetEntityDeclHandler function, which allows remote attackers to cause a denial of service (resource consumption), send HTTP requests to intranet servers, or read arbitrary files via a crafted XML document, aka an XML External Entity (XXE) issue.  NOTE: it could be argued that because expat already provides the ability to disable external entity expansion, the responsibility for resolving this issue lies with application developers; according to this argument, this entry should be REJECTed, and each affected application would need its own CVE.",
+                "id": "CVE-2013-0340",
+                "name": "libexpat1",
+                "severity": "Negligible",
+                "version": "2.2.10-2+deb11u3",
+                "versions": ""
+            }
+        ],
+        "page": {
+            "current": 2,
+            "limit": 10,
+            "next": 3,
+            "offset": 10,
+            "pages": 15,
+            "prev": 1,
+            "total": 147
+        }
+    }, required=True)
 
 
 class SbomGetSbonListRes(CommonBasicResponse):

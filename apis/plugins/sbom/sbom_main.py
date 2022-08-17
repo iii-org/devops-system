@@ -184,17 +184,22 @@ class SbomGetV2(MethodResource):
 
 
 @doc(tags=['Sbom'], description="Get risk detail")
+@use_kwargs(router_model.PaginationPageResponse, location="query")
 @marshal_with(router_model.SbomGetRiskDetailRes)
 class SbomRiskDetailV2(MethodResource):
     @jwt_required()
-    def get(self, sbom_id):
+    def get(self, sbom_id, **kwargs):
         sbom = Sbom.query.filter_by(id=sbom_id).first()
         commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
         project_name = Project.query.get(project_id).name
         folder_name = f'{commit}-{sequence}'
+        output_dict = {}
         if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-            return util.success(json.loads(json.dumps([value for key, value in risk_detail(file_path).items()][0:3])))
+            out_list, page_dict = util.list_pagination([value for key, value in risk_detail(file_path).items()], kwargs.get("limit"), kwargs.get("offset"))
+            output_dict.update({"detail_list": out_list, "page": page_dict})
+            return util.success(json.loads(json.dumps(
+                output_dict)))
         else:
             return util.success({})
 
