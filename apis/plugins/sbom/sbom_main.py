@@ -19,7 +19,7 @@ from flask import send_file, make_response
 from os import listdir
 from resources import gitlab
 from resources.kubernetesClient import ApiK8sClient
-
+from resources import logger
 
 def is_json(string):
     try:
@@ -98,6 +98,8 @@ def parse_sbom_file(sbom_id):
             update_dict.update(package_num(file_path))
             update_dict.update(scan_overview(file_path))
         else:
+            logger.logger.info(f"{file_path}/sbom.tar", os.path.isfile(f"{file_path}/sbom.tar"))
+            logger.logger.info(md5, get_tar_md5(file_path))
             update_dict["logs"] = "Error: There are missing packages during transmission."
     else:
         update_dict["logs"] = "Error: Couldn't find the sbom.tar."
