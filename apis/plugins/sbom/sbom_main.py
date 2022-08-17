@@ -91,8 +91,7 @@ def parse_sbom_file(sbom_id):
         md5 = util.read_txt(f"{file_path}/md5.txt")[0]
         os.chmod('./apis/plugins/sbom/sbom.sh', 0o777)
         subprocess.Popen(['./apis/plugins/sbom/sbom.sh', project_name, pipeline_folder_name])
-        
-        if os.path.isfile(f"{file_path}/sbom.tar") and md5 == get_tar_md5():
+        if os.path.isfile(f"{file_path}/sbom.tar") and md5 == get_tar_md5(file_path):
             decompress_tarfile(f"{file_path}/sbom.tar", f"{file_path}/")
             update_dict = {"finished": True, "scan_status": "Success",
                         "finished_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
@@ -109,7 +108,7 @@ def parse_sbom_file(sbom_id):
 # Get file md5   
 def get_tar_md5(file_path):
     session = subprocess.Popen(
-        ['md5sum', f'{file_path}/sbom.tar'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ['md5sum', f'./{file_path}/sbom.tar'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = session.communicate()
     return stdout.decode('ascii').split(" ")[0]
 
@@ -235,33 +234,6 @@ class SbomGetScanFileListV2(MethodResource):
         return util.success(get_sbom_scan_file_list(sbom_id))
     
 
-#### Runner
-@doc(tags=['Sbom'], description="Create a Sbom scan.")
-@use_kwargs(router_model.SbomPostSchema, location="json")
-@marshal_with(router_model.SbomPostRes)
-class SbomPostV2(MethodResource):
-    @jwt_required()
-    def post(self, **kwargs):
-        return create_sbom(kwargs)
-
-
-@doc(tags=['Sbom'], description="Update a Sbom scan")
-@use_kwargs(router_model.SbomPatchSchema, location="json")
-@marshal_with(util.CommonResponse)
-class SbomPatchV2(MethodResource):
-    @jwt_required()
-    def patch(self, sbom_id, **kwargs):
-        return util.success(update_sboms(sbom_id, kwargs))    
-
-
-@doc(tags=['Sbom'], description="Parsing Sbom")
-@marshal_with(util.CommonResponse)
-class SbomParseV2(MethodResource):
-    @jwt_required()
-    def patch(self, sbom_id):
-        return util.success(parse_sbom_file(sbom_id))
-
-
 @doc(tags=['Sbom'], description="Get Sbon List")
 @marshal_with(router_model.SbomGetSbonListRes)
 @use_kwargs(router_model.SbomListResponse, location="query")
@@ -351,6 +323,32 @@ class SbomCheckStatusV2(MethodResource):
             })
             db.session.commit()
         return util.success()
+
+#### Runner
+@doc(tags=['Sbom'], description="Create a Sbom scan.")
+@use_kwargs(router_model.SbomPostSchema, location="json")
+@marshal_with(router_model.SbomPostRes)
+class SbomPostV2(MethodResource):
+    @jwt_required()
+    def post(self, **kwargs):
+        return create_sbom(kwargs)
+
+
+@doc(tags=['Sbom'], description="Update a Sbom scan")
+@use_kwargs(router_model.SbomPatchSchema, location="json")
+@marshal_with(util.CommonResponse)
+class SbomPatchV2(MethodResource):
+    @jwt_required()
+    def patch(self, sbom_id, **kwargs):
+        return util.success(update_sboms(sbom_id, kwargs))    
+
+
+@doc(tags=['Sbom'], description="Parsing Sbom")
+@marshal_with(util.CommonResponse)
+class SbomParseV2(MethodResource):
+    @jwt_required()
+    def patch(self, sbom_id):
+        return util.success(parse_sbom_file(sbom_id))
 
 
 # Cronjob
