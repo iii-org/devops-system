@@ -194,7 +194,7 @@ class SbomRiskDetailV2(MethodResource):
         folder_name = f'{commit}-{sequence}'
         if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-            return util.success(json.loads(json.dumps([value for key, value in risk_detail(file_path).items()])))
+            return util.success(json.loads(json.dumps([value for key, value in risk_detail(file_path).items()][0:3])))
         else:
             return util.success({})
 
