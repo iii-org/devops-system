@@ -261,6 +261,29 @@ def rows_to_list(rows):
     return out
 
 
+def df_pagination(df, per_page, page):
+    pages = math.ceil(len(df) / per_page)
+    current = page
+    prev = page - 1 if page - 1 > 0 else None
+    next = page + 1 if page + 1 <= pages else None
+    total = len(df)
+    index_list = str(pd.cut([0, pages * per_page], pages).categories[page - 1]).replace("(", "").replace("]", "").split(
+        ',')
+    index_top = math.ceil(float(index_list[0]))
+    index_down = math.ceil(float(index_list[1]))
+    data = df[index_top:index_down].T.to_dict()
+    page_dict = {
+        'current': current,
+        'next': next,
+        'pages': pages,
+        'per_page': per_page,
+        'prev': prev,
+        'total': total
+    }
+    result_list = [value for key, value in data.items()]
+    return result_list, page_dict
+
+
 def get_pagination(total_count, limit, offset):
     page = math.ceil(float(offset) / limit)
     if offset % limit == 0:

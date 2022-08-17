@@ -163,7 +163,7 @@ def risk_detail(file_path=None):
         df_result['versions'] = ""
     else:
         df_result = df_vulnerability_info.join(df_artifact_info).join(df_fix_versions)
-    return df_result.T.to_dict()
+    return df_result
 
 
 def get_sbom_scan_file_list(sbom_id):
@@ -214,11 +214,7 @@ class SbomRiskDetailV2(MethodResource):
         output_dict = {}
         if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-            out_list, page_dict = util.list_pagination([value for key, value in risk_detail(file_path).items()], kwargs.get("per_page"), kwargs.get("page"))
-            page_dict.pop('limit')
-            page_dict.pop('offset')
-            page_dict['pages'] = kwargs.get("page")
-            page_dict['per_page'] = kwargs.get("per_page")
+            out_list, page_dict = util.df_pagination(risk_detail(file_path), kwargs.get("per_page"), kwargs.get("page"))
             output_dict.update({"detail_list": out_list, "page": page_dict})
             return util.success(json.loads(json.dumps(
                 output_dict)))
