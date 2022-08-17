@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required
 import util
 from model import Sbom, db, Project
 import tarfile
+import subprocess
 from . import router_model
 from resources.project import get_pj_id_by_name
 import json
@@ -78,23 +79,39 @@ def update_sboms(sbom_id, kwargs):
 
 def parse_sbom_file(sbom_id):
     # Decompress tar
+    update_dict = {"finished": True, "scan_status": "Fail",
+        "finished_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
+
     sbom = Sbom.query.filter_by(id=sbom_id).first()
     commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
     project_name = Project.query.get(project_id).name
-    folder_name = f'{commit}-{sequence}'
-    if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/sbom.tar"):
-        file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-        decompress_tarfile(f"{file_path}/sbom.tar", f"{file_path}/")
-        update_dict = {"finished": True, "scan_status": "Success",
-                       "finished_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
-        update_dict.update(package_num(file_path))
-        update_dict.update(scan_overview(file_path))
-        update_sboms(sbom_id, update_dict)
+    pipeline_folder_name = f"{commit}-{sequence}"
+    file_path = f"devops-data/project-data/{project_name}/pipeline/{pipeline_folder_name}"
+    if os.path.isfile(f"{file_path}/md5.txt"):
+        md5 = util.read_txt(f"{file_path}/md5.txt")[0]
+        os.chmod('./apis/plugins/sbom/sbom.sh', 0o777)
+        subprocess.Popen(['./apis/plugins/sbom/sbom.sh', project_name, pipeline_folder_name])
+        
+        if os.path.isfile(f"{file_path}/sbom.tar") and md5 == get_tar_md5():
+            decompress_tarfile(f"{file_path}/sbom.tar", f"{file_path}/")
+            update_dict = {"finished": True, "scan_status": "Success",
+                        "finished_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
+            update_dict.update(package_num(file_path))
+            update_dict.update(scan_overview(file_path))
+        else:
+            update_dict["logs"] = "Error: There are missing packages during transmission."
     else:
-        update_dict = {"finished": True, "scan_status": "Fail", "logs": "didn't find the file",
-                       "finished_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
-        update_sboms(sbom_id, update_dict)
+        update_dict["logs"] = "Error: Couldn't find the sbom.tar."
 
+    update_sboms(sbom_id, update_dict)
+
+
+# Get file md5   
+def get_tar_md5(file_path):
+    session = subprocess.Popen(
+        ['md5sum', f'{file_path}/sbom.tar'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = session.communicate()
+    return stdout.decode('ascii').split(" ")[0]
 
 # Get package_num
 def package_num(file_path=None):
@@ -173,6 +190,8 @@ def check_folder_exist(file_name, path):
 def download_report_file(file_path, file_name):
     check_folder_exist(file_name, file_path)
     return send_file(f"../{file_path}/{file_name}")
+
+
 # --------------------- Resources ---------------------
 
 @doc(tags=['Sbom'], description="Get all project's scan")
