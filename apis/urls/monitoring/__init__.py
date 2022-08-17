@@ -43,3 +43,4 @@ def monitoring_url(api, add_resource):
     api.add_resource(view.GithubTokenVerify, '/monitoring/github/validate_token')
     api.add_resource(view.GithubTokenVerifyV2, '/v2/monitoring/github/validate_token')
     add_resource(view.GithubTokenVerifyV2, "public")
+    api.add_resource(view.DeleteApprevisions, '/monitoring/delete_apprevisions')
