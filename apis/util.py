@@ -384,10 +384,15 @@ class obj:
         self.__dict__.update(dict1)
 
 
+def read_txt(path):
+    with open(path, "r") as f:
+        line_list = f.readlines()
+    return line_list
+
+
 def read_json_file(path, return_obj=False):
     with open(path, "r") as f:
         if return_obj:
-
             f_info = json.load(f, object_hook=obj)
         else:
             f_info = json.load(f)
