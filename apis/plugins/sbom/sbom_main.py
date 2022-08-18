@@ -88,7 +88,7 @@ def parse_sbom_file(sbom_id):
     pipeline_folder_name = f"{commit}-{sequence}"
     file_path = f"devops-data/project-data/{project_name}/pipeline/{pipeline_folder_name}"
     if os.path.isfile(f"{file_path}/md5.txt"):
-        md5 = util.read_txt(f"{file_path}/md5.txt")[0].strip().replace('\n', '')
+        md5 = util.read_txt(f"{file_path}/md5.txt")[0].replace('\n', '').strip()
         os.chmod('./apis/plugins/sbom/sbom.sh', 0o777)
         subprocess.Popen(['./apis/plugins/sbom/sbom.sh', project_name, pipeline_folder_name])
         if os.path.isfile(f"{file_path}/sbom.tar") and md5 == get_tar_md5(file_path):
@@ -98,16 +98,10 @@ def parse_sbom_file(sbom_id):
             update_dict.update(package_num(file_path))
             update_dict.update(scan_overview(file_path))
         else:
-            print("-----------------------parse_sbom_file error-----------------------")
             logger.logger.info("-----------------------parse_sbom_file error-----------------------")
-            print(f"{file_path}/sbom.tar")
-            print(os.path.isfile(f"{file_path}/sbom.tar"))
-            print(md5)
-            print(get_tar_md5(file_path))
-            logger.logger.info(f"{file_path}/sbom.tar")
-            logger.logger.info(os.path.isfile(f"{file_path}/sbom.tar"))
             logger.logger.info(md5)
             logger.logger.info(get_tar_md5(file_path))
+            logger.logger.info(md5 == get_tar_md5(file_path))
             update_dict["logs"] = "Error: There are missing packages during transmission."
     else:
         update_dict["logs"] = "Error: Couldn't find the sbom.tar."
@@ -120,7 +114,7 @@ def get_tar_md5(file_path):
     session = subprocess.Popen(
         ['md5sum', f'./{file_path}/sbom.tar'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = session.communicate()
-    return stdout.decode('ascii').split(" ")[0]
+    return stdout.decode('ascii').split(" ")[0].replace('\n', '').strip()
 
 # Get package_num
 def package_num(file_path=None):
