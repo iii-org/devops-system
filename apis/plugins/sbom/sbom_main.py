@@ -118,20 +118,27 @@ def get_tar_md5(file_path):
 
 # Get package_num
 def package_num(file_path=None):
-    with open(f'{file_path}/sbom.syft.json') as json_data:
-        data = json.load(json_data)
-    df = pd.DataFrame(data['artifacts'])
-    return {"package_nums": df.shape[0]}
+    try:
+        with open(f'{file_path}/sbom.syft.json') as json_data:
+            data = json.load(json_data)
+            df = pd.DataFrame(data['artifacts'])
+            package_nums = df.shape[0]
+    except Exception:
+        package_nums = None
+    return {"package_nums": package_nums}
 
 
 # Get scan_overview
 def scan_overview(file_path=None):
-    with open(f'{file_path}/grype.syft.json') as json_data:
-        data = json.load(json_data)
-    race_sr = pd.Series(
-        [data['matches'][index]['vulnerability']['severity'] for index, value in enumerate(data['matches'])])
-    result_dict = race_sr.value_counts().to_dict()
-    result_dict['total'] = race_sr.shape[0]
+    try:
+        with open(f'{file_path}/grype.json') as json_data:
+            data = json.load(json_data)
+        race_sr = pd.Series(
+            [data['matches'][index]['vulnerability']['severity'] for index, value in enumerate(data['matches'])])
+        result_dict = race_sr.value_counts().to_dict()
+        result_dict['total'] = race_sr.shape[0]
+    except Exception:
+        result_dict = None
     return {"scan_overview": result_dict}
 
 
