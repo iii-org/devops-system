@@ -98,6 +98,8 @@ def parse_sbom_file(sbom_id):
             update_dict.update(package_num(file_path))
             update_dict.update(scan_overview(file_path))
         else:
+            print("-----------------------parse_sbom_file error-----------------------")
+            logger("-----------------------parse_sbom_file error-----------------------")
             logger.logger.info(f"{file_path}/sbom.tar", os.path.isfile(f"{file_path}/sbom.tar"))
             logger.logger.info(md5, get_tar_md5(file_path))
             update_dict["logs"] = "Error: There are missing packages during transmission."
