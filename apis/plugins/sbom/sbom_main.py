@@ -91,6 +91,8 @@ def parse_sbom_file(sbom_id):
         md5 = util.read_txt(f"{file_path}/md5.txt")[0].replace('\n', '').strip()
         os.chmod('./apis/plugins/sbom/sbom.sh', 0o777)
         subprocess.Popen(['./apis/plugins/sbom/sbom.sh', project_name, pipeline_folder_name])
+        logger.logger.info("-----------------------parse_sbom_file error-----------------------")
+        logger.logger.info(f"Before:{md5 == get_tar_md5(file_path)}")
         if os.path.isfile(f"{file_path}/sbom.tar") and md5 == get_tar_md5(file_path):
             decompress_tarfile(f"{file_path}/sbom.tar", f"{file_path}/")
             update_dict = {"finished": True, "scan_status": "Success",
@@ -98,10 +100,8 @@ def parse_sbom_file(sbom_id):
             update_dict.update(package_num(file_path))
             update_dict.update(scan_overview(file_path))
         else:
-            logger.logger.info("-----------------------parse_sbom_file error-----------------------")
-            logger.logger.info(md5)
-            logger.logger.info(get_tar_md5(file_path))
-            logger.logger.info(md5 == get_tar_md5(file_path))
+            logger.logger.info(os.path.isfile(f"{file_path}/sbom.tar"))
+            logger.logger.info(f"After:{md5 == get_tar_md5(file_path)}")
             update_dict["logs"] = "Error: There are missing packages during transmission."
     else:
         update_dict["logs"] = "Error: Couldn't find the sbom.tar."
