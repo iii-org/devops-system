@@ -171,7 +171,7 @@ def risk_detail(file_path=None):
         [data['matches'][index]['vulnerability']['fix']['versions'] for index, value in enumerate(data['matches'])])
     if df_fix_versions.isnull().shape[0] == df_fix_versions.shape[0]:
         df_result = df_vulnerability_info.join(df_artifact_info)
-        df_result['versions'] = ""
+        df_result['versions'] = None
     else:
         df_result = df_vulnerability_info.join(df_artifact_info).join(df_fix_versions)
     return df_result

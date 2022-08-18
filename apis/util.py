@@ -271,6 +271,7 @@ def df_pagination(df, per_page, page):
         ',')
     index_top = math.ceil(float(index_list[0]))
     index_down = math.ceil(float(index_list[1]))
+    df = df.where(pd.notnull(df), None)
     data = df[index_top:index_down].T.to_dict()
     page_dict = {
         'current': current,
