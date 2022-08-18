@@ -254,8 +254,8 @@ def upgrade(version):
         ui_route_upgrade_history.add_resource_testfile_testplan()
     elif version == '1.20.0.10':
         for role in ["Administrator", "Engineer", "QA", "Project Manager"]: 
-            create_ui_route_object("SbomReports", role, sbom_reports_dict, "", "DockerReports")
-            create_ui_route_object("SbomReport", role, sbom_report_dict, "SbomReports", "")
+            create_ui_route_object("SbomReports", role, sbom_reports_dict(role), "", "DockerReports")
+            create_ui_route_object("SbomReport", role, sbom_report_dict(role), "SbomReports", "")
 
 
 
