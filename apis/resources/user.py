@@ -354,7 +354,7 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
         logger.info(b)
     harbor_user_id = user_relation.harbor_user_id
     c = harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
-    if int(a.status_code / 100) != 2:
+    if int(c.status_code / 100) != 2:
         logger.info(c)
     sonarqube.sq_update_password(user_login, new_pwd)
 
