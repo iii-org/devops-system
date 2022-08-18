@@ -172,7 +172,7 @@ def hb_update_user_password(user_id, new_pwd, old_pwd):
                 e.error_value['details']['response']['errors'][0][
                     'message'] == 'the new password can not be same with the old one'):
             raise e
-
+        return e
 
 def hb_update_user_email(user_id, user_name, new_email):
     data = {
