@@ -345,14 +345,17 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
         return util.respond(400, 'Error when updating password',
                             error=apiError.user_not_found(user_id))
     redmine_user_id = user_relation.plan_user_id
-    redmine.rm_update_password(redmine_user_id, new_pwd)
-
+    a = redmine.rm_update_password(redmine_user_id, new_pwd)
+    if int(a.status_code / 100) != 2:
+        logger.info(a)
     gitlab_user_id = user_relation.repository_user_id
-    gitlab.gl_update_password(gitlab_user_id, new_pwd)
-
+    b = gitlab.gl_update_password(gitlab_user_id, new_pwd)
+    if int(b.status_code / 100) != 2:
+        logger.info(b)
     harbor_user_id = user_relation.harbor_user_id
-    harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
-
+    c = harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
+    if int(a.status_code / 100) != 2:
+        logger.info(c)
     sonarqube.sq_update_password(user_login, new_pwd)
 
 

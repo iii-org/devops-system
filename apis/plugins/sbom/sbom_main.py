@@ -131,7 +131,7 @@ def package_num(file_path=None):
 # Get scan_overview
 def scan_overview(file_path=None):
     try:
-        with open(f'{file_path}/grype.json') as json_data:
+        with open(f'{file_path}/grype.syft.json') as json_data:
             data = json.load(json_data)
         race_sr = pd.Series(
             [data['matches'][index]['vulnerability']['severity'] for index, value in enumerate(data['matches'])])
