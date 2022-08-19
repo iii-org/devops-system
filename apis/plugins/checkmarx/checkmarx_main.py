@@ -266,16 +266,18 @@ class CheckMarx(object):
     def list_scans(project_id):
         rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(
             desc(Model.scan_id)).all()
-        df = pd.DataFrame([CheckMarx.to_json(row, project_id) for row in rows])
-        df.sort_values(by="run_at", ascending=False)
-        df_five_download = df[(df.status == "Finished") & (df.report_id != -1)][0:5]
-        df.report_id = -1
-        df.loc[df_five_download.index] = df_five_download
-        for i in range(0, df_five_download.index[-1]):
-            if df.loc[i].report_id == -1:
-                df = df.drop(i)
-        df = df.where(pd.notnull(df), None)
-        ret = [value for key, value in df.T.to_dict().items()]
+        ret = []
+        if rows:
+            df = pd.DataFrame([CheckMarx.to_json(row, project_id) for row in rows])
+            df.sort_values(by="run_at", ascending=False)
+            df_five_download = df[(df.status == "Finished") & (df.report_id != -1)][0:5]
+            df.report_id = -1
+            df.loc[df_five_download.index] = df_five_download
+            for i in range(0, df_five_download.index[-1]):
+                if df.loc[i].report_id == -1:
+                    df = df.drop(i)
+            df = df.where(pd.notnull(df), None)
+            ret = [value for key, value in df.T.to_dict().items()]
         return ret
 
     @staticmethod
