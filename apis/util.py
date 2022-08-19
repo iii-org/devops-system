@@ -174,6 +174,15 @@ def api_request(method, url, headers=None, params=None, data=None, auth=None):
                                              '{0} provided.'.format(method)))
 
 
+def check_url_alive(url):
+    import requests
+    try:
+        alive = requests.get(url).status_code < 500
+    except Exception:
+        alive = False
+    return alive
+
+
 def encode_k8s_sa(name):
     ret = ''
     for c in name:
