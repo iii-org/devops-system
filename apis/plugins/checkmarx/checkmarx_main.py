@@ -318,7 +318,7 @@ class CheckMarx(object):
             'stats': stats,
             'run_at': str(row.run_at),
             'report_id': row.report_id,
-            'report_ready': row.finished is True
+            'report_ready': row.finished is True and row.report_id != -1
         }
 
 
