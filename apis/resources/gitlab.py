@@ -11,7 +11,7 @@ import requests
 from dateutil import tz
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
-from gitlab import Gitlab
+from gitlab import Gitlab, exceptions
 from sqlalchemy.orm.exc import NoResultFound
 from accessories.redmine_lib import redmine
 from sqlalchemy.exc import IntegrityError
@@ -31,7 +31,7 @@ from flask_apispec import marshal_with, doc, use_kwargs
 from urls import route_model
 from flask_apispec.views import MethodResource
 
-
+GITLAB_NOTFOUND = exceptions
 GITLAB_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 iiidevops_system_group = ["iiidevops-templates", "local-templates", "iiidevops-catalog"]
 

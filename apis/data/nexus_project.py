@@ -98,6 +98,17 @@ class NexusProject:
     def get_extra_fields(self):
         return self.__extra_fields
 
+    def check_has_commit(self):
+        from resources.gitlab import gitlab, GITLAB_NOTFOUND
+        row = model.ProjectPluginRelation.query.filter_by(project_id=self.__project_id).first()
+        try:
+            pj = gitlab.gl.projects.get(row.git_repository_id)
+            branch = pj.default_branch
+            return branch is None
+        except GITLAB_NOTFOUND.GitlabGetError:
+            return True
+
+
     def to_json(self):
         from resources.project_relation import project_has_child
         ret = json.loads(str(self.get_project_row()))
@@ -116,6 +127,7 @@ class NexusProject:
         ret['has_son'] = project_has_child(self.__project_id)
         project_relation = model.ProjectParentSonRelation.query.filter_by(son_id=ret["id"]).first()
         ret["parent_id"] = None if project_relation is None else project_relation.parent_id
+        ret["is_empty_project"] = ret["is_empty_project"] and self.check_has_commit()
         for key, value in self.get_extra_fields().items():
             ret[key] = value
         if self.__project_members_dict is not None:
