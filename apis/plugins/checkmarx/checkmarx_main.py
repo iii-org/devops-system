@@ -277,8 +277,11 @@ class CheckMarx(object):
             for i in update_list:
                 Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).filter_by(scan_id=i).update({"report_id": -1})
             db.session.commit()
+            rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(
+                desc(Model.run_at)).all()
+            ret = [CheckMarx.to_json(row, project_id) for row in rows]
             # df = df_five_download.append(df[df["report_id"] == -1].sort_values(by="run_at", ascending=False))
-            ret = [value for key, value in df.T.to_dict().items()]
+            # ret = [value for key, value in df.T.to_dict().items()]
         return ret
 
     @staticmethod
