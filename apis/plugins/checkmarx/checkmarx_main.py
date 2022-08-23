@@ -273,7 +273,7 @@ class CheckMarx(object):
             df_five_download = df[(df.status == "Finished") & (df.report_id != -1)][0:5]
             df.report_id = -1
             df.loc[df_five_download.index] = df_five_download
-            update_list = list(df.drop(list(df_five_download.index)).index)
+            update_list = list(df.drop(list(df_five_download.index)).scan_id)
             for i in update_list:
                 Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).filter_by(scan_id=i).update({"report_id": -1})
             db.session.commit()
