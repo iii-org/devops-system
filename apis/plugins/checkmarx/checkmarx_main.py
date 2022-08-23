@@ -277,9 +277,10 @@ class CheckMarx(object):
             for i in update_list:
                 Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).filter_by(scan_id=i).update({"report_id": -1})
             db.session.commit()
-            for i in range(0, df_five_download.index[-1]):
-                if df.loc[i].report_id == -1:
-                    df = df.drop(i)
+            if len(df_five_download.index) != 0:
+                for i in range(0, df_five_download.index[-1]):
+                    if df.loc[i].report_id == -1:
+                        df = df.drop(i)
             df = df.fillna("")
             ret = [value for key, value in df.T.to_dict().items()]
         return ret
