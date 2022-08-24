@@ -98,7 +98,7 @@ def parse_sbom_file(sbom_id):
             update_dict = {"finished": True, "scan_status": "Success",
                         "finished_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
             update_dict.update(package_num(file_path))
-            update_dict.update(scan_overview(file_path))
+            update_dict.update(scan_overview(file_path, sbom_id))
         else:
             logger.logger.info(os.path.isfile(f"{file_path}/sbom.tar"))
             logger.logger.info(f"After:{md5 == get_tar_md5(file_path)}")
@@ -129,17 +129,27 @@ def package_num(file_path=None):
 
 
 # Get scan_overview
-def scan_overview(file_path=None):
+def scan_overview(file_path, sbom_id):
     try:
+        result_dict = {}
         with open(f'{file_path}/grype.syft.json') as json_data:
             data = json.load(json_data)
-        race_sr = pd.Series(
-            [data['matches'][index]['vulnerability']['severity'] for index, value in enumerate(data['matches'])])
-        result_dict = race_sr.value_counts().to_dict()
-        result_dict['total'] = race_sr.shape[0]
-    except Exception:
-        result_dict = None
-    return {"scan_overview": result_dict}
+        if data:
+            race_sr = pd.Series(
+                [data['matches'][index]['vulnerability']['severity'] for index, value in enumerate(data['matches'])])
+            result_dict = race_sr.value_counts().to_dict()
+            result_dict['total'] = race_sr.shape[0]
+        return {"scan_overview": result_dict}
+    except Exception as e:
+        sbom = Sbom.query.filter_by(id=sbom_id).first()
+        sbom.query.filter_by(id=sbom_id).update({
+            "scan_status": "Fail",
+            "logs": f"get_scan_overviewerror,reasom{e}",
+            "finished": True
+        })
+        db.session.commit()
+        return e
+
 
 
 def remove_parsing_data():
@@ -290,7 +300,7 @@ class SbomGetRiskOverviewV2(MethodResource):
         folder_name = f'{commit}-{sequence}'
         if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-            return util.success(scan_overview(file_path)["scan_overview"])
+            return util.success(scan_overview(file_path, sbom_id)["scan_overview"])
         else:
             return util.success({})
 
