@@ -716,6 +716,7 @@ def get_issue_assign_to_detail(issue):
 
 
 def create_issue(args, operator_id):
+    changeUrl = args.get("changeUrl")
     update_cache_issue_family = False
     project_id = args['project_id']
     plan_operator_id = None
@@ -782,6 +783,7 @@ def create_issue(args, operator_id):
     if attachment_list is not None:
         args['uploads'] = attachment_list
 
+    args["description"] = changeUrl
     created_issue = personal_redmine_obj.rm_create_issue(args)
     created_issue_id = created_issue["issue"]["id"]
     create_issue_extensions(created_issue_id, extension_args)
@@ -805,6 +807,7 @@ def create_issue(args, operator_id):
 
     logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
+    main_output.pop("changeUrl")
     return main_output
 
 
