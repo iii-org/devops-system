@@ -161,6 +161,22 @@ def recreate_rm_users(args, rm_all_users, rm_all_users_email):
         logger.logger.info(f'Create {login_name} redmine user.')
         try:
             redmine_user = redmine.redmine.rm_create_user(args, args['password'], is_admin=args['is_admin'])
+            args2 = {
+                "alert_level": 1,
+                "title": "Sync user recreate automation",
+                "message": f"{args['name']}redmine account was recreate by system",
+                "type_ids": [3],
+                "type_parameters": {"user_ids": [args["id"]]}
+            }
+            create_notification_message(args2, user_id=args["id"])
+            args3 = {
+                "alert_level": 1,
+                "title": "Sync user recreate automation",
+                "message": f"{args['name']}redmine account was recreate by system",
+                "type_ids": [4],
+                "type_parameters": {"role_ids": [5]}
+            }
+            create_notification_message(args3, user_id=args["id"])
             redmine_user_id = redmine_user['user']['id']
             
             logger.logger.info("Add redmine user back into user's projects")
@@ -182,11 +198,11 @@ def recreate_rm_users(args, rm_all_users, rm_all_users_email):
         user_relation = check_user_relation(args['id'])
         user_relation.plan_user_id = redmine_user_id
         model.db.session.commit()
-    else:
-        user_relation = nx_get_user_plugin_relation(user_id=args["id"])
-        logger.logger.info(f"Change {login_name} redmine user's password to DEFAULT_PASSWORD.")
-        redmine.redmine.rm_update_password(user_relation.plan_user_id, DEFAULT_PASSWORD)
-        logger.logger.info(f"Change {login_name} redmine user's password to DEFAULT_PASSWORD done")
+    # else:
+    #     user_relation = nx_get_user_plugin_relation(user_id=args["id"])
+    #     logger.logger.info(f"Change {login_name} redmine user's password to DEFAULT_PASSWORD.")
+    #     redmine.redmine.rm_update_password(user_relation.plan_user_id, DEFAULT_PASSWORD)
+    #     logger.logger.info(f"Change {login_name} redmine user's password to DEFAULT_PASSWORD done")
 
 
 def check_gl_users(args, gl_all_users, gl_all_users_email, gl_all_blocked_users):
@@ -203,7 +219,6 @@ def check_gl_users(args, gl_all_users, gl_all_users_email, gl_all_blocked_users)
 def recreate_gl_users(args, gl_all_users, gl_all_users_email, gl_all_blocked_users):
     login_name = args["login"]
     check_gl_user_res = check_gl_users(args, gl_all_users, gl_all_users_email, gl_all_blocked_users)
-    
     if check_gl_user_res == f'User {args["login"]} is blocked in gitlab.':
         logger.logger.info(f'Unblocked User {login_name} in gitlab.')
         user_relation = nx_get_user_plugin_relation(user_id=args["id"])
@@ -214,6 +229,22 @@ def recreate_gl_users(args, gl_all_users, gl_all_users_email, gl_all_blocked_use
         logger.logger.info(f'Create {login_name} gitlab user.')
         try:
             gitlab_user = gitlab.gitlab.gl_create_user(args, args['password'], is_admin=args['is_admin'])
+            args2 = {
+                "alert_level": 1,
+                "title": "Sync user recreate automation",
+                "message": f"{args['name']} gitlab account was recreate by system",
+                "type_ids": [3],
+                "type_parameters": {"user_ids": [args["id"]]}
+            }
+            create_notification_message(args2, user_id=args["id"])
+            args3 = {
+                "alert_level": 1,
+                "title": "Sync user recreate automation",
+                "message": f"{args['name']} gitlab account was recreate by system",
+                "type_ids": [4],
+                "type_parameters": {"role_ids": [5]}
+            }
+            create_notification_message(args3, user_id=args["id"])
             gitlab_user_id = gitlab_user['id']
             
             logger.logger.info("Add gitlab user back into user's projects")
@@ -232,11 +263,11 @@ def recreate_gl_users(args, gl_all_users, gl_all_users_email, gl_all_blocked_use
         user_relation = check_user_relation(args['id'])
         user_relation.repository_user_id = gitlab_user_id
         model.db.session.commit()
-    else:
-        user_relation = nx_get_user_plugin_relation(user_id=args["id"])
-        logger.logger.info(f"Change {login_name} gitlab user's password to DEFAULT_PASSWORD.")
-        gitlab.gitlab.gl_update_password(user_relation.repository_user_id, DEFAULT_PASSWORD)
-        logger.logger.info(f"Change {login_name} gitlab user's password to DEFAULT_PASSWORD done")
+    # else:
+    #     user_relation = nx_get_user_plugin_relation(user_id=args["id"])
+    #     logger.logger.info(f"Change {login_name} gitlab user's password to DEFAULT_PASSWORD.")
+    #     gitlab.gitlab.gl_update_password(user_relation.repository_user_id, DEFAULT_PASSWORD)
+    #     logger.logger.info(f"Change {login_name} gitlab user's password to DEFAULT_PASSWORD done")
 
 
 def check_hb_users(args, hb_all_users):
@@ -254,30 +285,44 @@ def recreate_hb_users(args, hb_all_users):
     if check_hb_users(args, hb_all_users) is not None:
         logger.logger.info(f'User {login_name} not found in harbor.')
         logger.logger.info(f'Create {login_name} harbor user.')
-    else:
-        logger.logger.info(f'ReCreate {login_name} harbor user.') 
-        user_relation = nx_get_user_plugin_relation(user_id=args["id"])
-        harbor.hb_delete_user(user_relation.harbor_user_id)
+        try:
+            harbor_user_id = harbor.hb_create_user(args, is_admin=args['is_admin'])
+            args2 = {
+                "alert_level": 1,
+                "title": "Sync user recreate automation",
+                "message": f"{args['name']} habor account was recreate by system",
+                "type_ids": [3],
+                "type_parameters": {"user_ids": [args["id"]]}
+            }
+            create_notification_message(args2, user_id=args["id"])
+            args3 = {
+                "alert_level": 1,
+                "title": "Sync user recreate automation",
+                "message": f"{args['name']} habor account was recreate by system",
+                "type_ids": [4],
+                "type_parameters": {"role_ids": [5]}
+            }
+            create_notification_message(args3, user_id=args["id"])
+            logger.logger.info("Add harbor user back into user's projects")
+            for project in get_projects_by_user(args["id"]):
+                project_relation = nx_get_project_plugin_relation(
+                    nexus_project_id=project["id"])
+                harbor.hb_add_member(project_relation.harbor_project_id, harbor_user_id)
+            logger.logger.info("Add harbor user back into user's projects is done")
+        except Exception as e:
+            logger.logger.info(f'{login_name} harbor user create failed.')
+            logger.logger.info(e)
+            return
 
-    try:
-        harbor_user_id = harbor.hb_create_user(args, is_admin=args['is_admin'])
-
-        logger.logger.info("Add harbor user back into user's projects")
-        for project in get_projects_by_user(args["id"]):
-            project_relation = nx_get_project_plugin_relation(
-                nexus_project_id=project["id"])
-            harbor.hb_add_member(project_relation.harbor_project_id, harbor_user_id)
-        logger.logger.info("Add harbor user back into user's projects is done")
-
-    except Exception as e:
-        logger.logger.info(f'{login_name} harbor user create failed.')
-        logger.logger.info(e)
-        return
-    logger.logger.info(f'Harbor user created, id={harbor_user_id}')
-    logger.logger.info('Update user relation.')
-    user_relation = check_user_relation(args['id'])
-    user_relation.harbor_user_id = harbor_user_id
-    model.db.session.commit()
+        logger.logger.info(f'Harbor user created, id={harbor_user_id}')
+        logger.logger.info('Update user relation.')
+        user_relation = check_user_relation(args['id'])
+        user_relation.harbor_user_id = harbor_user_id
+        model.db.session.commit()
+    # else:
+    #     logger.logger.info(f'ReCreate {login_name} harbor user.')
+    #     user_relation = nx_get_user_plugin_relation(user_id=args["id"])
+    #     harbor.hb_delete_user(user_relation.harbor_user_id)
 
 
 def check_k8s_users(args, k8s_all_users_sa):
@@ -295,6 +340,22 @@ def recreate_k8s_users(args, k8s_all_users_sa):
         logger.logger.info(f'Create {login_name} k8s sa.')
         try:
             kubernetes_sa = kubernetesClient.create_service_account(login_sa_name)
+            args2 = {
+                "alert_level": 1,
+                "title": "Sync user recreate automation",
+                "message": f"{args['name']} k8s account was recreate by system",
+                "type_ids": [3],
+                "type_parameters": {"user_ids": [args["id"]]}
+            }
+            create_notification_message(args2, user_id=args["id"])
+            args3 = {
+                "alert_level": 1,
+                "title": "Sync user recreate automation",
+                "message": f"{args['name']} k8s account was recreate by system",
+                "type_ids": [4],
+                "type_parameters": {"role_ids": [5]}
+            }
+            create_notification_message(args3, user_id=args["id"])
         except Exception as e:
             logger.logger.info(f'{login_name} k8s sa create failed.')
             logger.logger.info(e)
@@ -325,7 +386,22 @@ def recreate_sq_users(args, sq_all_users_login):
         logger.logger.info(f'Create {login_name} sonarqube user.')
         try:
             sq_user = sonarqube.sq_create_user(args).json()
-
+            args2 = {
+                "alert_level": 1,
+                "title": "Sync user recreate automation",
+                "message": f"{args['name']} sonarqube account was recreate by system",
+                "type_ids": [3],
+                "type_parameters": {"user_ids": [args["id"]]}
+            }
+            create_notification_message(args2, user_id=args["id"])
+            args3 = {
+                "alert_level": 1,
+                "title": "Sync user recreate automation",
+                "message": f"{args['name']} sonarqube account was recreate by system",
+                "type_ids": [4],
+                "type_parameters": {"role_ids": [5]}
+            }
+            create_notification_message(args3, user_id=args["id"])
             logger.logger.info("Add sonarqube user back into user's projects")
             for project in get_projects_by_user(args["id"]):
                 sonarqube.sq_add_member(project["name"], login_name)
@@ -335,10 +411,10 @@ def recreate_sq_users(args, sq_all_users_login):
             logger.logger.info(e)
             return
         logger.logger.info(f'Sonarqube user created, login={sq_user["login"]}')
-    else:
-        logger.logger.info(f"Change {login_name} sonarqube user's password to DEFAULT_PASSWORD.")
-        sonarqube.sq_update_password(login_name, DEFAULT_PASSWORD)
-        logger.logger.info(f"Change {login_name} sonarqube user's password to DEFAULT_PASSWORD done")
+    # else:
+    #     logger.logger.info(f"Change {login_name} sonarqube user's password to DEFAULT_PASSWORD.")
+    #     sonarqube.sq_update_password(login_name, DEFAULT_PASSWORD)
+    #     logger.logger.info(f"Change {login_name} sonarqube user's password to DEFAULT_PASSWORD done")
 
 
 def check_user_exist(router=None, all=False):
@@ -438,7 +514,7 @@ def recreate_user(user_id, all=False):
     recreate_rm_users(args, rc_users.all_users['rm_all_users'], rc_users.all_users['rm_all_users_email'])
     
     user = model.User.query.get(user_id)
-    if not all:
+    if not all and args["role"] != 5:
         user.disabled = True
         db.session.commit()
     logger.logger.info('All done.')
