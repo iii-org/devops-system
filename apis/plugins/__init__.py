@@ -3,6 +3,8 @@
 # plugin directory name.
 # If the plugin only contains one module, make it __init__.py.
 
+import util
+import config
 import json
 import os
 from datetime import datetime
@@ -123,14 +125,14 @@ def get_plugin_config(plugin_name):
     return ret
 
 
-def validate_license_key(license_key, plugin):
-    if os.path.isfile("apis/plugins/sbom/iii-validate"):
-        session = subprocess.Popen(['apis/plugins/sbom/iii-validation', license_key], stdout=PIPE, stderr=PIPE)
-        stdout, stderr = session.communicate()
-        if not stderr:
-            stdout = stdout.decode('ascii')
+def validate_license_key(plugin):
+    plugin_secret = read_namespace_secret(DEFAULT_NAMESPACE, plugin)
+    if plugin_secret is not None:
+        output_str, error_output = util.ssh_to_node_by_key(
+            f'~/deploy-devops/sbom/sbom_license {plugin_secret.get("license_key")}', config.get("DEPLOYER_NODE_IP"))
+        if error_output == "":
             deployment_uuid = model.NexusVersion.query.first().deployment_uuid
-            return stdout == f"{deployment_uuid}-{plugin}"
+            return output_str.replace("\n", "").strip() == deployment_uuid
     return False
 
 
@@ -211,7 +213,7 @@ def update_plugin_config(plugin_name, args):
                                     error=apiError.plugin_server_not_alive(plugin_name))
 
             # Validate enterprise plugin
-            if plugin_name in ENTERPRISE_PLUGINS and not validate_license_key(plugin_name, args.get('arguments', {}).get('license_key', '')):
+            if plugin_name in ENTERPRISE_PLUGINS and not validate_license_key(plugin_name):
                 raise apiError.LicenseKeyError("Your license_key is invalid, please contact AM for assistance.")
         else:
             # Read alert_message of plugin server is not alive then send notification.
