@@ -162,12 +162,6 @@ stages:
         web.port: 10009
         kube.ingress.base_domain: ingress-dev3.iiidevops.org
         kube.ingress.proxy_body_size: 20m
-        volumeMounts.nfs.enabled: true
-        volumeMounts.nfs.server: 10.20.0.88
-        volumeMounts.nfs.path: ''
-        volumeMounts.project: iiidevopsNFS
-        volumeMounts.uuid: devops-data
-        volumeMounts.mountPath: /usr/src/app/devops-data
       catalogTemplate: cattle-global-data:iii-dev-charts3-web
       name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-serv
       targetNamespace: ${CICD_GIT_REPO_NAME}
