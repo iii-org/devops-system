@@ -87,20 +87,20 @@ def parse_sbom_file(sbom_id):
     project_name = Project.query.get(project_id).name
     pipeline_folder_name = f"{commit}-{sequence}"
     file_path = f"devops-data/project-data/{project_name}/pipeline/{pipeline_folder_name}"
-    if os.path.isfile(f"{file_path}/md5.txt"):
+    if os.path.isfile(f"./{file_path}/md5.txt"):
         md5 = util.read_txt(f"{file_path}/md5.txt")[0].replace('\n', '').strip()
         os.chmod('./apis/plugins/sbom/sbom.sh', 0o777)
         subprocess.Popen(['./apis/plugins/sbom/sbom.sh', project_name, pipeline_folder_name])
         logger.logger.info("-----------------------parse_sbom_file error-----------------------")
         logger.logger.info(f"Before:{md5 == get_tar_md5(file_path)}")
-        if os.path.isfile(f"{file_path}/sbom.tar") and md5 == get_tar_md5(file_path):
+        if os.path.isfile(f"./{file_path}/sbom.tar") and md5 == get_tar_md5(file_path):
             decompress_tarfile(f"{file_path}/sbom.tar", f"{file_path}/")
             update_dict = {"finished": True, "scan_status": "Success",
                         "finished_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
             update_dict.update(package_num(file_path))
             update_dict.update(scan_overview(file_path, sbom_id))
         else:
-            logger.logger.info(os.path.isfile(f"{file_path}/sbom.tar"))
+            logger.logger.info(os.path.isfile(f"./{file_path}/sbom.tar"))
             logger.logger.info(f"After:{md5 == get_tar_md5(file_path)}")
             update_dict["logs"] = "Error: There are missing packages during transmission."
     else:
@@ -233,7 +233,7 @@ class SbomRiskDetailV2(MethodResource):
         project_name = Project.query.get(project_id).name
         folder_name = f'{commit}-{sequence}'
         output_dict = {}
-        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.json"):
+        if os.path.isfile(f"./devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
             out_list, page_dict = util.df_pagination(risk_detail(file_path), kwargs.get("per_page"), kwargs.get("page"))
             output_dict.update({"detail_list": out_list, "page": page_dict})
@@ -298,7 +298,7 @@ class SbomGetRiskOverviewV2(MethodResource):
         commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
         project_name = Project.query.get(project_id).name
         folder_name = f'{commit}-{sequence}'
-        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.json"):
+        if os.path.isfile(f"./devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
             return util.success(scan_overview(file_path, sbom_id)["scan_overview"])
         else:
