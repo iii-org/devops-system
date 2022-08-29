@@ -268,8 +268,13 @@ class NotUserHimselfError(HTTPException):
 class NotProjectOwnerError(HTTPException):
     pass
 
-class LicenseKeyError(HTTPException):
-    pass
+
+def license_key_error(plugin):
+    return build(3007, "Sbom deployment failed, please contact DevOps for assistance.", {'service': plugin})
+
+
+def not_deployment_error(plugin):
+    return build(3008, "Service has not been deployed.", {'service': plugin})
 
 
 # Exception type errors, for errors those need to be aborted instantly rather than returning
@@ -289,10 +294,6 @@ custom_errors = {
     },
     'NotProjectOwnerError': {
         'error': build(3004, "Only PM can set it, please contact PM for assistance."),
-        'status': 401
-    },
-    'LicenseKeyError': {
-        'error': build(3007, "Your license_key is invalid, please contact AM for assistance."),
         'status': 401
     }
 }
