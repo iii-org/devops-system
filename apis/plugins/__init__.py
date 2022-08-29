@@ -57,10 +57,14 @@ def sbom_validation():
     ) or not check_element_in_service(
         "anchore-init-pod", [pod.metadata.name for pod in api_k8s_client.list_namespaced_job("default").items]
     ):
-        raise apiError.not_deployment_error("Sbom Service has not been deployed.", "sbom")
+        raise apiError.DevOpsError(
+            400, 'Service has not been deployed.',
+            error=apiError.not_deployment_error("sbom"))
 
     if not validate_license_key("sbom"):
-        raise apiError.license_key_error("Sbom deployment failed, please contact DevOps for assistance.", "sbom")
+        raise apiError.DevOpsError(
+            400, 'Sbom deployment failed, please contact DevOps for assistance.',
+            error=apiError.license_key_error("sbom"))
 
 
 
