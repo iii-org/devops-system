@@ -132,7 +132,7 @@ def package_num(file_path=None):
 def scan_overview(file_path, sbom_id):
     try:
         result_dict = {}
-        with open(f'{file_path}/grype.syft.json') as json_data:
+        with open(f'{file_path}/grype.json') as json_data:
             data = json.load(json_data)
         if data:
             race_sr = pd.Series(
@@ -171,7 +171,7 @@ def remove_parsing_data():
             
 
 def risk_detail(file_path=None):
-    with open(f'{file_path}/grype.syft.json') as json_data:
+    with open(f'{file_path}/grype.json') as json_data:
         data = json.load(json_data)
     df_vulnerability_info = pd.DataFrame(
         [data['matches'][index]['vulnerability'] for index, value in enumerate(data['matches'])])[['id', 'severity', 'description']]
@@ -233,7 +233,7 @@ class SbomRiskDetailV2(MethodResource):
         project_name = Project.query.get(project_id).name
         folder_name = f'{commit}-{sequence}'
         output_dict = {}
-        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
+        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
             out_list, page_dict = util.df_pagination(risk_detail(file_path), kwargs.get("per_page"), kwargs.get("page"))
             output_dict.update({"detail_list": out_list, "page": page_dict})
@@ -298,7 +298,7 @@ class SbomGetRiskOverviewV2(MethodResource):
         commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
         project_name = Project.query.get(project_id).name
         folder_name = f'{commit}-{sequence}'
-        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.syft.json"):
+        if os.path.isfile(f"devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
             return util.success(scan_overview(file_path, sbom_id)["scan_overview"])
         else:
