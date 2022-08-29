@@ -2,11 +2,5 @@
     "name": "sbom",
     "default_disabled": true,
     "is_pipeline": true,
-    "keys": [
-        {
-            "key": "license_key",
-            "type": "string",
-            "store": "db"
-        }
-    ]
+    "keys": []
 }
