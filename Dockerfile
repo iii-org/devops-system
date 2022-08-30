@@ -1,6 +1,6 @@
 FROM dockerhub/library/python:3.9.12-slim
-RUN apt-get update
-RUN apt-get install -y --no-install-recommends git curl 
+RUN apt-get update && apt-get install -y --no-install-recommends git curl 
+RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.19.0/bin/linux/amd64/kubectl && chmod +x ./kubectl && mv ./kubectl /usr/local/bin/kubectl
 WORKDIR /root/.kube
 COPY iiidevops/k8s_config ./config
 WORKDIR /usr/src/app/deploy-config

@@ -34,6 +34,8 @@ def monitoring_url(api, add_resource):
     api.add_resource(view.K8sAlive, '/monitoring/k8s/alive')
     api.add_resource(view.K8sAliveV2, '/v2/monitoring/k8s/alive')
     add_resource(view.K8sAliveV2, "public")
+    api.add_resource(view.ExcalidrawAliveV2, '/v2/monitoring/excalidraw/alive')
+    add_resource(view.ExcalidrawAliveV2, "public")
     api.add_resource(view.CollectPodRestartTime, '/monitoring/k8s/collect_pod_restart_times_by_hour')
     api.add_resource(view.CollectPodRestartTimeV2, '/v2/monitoring/k8s/collect_pod_restart_times_by_hour')
     add_resource(view.CollectPodRestartTimeV2, "public")

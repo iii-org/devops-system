@@ -461,13 +461,22 @@ def row_to_dict(row):
 
 class CronjobScan(Resource):
     def get(self):
-        query = Model.query.filter(Model.report_id != -1).filter(Model.stats == None).all()
-        id_list = [row_to_dict(doc)["scan_id"] for doc in query]
+        querys = Model.query.filter(Model.finished == None).all()
+        id_list = [query.scan_id for query in querys]
         for id in id_list:
             try:
-                GetCheckmarxReportStatus().get(id)
-                time.sleep(3)
+                status_id, _ = checkmarx.get_scan_status(id)
+                # Merge id 2 and 10 as same status
+                if status_id == 10:
+                    status_id, _ = 2, "PreScan"
+
+                if status_id in [1, 2, 3]:
+                    logger.logger.info(f"Updating checkmarx scan: {id}'s status")
+                    checkmarx.register_report(id)
+                    logger.logger.info(f"Updating checkmarx scan: {id}'s report")
+
+                time.sleep(1)
             except Exception as e:
-                logger.logger.info(str(e))
+                logger.logger.exception(str(e))
         return util.success()
 

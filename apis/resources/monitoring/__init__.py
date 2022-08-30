@@ -368,6 +368,7 @@ def generate_alive_response(name):
         "K8s": monitoring.k8s_alive,
         "Sonarqube": monitoring.sonarqube_alive,
         "Rancher": monitoring.rancher_alive,
+        "Excalidraw": monitoring.excalidraw_alive
     }
     return {
         "name": name.capitalize(),

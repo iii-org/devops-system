@@ -180,6 +180,16 @@ class RancherDefaultName(Resource):
         rancher.rc_get_cluster_id()
         return {"default_cluster_name": rancher.cluster_id is not None}
 
+
+@doc(tags=['monitoring'], description="DeleteApprevisions")
+@marshal_with(util.CommonResponse)
+class DeleteApprevisions(MethodResource):
+    def delete(self):
+        os.chmod('./apis/urls/monitoring/apprevisions.sh', 0o777)
+        subprocess.run('./apis/urls/monitoring/apprevisions.sh')
+        return util.success()
+
+
 # k8s
 
 
@@ -288,10 +298,11 @@ class GithubTokenVerify(Resource):
         return util.success(verify_github_info(value))
 
 
-@doc(tags=['monitoring'], description="DeleteApprevisions")
-@marshal_with(util.CommonResponse)
-class DeleteApprevisions(MethodResource):
-    def delete(self):
-        os.chmod('./apis/urls/monitoring/apprevisions.sh', 0o777)
-        subprocess.run('./apis/urls/monitoring/apprevisions.sh')
-        return util.success()
+# excalidraw
+
+@doc(tags=['Monitoring'], description="Get Excalidraw server's status")
+@marshal_with(router_model.ServerAliveResponse)
+class ExcalidrawAliveV2(MethodResource):
+    @jwt_required()
+    def get(self):
+        return server_alive("Excalidraw")
