@@ -782,8 +782,8 @@ def create_issue(args, operator_id):
     attachment_list = personal_redmine_obj.rm_upload(args)
     if attachment_list is not None:
         args['uploads'] = attachment_list
-
-    args["description"] = changeUrl
+    if changeUrl:
+        args["description"] += f",changeUrl:{changeUrl}"
     created_issue = personal_redmine_obj.rm_create_issue(args)
     created_issue_id = created_issue["issue"]["id"]
     create_issue_extensions(created_issue_id, extension_args)
