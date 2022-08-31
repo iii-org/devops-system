@@ -19,5 +19,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request Delete 'http://devopsapi-service:10009/monitoring/delete_apprevisions'
+            - curl --location --request DELETE 'http://devopsapi-service:10009/monitoring/delete_apprevisions'
           restartPolicy: OnFailure
