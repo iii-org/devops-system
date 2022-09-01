@@ -738,6 +738,14 @@ def create_issue(args, operator_id):
         raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
                             error=apiError.project_tracker_must_has_father_issue(project_id, args["tracker_id"]))
 
+    # Check if assigned_to_id is in project or not
+    if args.get('assigned_to_id'):
+        user_project_check = model.ProjectUserRole.query.filter_by(project_id=project_id).filter_by(
+            user_id=args.get('assigned_to_id')).first()
+        if not user_project_check:
+            raise DevOpsError(400, 'The user of this assigned_to_id is not in this project',
+                              error=apiError.project_is_disabled(project_id))
+
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
         if len(args['fixed_version_id']) > 0 and args['fixed_version_id'].isdigit():
