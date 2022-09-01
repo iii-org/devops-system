@@ -21,6 +21,13 @@ from resources import gitlab
 from resources.kubernetesClient import ApiK8sClient
 from resources import logger
 
+
+'''
+execute default job and cron_job
+perl ~/deploy-anchore/install_anchore.pl
+'''
+
+
 def is_json(string):
     try:
         json.loads(string)
