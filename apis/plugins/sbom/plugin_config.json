@@ -1,0 +1,6 @@
+{
+    "name": "sbom",
+    "default_disabled": true,
+    "is_pipeline": true,
+    "keys": []
+}

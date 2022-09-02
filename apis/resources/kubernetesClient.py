@@ -36,6 +36,7 @@ env_normal_type = ['Opaque']
 
 DEFAULT_NAMESPACE = 'default'
 SYSTEM_SECRET_NAMESPACE = 'iiidevops-env-secret'
+CRONJOB_WHITELIST = ['anchore-grypedb-update-job-by-day']
 
 
 class ApiK8sClient:
@@ -475,6 +476,13 @@ class ApiK8sClient:
                 raise e
 
     # Job
+    def read_namespaced_job(self, name, namespace):
+        try:
+            return self.batch_v1.read_namespaced_job(name, namespace)
+        except Exception as e:
+            print(e)
+
+
     def list_namespaced_job(self, namespace):
         try:
             return self.batch_v1.list_namespaced_job(namespace)
@@ -524,7 +532,9 @@ def apply_cronjob_yamls():
     api_k8s_client = ApiK8sClient()
     k8s_cronjob_name_list = get_k8s_cronjob_name_list(api_k8s_client)
     logger.info(f"Exist cronjob list {k8s_cronjob_name_list}")
-    need_removed_cronjob_list = k8s_cronjob_name_list.copy()
+    need_removed_cronjob_list = [
+        need_removed_cronjob for need_removed_cronjob in k8s_cronjob_name_list  \
+        if need_removed_cronjob not in CRONJOB_WHITELIST]
 
     # Recreate cronjob
     for root, _, files in os.walk("k8s-yaml/api-init/cronjob"):

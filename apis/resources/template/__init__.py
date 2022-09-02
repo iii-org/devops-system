@@ -666,15 +666,23 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
 
     # Sync default branch pipeline.yml to other branches, seperate to two parts to avoid not delete all branches
     for br_name in need_running_branches:
-        sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name, default_pipe_json, not_run=not run)
+        sync_branch(user_account, repository_id, pipe_yaml_file_name, br_name, default_pipe_json, not_run=not run)
 
     # Rest of branches
     rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches+[default_branch]])
-    for br_name in rest_branch_names:
-        sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name, default_pipe_json)
+    thread = threading.Thread(
+        target=sync_branches,
+        args=(user_account, repository_id, pipe_yaml_file_name, rest_branch_names, default_pipe_json, )
+    )
+    thread.start()
 
 
-def sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name, updated_pipe_json, not_run=True):
+def sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name_list, default_pipe_json):
+    for br_name in br_name_list:
+        sync_branch(user_account, repository_id, pipe_yaml_file_name, br_name, default_pipe_json)
+
+
+def sync_branch(user_account, repository_id, pipe_yaml_file_name, br_name, updated_pipe_json, not_run=True):
     f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br_name)
     pipe_json = yaml.safe_load(f.decode())
     had_update_branche = pipe_json != updated_pipe_json

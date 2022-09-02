@@ -10,6 +10,7 @@ from resources.role import require_in_project
 from plugins import get_plugin_config
 import psycopg2
 from . import role, user
+from util import check_url_alive
 
 
 def excalidraw_get_config(key):
@@ -241,14 +242,6 @@ def sync_excalidraw_db():
         print(str(e))
     finally:
         conn.close()
-
-def check_url_alive(url):
-    import requests
-    try:
-        alive = requests.get(url).status_code < 500
-    except Exception:
-        alive = False
-    return alive
 
 
 def check_excalidraw_alive(excalidraw_url=None, excalidraw_socket_url=None):

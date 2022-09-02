@@ -28,6 +28,8 @@ from sqlalchemy import desc
 from resources.resource_storage import get_project_resource_storage_level, compare_operator
 from datetime import timedelta
 from model import ServerDataCollection
+from util import check_url_alive
+
 
 DATETIMEFORMAT = "%Y-%m-%d %H:%M:%S"
 AlertServiceIDMapping = {
@@ -80,7 +82,7 @@ class Monitoring:
             func(*args, **kwargs)
             return True
         except Exception as e:
-            logger.logger.info(f'{func.__name__} : {str(e)}')
+            logger.logger.info(f'{self.server} : {str(e)}')
             self.error_message = str(e)
             return False
 
@@ -209,18 +211,19 @@ class Monitoring:
         create_notification_message(args, user_id=1)
         logger.logger.info(f"Send Server back message {title}")
 
+    # Redmine
     def redmine_alive(self):
         self.server = "Redmine"
         self.alert_service_id = 101
         return self.__check_server_alive(
-            redmine.rm_get_project, redmine.rm_list_projects, self.plan_pj_id)
+            redmine.rm_get_project, check_url_alive, self.plan_pj_id, url=f"{config.get('REDMINE_INTERNAL_BASE_URL')}")
 
     # Gitlab
     def gitlab_alive(self, is_project=False):
         self.server = "GitLab"
         self.alert_service_id = 201
         gitlab_alive = self.__check_server_alive(
-            gitlab.gl_get_project, gitlab.gl_get_user_list, self.gl_pj_id, args={})
+            gitlab.gl_get_project, check_url_alive, self.gl_pj_id, url=f'{config.get("GITLAB_BASE_URL")}/api/{config.get("GITLAB_API_VERSION")}')
         if not gitlab_alive or is_project:
             return gitlab_alive
 
@@ -268,7 +271,7 @@ class Monitoring:
         self.server = "Sonarqube"
         self.alert_service_id = 501
         return self.__check_server_alive(
-            sq_get_current_measures, sq_list_project, self.__get_project_name(), params={'p': 1, 'ps': 1})
+            sq_get_current_measures, check_url_alive, self.__get_project_name(), url=config.get('SONARQUBE_INTERNAL_BASE_URL'))
 
     def rancher_alive(self):
         self.server = "Rancher"
@@ -365,6 +368,7 @@ def generate_alive_response(name):
         "K8s": monitoring.k8s_alive,
         "Sonarqube": monitoring.sonarqube_alive,
         "Rancher": monitoring.rancher_alive,
+        "Excalidraw": monitoring.excalidraw_alive
     }
     return {
         "name": name.capitalize(),

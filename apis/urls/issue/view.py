@@ -194,13 +194,13 @@ class SingleIssue(Resource):
         parser.add_argument('done_ratio', type=int, location="form")
         parser.add_argument('estimated_hours', type=int, location="form")
         parser.add_argument('point', type=int, location="form")
-        parser.add_argument('tags', action=str, location="form")
-        parser.add_argument('changeNo', action=str, location="form")
-        parser.add_argument('changeUrl', action=str, location="form")
+        parser.add_argument('tags', type=str, location="form")
+        parser.add_argument('changeNo', type=str, location="form")
+        parser.add_argument('changeUrl', type=str, location="form")
 
         # Attachment upload
         parser.add_argument(
-            'upload_file', type=werkzeug.datastructures.FileStorage, location='files')
+            'upload_files', type=werkzeug.datastructures.FileStorage, location='files', action='append')
         parser.add_argument('upload_filename', type=str, location="form")
         parser.add_argument('upload_description', type=str, location="form")
         parser.add_argument('upload_content_type', type=str, location="form")
@@ -258,7 +258,7 @@ class SingleIssue(Resource):
 
         # Attachment uploadsd
         parser.add_argument(
-            'upload_file', type=werkzeug.datastructures.FileStorage, location='files')
+            'upload_files', type=werkzeug.datastructures.FileStorage, location='files', action='append')
         parser.add_argument('upload_filename', type=str, location="form")
         parser.add_argument('upload_description', type=str, location="form")
         parser.add_argument('upload_content_type', type=str, location="form")

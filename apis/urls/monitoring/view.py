@@ -13,10 +13,11 @@ import util
 from resources.rancher import rancher
 from resources import logger
 from resources.redis import get_server_alive, update_server_alive
-
 from flask_restful import Resource, reqparse
 from resources.monitoring import Monitoring, generate_alive_response, row_to_dict, verify_github_info, \
     docker_image_pull_limit_alert, harbor_nfs_storage_remain_limit, server_alive
+import subprocess
+import os
 
 
 @doc(tags=['Monitoring'], description="Check all server is alive and update cache.")
@@ -179,6 +180,16 @@ class RancherDefaultName(Resource):
         rancher.rc_get_cluster_id()
         return {"default_cluster_name": rancher.cluster_id is not None}
 
+
+@doc(tags=['monitoring'], description="DeleteApprevisions")
+@marshal_with(util.CommonResponse)
+class DeleteApprevisions(MethodResource):
+    def delete(self):
+        os.chmod('./apis/urls/monitoring/apprevisions.sh', 0o777)
+        subprocess.run('./apis/urls/monitoring/apprevisions.sh')
+        return util.success()
+
+
 # k8s
 
 
@@ -285,3 +296,13 @@ class GithubTokenVerify(Resource):
         role.require_admin()
         value = row_to_dict(SystemParameter.query.filter_by(name="github_verify_info").one())["value"]
         return util.success(verify_github_info(value))
+
+
+# excalidraw
+
+@doc(tags=['Monitoring'], description="Get Excalidraw server's status")
+@marshal_with(router_model.ServerAliveResponse)
+class ExcalidrawAliveV2(MethodResource):
+    @jwt_required()
+    def get(self):
+        return server_alive("Excalidraw")

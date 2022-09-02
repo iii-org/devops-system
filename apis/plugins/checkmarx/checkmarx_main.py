@@ -17,6 +17,9 @@ from model import db
 from plugins import get_plugin_config
 from resources import apiError, gitlab
 from resources.apiError import DevOpsError
+from datetime import date
+from resources import logger
+import pandas as pd
 
 
 def cm_get_config(key):
@@ -264,9 +267,21 @@ class CheckMarx(object):
         rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(
             desc(Model.scan_id)).all()
         ret = []
-        for row in rows:
-            mapping = CheckMarx.to_json(row, project_id)
-            ret.append(mapping)
+        if rows:
+            df = pd.DataFrame([CheckMarx.to_json(row, project_id) for row in rows])
+            df.sort_values(by="run_at", ascending=False)
+            df_five_download = df[(df.status == "Finished") & (df.report_id != -1)][0:5]
+            df.report_id = -1
+            df.loc[df_five_download.index] = df_five_download
+            update_list = list(df.drop(list(df_five_download.index)).scan_id)
+            for i in update_list:
+                Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).filter_by(scan_id=i).update({"report_id": -1})
+            db.session.commit()
+            rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(
+                desc(Model.run_at)).all()
+            ret = [CheckMarx.to_json(row, project_id) for row in rows]
+            # df = df_five_download.append(df[df["report_id"] == -1].sort_values(by="run_at", ascending=False))
+            # ret = [value for key, value in df.T.to_dict().items()]
         return ret
 
     @staticmethod
@@ -303,7 +318,7 @@ class CheckMarx(object):
             'stats': stats,
             'run_at': str(row.run_at),
             'report_id': row.report_id,
-            'report_ready': row.finished is True
+            'report_ready': row.finished is True and row.report_id != -1
         }
 
 
@@ -398,8 +413,8 @@ class RegisterCheckmarxReport(Resource):
 
 class GetCheckmarxReportStatus(Resource):
     @jwt_required()
-    def get(self, report_id):
-        status_id, value = checkmarx.get_report_status(report_id)
+    def get(self, scan_id):
+        status_id, value = checkmarx.get_report_status(scan_id)
         return util.success({'id': status_id, 'value': value})
 
 
@@ -419,3 +434,49 @@ class CancelCheckmarxScan(Resource):
         status_code = checkmarx.cancel_scan(scan_id)
         status = "success" if status_code == 200 else "failure"
         return {"status": status, "status_code": status_code}
+
+
+def is_json(string):
+    try:
+        json.loads(string)
+    except ValueError:
+        return False
+    return True
+
+
+def row_to_dict(row):
+    ret = {}
+    if row is None:
+        return row
+    for key in type(row).__table__.columns.keys():
+        value = getattr(row, key)
+        if type(value) is datetime or type(value) is date:
+            ret[key] = str(value)
+        elif isinstance(value, str) and is_json(value):
+            ret[key] = json.loads(value)
+        else:
+            ret[key] = value
+    return ret
+
+
+class CronjobScan(Resource):
+    def get(self):
+        querys = Model.query.filter(Model.finished == None).all()
+        id_list = [query.scan_id for query in querys]
+        for id in id_list:
+            try:
+                status_id, _ = checkmarx.get_scan_status(id)
+                # Merge id 2 and 10 as same status
+                if status_id == 10:
+                    status_id, _ = 2, "PreScan"
+
+                if status_id in [1, 2, 3]:
+                    logger.logger.info(f"Updating checkmarx scan: {id}'s status")
+                    checkmarx.register_report(id)
+                    logger.logger.info(f"Updating checkmarx scan: {id}'s report")
+
+                time.sleep(1)
+            except Exception as e:
+                logger.logger.exception(str(e))
+        return util.success()
+

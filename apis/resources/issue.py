@@ -716,6 +716,7 @@ def get_issue_assign_to_detail(issue):
 
 
 def create_issue(args, operator_id):
+    changeUrl = args.get("changeUrl")
     update_cache_issue_family = False
     project_id = args['project_id']
     plan_operator_id = None
@@ -736,6 +737,14 @@ def create_issue(args, operator_id):
         (args.get("parent_id") is None and args["tracker_id"] in project_issue_check.need_fatherissue_trackers):
         raise DevOpsError(400, f'Create issue with tacker_id:{args["tracker_id"]} must has father issue.',
                             error=apiError.project_tracker_must_has_father_issue(project_id, args["tracker_id"]))
+
+    # Check if assigned_to_id is in project or not
+    if args.get('assigned_to_id'):
+        user_project_check = model.ProjectUserRole.query.filter_by(project_id=project_id).filter_by(
+            user_id=args.get('assigned_to_id')).first()
+        if not user_project_check:
+            raise DevOpsError(400, 'The user of this assigned_to_id is not in this project',
+                              error=apiError.project_is_disabled(project_id))
 
     args = {k: v for k, v in args.items() if v is not None}
     if 'fixed_version_id' in args:
@@ -776,10 +785,16 @@ def create_issue(args, operator_id):
 
     # Get Tags ID
     tags = args.pop("tags", None)
-    attachment = personal_redmine_obj.rm_upload(args)
-    if attachment is not None:
-        args['uploads'] = [attachment]
 
+    # Operating files
+    attachment_list = personal_redmine_obj.rm_upload(args)
+    if attachment_list is not None:
+        args['uploads'] = attachment_list
+    if changeUrl:
+        if args.get("description") is not None:
+            args["description"] += f",changeUrl:{changeUrl}"
+        else:
+            args["description"] = changeUrl
     created_issue = personal_redmine_obj.rm_create_issue(args)
     created_issue_id = created_issue["issue"]["id"]
     create_issue_extensions(created_issue_id, extension_args)
@@ -803,6 +818,7 @@ def create_issue(args, operator_id):
 
     logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
+    main_output.pop("changeUrl")
     return main_output
 
 
@@ -935,9 +951,11 @@ def update_issue(issue_id, args, operator_id=None):
             user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
     personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
-    attachment = personal_redmine_obj.rm_upload(args)
-    if attachment is not None:
-        args['uploads'] = [attachment]
+
+    # Operating files
+    attachment_list = personal_redmine_obj.rm_upload(args)
+    if attachment_list is not None:
+        args['uploads'] = attachment_list
 
     personal_redmine_obj.rm_update_issue(issue_id, args)
 

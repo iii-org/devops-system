@@ -20,7 +20,7 @@ DEFAULT_FORMAT = {
 }
 
 # Latest version
-LATEST_VERSION = 2
+LATEST_VERSION = 3
 
 
 def get_project_pipeline_version(pj_id):

@@ -1009,6 +1009,7 @@ class Sbom(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
     branch = Column(String)
     commit = Column(String)
+    sequence = Column(Integer)
     scan_status = Column(String)
     package_nums = Column(Integer)
     scan_overview = Column(JSON)
@@ -1029,3 +1030,10 @@ class Sbom(db.Model):
             except TypeError:
                 fields[field] = str(data)
         return json.dumps(fields)
+
+
+class UpdatePasswordError(db.Model):
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
+    server = Column(String, nullable=False)
+    password = Column(String, nullable=False)

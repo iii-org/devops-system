@@ -3,7 +3,9 @@ import config
 import model
 import util
 import uuid
-from migrate.upgrade_function.ui_route_upgrade import ui_route_first_version
+from migrate.upgrade_function.ui_route_upgrade import ui_route_first_version, delete_ui_route_object, \
+    create_ui_route_object, rename_ui_route, adjust_ui_router_order
+from migrate.upgrade_function import ui_route_upgrade_history
 from migrate.upgrade_function.upload_file_types import upload_file_types
 from model import db, ProjectPluginRelation, Project, UserPluginRelation, User, ProjectUserRole, PluginSoftware, \
     DefaultAlertDays, TraceOrder, TraceResult, Application, IssueExtensions, Lock, RedmineProject, ServerType, SystemParameter, \
@@ -15,6 +17,7 @@ from resources.logger import logger
 from resources.rancher import rancher, remove_executions, turn_tags_off
 from resources.redmine import redmine
 from resources import role
+from migrate.upgrade_function.ui_route_upgrade_history import sbom_reports_dict, sbom_report_dict
 
 # Each time you add a migration, add a version code here.
 
@@ -43,7 +46,8 @@ VERSIONS = ['0.9.2', '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.4', '0.9.2.5',
             '1.16.2.2', '1.16.2.3', '1.16.2.4', '1.16.2.5', '1.16.2.6', '1.16.2.7', '1.16.3.0', '1.16.3.1', '1.17.1.0', '1.17.1.1', '1.17.2.1',
             '1.17.2.2', '1.17.2.3', '1.17.2.4', '1.17.2.5', '1.17.2.6', '1.17.2.7', '1.17.2.8', '1.17.2.9', '1.17.2.10', '1.17.2.11',
             '1.17.2.12', '1.17.2.13', '1.17.2.14', '1.17.2.15', '1.17.2.16', '1.17.2.17', '1.17.2.18', '1.18.1.0', '1.19.0.1', '1.19.0.2', '1.19.0.3',
-            '1.19.0.4', '1.19.0.5', '1.19.0.6', '1.19.0.7', '1.19.0.8', '1.19.0.9', '1.19.1.0', '1.20.0.1', '1.20.0.2']
+            '1.19.0.4', '1.19.0.5', '1.19.0.6', '1.19.0.7', '1.19.0.8', '1.19.0.9', '1.19.1.0', '1.20.0.1', '1.20.0.2', '1.20.0.3',
+            '1.20.0.4', '1.20.0.5', '1.20.0.6', '1.20.0.7', '1.20.0.8', '1.20.0.9', '1.20.0.10', '1.20.0.11', '1.20.0.12']
 ONLY_UPDATE_DB_MODELS = [
     '0.9.2.1', '0.9.2.2', '0.9.2.3', '0.9.2.5', '0.9.2.6', '0.9.2.a8',
     '1.0.0.2', '1.3.0.1', '1.3.0.2', '1.3.0.3', '1.3.0.4', '1.3.1', '1.3.1.1', '1.3.1.2',
@@ -62,7 +66,7 @@ ONLY_UPDATE_DB_MODELS = [
     '1.16.1.0', '1.16.1.2', '1.16.1.3', '1.16.1.4', '1.16.2.0', '1.16.2.1', '1.16.2.2', '1.16.2.3', '1.16.2.4',
     '1.16.2.5', '1.16.2.6', '1.16.2.7', '1.16.3.0', '1.17.1.0', '1.17.1.1', '1.17.2.2', '1.17.2.4', '1.17.2.6',
     '1.17.2.8', '1.17.2.10', '1.17.2.11', '1.17.2.12', '1.19.0.1', '1.19.0.2', '1.19.0.4', '1.19.0.5', '1.19.0.6',
-    '1.19.0.7', '1.19.0.8', '1.20.0.1', '1.20.0.2']
+    '1.19.0.7', '1.19.0.8', '1.20.0.1', '1.20.0.2', '1.20.0.3', '1.20.0.11']
 
 
 def upgrade(version):
@@ -235,7 +239,40 @@ def upgrade(version):
     elif version == '1.19.1.0':
         if os.path.exists("devops-data/config/B&W.json"):
             os.rename("devops-data/config/B&W.json",
-            "devops-data/config/black_white_projects.json")
+                      "devops-data/config/black_white_projects.json")
+    elif version == '1.20.0.4':
+        remove_kubernetes_ui_route_resources()
+    elif version == '1.20.0.5':
+        rename_ui_route_system_resource()
+    elif version == '1.20.0.6':
+        ui_route_upgrade_history.add_harbor_ui_route_children()
+    elif version == '1.20.0.7':
+        rename_ui_route_system_resource()
+    elif version == '1.20.0.8':
+        ui_route_upgrade_history.modify_test_plan_webinspect_and_add_sbom()
+    elif version == '1.20.0.9':
+        ui_route_upgrade_history.add_resource_testfile_testplan()
+    elif version == '1.20.0.10':
+        for role in ["Administrator", "Engineer", "QA", "Project Manager"]: 
+            create_ui_route_object("SbomReports", role, sbom_reports_dict(role), "", "DockerReports")
+            create_ui_route_object("SbomReport", role, sbom_report_dict(role), "SbomReports", "")
+    elif version == '1.20.0.12':
+        for role in ["Administrator", "Project Manager", "Engineer", "QA"]: 
+            adjust_ui_router_order(role, "Checkmarx", "DockerImage")
+
+
+
+def rename_ui_route_system_resource():
+    rename_ui_route('System Resource', 'SystemResource', 'Project Manager')
+    rename_ui_route('System Resource', 'SystemResource', 'Administrator')
+    rename_ui_route('SystemResource', 'SystemResource', 'Project Manager')
+    rename_ui_route('SystemResource', 'SystemResource', 'Administrator')
+
+
+def remove_kubernetes_ui_route_resources():
+    delete_ui_route_object('KubernetesResources', 'Project Manager')
+    delete_ui_route_object('KubernetesResources', 'Administrator')
+    delete_ui_route_object('KubernetesResources', 'Engineer')
 
 
 def insert_default_value_in_pipeline_update_version():

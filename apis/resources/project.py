@@ -1108,6 +1108,12 @@ def get_kubernetes_namespace_quota(project_id):
         secrets = kubernetesClient.list_namespace_secrets(project_name)
         project_quota["quota"]["secrets"] = None
         project_quota["used"]["secrets"] = str(len(secrets))
+    for item in ["configmaps", "cpu", "memory", "persistentvolumeclaims", "pods", "services.nodeports"]:
+        if item not in project_quota["quota"]:
+            project_quota["quota"][item] = "0"
+        if item not in project_quota["used"]:
+            project_quota["used"][item] = "0"
+
     return util.success(project_quota)
 
 
@@ -1122,13 +1128,13 @@ def update_kubernetes_namespace_quota(project_id, resource):
 def get_kubernetes_plugin_pods(project_id, plugin_name):
     pods, _ = get_kubernetes_namespace_pods(project_id)
     ret = {}
-
     pods_data = [{
         "container_name": pod["containers"][0]["name"],
         "pod_name": pod["name"],
         "time": pod["containers"][0]["time"]
     } for pod in pods["data"]
-        if len(pod["containers"]) > 0 and pod["containers"][0]["name"].startswith(plugin_name)
+        if len(pod["containers"]) > 0 and pod["containers"][0]["name"].startswith(plugin_name) and \
+            pod["containers"][0]["time"] is not None
     ]
 
     ret["has_pod"] = len(pods_data) > 0

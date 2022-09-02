@@ -3,6 +3,8 @@
 # plugin directory name.
 # If the plugin only contains one module, make it __init__.py.
 
+import util
+import config
 import json
 import os
 from datetime import datetime
@@ -11,6 +13,8 @@ from os.path import dirname, join, exists
 
 from kubernetes.client import ApiException
 
+import subprocess
+from subprocess import Popen, PIPE
 import threading
 import model
 from resources import apiError
@@ -23,9 +27,52 @@ from resources.kubernetesClient import read_namespace_secret, SYSTEM_SECRET_NAME
     create_namespace_secret, patch_namespace_secret, delete_namespace_secret
 from resources.rancher import rancher
 from resources.notification_message import close_notification_message, get_unclose_notification_message, create_notification_message
+from resources.kubernetesClient import ApiK8sClient
 
 SYSTEM_SECRET_PREFIX = 'system-secret-'
 
+
+## enterprise plugin validation
+def validate_license_key(plugin):
+    plugin_secret = read_namespace_secret(DEFAULT_NAMESPACE, plugin)
+    if plugin_secret is not None:
+        deployment_uuid = model.NexusVersion.query.first().deployment_uuid
+        output_str, error_output = util.ssh_to_node_by_key(
+            f'~/deploy-devops/sbom/sbom_license {deployment_uuid}', config.get("DEPLOYER_NODE_IP"))
+        if error_output == "":
+            return output_str.replace("\n", "").strip() == plugin_secret.get("license_key")
+    return False
+
+
+def sbom_validation():
+    def check_element_in_service(element, service_elements):
+        for service_element in service_elements:
+            if element == service_element:
+                return True
+        return False
+
+    api_k8s_client = ApiK8sClient()
+    if not check_element_in_service(
+        "anchore-grypedb-update-job-by-day", [pod.metadata.name for pod in api_k8s_client.list_namespaced_cron_job("default").items]
+    ) or not check_element_in_service(
+        "anchore-init-pod", [pod.metadata.name for pod in api_k8s_client.list_namespaced_job("default").items]
+    ):
+        raise apiError.DevOpsError(
+            400, 'Service has not been deployed.',
+            error=apiError.not_deployment_error("sbom"))
+
+    if not validate_license_key("sbom"):
+        raise apiError.DevOpsError(
+            400, 'Sbom deployment failed, please contact DevOps for assistance.',
+            error=apiError.license_key_error("sbom"))
+
+
+
+ENTERPRISE_PLUGINS = {
+    "sbom": {
+        "func": sbom_validation
+    }
+}
 
 class PluginKeyStore(Enum):
     DB = 'db'  # Store in db
@@ -120,6 +167,7 @@ def get_plugin_config(plugin_name):
         ret['arguments'].append(o)
     return ret
 
+
 @record_activity(ActionType.ENABLE_PLUGIN)
 def enable_plugin_config(plugin_name):
     db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one() 
@@ -195,6 +243,11 @@ def update_plugin_config(plugin_name, args):
                 if not alive:    
                     raise DevOpsError(400, 'Plugin is not alive',
                                     error=apiError.plugin_server_not_alive(plugin_name))
+
+            # Validate enterprise plugin
+            if plugin_name in ENTERPRISE_PLUGINS:
+                ENTERPRISE_PLUGINS[plugin_name]["func"]()
+
         else:
             # Read alert_message of plugin server is not alive then send notification.
             plugin_alive_id = plugin_alive_mapping.get(plugin_name, {}).get("alert_monitring_id")

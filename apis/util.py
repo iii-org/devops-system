@@ -174,6 +174,15 @@ def api_request(method, url, headers=None, params=None, data=None, auth=None):
                                              '{0} provided.'.format(method)))
 
 
+def check_url_alive(url):
+    import requests
+    try:
+        alive = requests.get(url).status_code < 500
+    except Exception:
+        alive = False
+    return alive
+
+
 def encode_k8s_sa(name):
     ret = ''
     for c in name:
@@ -259,6 +268,30 @@ def rows_to_list(rows):
                 ret[key] = value
         out.append(ret)
     return out
+
+
+def df_pagination(df, per_page, page):
+    pages = math.ceil(len(df) / per_page)
+    current = page
+    prev = page - 1 if page - 1 > 0 else None
+    next = page + 1 if page + 1 <= pages else None
+    total = len(df)
+    index_list = str(pd.cut([0, pages * per_page], pages).categories[page - 1]).replace("(", "").replace("]", "").split(
+        ',')
+    index_top = math.ceil(float(index_list[0]))
+    index_down = math.ceil(float(index_list[1]))
+    df = df.where(pd.notnull(df), None)
+    data = df[index_top:index_down].T.to_dict()
+    page_dict = {
+        'current': current,
+        'next': next,
+        'pages': pages,
+        'per_page': per_page,
+        'prev': prev,
+        'total': total
+    }
+    result_list = [value for key, value in data.items()]
+    return result_list, page_dict
 
 
 def get_pagination(total_count, limit, offset):
@@ -384,10 +417,15 @@ class obj:
         self.__dict__.update(dict1)
 
 
+def read_txt(path):
+    with open(path, "r") as f:
+        line_list = f.readlines()
+    return line_list
+
+
 def read_json_file(path, return_obj=False):
     with open(path, "r") as f:
         if return_obj:
-
             f_info = json.load(f, object_hook=obj)
         else:
             f_info = json.load(f)

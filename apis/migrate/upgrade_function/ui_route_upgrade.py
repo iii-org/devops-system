@@ -83,6 +83,10 @@ def get_young_brother_id(role, name):
 
 
 def create_ui_route_object(name, role, ui_route_json, parent_name, old_brother_name):
+    # check existing route
+    row = UIRouteData.query.filter_by(role=role, name=name).first()
+    if row:
+        return
     # create a new route ob
     parent_id = get_ui_route_id(role, parent_name)
     old_brother_id = get_ui_route_id(role, old_brother_name)
@@ -114,6 +118,31 @@ def create_ui_route_object(name, role, ui_route_json, parent_name, old_brother_n
         db.session.commit()
 
 
+def adjust_ui_router_order(role, target_name, moved_name):
+    def find_after_route_obj(route_name):
+        target = UIRouteData.query.filter_by(name=route_name, role=role).first()
+        if target is None:
+            return None, None
+        target_id = target.id
+        return target, UIRouteData.query.filter_by(old_brother=target_id).first()
+
+    target_obj, after_target_obj = find_after_route_obj(target_name)
+    moved_obj, after_moved_obj = find_after_route_obj(moved_name)
+
+    if moved_obj is None or target_obj is None or after_target_obj is None:
+        return  
+    before_moved_obj_id = None if after_moved_obj is None else moved_obj.old_borther
+    
+    moved_obj.old_brother = target_obj.id
+    db.session.commit()
+    after_target_obj.old_brother = moved_obj.id
+    db.session.commit()
+
+    if before_moved_obj_id is not None:
+        after_moved_obj.old_brother = before_moved_obj_id
+        db.session.commit()
+
+
 def put_ui_route_object(name, role, ui_route_json, parent_name=None, old_brother_name=None):
     # update the route object
     if parent_name is not None or old_brother_name is not None:
@@ -131,6 +160,12 @@ def delete_ui_route_object(name, role):
     route_row = UIRouteData.query.filter_by(role=role, name=name).first()
     old_brother_id = route_row.old_brother
     young_brother = get_young_brother_id(role, name)
+    # check ui_route has children or not, if exists, then delete it.
+    chile_route_rows = UIRouteData.query.filter_by(role=role, parent=route_row.id).all()
+    if len(chile_route_rows) > 0:
+        for chile_route_row in chile_route_rows:
+            delete_ui_route_object(chile_route_row.name, role)
+
     db.session.delete(route_row)
     db.session.commit()
     if old_brother_id == 0:
@@ -146,4 +181,14 @@ def delete_ui_route_object(name, role):
         # insert into the middle
         young_brother.old_brother = old_brother_id
         young_brother.updated_at = datetime.utcnow()
+        db.session.commit()
+
+
+def rename_ui_route(old_name, new_name, role):
+    route_row = UIRouteData.query.filter_by(role=role, name=old_name).first()
+    if route_row:
+        route_row.name = new_name
+        route_dict = dict(route_row.ui_route)
+        route_dict['name'] = new_name
+        route_row.ui_route = route_dict
         db.session.commit()
