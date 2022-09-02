@@ -11,6 +11,7 @@ from plugins.zap.zap_main import zap_get_test_by_commit
 from plugins.cmas.cmas_main import get_task_state
 from resources.harbor.harbor_scan import harbor_get_scan_by_commit
 from resources import apiTest, role
+from plugins.sbom.sbom_main import get_scan_report
 
 
 def check_plugin_software_open(row, project_id, commit_id):
@@ -26,6 +27,8 @@ def check_plugin_software_open(row, project_id, commit_id):
         return {'webinspect': wi_get_scan_by_commit(project_id, commit_id)}
     elif row.name == 'zap':
         return {'zap': zap_get_test_by_commit(project_id, commit_id)}
+    elif row.name == 'sbom':
+        return {'sbom': get_scan_report(project_id, commit_id)}
     elif row.name == 'cmas':
         cmas_content = get_task_state(project_id, commit_id)
         if not isinstance(cmas_content, dict):

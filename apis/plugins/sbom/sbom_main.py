@@ -20,6 +20,8 @@ from os import listdir
 from resources import gitlab
 from resources.kubernetesClient import ApiK8sClient
 from resources import logger
+from sqlalchemy import desc
+
 
 
 '''
@@ -116,7 +118,7 @@ def parse_sbom_file(sbom_id):
     update_sboms(sbom_id, update_dict)
 
 
-# Get file md5   
+# Get file md5
 def get_tar_md5(file_path):
     session = subprocess.Popen(
         ['md5sum', f'./{file_path}/sbom.tar'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -337,23 +339,30 @@ class SbomDownloadReportV2(MethodResource):
         return response
 
 
+def check_status(sbom_id):
+    sbom = Sbom.query.filter_by(id=sbom_id).first()
+    branch, project_id, sequence = sbom.branch, sbom.project_id, sbom.sequence
+    project_name = Project.query.get(project_id).name
+    job_name = f"{project_name}-{branch}-sbom-{sequence}"
+    alive = ApiK8sClient().read_namespaced_job(name=job_name, namespace=project_name)
+    if not alive:
+        Sbom.query.filter_by(id=sbom_id).update({
+            "scan_status": "Fail",
+            "logs": "Job is deleted",
+            "finished": True
+        })
+        db.session.commit()
+        return False
+    else:
+        return True
+
+
 @doc(tags=['Sbom'], description="update status")
 @marshal_with(util.CommonResponse)
 class SbomCheckStatusV2(MethodResource):
     @jwt_required()
     def patch(self, sbom_id):
-        sbom = Sbom.query.filter_by(id=sbom_id).first()
-        branch, project_id, sequence = sbom.branch, sbom.project_id, sbom.sequence
-        project_name = Project.query.get(project_id).name
-        job_name = f"{project_name}-{branch}-sbom-{sequence}"
-        alive = ApiK8sClient().read_namespaced_job(name=job_name, namespace=project_name)
-        if not alive:
-            Sbom.query.filter_by(id=sbom_id).update({
-                "scan_status": "Fail",
-                "logs": "Job is deleted",
-                "finished": True
-            })
-            db.session.commit()
+        check_status(sbom_id)
         return util.success()
 
 #### Runner
@@ -372,7 +381,7 @@ class SbomPostV2(MethodResource):
 class SbomPatchV2(MethodResource):
     @jwt_required()
     def patch(self, sbom_id, **kwargs):
-        return util.success(update_sboms(sbom_id, kwargs))    
+        return util.success(update_sboms(sbom_id, kwargs))
 
 
 @doc(tags=['Sbom'], description="Parsing Sbom")
@@ -390,3 +399,17 @@ class SbomRemoveExtra(MethodResource):
     @jwt_required()
     def patch(self):
         return util.success(remove_parsing_data())
+
+
+def get_scan_report(project_id, commit_id):
+    row = Sbom.query.filter(Sbom.project_id == project_id).filter(Sbom.commit == commit_id).order_by(desc(Sbom.id)).first()
+    if row is not None:
+        sbom_id = row.id
+        ret = row_to_dict(row)
+        if not row.finished:
+            if check_status(sbom_id):
+                return ret
+            else:
+                return {"error": "job is deleted"}
+        else:
+            return ret
