@@ -174,10 +174,13 @@ def api_request(method, url, headers=None, params=None, data=None, auth=None):
                                              '{0} provided.'.format(method)))
 
 
-def check_url_alive(url):
+def check_url_alive(url, is_200=False):
     import requests
     try:
-        alive = requests.get(url).status_code < 500
+        if is_200:
+            alive = requests.get(url).status_code < 300
+        else:
+            alive = requests.get(url).status_code < 500
     except Exception:
         alive = False
     return alive
