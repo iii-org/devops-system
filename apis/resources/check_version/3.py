@@ -33,8 +33,9 @@ def extra_func(pipe_stages, change):
     for pipe_stage in pipe_stages:
         # Updated deployment environuments stage
         if pipe_stage.get("iiidevops") == "deployed-environments" and pipe_stage.get("name") == "Deploy--Wait Web deployment":
-          pipe_stage["steps"][0]["runScriptConfig"] = DEPLOYMENT_ENVIRONMENTS_steps_runScriptConfig
-          change = True
+          if pipe_stage["steps"][0]["runScriptConfig"] != DEPLOYMENT_ENVIRONMENTS_steps_runScriptConfig:
+            pipe_stage["steps"][0]["runScriptConfig"] = DEPLOYMENT_ENVIRONMENTS_steps_runScriptConfig
+            change = True
 
         steps = pipe_stage.get("steps", [])
         if len(steps) > 0:
