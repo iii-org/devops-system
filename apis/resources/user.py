@@ -31,6 +31,9 @@ import resources
 from sqlalchemy import desc, nullslast
 import gitlab as gitlab_pack
 from resources.mail import mail_server_is_open
+from resources.notification_message import create_notification_message
+import random
+import base64
 
 # Make a regular expression
 default_role_id = 3
@@ -269,6 +272,7 @@ def update_user(user_id, args, from_ad=False):
     new_email = None
     new_password = None
     # Change Password
+    res = {"error": "did't get password"}
     if args.get('password') is not None:
         if args["old_password"] == args["password"]:
             return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
@@ -279,10 +283,8 @@ def update_user(user_id, args, from_ad=False):
                 return util.respond(400, "old_password is empty", error=apiError.wrong_password())
             if is_password_verify is False:
                 return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
-        err = update_external_passwords(
+        res = update_external_passwords(
             user_id, args["password"], args["old_password"])
-        if err is not None:
-            logger.exception(err)  # Don't stop change password on API server
         h = SHA256.new()
         h.update(args["password"].encode())
         new_password = h.hexdigest()
@@ -328,7 +330,7 @@ def update_user(user_id, args, from_ad=False):
         # Putting here to avoid not commit session error
         if args.get("status") is not None:
             operate_external_user(user_id, status)
-    return util.success()
+    return util.success(res)
 
 
 def update_user_role(user_id, role_id):
@@ -339,26 +341,73 @@ def update_user_role(user_id, role_id):
 
 
 def update_external_passwords(user_id, new_pwd, old_pwd):
-    user_login = nx_get_user(id=user_id).login
-    user_relation = nx_get_user_plugin_relation(user_id=user_id)
-    if user_relation is None:
-        return util.respond(400, 'Error when updating password',
-                            error=apiError.user_not_found(user_id))
-    redmine_user_id = user_relation.plan_user_id
-    a = redmine.rm_update_password(redmine_user_id, new_pwd)
-    if int(a.status_code / 100) != 2:
-        logger.info(a)
-    gitlab_user_id = user_relation.repository_user_id
-    b = gitlab.gl_update_password(gitlab_user_id, new_pwd)
-    if int(b.status_code / 100) != 2:
-        logger.info(b)
-    harbor_user_id = user_relation.harbor_user_id
-    c = harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
-    if int(c.status_code / 100) != 2:
-        logger.info(c)
-    d = sonarqube.sq_update_password(user_login, new_pwd)
-    if int(d.status_code / 100) != 2:
-        logger.info(d)
+    DEFAULT_AD_PASSWORD = f'IIIdevops{random.randrange(10000, 99999)}'
+    try:
+        user_login = nx_get_user(id=user_id).login
+        user_relation = nx_get_user_plugin_relation(user_id=user_id)
+        if user_relation is None:
+            return util.respond(400, 'Error when updating password',
+                                error=apiError.user_not_found(user_id))
+        reset_dict = {}
+        redmine_user_id = user_relation.plan_user_id
+        a = redmine.rm_update_password(redmine_user_id, new_pwd)
+        if int(a.status_code / 100) != 2:
+            logger.info(a)
+            redmine.rm_update_password(redmine_user_id, DEFAULT_AD_PASSWORD)
+            reset_dict.update({"redmine": "DEFAULT_AD_PASSWORD"})
+            args2 = {
+                "alert_level": 1,
+                "title": "redmine password recreate automation",
+                "message": f"password:{DEFAULT_AD_PASSWORD}",
+                "type_ids": [3],
+                "type_parameters": {"user_ids": [user_id]}
+            }
+            create_notification_message(args2, user_id=user_id)
+        gitlab_user_id = user_relation.repository_user_id
+        b = gitlab.gl_update_password(gitlab_user_id, new_pwd)
+        if int(b.status_code / 100) != 2:
+            logger.info(b)
+            gitlab.gl_update_password(gitlab_user_id, DEFAULT_AD_PASSWORD)
+            reset_dict.update({"gitlab": "DEFAULT_AD_PASSWORD"})
+            args2 = {
+                "alert_level": 1,
+                "title": "gitlab password recreate automation",
+                "message": f"password:{DEFAULT_AD_PASSWORD}",
+                "type_ids": [3],
+                "type_parameters": {"user_ids": [user_id]}
+            }
+            create_notification_message(args2, user_id=user_id)
+        harbor_user_id = user_relation.harbor_user_id
+        c = harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
+        if int(c.status_code / 100) != 2:
+            logger.info(c)
+            harbor.hb_update_user_password(harbor_user_id, DEFAULT_AD_PASSWORD, old_pwd)
+            reset_dict.update({"harbor": "DEFAULT_AD_PASSWORD"})
+            args2 = {
+                "alert_level": 1,
+                "title": "harbor password recreate automation",
+                "message": f"password:{DEFAULT_AD_PASSWORD}",
+                "type_ids": [3],
+                "type_parameters": {"user_ids": [user_id]}
+            }
+            create_notification_message(args2, user_id=user_id)
+        d = sonarqube.sq_update_password(user_login, new_pwd)
+        if int(d.status_code / 100) != 2:
+            logger.info(d)
+            sonarqube.sq_update_password(user_login, DEFAULT_AD_PASSWORD)
+            reset_dict.update({"sonarqube": "DEFAULT_AD_PASSWORD"})
+            args2 = {
+                "alert_level": 1,
+                "title": "sonarqube password recreate automation",
+                "message": f"password:{DEFAULT_AD_PASSWORD}",
+                "type_ids": [3],
+                "type_parameters": {"user_ids": [user_id]}
+            }
+            create_notification_message(args2, user_id=user_id)
+        return reset_dict
+    except Exception as e:
+        logger.info(e)
+        return e
 
 
 def update_external_email(user_id, user_name, new_email):
