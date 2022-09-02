@@ -212,7 +212,7 @@ def get_sbom_scan_file_list(sbom_id):
             file_list = os.listdir(file_path)
             if "sbom.tar" in file_list:
                 file_list.remove("sbom.tar")
-    return file_list
+    return [file for file in file_list if file.startswith("sbom.")]
 
 
 def check_folder_exist(file_name, path):
