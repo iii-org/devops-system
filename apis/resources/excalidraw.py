@@ -250,11 +250,20 @@ def check_excalidraw_alive(excalidraw_url=None, excalidraw_socket_url=None):
     
     not_alive_services = []
     ret = {"alive": True, "services": {"API": True, "UI": True, "Socket": True}}
-    for service, url in {"UI": excalidraw_url, "Socket": excalidraw_socket_url, "API": f"{excalidraw_url}/api/v2"}.items():
-        if not check_url_alive(url):
+
+    api_url_list = excalidraw_url.split("://")
+    api_url_list[-1] = f"api-{api_url_list[-1]}/"
+    api_url = "://".join(api_url_list)
+
+    socket_url_list = excalidraw_socket_url.split("/")
+    if socket_url_list[-1] == "socket.io":
+        socket_url_list = socket_url_list[:-1]
+    socket_url = "/".join(socket_url_list) + "/"
+
+    for service, url in {"UI": excalidraw_url, "Socket": socket_url, "API": api_url}.items():
+        if not check_url_alive(url, is_200=True):
             ret["alive"] = ret["services"][service] = False
             not_alive_services.append(service)
-    
     if not_alive_services != []:
         ret["message"] = f'{", ".join(not_alive_services)} not alive'
     return ret
