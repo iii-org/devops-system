@@ -181,9 +181,17 @@ def risk_detail(file_path=None):
     with open(f'{file_path}/grype.json') as json_data:
         data = json.load(json_data)
     df_vulnerability_info = pd.DataFrame(
-        [data['matches'][index]['vulnerability'] for index, value in enumerate(data['matches'])])[['id', 'severity', 'description']]
+        [data['matches'][index]['vulnerability'] for index, value in enumerate(data['matches'])])
+    for i in ['id', 'severity', 'description']:
+        if i not in list(df_vulnerability_info.columns):
+            df_vulnerability_info[i] = None
+    df_vulnerability_info = df_vulnerability_info[['id', 'severity', 'description']]
     df_artifact_info = pd.DataFrame(
-        [data['matches'][index]['artifact'] for index, value in enumerate(data['matches'])])[['name', 'version']]
+        [data['matches'][index]['artifact'] for index, value in enumerate(data['matches'])])
+    for i in ['name', 'version']:
+        if i not in list(df_artifact_info.columns):
+            df_artifact_info[i] = None
+    df_artifact_info = df_artifact_info[['name', 'version']]
     df_fix_versions = pd.DataFrame(
         [data['matches'][index]['vulnerability']['fix']['versions'] for index, value in enumerate(data['matches'])])
     if df_fix_versions.isnull().shape[0] == df_fix_versions.shape[0]:
