@@ -363,6 +363,19 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
                 "type_parameters": {"user_ids": [user_id]}
             }
             create_notification_message(args2, user_id=user_id)
+            # update db
+            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="redmine").first()
+            encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
+            if row:
+                update = {"user_id": user_id, "server": "redmine", "password": encode_password.decode('UTF-8')}
+                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="redmine").update(update)
+                db.session.commit()
+            else:
+                insert = model.UpdatePasswordError(
+                    user_id=user_id, server="redmine", password=encode_password.decode('UTF-8')
+                )
+                db.session.add(insert)
+                db.session.commit()
         gitlab_user_id = user_relation.repository_user_id
         b = gitlab.gl_update_password(gitlab_user_id, new_pwd)
         if int(b.status_code / 100) != 2:
@@ -377,6 +390,19 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
                 "type_parameters": {"user_ids": [user_id]}
             }
             create_notification_message(args2, user_id=user_id)
+            # update db
+            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="gitlab").first()
+            encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
+            if row:
+                update = {"user_id": user_id, "server": "gitlab", "password": encode_password.decode('UTF-8')}
+                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="gitlab").update(update)
+                db.session.commit()
+            else:
+                insert = model.UpdatePasswordError(
+                    user_id=user_id, server="gitlab", password=encode_password.decode('UTF-8')
+                )
+                db.session.add(insert)
+                db.session.commit()
         harbor_user_id = user_relation.harbor_user_id
         c = harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
         if int(c.status_code / 100) != 2:
@@ -391,6 +417,19 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
                 "type_parameters": {"user_ids": [user_id]}
             }
             create_notification_message(args2, user_id=user_id)
+            # update db
+            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="harbor").first()
+            encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
+            if row:
+                update = {"user_id": user_id, "server": "harbor", "password": encode_password.decode('UTF-8')}
+                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="harbor").update(update)
+                db.session.commit()
+            else:
+                insert = model.UpdatePasswordError(
+                    user_id=user_id, server="harbor", password=encode_password.decode('UTF-8')
+                )
+                db.session.add(insert)
+                db.session.commit()
         d = sonarqube.sq_update_password(user_login, new_pwd)
         if int(d.status_code / 100) != 2:
             logger.info(d)
@@ -404,9 +443,153 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
                 "type_parameters": {"user_ids": [user_id]}
             }
             create_notification_message(args2, user_id=user_id)
+            # update db
+            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="sonarqube").first()
+            encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
+            if row:
+                update = {"user_id": user_id, "server": "sonarqube", "password": encode_password.decode('UTF-8')}
+                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="sonarqube").update(update)
+                db.session.commit()
+            else:
+                insert = model.UpdatePasswordError(
+                    user_id=user_id, server="sonarqube", password=encode_password.decode('UTF-8')
+                )
+                db.session.add(insert)
+                db.session.commit()
         return reset_dict
     except Exception as e:
         logger.info(e)
+        return e
+
+
+def is_json(string):
+    try:
+        json.loads(string)
+    except ValueError:
+        return False
+    return True
+
+
+def row_to_dict(row):
+    ret = {}
+    if row is None:
+        return row
+    for key in type(row).__table__.columns.keys():
+        value = getattr(row, key)
+        if type(value) is datetime or type(value) is datetime.date:
+            ret[key] = str(value)
+        elif isinstance(value, str) and is_json(value):
+            ret[key] = json.loads(value)
+        else:
+            ret[key] = value
+    return ret
+
+
+def get_decode_password(user_id):
+    rows = model.UpdatePasswordError.query.filter_by(user_id=user_id).all()
+    ret = []
+    for row in rows:
+        password = row_to_dict(row)['password']
+        decode_password = base64.b64decode(f'{password}'.encode('UTF-8'))
+        result_dict = row_to_dict(row)
+        result_dict.update({"password": decode_password.decode('UTF-8')})
+        ret.append(result_dict)
+    return ret
+
+
+def checker(kwargs):
+    import string
+    valid_dict = {}
+    valid = True
+    msg = "check"
+    for i in string.ascii_uppercase:
+        if i in kwargs.get('new_pwd'):
+            valid_dict.update({"uppercase_check": True})
+            msg = "check pass"
+            break
+        else:
+            valid_dict.update({"uppercase_check": False})
+            msg = "password didn't contain uppercase letter"
+    for i in string.ascii_lowercase:
+        if re.search('%s{3,}' % i, kwargs.get('new_pwd')):
+            if re.search('[A-Za-z]%s{3,}' % i, kwargs.get('new_pwd')) or re.search('%s{3,}[A-Za-z]' % i, kwargs.get('new_pwd')):
+                valid_dict.update({"continuouslly_check": True})
+            else:
+                valid_dict.update({"continuouslly_check": False})
+                msg = "exist only 3 continuouslly letter"
+    for i in string.ascii_uppercase:
+        if re.search('%s{3,}' % i, kwargs.get('new_pwd')):
+            if re.search('[A-Za-z]%s{3,}' % i, kwargs.get('new_pwd')) or re.search('%s{3,}[A-Za-z]' % i, kwargs.get('new_pwd')):
+                valid_dict.update({"continuouslly_check": True})
+                break
+            else:
+                valid_dict.update({"continuouslly_check": False})
+                msg = "exist only 3 continuouslly letter"
+    if len(kwargs.get('new_pwd')) > 8:
+        valid_dict.update({"eight_word_check": True})
+    else:
+        valid_dict.update({"eight_word_check": False})
+        msg = "password less than eight word"
+    if kwargs.get('new_pwd') != kwargs.get('old_pwd'):
+        valid_dict.update({"same_password_check": True})
+    else:
+        valid_dict.update({"same_password_check": False})
+        msg = "new password same as old password"
+    for key, value in valid_dict.items():
+        if not value:
+            valid = False
+            break
+        else:
+            valid = True
+    return valid, msg
+
+
+def update_newpassword(user_id, kwargs):
+    valid = False
+    msg = "Default msg"
+    user_login = nx_get_user(id=user_id).login
+    user_relation = nx_get_user_plugin_relation(user_id=user_id)
+    try:
+        if user_relation is None:
+            return util.respond(400, 'Error when updating password',
+                                error=apiError.user_not_found(user_id))
+        if kwargs.get('server') == 'redmine':
+            redmine_user_id = user_relation.plan_user_id
+            result = redmine.rm_update_password(redmine_user_id, kwargs.get('new_pwd'))
+            if int(result.status_code / 100) == 2:
+                valid = True
+        elif kwargs.get('server') == 'gitlab':
+            gitlab_user_id = user_relation.repository_user_id
+            result = gitlab.gl_update_password(gitlab_user_id, kwargs.get('new_pwd'))
+            if int(result.status_code / 100) == 2:
+                valid = True
+        elif kwargs.get('server') == 'harbor':
+            harbor_user_id = user_relation.harbor_user_id
+            check_valid, msg = checker(kwargs)
+            print(check_valid, msg)
+            if check_valid:
+                try:
+                    result = harbor.hb_update_user_password(harbor_user_id, kwargs.get('new_pwd'), kwargs.get('old_pwd'))
+                    if int(result.status_code / 100) == 2:
+                        valid = True
+                except Exception:
+                    msg = "harbor fail"
+                    valid = False
+        elif kwargs.get('server') == 'sonarqube':
+            result = sonarqube.sq_update_password(user_login, kwargs.get('new_pwd'))
+            if int(result.status_code / 100) == 2:
+                valid = True
+        print(valid)
+        if valid:
+            encode_password = base64.b64encode(f"{kwargs.get('new_pwd')}".encode('UTF-8'))
+            print(encode_password.decode('UTF-8'))
+            update = {"password": encode_password.decode('UTF-8')}
+            db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server=kwargs.get("server")).update(update)
+            db.session.commit()
+        print("---------")
+        result_dict = {"valid": valid, "msg": msg}
+        return msg, valid
+    except Exception as e:
         return e
 
 
