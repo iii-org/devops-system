@@ -3,9 +3,10 @@ import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
+import config
 
 from flask_jwt_extended import get_jwt_identity
-from model import Project, ProjectUserRole, TemplateProject, db
+from model import Project, ProjectUserRole, TemplateProject, db, User
 from nexus import (nx_get_project, nx_get_project_plugin_relation, nx_get_user,
                    nx_get_user_plugin_relation)
 from resources import apiError, role
@@ -33,6 +34,7 @@ def template_from_project_list():
     all_templates = get_tm_filter_by_tm_member()
     out_list = []
     for template in all_templates:
+        template_obj = template
         template = json.loads(str(template))
         try:
             gl_template = gl.projects.get(template['template_repository_id'])
@@ -40,7 +42,14 @@ def template_from_project_list():
             continue
         template['template_repository_url'] = gl_template.http_url_to_repo
         if template['creator_id'] is not None:
-            template['creator_name'] = nx_get_user(id=template['creator_id']).name
+            try:
+                creator_name = nx_get_user(id=template['creator_id']).name
+            except:
+                am_user = User.query.filter_by(login=config.get('ADMIN_INIT_LOGIN')).one()
+                creator_name = am_user.name
+                template_obj.creator_id = template['creator_id'] = am_user.id
+                db.session.commit()
+            template['creator_name'] = creator_name
         template['times_cited'] = Project.query.filter_by(base_example=gl_template.path).count()
         try:
             gl_from_pj = gl.projects.get(nx_get_project_plugin_relation(

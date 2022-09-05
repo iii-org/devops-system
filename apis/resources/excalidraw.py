@@ -252,7 +252,7 @@ def check_excalidraw_alive(excalidraw_url=None, excalidraw_socket_url=None):
     ret = {"alive": True, "services": {"API": True, "UI": True, "Socket": True}}
 
     api_url_list = excalidraw_url.split("://")
-    api_url_list[-1] = f"api-{api_url_list[-1]}/"
+    api_url_list[-1] = f"api-{api_url_list[-1]}api/v2"
     api_url = "://".join(api_url_list)
 
     socket_url_list = excalidraw_socket_url.split("/")
