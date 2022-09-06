@@ -178,7 +178,7 @@ def check_url_alive(url, is_200=False):
     import requests
     try:
         if is_200:
-            alive = requests.get(url).status_code < 300
+            alive = requests.get(url).status_code < 400
         else:
             alive = requests.get(url).status_code < 500
     except Exception:

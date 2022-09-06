@@ -524,22 +524,26 @@ def gitlab_projects_storage_limit():
     project_rows = db.session.query(Project, ProjectPluginRelation).join(
         ProjectPluginRelation, Project.id==ProjectPluginRelation.project_id)
     for project_row in project_rows:
-        project_obj, repo_id = project_row.Project, project_row.ProjectPluginRelation.git_repository_id
-        pj_resource_storage = get_project_resource_storage_level(project_obj.id)
-        gitlab_resource_info = pj_resource_storage.get("gitlab")
-        if gitlab_resource_info is not None:
-            pj_gl_storage_usage_dict = gitlab.gl_get_storage_usage(repo_id)
-            used = int(pj_gl_storage_usage_dict.get("used", {}).get("value", 0)) / 1024 / 1024 / 1024
-            max_used = int(pj_gl_storage_usage_dict.get("quota", {}).get("value", 0)) / 1024 / 1024 / 1024   
-            limit = gitlab_resource_info["limit"]
-            if compare_operator(
-                gitlab_resource_info["comparison"],
-                used,
-                limit,
-                max_used,
-                percentage=gitlab_resource_info["percentage"]
-            ):
-                invalid_project_id_mapping[project_obj.id] = f"Project: {project_obj.name} 在gitlab上的使用量({round(used, 5)}) 超過限制({limit})"
+        try:
+            project_obj, repo_id = project_row.Project, project_row.ProjectPluginRelation.git_repository_id
+            pj_resource_storage = get_project_resource_storage_level(project_obj.id)
+            gitlab_resource_info = pj_resource_storage.get("gitlab")
+            if gitlab_resource_info is not None:
+                pj_gl_storage_usage_dict = gitlab.gl_get_storage_usage(repo_id)
+                used = int(pj_gl_storage_usage_dict.get("used", {}).get("value", 0)) / 1024 / 1024 / 1024
+                max_used = int(pj_gl_storage_usage_dict.get("quota", {}).get("value", 0)) / 1024 / 1024 / 1024
+                limit = gitlab_resource_info["limit"]
+                if compare_operator(
+                    gitlab_resource_info["comparison"],
+                    used,
+                    limit,
+                    max_used,
+                    percentage=gitlab_resource_info["percentage"]
+                ):
+                    invalid_project_id_mapping[project_obj.id] = f"Project: {project_obj.name} 在gitlab上的使用量({round(used, 5)}) 超過限制({limit})"
+        except Exception as e:
+            logger.logger.exception(str(e))
+            continue
     message = "\n".join(invalid_project_id_mapping.values())
     return {
         "status": message == "", 
