@@ -10,6 +10,10 @@ import nexus
 import util
 from resources import role, gitlab
 from resources.test_generated_issue import tgi_feed_sideex
+import os
+import re
+import numpy as np
+from flask_apispec import use_kwargs
 
 
 def sd_start_test(args):
@@ -134,6 +138,101 @@ class Sideex(Resource):
     def get(self, project_id):
         role.require_in_project(project_id=project_id)
         return util.success(sd_get_tests(project_id))
+
+
+# def get_sideex_json_variable():
+#     variable_name = []
+#     variable_value = []
+#     if os.path.isfile('./iiidevops/sideex/sideex.json'):
+#         with open('./iiidevops/sideex/sideex.json') as json_data:
+#             if json_data is not None:
+#                 data = json.load(json_data)
+#         for a in data['suites']:
+#             for b, c in a.items():
+#                 if b == "cases":
+#                     for d in c:
+#                         for e, f in d.items():
+#                             if e == 'records':
+#                                 for g in f:
+#                                     for h, i in g.items():
+#                                         if h == 'name':
+#                                             variable_name.append(i)
+#                                         elif h == 'value':
+#                                             variable_value.append(i['options'][0]['value'])
+#     else:
+#         return util.respond(404, f"{'sideex.json'} not found")
+#     uncheck_set = set(zip(variable_name, variable_value))
+#     value_dict = {}
+#     variable_unique = np.unique(variable_name).tolist()
+#     df2 = pd.DataFrame(uncheck_set)
+#     for i in variable_unique:
+#         value_dict.update({i: df2.loc[df2[0] == i][1].tolist()})
+#     if os.path.isfile('./iiidevops/sideex/global_variables.json'):
+#         with open('./iiidevops/sideex/global_variables.json') as json_data:
+#             if json_data is not None:
+#                 variables_data = json.load(json_data)
+#         global_list = [value for key, value in variables_data.items()]
+#         for key, value_list in value_dict.items():
+#             for value in value_list:
+#                 if value in global_list:
+#                     value_list.remove(value)
+#     else:
+#         return util.respond(404, f"{'global_variables.json'} not found")
+#     return value_dict
+def get_sideex_json_variable():
+    if os.path.isfile('./iiidevops/sideex/sideex.json'):
+        with open('./iiidevops/sideex/sideex.json') as json_data:
+            if json_data is not None:
+                data = json.load(json_data)
+    varibale_list = re.findall('\${.*?\}',json.dumps(data))
+    unique_list = np.unique(varibale_list).tolist()
+    if '${target_origin}' in unique_list:
+        unique_list.remove('${target_origin}')
+    elif '${target_url}' in unique_list:
+        unique_list.remove('${target_url}')
+    output_list = [i.replace("$", "").replace("{", "").replace("}", "") for i in unique_list]
+    return output_list
+
+
+def get_global_json():
+    result_dict={}
+    if os.path.isfile('./iiidevops/sideex/global_variables.json'):
+        with open('./iiidevops/sideex/global_variables.json') as json_data:
+            if json_data is not None:
+                variables_data = json.load(json_data)
+        if 'target_url' in variables_data:
+            variables_data.pop('target_url')
+        output_list = get_sideex_json_variable()
+        for k in output_list:
+            if k in variables_data.keys():
+                result_dict.update({k: variables_data[k]})
+            else:
+                result_dict.update({k: None})
+        return result_dict
+
+
+def get_setting_file(project_id):
+    result_dict = get_global_json()
+    if os.path.isfile('./iiidevops/sideex/_setting_sideex.json'):
+        with open('./iiidevops/sideex/_setting_sideex.json') as json_data:
+            if json_data is not None:
+                setting_data = json.load(json_data)
+        output_list = get_sideex_json_variable()
+        for k in output_list:
+            if k in setting_data.keys():
+                result_dict.update({k: setting_data[k]})
+            else:
+                result_dict.update({k: None})
+    else:
+        pass
+    return result_dict
+
+
+class SideexJsonfileVariable(Resource):
+    @jwt_required()
+    # @use_kwargs(router_model.SideexGetVariableRes, location="files")
+    def get(self, project_id):
+        return util.success(get_setting_file(project_id))
 
 
 class SideexReport(Resource):
