@@ -16,6 +16,7 @@ import numpy as np
 from nexus import nx_get_project_plugin_relation
 from . import router_model
 from flask_apispec import use_kwargs
+import yaml
 
 
 def sd_start_test(args):
@@ -181,8 +182,13 @@ class Sideex(Resource):
 #     else:
 #         return util.respond(404, f"{'global_variables.json'} not found")
 #     return value_dict
-def get_sideex_json_variable(project_id, filename):
-    find = False
+def load_file_from_gitlab(repository_id, path):
+    f = gitlab.gitlab.gl_get_file_from_lib(repository_id, path)
+    decode_dict = yaml.safe_load(f.decode())
+    return decode_dict
+
+
+def get_gitlab_file_todict(project_id, filename):
     paths = [{
         "software_name": "SideeX",
         "path": "iiidevops/sideex",
@@ -194,14 +200,13 @@ def get_sideex_json_variable(project_id, filename):
         trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'])
         for tree in trees:
             if filename == tree['name']:
-                find = True
-                break
-            else:
-                find = False
-    if find:
-        with open(f'./iiidevops/sideex/{filename}') as json_data:
-            if json_data is not None:
-                data = json.load(json_data)
+                data = load_file_from_gitlab(repository_id, tree['path'])
+                return data
+
+
+def get_sideex_json_variable(project_id, filename):
+    data = get_gitlab_file_todict(project_id, filename)
+    if data:
         varibale_list = re.findall('\${.*?\}',json.dumps(data))
         unique_list = np.unique(varibale_list).tolist()
         if '${target_origin}' in unique_list:
