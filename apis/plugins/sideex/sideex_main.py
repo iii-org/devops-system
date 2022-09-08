@@ -13,6 +13,8 @@ from resources.test_generated_issue import tgi_feed_sideex
 import os
 import re
 import numpy as np
+from nexus import nx_get_project_plugin_relation
+from . import router_model
 from flask_apispec import use_kwargs
 
 
@@ -179,22 +181,40 @@ class Sideex(Resource):
 #     else:
 #         return util.respond(404, f"{'global_variables.json'} not found")
 #     return value_dict
-def get_sideex_json_variable():
-    if os.path.isfile('./iiidevops/sideex/sideex.json'):
-        with open('./iiidevops/sideex/sideex.json') as json_data:
+def get_sideex_json_variable(project_id, filename):
+    find = False
+    paths = [{
+        "software_name": "SideeX",
+        "path": "iiidevops/sideex",
+        "file_name_key": ""
+    }]
+    repository_id = nx_get_project_plugin_relation(
+        nexus_project_id=project_id).git_repository_id
+    for path in paths:
+        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'])
+        for tree in trees:
+            if filename == tree['name']:
+                find = True
+                break
+            else:
+                find = False
+    if find:
+        with open(f'./iiidevops/sideex/{filename}') as json_data:
             if json_data is not None:
                 data = json.load(json_data)
-    varibale_list = re.findall('\${.*?\}',json.dumps(data))
-    unique_list = np.unique(varibale_list).tolist()
-    if '${target_origin}' in unique_list:
-        unique_list.remove('${target_origin}')
-    elif '${target_url}' in unique_list:
-        unique_list.remove('${target_url}')
-    output_list = [i.replace("$", "").replace("{", "").replace("}", "") for i in unique_list]
+        varibale_list = re.findall('\${.*?\}',json.dumps(data))
+        unique_list = np.unique(varibale_list).tolist()
+        if '${target_origin}' in unique_list:
+            unique_list.remove('${target_origin}')
+        elif '${target_url}' in unique_list:
+            unique_list.remove('${target_url}')
+        output_list = [i.replace("$", "").replace("{", "").replace("}", "") for i in unique_list]
+    else:
+        raise util.respond(404, f'{filename} not found')
     return output_list
 
 
-def get_global_json():
+def get_global_json(project_id, filename):
     result_dict={}
     if os.path.isfile('./iiidevops/sideex/global_variables.json'):
         with open('./iiidevops/sideex/global_variables.json') as json_data:
@@ -202,7 +222,7 @@ def get_global_json():
                 variables_data = json.load(json_data)
         if 'target_url' in variables_data:
             variables_data.pop('target_url')
-        output_list = get_sideex_json_variable()
+        output_list = get_sideex_json_variable(project_id, filename)
         for k in output_list:
             if k in variables_data.keys():
                 result_dict.update({k: variables_data[k]})
@@ -211,28 +231,26 @@ def get_global_json():
         return result_dict
 
 
-def get_setting_file(project_id):
-    result_dict = get_global_json()
-    if os.path.isfile('./iiidevops/sideex/_setting_sideex.json'):
-        with open('./iiidevops/sideex/_setting_sideex.json') as json_data:
-            if json_data is not None:
-                setting_data = json.load(json_data)
-        output_list = get_sideex_json_variable()
-        for k in output_list:
-            if k in setting_data.keys():
-                result_dict.update({k: setting_data[k]})
-            else:
-                result_dict.update({k: None})
-    else:
-        pass
+def get_setting_file(project_id, filename):
+    result_dict = get_global_json(project_id, filename)
+    with open(f'./iiidevops/sideex/_setting_sideex.json') as json_data:
+        if json_data is not None:
+            setting_data = json.load(json_data)
+    output_list = get_sideex_json_variable(project_id, filename)
+    for k in output_list:
+        if k in setting_data.keys():
+            result_dict.update({k: setting_data[k]})
+        else:
+            result_dict.update({k: None})
     return result_dict
 
 
 class SideexJsonfileVariable(Resource):
     @jwt_required()
-    # @use_kwargs(router_model.SideexGetVariableRes, location="files")
-    def get(self, project_id):
-        return util.success(get_setting_file(project_id))
+    @use_kwargs(router_model.SideexGetVariableRes, location="json")
+    def post(self, project_id, **kwargs):
+        print(kwargs)
+        return util.success(get_setting_file(project_id, kwargs['filename']))
 
 
 class SideexReport(Resource):
