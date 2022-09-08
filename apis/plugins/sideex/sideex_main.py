@@ -237,20 +237,37 @@ def get_setting_file(project_id, filename):
         if json_data is not None:
             setting_data = json.load(json_data)
     output_list = get_sideex_json_variable(project_id, filename)
+    sorted_dict = {}
+    for var in setting_data['var']:
+        sorted_dict.update({var['name']:var['value']})
     for k in output_list:
-        if k in setting_data.keys():
-            result_dict.update({k: setting_data[k]})
+        if k in sorted_dict.keys():
+            result_dict.update({k: sorted_dict[k]})
         else:
             result_dict.update({k: None})
-    return result_dict
+    result_list = [{"name": k, "type": str(type(v)).replace('<class \'','').replace('\'>',''), "value": v}for k, v in result_dict.items()]
+    return_dict = {
+          "var": result_list,
+          "rule": []
+        }
+    return return_dict
+
+
+def update_config_file(project_id, kwargs):
+    with open('./iiidevops/sideex/_setting_sideex.json', "w+") as json_data:
+        json_data.write(json.dumps(kwargs))
 
 
 class SideexJsonfileVariable(Resource):
     @jwt_required()
     @use_kwargs(router_model.SideexGetVariableRes, location="json")
     def post(self, project_id, **kwargs):
-        print(kwargs)
         return util.success(get_setting_file(project_id, kwargs['filename']))
+
+    @jwt_required()
+    @use_kwargs(router_model.SideexPutVariableRes, location="json")
+    def put(self, project_id, **kwargs):
+        return util.success(update_config_file(project_id, kwargs))
 
 
 class SideexReport(Resource):
