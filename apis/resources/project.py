@@ -418,6 +418,14 @@ def create_project(user_id, args):
             template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id,
                                                   args["tag_name"], args["arguments"], uuids)
 
+        # Create PipelineUpdateVersion
+        row = model.PipelineUpdateVersion(
+            project_id=project_id,
+            version=1
+        )
+        db.session.add(row)
+        db.session.commit()
+
         # Create project NFS folder /(uuid)
         for folder in ["pipeline", uuids]:
             project_nfs_file_path = f"./devops-data/project-data/{gitlab_pj_name}/{folder}"
