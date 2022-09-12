@@ -276,7 +276,7 @@ def update_config_file(project_id, kwargs):
         for tree in trees:
             if filename == tree['name']:
                 f = gitlab.gitlab.gl_get_file_from_lib(repository_id, tree['path'])
-                f.content = yaml.dump(json.dumps(kwargs), sort_keys=False)
+                f.content = json.dumps(kwargs)
                 f.save(
                     branch='master',
                     author_email='system@iiidevops.org.tw',
