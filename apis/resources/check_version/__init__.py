@@ -105,7 +105,11 @@ def update_pipeline_execute(pj_id, pj_pipe_version):
 
 
 def update_pipieline_file(pj_id, version):
-    gl_pj_id = ProjectPluginRelation.query.filter_by(project_id=pj_id).one().git_repository_id
+    pj_plugin_relate = ProjectPluginRelation.query.filter_by(project_id=pj_id).first()
+    if pj_plugin_relate is None:
+        logger.logger.info(f"Devops project {pj_id} do not have gitlab pj in db.")
+        return 
+    gl_pj_id = pj_plugin_relate.git_repository_id
     version_pk = importlib.import_module(f"resources.check_version.{version}")
     runner_version_mapping = version_pk.RUNNER_VERSION_MAPPING
     image_version_mapping = version_pk.IMAGE_VERSION_MAPPING
@@ -176,7 +180,7 @@ def update_pipieline_file(pj_id, version):
                     author_name='iiidevops',
                     commit_message=f"Upgrade rancher-pipeline.yml's tools and images(API Version: {api_version}).")
                 pipeline.stop_and_delete_pipeline(gl_pj_id, next_run, branch=branch) 
-                sleep(30)
+                # sleep(3)
 
             logger.logger.info(f"Change: {change}")
             logger.logger.info(f"Updating {gl_pj_id} tool version in branch({branch}) done.")
