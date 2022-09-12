@@ -220,11 +220,9 @@ def get_sideex_json_variable(project_id, filename):
 
 
 def get_global_json(project_id, filename):
-    result_dict={}
-    if os.path.isfile('./iiidevops/sideex/global_variables.json'):
-        with open('./iiidevops/sideex/global_variables.json') as json_data:
-            if json_data is not None:
-                variables_data = json.load(json_data)
+    variables_data = get_gitlab_file_todict(project_id, 'Global Variables.json')
+    result_dict = {}
+    if variables_data:
         if 'target_url' in variables_data:
             variables_data.pop('target_url')
         output_list = get_sideex_json_variable(project_id, filename)
@@ -237,20 +235,23 @@ def get_global_json(project_id, filename):
 
 
 def get_setting_file(project_id, filename):
+    result_list = []
     result_dict = get_global_json(project_id, filename)
-    with open(f'./iiidevops/sideex/_setting_sideex.json') as json_data:
-        if json_data is not None:
-            setting_data = json.load(json_data)
     output_list = get_sideex_json_variable(project_id, filename)
+    setting_data = get_gitlab_file_todict(project_id, '_setting_sideex.json')
+    if setting_data and type(setting_data) == str:
+        setting_data = json.loads(setting_data)
     sorted_dict = {}
-    for var in setting_data['var']:
-        sorted_dict.update({var['name']:var['value']})
-    for k in output_list:
-        if k in sorted_dict.keys():
-            result_dict.update({k: sorted_dict[k]})
-        else:
-            result_dict.update({k: None})
-    result_list = [{"name": k, "type": str(type(v)).replace('<class \'','').replace('\'>',''), "value": v}for k, v in result_dict.items()]
+    if setting_data:
+        for var in setting_data['var']:
+            sorted_dict.update({var['name']: var['value']})
+        for k in output_list:
+            if k in sorted_dict.keys():
+                result_dict.update({k: sorted_dict[k]})
+            else:
+                result_dict.update({k: None})
+    if result_dict:
+        result_list = [{"name": k, "type": str(type(v)).replace('<class \'', '').replace('\'>', ''), "value": v}for k, v in result_dict.items()]
     return_dict = {
           "var": result_list,
           "rule": []
@@ -259,8 +260,33 @@ def get_setting_file(project_id, filename):
 
 
 def update_config_file(project_id, kwargs):
+    f = False
+    filename = '_setting_sideex.json'
+    paths = [{
+        "software_name": "SideeX",
+        "path": "iiidevops/sideex",
+        "file_name_key": ""
+    }]
+    repository_id = nx_get_project_plugin_relation(
+        nexus_project_id=project_id).git_repository_id
     with open('./iiidevops/sideex/_setting_sideex.json', "w+") as json_data:
         json_data.write(json.dumps(kwargs))
+    for path in paths:
+        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'])
+        for tree in trees:
+            if filename == tree['name']:
+                f = gitlab.gitlab.gl_get_file_from_lib(repository_id, tree['path'])
+                f.content = yaml.dump(json.dumps(kwargs), sort_keys=False)
+                f.save(
+                    branch='master',
+                    author_email='system@iiidevops.org.tw',
+                    author_name='iiidevops',
+                    commit_message=f'Add "iiidevops" in branch.rancher-pipeline.yml.')
+                break
+        if not f:
+            pj = gitlab.gitlab.gl.projects.get(repository_id)
+            gitlab.gitlab.gl_create_file(pj, "iiidevops/sideex/_setting_sideex.json", "_setting_sideex.json",
+                                               "./iiidevops/sideex", "master")
 
 
 class SideexJsonfileVariable(Resource):

@@ -688,9 +688,9 @@ class GitLab(object):
             f_byte = pj.files.get(file_path=path, ref=branch_name)
         return f_byte
 
-    def gl_create_file(self, pj, file_path, file, local_file_path, branch=""):
+    def gl_create_file(self, pj, file_path, file_name, local_file_path, branch=""):
         branch = branch if branch else pj.default_branch
-        with open(f"{local_file_path}/{file.filename}", 'r') as f:
+        with open(f"{local_file_path}/{file_name}", 'r') as f:
             content = base64.b64encode(bytes(f.read(),
                                              encoding='utf-8')).decode('utf-8')
             pj.files.create({

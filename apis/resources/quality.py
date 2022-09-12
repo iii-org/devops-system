@@ -316,7 +316,7 @@ def qu_upload_testfile(project_id, file, software_name):
     save_file_to_local(local_file_path, file)
     for br in gitlab.gl_get_branches(repository_id):
         next_run = pipeline.get_pipeline_next_run(repository_id)
-        gitlab.gl_create_file(pj, file_path, file, local_file_path, branch=br['name'])
+        gitlab.gl_create_file(pj, file_path, file_name, local_file_path, branch=br['name'])
         pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br['name'])
     print(f"file_name: {file_name}")
     remove_file_from_local(local_file_path, file_name)
