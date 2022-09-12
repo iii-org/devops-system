@@ -17,6 +17,7 @@ from nexus import nx_get_project_plugin_relation
 from . import router_model
 from flask_apispec import use_kwargs
 import yaml
+from pathlib import Path
 
 
 def sd_start_test(args):
@@ -269,7 +270,9 @@ def update_config_file(project_id, kwargs):
     }]
     repository_id = nx_get_project_plugin_relation(
         nexus_project_id=project_id).git_repository_id
-    with open('iiidevops/sideex/_setting_sideex.json', "w+") as json_data:
+    if not os.path.isdir('./iiidevops/sideex'):
+        Path('./iiidevops/sideex').mkdir(parents=True, exist_ok=True)
+    with open('./iiidevops/sideex/_setting_sideex.json', "w+") as json_data:
         json_data.write(json.dumps(kwargs))
     for path in paths:
         trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'])
