@@ -155,7 +155,7 @@ def qu_get_testfile_list(project_id):
         trees = gitlab.ql_get_tree(repository_id, path['path'])
         for tree in trees:
             if path["file_name_key"] in tree["name"] and path["variables_file_name"] != tree['name'] and \
-                    tree["name"][-5:] == ".json":
+                    tree["name"][-5:] == ".json" and tree["name"][0] != '_':
                 path_file = f'{path["path"]}/{tree["name"]}'
                 gl_raw_lib = gitlab.gl_get_raw_from_lib(repository_id, path_file).decode()
                 if gl_raw_lib is None:
@@ -219,6 +219,7 @@ def qu_get_testfile_list(project_id):
                         "test_plans": test_plans,
                         "the_last_test_result": the_last_result
                     })
+    print(out_list)
     return out_list
 
 
