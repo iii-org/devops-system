@@ -130,7 +130,7 @@ stages:
     runScriptConfig:
       image: iiiorg/iiidevops-cli:0.0.1
       shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
-        && apt-get install -y jq && export PW=$(rancher kubectl get secret nexus-bot
+        && export PW=$(rancher kubectl get secret nexus-bot
         -n ${CICD_GIT_REPO_NAME} -o=go-template='{{index .data "password"}}' | base64
         -d) && export UN=$(rancher kubectl get secret nexus-bot -n ${CICD_GIT_REPO_NAME}
         -o=go-template='{{index .data "username"}}' | base64 -d) && export DATARAW=$(printf
