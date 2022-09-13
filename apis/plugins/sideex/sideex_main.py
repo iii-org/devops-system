@@ -18,6 +18,9 @@ from . import router_model
 from flask_apispec import use_kwargs
 import yaml
 from pathlib import Path
+import resources.apiError as apiError
+import pandas as pd
+import subprocess
 
 
 def sd_start_test(args):
@@ -216,7 +219,7 @@ def get_sideex_json_variable(project_id, filename):
             unique_list.remove('${target_url}')
         output_list = [i.replace("$", "").replace("{", "").replace("}", "") for i in unique_list]
     else:
-        raise util.respond(404, f'{filename} not found')
+        raise apiError.DevOpsError(404, f'{filename} not found')
     return output_list
 
 
@@ -252,7 +255,7 @@ def get_setting_file(project_id, filename):
             else:
                 result_dict.update({k: None})
     if result_dict:
-        result_list = [{"name": k, "type": str(type(v)).replace('<class \'', '').replace('\'>', ''), "value": v}for k, v in result_dict.items()]
+        result_list = [{"name": k, "type": str(type(v[0])).replace('<class \'', '').replace('\'>', '') if v or v != [] else None, "value": v} for k, v in result_dict.items()]
     return_dict = {
           "var": result_list,
           "rule": []
@@ -260,7 +263,23 @@ def get_setting_file(project_id, filename):
     return return_dict
 
 
+def save_to_txt(kwargs):
+    df = pd.DataFrame(kwargs['var'])
+    df['name'] = df['name'].apply(lambda x: x + ':')
+    df['value'] = df['value'].apply(lambda x: str(x).replace('[', '').replace(']', '').replace("\'", ''))
+    np.savetxt('./iiidevops/sideex/_model.txt', df[['name', 'value']].values, fmt='%s')
+
+
+def check_variable_not_null(kwargs):
+    for variable in kwargs['var']:
+        for key, value in variable.items():
+            if key == "value":
+                if not value or value == "":
+                    raise apiError.DevOpsError(404, "value can't be null")
+
+
 def update_config_file(project_id, kwargs):
+    check_variable_not_null(kwargs)
     f = False
     filename = '_setting_sideex.json'
     paths = [{
@@ -274,6 +293,7 @@ def update_config_file(project_id, kwargs):
         Path('./iiidevops/sideex').mkdir(parents=True, exist_ok=True)
     with open('./iiidevops/sideex/_setting_sideex.json', "w+") as json_data:
         json_data.write(json.dumps(kwargs))
+    save_to_txt(kwargs)
     for path in paths:
         trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'])
         for tree in trees:
@@ -292,6 +312,36 @@ def update_config_file(project_id, kwargs):
                                                "./iiidevops/sideex", "master")
 
 
+def pict_convert_result():
+    if os.path.isfile('./iiidevops/sideex/_model.txt'):
+        std_output = subprocess.check_output(['pict', '_model.txt'])
+        remove_space = std_output.decode("ascii").split('\t')
+        concat = '\n'.join(remove_space)
+        remove_n = concat.split('\n')
+        remove_n.remove('')
+        return remove_n
+    else:
+        raise apiError.DevOpsError(404, "_model.txt not found")
+
+
+def sort_convert_result_to_df():
+    pict_list = pict_convert_result()
+    file = open('_model.txt', 'r')
+    txt_content = file.read()
+    cut_num = txt_content.count('\n')
+    df_input = pd.DataFrame(pict_list)
+    sorted_list = []
+    # sort by variable num
+    for i in df_input.index:
+        i += 1
+        if i % int(cut_num) == 0:
+            sorted_list.append(df_input.iloc[i - int(cut_num):i][0].values.tolist())
+    df_sorted = pd.DataFrame(sorted_list)
+    df_sorted.columns = df_sorted.loc[0]
+    df_sorted = df_sorted.drop(0)
+    return df_sorted
+
+
 class SideexJsonfileVariable(Resource):
     @jwt_required()
     @use_kwargs(router_model.SideexGetVariableRes, location="json")
@@ -302,6 +352,16 @@ class SideexJsonfileVariable(Resource):
     @use_kwargs(router_model.SideexPutVariableRes, location="json")
     def put(self, project_id, **kwargs):
         return util.success(update_config_file(project_id, kwargs))
+
+
+class SideexGenerateJsonfile(Resource):
+    @jwt_required()
+    @use_kwargs(router_model.SideexGetVariableRes, location="json")
+    def put(self, project_id, **kwargs):
+        df_sorted = sort_convert_result_to_df()
+        print(kwargs)
+        return df_sorted.T.to_dict()
+        # return util.success(get_setting_file(project_id, kwargs['filename']))
 
 
 class SideexReport(Resource):
