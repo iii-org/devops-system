@@ -3,28 +3,29 @@ import shutil
 import subprocess
 import sys
 import threading
-from time import sleep
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-import config
 import dateutil.parser
-import nexus
-import resources.apiError as apiError
-import resources.pipeline as pipeline
-import resources.role as role
-import resources.yaml_OO as pipeline_yaml_OO
-import util
 import yaml
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 from gitlab import Gitlab
 from gitlab.exceptions import GitlabGetError
+
+import config
+import nexus
+import resources.apiError as apiError
+import resources.pipeline as pipeline
+import resources.role as role
+import util
 from model import PluginSoftware, Project, db
 from resources import logger
 from resources.apiError import DevOpsError
 from resources.gitlab import gitlab as rs_gitlab, get_all_group_projects
-from resources.redis import update_template_cache, get_template_caches_all, count_template_number, update_template_cache_all
+from resources.redis import update_template_cache, get_template_caches_all, count_template_number, \
+    update_template_cache_all
 
 
 template_replace_dict = {
@@ -500,35 +501,35 @@ def tm_git_mirror_push(pj_path, secret_pj_http_url, folder_name):
 def tm_get_pipeline_branches(repository_id, all_data=False):
     out = {}
     duplicate_tools = {}
-    all_branch = []
     pj = gl.projects.get(repository_id)
+    project_branches = pj.branches.list(all=True)
+    all_branch = [_.name for _ in project_branches]
     stages_info = tm_get_pipeline_default_branch(repository_id, is_default_branch=False)
 
     if not stages_info:
         return out
 
-    for br in pj.branches.list(all=True):
-        all_branch.append(br.name)
+    for branch in project_branches:
+        testing_tools: list[dict[str, Any]] = []
         for yaml_stage in stages_info["stages"]:
-            if br.name not in out:
-                out[br.name] = {
-                    "commit_message": br.commit["message"],
-                    "commit_time": br.commit["created_at"],
+            if branch.name not in out:
+                out[branch.name] = {
+                    "commit_message": branch.commit["message"],
+                    "commit_time": branch.commit["created_at"],
                 }
-                if "testing_tools" not in out[br.name]:
-                    out[br.name]["testing_tools"] = []
             soft_key_and_status = {
                 "key": yaml_stage["key"],
                 "name": yaml_stage["name"],
-                "enable": "branches" in yaml_stage and br.name in yaml_stage["branches"]
+                "enable": "branches" in yaml_stage and branch.name in yaml_stage["branches"]
             }
-            if soft_key_and_status not in out[br.name]["testing_tools"]:
+            if soft_key_and_status not in testing_tools:
                 if all_data:
                     tem_soft_key_and_status = soft_key_and_status.copy()
                     tem_soft_key_and_status["enable"] = not tem_soft_key_and_status["enable"]
-                    if tem_soft_key_and_status in out[br.name]["testing_tools"]:
-                        duplicate_tools.setdefault(f'{yaml_stage["key"]},{yaml_stage["name"]}', []).append(br.name)
-                out[br.name]["testing_tools"].append(soft_key_and_status)
+                    if tem_soft_key_and_status in testing_tools:
+                        duplicate_tools.setdefault(f'{yaml_stage["key"]},{yaml_stage["name"]}', []).append(branch.name)
+                testing_tools.append(soft_key_and_status)
+        out[branch.name]["testing_tools"] = testing_tools
 
     # Put duplicate tools to the end of the list(FrontEnd needs right order and same length)
     for key, branch_list in duplicate_tools.items():
@@ -757,28 +758,39 @@ def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
 
     default_branch = initial_info["default_branch"]
     stages_info = {"default_branch": default_branch, "stages": []}
-    stages = initial_info["pipe_dict"]["stages"]
+    return_stages = []
+    file_stages = initial_info["pipe_dict"]["stages"]
 
     fetch_latest_plugin_status()  # update plugin enable status
-    software_dict = {_['template_key']: _ for _ in support_software_json}
+    software_dict = {_["template_key"]: _ for _ in support_software_json}
 
-    for stage in stages:
-        stage_out_list = {"has_default_branch": False}
+    for stage in file_stages:
+        single_stage = {"has_default_branch": False}
         tool = stage["iiidevops"]
 
         software = software_dict.get(tool, None)
         if software and (not software.get("plugin_disabled") or tool == "deployed-environments"):
-            stage_out_list["name"] = software["display"]
-            stage_out_list["key"] = software["template_key"]
-            if "when" in stage:
-                stage_when = pipeline_yaml_OO.RancherPipelineWhen(stage["when"]["branch"])
-                include_branches = stage_when.branch.include or []
-                if is_default_branch:
-                    stage_out_list["has_default_branch"] = default_branch in include_branches
-                else:
-                    stage_out_list["branches"] = include_branches
-            if stage_out_list not in stages_info["stages"]:
-                stages_info["stages"].append(stage_out_list)
+            single_stage["name"] = software["display"]
+            single_stage["key"] = software["template_key"]
+
+        else:
+            if tool != "initial-pipeline":
+                # Exclude case: initial-pipeline
+                single_stage["name"] = tool
+                single_stage["key"] = tool
+
+        if "when" in stage:
+            include_branches = stage["when"]["branch"].get("include", [])
+            if is_default_branch:
+                single_stage["has_default_branch"] = default_branch in include_branches
+            else:
+                single_stage["branches"] = include_branches
+
+        if single_stage not in return_stages and single_stage.get("name", False):
+            # 沒有 name 的 stage 表示是 initial-pipeline 的 stage
+            return_stages.append(single_stage)
+
+    stages_info["stages"] = return_stages
     return stages_info
 
 
