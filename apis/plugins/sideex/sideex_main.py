@@ -349,10 +349,18 @@ def sort_convert_result_to_df():
     return df_sorted
 
 
-def gernerate_json_file(filename):
+def gernerate_json_file(project_id, filename):
     df_sorted = sort_convert_result_to_df()
     file = open(f'./iiidevops/sideex/{filename}', 'r')
     txt_content = json.loads(file.read())
+    paths = [{
+        "software_name": "SideeX",
+        "path": "iiidevops/sideex",
+        "file_name_key": ""
+    }]
+    repository_id = nx_get_project_plugin_relation(
+        nexus_project_id=project_id).git_repository_id
+    pj = gitlab.gitlab.gl.projects.get(repository_id)
     for i in range(1, len(df_sorted)):
         for key, value in df_sorted.T.to_dict()[i].items():
             result = re.sub('\${%s\}' % key, value, json.dumps(txt_content, indent=4))
@@ -360,8 +368,30 @@ def gernerate_json_file(filename):
                 json_writer.write(result)
                 file = open(f'./iiidevops/sideex/*{get_jwt_identity()["user_id"]}-sideex{i}.json', 'r')
                 txt_content = json.loads(file.read())
+        update_to_gitlab(paths, repository_id, pj, i, result)
         file = open(f'./iiidevops/sideex/{filename}', 'r')
         txt_content = json.loads(file.read())
+
+
+def update_to_gitlab(paths, repository_id, pj, i, result):
+    f = False
+    for path in paths:
+        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'])
+        for tree in trees:
+            if tree['name'] == f'*{get_jwt_identity()["user_id"]}-sideex{i}.json':
+                f = gitlab.gitlab.gl_get_file_from_lib(repository_id, tree['path'])
+                f.content = result
+                f.save(
+                    branch='master',
+                    author_email='system@iiidevops.org.tw',
+                    author_name='iiidevops',
+                    commit_message=f'Add "iiidevops" in branch.rancher-pipeline.yml.')
+                break
+        if not f:
+            gitlab.gitlab.gl_create_file(pj,
+                                         f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json",
+                                         f"*{get_jwt_identity()['user_id']}-sideex{i}.json",
+                                         "./iiidevops/sideex", "master")
 
 
 class SideexJsonfileVariable(Resource):
@@ -380,7 +410,7 @@ class SideexGenerateJsonfile(Resource):
     @jwt_required()
     @use_kwargs(router_model.SideexGetVariableRes, location="json")
     def put(self, project_id, **kwargs):
-        gernerate_json_file(kwargs['filename'])
+        gernerate_json_file(project_id, kwargs['filename'])
         return util.success()
 
 
