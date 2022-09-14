@@ -2,9 +2,10 @@
 import os
 import sys
 import threading
+from pathlib import Path
 
-if f"{os.getcwd()}/apis" not in sys.path:
-    sys.path.insert(1, f"{os.getcwd()}/apis")
+if str(Path(__file__).parent) not in sys.path:
+    sys.path.insert(1, str(Path(__file__).parent))
 
 import config
 if config.get("DEBUG") is False:

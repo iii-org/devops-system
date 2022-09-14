@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 
 FIXED = {
     # API versions
@@ -18,18 +19,14 @@ FIXED = {
 }
 
 in_file = {}
-if os.path.isfile('environments.json'):
-    env_file = open('environments.json', 'r')
-    in_file = json.load(env_file)
+JSON_FILE: Path = Path(__file__).parent.parent / 'environments.json'
+if os.path.isfile(JSON_FILE):
+    with open(JSON_FILE, 'r') as f:
+        in_file = json.load(f)
 
 
 def get(key):
     env = os.getenv(key)
     if env is not None:
         return env
-    if key in in_file and in_file[key] is not None:
-        return in_file[key]
-    elif key in FIXED:
-        return FIXED[key]
-    else:
-        return None
+    return in_file.get(key, FIXED.get(key, None))

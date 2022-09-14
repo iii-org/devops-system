@@ -14,9 +14,10 @@ from util import check_url_alive
 
 
 def excalidraw_get_config(key):
-    for arg in get_plugin_config("excalidraw")["arguments"]:
-        if arg['key'] == key:
-            return arg['value']
+    args = get_plugin_config("excalidraw")["arguments"]
+    for arg in args:
+        if arg.get('key') == key:
+            return arg.get('value')
     return None
 
 
