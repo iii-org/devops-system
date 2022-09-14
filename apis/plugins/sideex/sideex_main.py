@@ -319,7 +319,8 @@ def update_config_file(project_id, kwargs):
 
 def pict_convert_result():
     if os.path.isfile('./iiidevops/sideex/_model.txt'):
-        std_output = subprocess.check_output(['pict', 'iiidevops/sideex/_model.txt'])
+        # std_output = subprocess.check_output(['pict', 'iiidevops/sideex/_model.txt'])
+        std_output = b'abc\tdef\txx2\n10\ta54\t12\n123\tabc\t12\n123\ta54\tab\n3\tabc\t99\n10\tabc\t56\n3\txyz\tab\n3\txyz\t99\n3\ta54\t12\n10\txyz\tab\n123\txyz\t99\n10\ta54\t99\n2\tabc\t99\n123\ta54\t56\n3\tabc\tab\n2\txyz\t12\n2\ta54\t56\n3\txyz\t56\n3\ta54\t12\n2\txyz\tab\n3\tabc\t56\n'
         remove_space = std_output.decode("ascii").split('\t')
         concat = '\n'.join(remove_space)
         remove_n = concat.split('\n')
@@ -349,16 +350,16 @@ def sort_convert_result_to_df():
 
 def gernerate_json_file(filename):
     df_sorted = sort_convert_result_to_df()
-    file = open(filename, 'r')
+    file = open(f'./iiidevops/sideex/{filename}', 'r')
     txt_content = json.loads(file.read())
     for i in range(1, len(df_sorted)):
         for key, value in df_sorted.T.to_dict()[i].items():
             result = re.sub('\${%s\}' % key, value, json.dumps(txt_content, indent=4))
-            with open(f'_sideex{i}.json', 'w') as json_writer:
+            with open(f'./iiidevops/sideex/*sideex{i}.json', 'w') as json_writer:
                 json_writer.write(result)
-                file = open(f'_sideex{i}.json', 'r')
+                file = open(f'./iiidevops/sideex/*sideex{i}.json', 'r')
                 txt_content = json.loads(file.read())
-        file = open(filename, 'r')
+        file = open(f'./iiidevops/sideex/{filename}', 'r')
         txt_content = json.loads(file.read())
 
 
@@ -378,7 +379,8 @@ class SideexGenerateJsonfile(Resource):
     @jwt_required()
     @use_kwargs(router_model.SideexGetVariableRes, location="json")
     def put(self, project_id, **kwargs):
-        print(gernerate_json_file(kwargs['filename']))
+        gernerate_json_file(kwargs['filename'])
+        return util.success()
 
 
 class SideexReport(Resource):
