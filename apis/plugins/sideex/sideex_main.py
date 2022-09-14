@@ -294,7 +294,7 @@ def update_config_file(project_id, kwargs):
         Path('./iiidevops/sideex').mkdir(parents=True, exist_ok=True)
     with open('./iiidevops/sideex/_setting_sideex.json', "w+") as json_data:
         json_data.write(json.dumps(kwargs))
-    save_to_txt(project_id, kwargs)
+    save_to_txt(kwargs)
     pj = gitlab.gitlab.gl.projects.get(repository_id)
     if get_gitlab_file_todict(project_id, '_model.txt'):
         url = urllib.parse.quote("iiidevops/sideex/_model.txt", safe='')
@@ -319,7 +319,7 @@ def update_config_file(project_id, kwargs):
 
 def pict_convert_result():
     if os.path.isfile('./iiidevops/sideex/_model.txt'):
-        std_output = subprocess.check_output(['pict', '_model.txt'])
+        std_output = subprocess.check_output(['pict', 'iiidevops/sideex/_model.txt'])
         remove_space = std_output.decode("ascii").split('\t')
         concat = '\n'.join(remove_space)
         remove_n = concat.split('\n')
@@ -331,7 +331,7 @@ def pict_convert_result():
 
 def sort_convert_result_to_df():
     pict_list = pict_convert_result()
-    file = open('_model.txt', 'r')
+    file = open('./iiidevops/sideex/_model.txt', 'r')
     txt_content = file.read()
     cut_num = txt_content.count('\n')
     df_input = pd.DataFrame(pict_list)
@@ -345,6 +345,21 @@ def sort_convert_result_to_df():
     df_sorted.columns = df_sorted.loc[0]
     df_sorted = df_sorted.drop(0)
     return df_sorted
+
+
+def gernerate_json_file(filename):
+    df_sorted = sort_convert_result_to_df()
+    file = open(filename, 'r')
+    txt_content = json.loads(file.read())
+    for i in range(1, len(df_sorted)):
+        for key, value in df_sorted.T.to_dict()[i].items():
+            result = re.sub('\${%s\}' % key, value, json.dumps(txt_content, indent=4))
+            with open(f'_sideex{i}.json', 'w') as json_writer:
+                json_writer.write(result)
+                file = open(f'_sideex{i}.json', 'r')
+                txt_content = json.loads(file.read())
+        file = open(filename, 'r')
+        txt_content = json.loads(file.read())
 
 
 class SideexJsonfileVariable(Resource):
@@ -363,10 +378,7 @@ class SideexGenerateJsonfile(Resource):
     @jwt_required()
     @use_kwargs(router_model.SideexGetVariableRes, location="json")
     def put(self, project_id, **kwargs):
-        df_sorted = sort_convert_result_to_df()
-        print(kwargs)
-        return df_sorted.T.to_dict()
-        # return util.success(get_setting_file(project_id, kwargs['filename']))
+        print(gernerate_json_file(kwargs['filename']))
 
 
 class SideexReport(Resource):
