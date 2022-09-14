@@ -203,7 +203,7 @@ def get_gitlab_file_todict(project_id, filename):
     repository_id = nx_get_project_plugin_relation(
         nexus_project_id=project_id).git_repository_id
     for path in paths:
-        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'])
+        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
         for tree in trees:
             if filename == tree['name']:
                 data = load_file_from_gitlab(repository_id, tree['path'])
@@ -297,12 +297,12 @@ def update_config_file(project_id, kwargs):
         json_data.write(json.dumps(kwargs))
     save_to_txt(kwargs)
     pj = gitlab.gitlab.gl.projects.get(repository_id)
-    if get_gitlab_file_todict(project_id, f"{get_jwt_identity()['user_id']}_model.txt"):
+    if get_gitlab_file_todict(project_id, f"_{get_jwt_identity()['user_id']}-model.txt"):
         url = urllib.parse.quote(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", safe='')
         gitlab.gitlab.gl_delete_file(repository_id, url, {"commit_message": "delete _model.txt by sideex_auto_test"}, "master")
     gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", f"_{get_jwt_identity()['user_id']}-model.txt", "./iiidevops/sideex", "master")
     for path in paths:
-        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'])
+        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
         for tree in trees:
             if filename == tree['name']:
                 f = gitlab.gitlab.gl_get_file_from_lib(repository_id, tree['path'])
@@ -320,8 +320,8 @@ def update_config_file(project_id, kwargs):
 
 def pict_convert_result():
     if os.path.isfile(f"./iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"):
-        # std_output = subprocess.check_output(['pict', 'iiidevops/sideex/_model.txt'])
-        std_output = b'abc\tdef\txx2\n10\ta54\t12\n123\tabc\t12\n123\ta54\tab\n3\tabc\t99\n10\tabc\t56\n3\txyz\tab\n3\txyz\t99\n3\ta54\t12\n10\txyz\tab\n123\txyz\t99\n10\ta54\t99\n2\tabc\t99\n123\ta54\t56\n3\tabc\tab\n2\txyz\t12\n2\ta54\t56\n3\txyz\t56\n3\ta54\t12\n2\txyz\tab\n3\tabc\t56\n'
+        std_output = subprocess.check_output(['pict', 'iiidevops/sideex/_model.txt'])
+        # std_output = b'abc\tdef\txx2\n10\ta54\t12\n123\tabc\t12\n123\ta54\tab\n3\tabc\t99\n10\tabc\t56\n3\txyz\tab\n3\txyz\t99\n3\ta54\t12\n10\txyz\tab\n123\txyz\t99\n10\ta54\t99\n2\tabc\t99\n123\ta54\t56\n3\tabc\tab\n2\txyz\t12\n2\ta54\t56\n3\txyz\t56\n3\ta54\t12\n2\txyz\tab\n3\tabc\t56\n'
         remove_space = std_output.decode("ascii").split('\t')
         concat = '\n'.join(remove_space)
         remove_n = concat.split('\n')
@@ -371,12 +371,14 @@ def gernerate_json_file(project_id, filename):
         update_to_gitlab(paths, repository_id, pj, i, result)
         file = open(f'./iiidevops/sideex/{filename}', 'r')
         txt_content = json.loads(file.read())
+    if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"):
+        os.remove(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt")
 
 
 def update_to_gitlab(paths, repository_id, pj, i, result):
     f = False
     for path in paths:
-        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'])
+        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
         for tree in trees:
             if tree['name'] == f'*{get_jwt_identity()["user_id"]}-sideex{i}.json':
                 f = gitlab.gitlab.gl_get_file_from_lib(repository_id, tree['path'])
@@ -392,6 +394,8 @@ def update_to_gitlab(paths, repository_id, pj, i, result):
                                          f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json",
                                          f"*{get_jwt_identity()['user_id']}-sideex{i}.json",
                                          "./iiidevops/sideex", "master")
+        if os.path.isfile(f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json"):
+            os.remove(f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json")
 
 
 class SideexJsonfileVariable(Resource):

@@ -657,15 +657,15 @@ class GitLab(object):
                 db.session.add(one_row_data)
                 db.session.commit()
 
-    def ql_get_tree(self, repository_id, path, branch_name=None):
+    def ql_get_tree(self, repository_id, path, branch_name=None, all=False):
         try:
             pj = self.gl.projects.get(repository_id)
             if pj.empty_repo:
                 return []
             if branch_name is None:
-                return pj.repository_tree(ref=pj.default_branch, path=path)
+                return pj.repository_tree(ref=pj.default_branch, path=path, all=all)
             else:
-                return pj.repository_tree(ref=branch_name, path=path)
+                return pj.repository_tree(ref=branch_name, path=path, all=all)
         except apiError.TemplateError as e:
             raise apiError.TemplateError(
                 404,
