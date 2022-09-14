@@ -373,6 +373,8 @@ def gernerate_json_file(project_id, filename):
         txt_content = json.loads(file.read())
     if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"):
         os.remove(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt")
+    if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-setting_sideex.json"):
+        os.remove(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-setting_sideex.json")
 
 
 def update_to_gitlab(paths, repository_id, pj, i, result):
@@ -413,7 +415,7 @@ class SideexJsonfileVariable(Resource):
 class SideexGenerateJsonfile(Resource):
     @jwt_required()
     @use_kwargs(router_model.SideexGetVariableRes, location="json")
-    def put(self, project_id, **kwargs):
+    def post(self, project_id, **kwargs):
         gernerate_json_file(project_id, kwargs['filename'])
         return util.success()
 
