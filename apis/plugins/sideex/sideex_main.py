@@ -21,6 +21,7 @@ from pathlib import Path
 import resources.apiError as apiError
 import pandas as pd
 import subprocess
+import urllib.parse
 
 
 def sd_start_test(args):
@@ -255,7 +256,7 @@ def get_setting_file(project_id, filename):
             else:
                 result_dict.update({k: None})
     if result_dict:
-        result_list = [{"name": k, "type": str(type(v[0])).replace('<class \'', '').replace('\'>', '') if v or v != [] else None, "value": v} for k, v in result_dict.items()]
+        result_list = [{"name": k, "type": str(type(v[0])).replace('<class \'', '').replace('\'>', '') if v != [] else None, "value": v} for k, v in result_dict.items()]
     return_dict = {
           "var": result_list,
           "rule": []
@@ -293,7 +294,12 @@ def update_config_file(project_id, kwargs):
         Path('./iiidevops/sideex').mkdir(parents=True, exist_ok=True)
     with open('./iiidevops/sideex/_setting_sideex.json', "w+") as json_data:
         json_data.write(json.dumps(kwargs))
-    save_to_txt(kwargs)
+    save_to_txt(project_id, kwargs)
+    pj = gitlab.gitlab.gl.projects.get(repository_id)
+    if get_gitlab_file_todict(project_id, '_model.txt'):
+        url = urllib.parse.quote("iiidevops/sideex/_model.txt", safe='')
+        gitlab.gitlab.gl_delete_file(repository_id, url, {"commit_message": "delete _model.txt by sideex_auto_test"}, "master")
+    gitlab.gitlab.gl_create_file(pj, "iiidevops/sideex/_model.txt", "_model.txt", "./iiidevops/sideex", "master")
     for path in paths:
         trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'])
         for tree in trees:
@@ -307,7 +313,6 @@ def update_config_file(project_id, kwargs):
                     commit_message=f'Add "iiidevops" in branch.rancher-pipeline.yml.')
                 break
         if not f:
-            pj = gitlab.gitlab.gl.projects.get(repository_id)
             gitlab.gitlab.gl_create_file(pj, "iiidevops/sideex/_setting_sideex.json", "_setting_sideex.json",
                                                "./iiidevops/sideex", "master")
 
