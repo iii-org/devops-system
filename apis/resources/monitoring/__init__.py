@@ -1,35 +1,32 @@
 import json
 from datetime import datetime
+from datetime import timedelta
 from time import sleep
+from typing import Any, Callable
+
+from github import Github
+from sqlalchemy import desc
 
 import config
-import pandas as pd
 import util
-from github import Github
-from model import MonitoringRecord, NotificationMessage, Project, ProjectPluginRelation, db, PluginSoftware, SystemParameter
+from model import MonitoringRecord, NotificationMessage, Project, ProjectPluginRelation, db, PluginSoftware, \
+    SystemParameter
+from model import ServerDataCollection
 from nexus import nx_get_project_plugin_relation
-from plugins.sonarqube.sonarqube_main import (sq_get_current_measures,
-                                              sq_list_project)
+from plugins.sonarqube.sonarqube_main import sq_get_current_measures
 from resources import apiError, logger
 from resources.gitlab import gitlab
 from resources.harbor import hb_get_project_summary, hb_get_registries
 from resources.kubernetesClient import ApiK8sClient as k8s_client
-from resources.kubernetesClient import (list_namespace_pods_info,
-                                        list_namespace_services)
-from resources.notification_message import (
-    close_notification_message, create_notification_message,
-    get_unclose_notification_message,
-    get_unread_notification_message_list)
+from resources.kubernetesClient import list_namespace_services
+from resources.mail import Mail, mail_server_is_open
+from resources.notification_message import close_notification_message, create_notification_message, \
+    get_unclose_notification_message, get_unread_notification_message_list
 from resources.rancher import rancher
 from resources.redis import update_server_alive
 from resources.redmine import redmine
-from resources.mail import Mail, mail_server_is_open
-from sqlalchemy import desc
 from resources.resource_storage import get_project_resource_storage_level, compare_operator
-from datetime import timedelta
-from model import ServerDataCollection
 from util import check_url_alive
-
 
 DATETIMEFORMAT = "%Y-%m-%d %H:%M:%S"
 AlertServiceIDMapping = {
@@ -48,6 +45,15 @@ AlertServiceIDMapping = {
     "ad not alive": 1002,
     "SMTP not alive": 1101
 }
+ServicesNames = [
+    "Redmine",
+    "GitLab",
+    "Harbor",
+    "K8s",
+    "Sonarqube",
+    "Rancher",
+    "Excalidraw"
+]
 
 
 class Monitoring:
@@ -359,20 +365,34 @@ class Monitoring:
         return all_alive
 
 
-def generate_alive_response(name):
-    monitoring = Monitoring()
-    alive_mapping = {
-        "Redmine": monitoring.redmine_alive,
-        "GitLab": monitoring.gitlab_alive,
-        "Harbor": monitoring.harbor_alive,
-        "K8s": monitoring.k8s_alive,
-        "Sonarqube": monitoring.sonarqube_alive,
-        "Rancher": monitoring.rancher_alive,
-        "Excalidraw": monitoring.excalidraw_alive
+def service_alive_map(monitoring: Monitoring) -> dict[str, Callable[[], bool]]:
+    """
+    回傳 service 跟 alive function 的對應，如果沒有 alive function 則永遠回傳 False
+
+    :param monitoring: Monitoring object
+    :return:
+    """
+
+    def fallback_function() -> bool:
+        """
+        找不到 alive function 時的 fallback function
+
+        :return:
+        """
+        return False
+
+    return {
+        service_name: getattr(monitoring, f"{service_name.lower()}_alive", fallback_function)
+        for service_name in ServicesNames
     }
+
+
+def generate_alive_response(name: str) -> dict[str, Any]:
+    monitoring = Monitoring()
+    mapping = service_alive_map(monitoring)
     return {
         "name": name.capitalize(),
-        "status": alive_mapping[name](),
+        "status": mapping[name](),
         "message": monitoring.error_message,
         "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
     }

@@ -732,6 +732,7 @@ def initial_rancher_pipline_info(repository_id):
 def update_nonexist_key_rancher_file(repository_id: int):
     """
     更新 iiidevops 鍵值不存在的 .rancher-pipeline.yml 檔案
+
     :param repository_id:
     :return:
     """
