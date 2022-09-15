@@ -320,7 +320,7 @@ def update_config_file(project_id, kwargs):
 
 def pict_convert_result():
     if os.path.isfile(f"./iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"):
-        std_output = subprocess.check_output(['pict', 'iiidevops/sideex/_model.txt'])
+        std_output = subprocess.check_output(['pict', f"./iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"])
         # std_output = b'abc\tdef\txx2\n10\ta54\t12\n123\tabc\t12\n123\ta54\tab\n3\tabc\t99\n10\tabc\t56\n3\txyz\tab\n3\txyz\t99\n3\ta54\t12\n10\txyz\tab\n123\txyz\t99\n10\ta54\t99\n2\tabc\t99\n123\ta54\t56\n3\tabc\tab\n2\txyz\t12\n2\ta54\t56\n3\txyz\t56\n3\ta54\t12\n2\txyz\tab\n3\tabc\t56\n'
         remove_space = std_output.decode("ascii").split('\t')
         concat = '\n'.join(remove_space)
@@ -351,8 +351,8 @@ def sort_convert_result_to_df():
 
 def gernerate_json_file(project_id, filename):
     df_sorted = sort_convert_result_to_df()
-    file = open(f'./iiidevops/sideex/{filename}', 'r')
-    txt_content = json.loads(file.read())
+    data = get_gitlab_file_todict(project_id, filename)
+    txt_content = data
     paths = [{
         "software_name": "SideeX",
         "path": "iiidevops/sideex",
@@ -369,8 +369,8 @@ def gernerate_json_file(project_id, filename):
                 file = open(f'./iiidevops/sideex/*{get_jwt_identity()["user_id"]}-sideex{i}.json', 'r')
                 txt_content = json.loads(file.read())
         update_to_gitlab(paths, repository_id, pj, i, result)
-        file = open(f'./iiidevops/sideex/{filename}', 'r')
-        txt_content = json.loads(file.read())
+        data = get_gitlab_file_todict(project_id, filename)
+        txt_content = data
     if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"):
         os.remove(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt")
     if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-setting_sideex.json"):
