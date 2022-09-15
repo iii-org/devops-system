@@ -12,4 +12,4 @@ class SideexGetVariableRes(Schema):
 
 class SideexPutVariableRes(Schema):
     var = fields.List(fields.Dict(), required=False)
-    rule = fields.List(fields.Dict(), required=False)
+    rule = fields.List(fields.Str(), required=False)
