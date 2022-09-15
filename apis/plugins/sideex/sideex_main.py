@@ -293,7 +293,7 @@ def update_config_file(project_id, kwargs):
     filename = f'_{get_jwt_identity()["user_id"]}-setting_sideex.json'
     paths = [{
         "software_name": "SideeX",
-        "path": "iiidevops/sideex",
+        "path": "iiidevops/sideex/parameter",
         "file_name_key": ""
     }]
     repository_id = nx_get_project_plugin_relation(
@@ -310,15 +310,13 @@ def update_config_file(project_id, kwargs):
             if tree['name'] == f"_{get_jwt_identity()['user_id']}-model.txt":
                 model_exist = True
     if model_exist:
-        url = urllib.parse.quote(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", safe='')
+        url = urllib.parse.quote(f"iiidevops/sideex/parameter/_{get_jwt_identity()['user_id']}-model.txt", safe='')
         gitlab.gitlab.gl_delete_file(repository_id, url, {"commit_message": "delete _model.txt by sideex_auto_test"}, "master")
-    gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", f"_{get_jwt_identity()['user_id']}-model.txt", "iiidevops/sideex", "master")
+    gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/parameter/_{get_jwt_identity()['user_id']}-model.txt", f"_{get_jwt_identity()['user_id']}-model.txt", "iiidevops/sideex", "master")
     for path in paths:
         trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
         for tree in trees:
             if filename == tree['name']:
-                # if not_last:
-                #     next_run = pipeline.get_pipeline_next_run(gl_pj_id)
                 f = gitlab.gitlab.gl_get_file_from_lib(repository_id, tree['path'])
                 f.content = json.dumps(kwargs)
                 f.save(
@@ -326,18 +324,16 @@ def update_config_file(project_id, kwargs):
                     author_email='system@iiidevops.org.tw',
                     author_name='iiidevops',
                     commit_message=f'Add "iiidevops" in branch.rancher-pipeline.yml.')
-                # if not_last:
-                #     pipeline.stop_and_delete_pipeline(gl_pj_id, next_run, branch=branch)
                 break
         if not f:
-            gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-setting_sideex.json", f"_{get_jwt_identity()['user_id']}-setting_sideex.json",
+            gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/parameter/_{get_jwt_identity()['user_id']}-setting_sideex.json", f"_{get_jwt_identity()['user_id']}-setting_sideex.json",
                                                "iiidevops/sideex", "master")
 
 
 def pict_convert_result():
     if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"):
-        std_output = subprocess.check_output(['pict', f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"])
-        # std_output = b'abc\tdef\txx2\n10\ta54\t12\n123\tabc\t12\n123\ta54\tab\n3\tabc\t99\n10\tabc\t56\n3\txyz\tab\n3\txyz\t99\n3\ta54\t12\n10\txyz\tab\n123\txyz\t99\n10\ta54\t99\n2\tabc\t99\n123\ta54\t56\n3\tabc\tab\n2\txyz\t12\n2\ta54\t56\n3\txyz\t56\n3\ta54\t12\n2\txyz\tab\n3\tabc\t56\n'
+        # std_output = subprocess.check_output(['pict', f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"])
+        std_output = b'abc\tdef\txx2\n10\ta54\t12\n123\tabc\t12\n123\ta54\tab\n3\tabc\t99\n10\tabc\t56\n3\txyz\tab\n3\txyz\t99\n3\ta54\t12\n10\txyz\tab\n123\txyz\t99\n10\ta54\t99\n2\tabc\t99\n123\ta54\t56\n3\tabc\tab\n2\txyz\t12\n2\ta54\t56\n3\txyz\t56\n3\ta54\t12\n2\txyz\tab\n3\tabc\t56\n'
         remove_space = std_output.decode("ascii").split('\t')
         concat = '\n'.join(remove_space)
         remove_n = concat.split('\n')
