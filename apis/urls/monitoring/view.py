@@ -1,23 +1,36 @@
+import os
+import subprocess
 from asyncio.log import logger
-from model import Project, db, ServerDataCollection, SystemParameter
-from flask_jwt_extended import jwt_required
-from resources import role
-from resources.rancher import remove_extra_executions
-from resources.kubernetesClient import list_namespace_pods_info
-from datetime import timedelta
 from datetime import datetime
+from datetime import timedelta
+
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
-from urls.monitoring import router_model
+from flask_jwt_extended import jwt_required
+from flask_restful import Resource
+
 import util
-from resources.rancher import rancher
+from model import Project, db, ServerDataCollection, SystemParameter
 from resources import logger
+from resources import role
+from resources.kubernetesClient import list_namespace_pods_info
+from resources.monitoring import Monitoring, row_to_dict, verify_github_info, docker_image_pull_limit_alert, \
+    harbor_nfs_storage_remain_limit, server_alive, ServicesNames
+from resources.rancher import rancher
+from resources.rancher import remove_extra_executions
 from resources.redis import get_server_alive, update_server_alive
-from flask_restful import Resource, reqparse
-from resources.monitoring import Monitoring, generate_alive_response, row_to_dict, verify_github_info, \
-    docker_image_pull_limit_alert, harbor_nfs_storage_remain_limit, server_alive
-import subprocess
-import os
+from urls.monitoring import router_model
+
+
+####################
+# All
+####################
+@doc(tags=['Monitoring'], description="Get all services list")
+@marshal_with(router_model.ServersAliveResponse)
+class ServicesList(Resource):
+    @jwt_required()
+    def get(self):
+        return util.success(ServicesNames)
 
 
 @doc(tags=['Monitoring'], description="Check all server is alive and update cache.")
@@ -57,7 +70,9 @@ class ServersAlive(Resource):
         return util.success({"all_alive": all_alive})
 
 
+####################
 # redmine
+####################
 @doc(tags=['Monitoring'], description="Get Redmine server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class RedmineAliveV2(MethodResource):
@@ -71,9 +86,10 @@ class RedmineAlive(Resource):
     def get(self):
         return server_alive("Redmine")
 
+
+####################
 # gitlab
-
-
+####################
 @doc(tags=['Monitoring'], description="Get Gitlab server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class GitlabAliveV2(MethodResource):
@@ -88,7 +104,9 @@ class GitlabAlive(Resource):
         return server_alive("GitLab")
 
 
+####################
 # harbor
+####################
 @doc(tags=['Monitoring'], description="Get Harbor server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class HarborAliveV2(MethodResource):
@@ -135,7 +153,9 @@ class HarborStorage(Resource):
         return alive
 
 
+####################
 # sonarqube
+####################
 @doc(tags=['Monitoring'], description="Get SonarQube server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class SonarQubeAliveV2(MethodResource):
@@ -150,7 +170,9 @@ class SonarQubeAlive(Resource):
         return server_alive("Sonarqube")
 
 
+####################
 # rancher
+####################
 @doc(tags=['Monitoring'], description="Get Rancher server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class RancherAliveV2(MethodResource):
@@ -190,9 +212,9 @@ class DeleteApprevisions(MethodResource):
         return util.success()
 
 
+####################
 # k8s
-
-
+####################
 @doc(tags=['Monitoring'], description="Get Kubernetes server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class K8sAliveV2(MethodResource):
@@ -277,9 +299,10 @@ class RemoveExtraExecutions(Resource):
     def post(self):
         remove_extra_executions()
 
+
+####################
 # GitHub
-
-
+####################
 @doc(tags=['Monitoring'], description="Validate Github token.")
 @marshal_with(router_model.GithubTokenVerifyResponse)
 class GithubTokenVerifyV2(MethodResource):
@@ -298,8 +321,9 @@ class GithubTokenVerify(Resource):
         return util.success(verify_github_info(value))
 
 
+####################
 # excalidraw
-
+####################
 @doc(tags=['Monitoring'], description="Get Excalidraw server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class ExcalidrawAliveV2(MethodResource):
