@@ -152,7 +152,7 @@ def qu_get_testfile_list(project_id):
     out_list = []
     issues_info = qu_get_testplan_list(project_id)
     for path in paths:
-        trees = gitlab.ql_get_tree(repository_id, path['path'])
+        trees = gitlab.ql_get_tree(repository_id, path['path'], all=True)
         for tree in trees:
             if path["file_name_key"] in tree["name"] and path["variables_file_name"] != tree['name'] and \
                     tree["name"][-5:] == ".json" and tree["name"][0] != '_' and tree["name"][0] != '*':
