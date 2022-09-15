@@ -23,6 +23,7 @@ import pandas as pd
 import subprocess
 import urllib.parse
 from flask_jwt_extended import get_jwt_identity
+import resources.pipeline as pipeline
 
 
 def sd_start_test(args):
@@ -383,9 +384,13 @@ def gernerate_json_file(project_id, filename):
                 json_writer.write(result)
                 file = open(f'iiidevops/sideex/*{get_jwt_identity()["user_id"]}-sideex{i}.json', 'r')
                 txt_content = json.loads(file.read())
+        if i != len(df_sorted):
+            next_run = pipeline.get_pipeline_next_run(repository_id)
         update_to_gitlab(paths, repository_id, pj, i, result)
         data = get_gitlab_file_todict(project_id, filename)
         txt_content = data
+        if i == len(df_sorted):
+            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch="master")
     if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"):
         os.remove(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt")
     if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-setting_sideex.json"):
