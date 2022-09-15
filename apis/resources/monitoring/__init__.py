@@ -17,7 +17,7 @@ from plugins.sonarqube.sonarqube_main import sq_get_current_measures
 from resources import apiError, logger
 from resources.gitlab import gitlab
 from resources.harbor import hb_get_project_summary, hb_get_registries
-from resources.kubernetesClient import ApiK8sClient as k8s_client
+from resources.kubernetesClient import ApiK8sClient as K8s_client
 from resources.kubernetesClient import list_namespace_services
 from resources.mail import Mail, mail_server_is_open
 from resources.notification_message import close_notification_message, create_notification_message, \
@@ -105,22 +105,22 @@ class Monitoring:
             self.send_notification()
             self.store_in_monitoring_record()
         else:
-            send_back_notifcation_titles = []
+            send_back_notification_titles = []
             not_alive_messages = get_unclose_notification_message(self.alert_service_id)
             if not_alive_messages is not None and len(not_alive_messages) > 0:
                 for not_alive_message in not_alive_messages:
                     close_notification_message(not_alive_message["id"])
                     logger.logger.info(f"Close Alert message id: {self.alert_service_id}, server: {self.server}")
                     not_alive_mes_title = not_alive_message["title"]
-                    
+
                     # Do not need to send same recover notification and notification which not 
                     # in AlertServiceIDMapping's keys
                     if not_alive_mes_title in AlertServiceIDMapping and \
-                        not_alive_mes_title not in send_back_notifcation_titles:
-                        send_back_notifcation_titles.append(not_alive_mes_title)
-                
-                for send_back_notifcation_title in send_back_notifcation_titles:
-                    self.send_server_back_notification(send_back_notifcation_title)
+                            not_alive_mes_title not in send_back_notification_titles:
+                        send_back_notification_titles.append(not_alive_mes_title)
+
+                for send_back_notification_title in send_back_notification_titles:
+                    self.send_server_back_notification(send_back_notification_title)
 
         self.error_title = None
 
@@ -184,8 +184,7 @@ class Monitoring:
                     }
                     create_notification_message(args, user_id=1)
                     sleep(0.5)
-                self.invalid_project_id_mapping = {} 
-
+                self.invalid_project_id_mapping = {}
 
     def store_in_monitoring_record(self):
         args = {
@@ -229,7 +228,8 @@ class Monitoring:
         self.server = "GitLab"
         self.alert_service_id = 201
         gitlab_alive = self.__check_server_alive(
-            gitlab.gl_get_project, check_url_alive, self.gl_pj_id, url=f'{config.get("GITLAB_BASE_URL")}/api/{config.get("GITLAB_API_VERSION")}')
+            gitlab.gl_get_project, check_url_alive, self.gl_pj_id,
+            url=f'{config.get("GITLAB_BASE_URL")}/api/{config.get("GITLAB_API_VERSION")}')
         if not gitlab_alive or is_project:
             return gitlab_alive
 
@@ -237,7 +237,6 @@ class Monitoring:
             if not self.__check_server_element_alive(check_element):
                 gitlab_alive = False
         return gitlab_alive
-        
 
     # Harbor
     def harbor_alive(self, is_project=False):
@@ -246,7 +245,7 @@ class Monitoring:
         harbor_alive = self.__check_server_alive(
             hb_get_project_summary, hb_get_registries, self.hr_pj_id)
         if not harbor_alive or is_project:
-            return harbor_alive    
+            return harbor_alive
         harbor_alive = True
 
         # offline env doesn't need to check pull limit
@@ -271,13 +270,14 @@ class Monitoring:
         self.server = "K8s"
         self.alert_service_id = 401
         return self.__check_server_alive(
-            list_namespace_services, k8s_client().get_api_resources, self.__get_project_name())
+            list_namespace_services, K8s_client().get_api_resources, self.__get_project_name())
 
     def sonarqube_alive(self):
         self.server = "Sonarqube"
         self.alert_service_id = 501
         return self.__check_server_alive(
-            sq_get_current_measures, check_url_alive, self.__get_project_name(), url=config.get('SONARQUBE_INTERNAL_BASE_URL'))
+            sq_get_current_measures, check_url_alive, self.__get_project_name(),
+            url=config.get('SONARQUBE_INTERNAL_BASE_URL'))
 
     def rancher_alive(self):
         self.server = "Rancher"
@@ -303,7 +303,7 @@ class Monitoring:
         from plugins.ad.ad_main import check_ad_alive
         self.server = "ad"
         self.alert_service_id = 1002
-        return self.__check_plugin_server_alive(check_ad_alive) 
+        return self.__check_plugin_server_alive(check_ad_alive)
 
     def smtp_alive(self):
         self.server = "SMTP"
@@ -325,7 +325,7 @@ class Monitoring:
                 "alive": self.excalidraw_alive,
             },
             "mail": {
-                "alive": self.smtp_alive, 
+                "alive": self.smtp_alive,
                 "is_open": mail_server_is_open
             },
             "ad": {
@@ -335,16 +335,16 @@ class Monitoring:
         for plugin, plugin_info in plugin_mapping.items():
             in_plugin_db = plugin_info.get("is_open") is None
             if (in_plugin_db and self.check_plugin_is_open(plugin)) or \
-                (not in_plugin_db and plugin_info["is_open"]()):
+                    (not in_plugin_db and plugin_info["is_open"]()):
                 alive = plugin_info["alive"]()
                 ret[plugin] = alive
         return ret
 
     # all alive
     def check_project_alive(self, is_project=False, only_server=False):
-        '''
+        """
         when 'is_project' is True, only check servers are working.
-        '''
+        """
         if not only_server:
             plugin_alive_dict = self.check_plugin_alive()
 
@@ -461,13 +461,13 @@ def verify_github_info(value):
 
 def docker_image_pull_limit_alert():
     output_str, _ = util.ssh_to_node_by_key(
-            'perl deploy-devops/bin/get-cluster-pull-ratelimit.pl', config.get("DEPLOYER_NODE_IP")) 
+        'perl deploy-devops/bin/get-cluster-pull-ratelimit.pl', config.get("DEPLOYER_NODE_IP"))
     outputs = output_str.split("\n")
     if "---" in outputs:
         nodes_info = outputs[outputs.index("---") + 1]
     else:
         nodes_info = max(output_str.split("\n"))
-    
+
     try:
         nodes_info = json.loads(nodes_info)
     except:
@@ -485,7 +485,8 @@ def docker_image_pull_limit_alert():
         if limit is None:
             error_nodes_message.append(f"Can not get node {node_info.get('node')} pull remain times.")
         elif limit < 30:
-            error_nodes_message.append(f"Node {node_info.get('node')} pull remain times({limit}) below limit(30 times).")
+            error_nodes_message.append(
+                f"Node {node_info.get('node')} pull remain times({limit}) below limit(30 times).")
 
     return {
         "name": "Harbor proxy remain limit",
@@ -519,8 +520,9 @@ def harbor_nfs_storage_remain_limit():
         if usage is None:
             error_nodes_message.append(f"Can not get node {node_storage_info.get('node')} nfs usage.")
         elif int(usage.replace("%", "")) > 75:
-            error_nodes_message.append(f"Node {node_storage_info.get('node')} nfs Folder Used percentage({usage}) exceeded 75%!")
-    
+            error_nodes_message.append(
+                f"Node {node_storage_info.get('node')} nfs Folder Used percentage({usage}) exceeded 75%!")
+
     return {
         "name": "Harbor nfs folder storage remain.",
         "error_title": "Harbor NFS out of storage",
@@ -542,7 +544,7 @@ def check_mail_server():
 def gitlab_projects_storage_limit():
     invalid_project_id_mapping = {}
     project_rows = db.session.query(Project, ProjectPluginRelation).join(
-        ProjectPluginRelation, Project.id==ProjectPluginRelation.project_id)
+        ProjectPluginRelation, Project.id == ProjectPluginRelation.project_id)
     for project_row in project_rows:
         try:
             project_obj, repo_id = project_row.Project, project_row.ProjectPluginRelation.git_repository_id
@@ -554,19 +556,20 @@ def gitlab_projects_storage_limit():
                 max_used = int(pj_gl_storage_usage_dict.get("quota", {}).get("value", 0)) / 1024 / 1024 / 1024
                 limit = gitlab_resource_info["limit"]
                 if compare_operator(
-                    gitlab_resource_info["comparison"],
-                    used,
-                    limit,
-                    max_used,
-                    percentage=gitlab_resource_info["percentage"]
+                        gitlab_resource_info["comparison"],
+                        used,
+                        limit,
+                        max_used,
+                        percentage=gitlab_resource_info["percentage"]
                 ):
-                    invalid_project_id_mapping[project_obj.id] = f"Project: {project_obj.name} 在gitlab上的使用量({round(used, 5)}) 超過限制({limit})"
+                    invalid_project_id_mapping[
+                        project_obj.id] = f"Project: {project_obj.name} 在gitlab上的使用量({round(used, 5)}) 超過限制({limit})"
         except Exception as e:
             logger.logger.exception(str(e))
             continue
     message = "\n".join(invalid_project_id_mapping.values())
     return {
-        "status": message == "", 
+        "status": message == "",
         "message": message,
         "error_title": "Gitlab projects are exceeded its storage limit",
         # "invalid_project_id_mapping": invalid_project_id_mapping
@@ -577,7 +580,8 @@ def rancher_projects_limit_num():
     command = "kubectl get apprevisions -n $(kubectl get project -n local -o jsonpath=\"{.items[?(@.spec.displayName=='Default')].metadata.name}\") | grep -v NAME | wc -l"
     output_str, _ = util.ssh_to_node_by_key(command, config.get("DEPLOYER_NODE_IP"))
     parameter = SystemParameter.query.filter_by(name="rancher_app_revision_limit").first()
-    logger.logger.info(f"Rancher monitor app limit num. Default: {parameter.value['limit_nums']}, Current: {output_str}")
+    logger.logger.info(
+        f"Rancher monitor app limit num. Default: {parameter.value['limit_nums']}, Current: {output_str}")
     if int(output_str) >= int(parameter.value["limit_nums"]):
         return {
             "error_title": "Rancher AppRevision counts out of limit",
