@@ -303,13 +303,6 @@ def update_config_file(project_id, kwargs):
         json_data.write(json.dumps(kwargs))
     save_to_txt(kwargs)
     pj = gitlab.gitlab.gl.projects.get(repository_id)
-    paths = [{
-        "software_name": "SideeX",
-        "path": "iiidevops/sideex",
-        "file_name_key": ""
-    }]
-    repository_id = nx_get_project_plugin_relation(
-        nexus_project_id=project_id).git_repository_id
     for path in paths:
         trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
         for tree in trees:
