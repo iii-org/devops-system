@@ -270,6 +270,11 @@ def save_to_txt(kwargs):
     df['name'] = df['name'].apply(lambda x: x + ':')
     df['value'] = df['value'].apply(lambda x: str(x).replace('[', '').replace(']', '').replace("\'", ''))
     np.savetxt(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", df[['name', 'value']].values, fmt='%s')
+    write_list = kwargs['rule']
+    with open(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", 'a+') as data:
+        for i in write_list:
+            i = i.replace('\'', '\"')
+            data.write(f"\n{i}")
 
 
 def check_variable_not_null(kwargs):
@@ -283,6 +288,7 @@ def check_variable_not_null(kwargs):
 def update_config_file(project_id, kwargs):
     check_variable_not_null(kwargs)
     f = False
+    model_exist = False
     filename = f'_{get_jwt_identity()["user_id"]}-setting_sideex.json'
     paths = [{
         "software_name": "SideeX",
@@ -297,7 +303,19 @@ def update_config_file(project_id, kwargs):
         json_data.write(json.dumps(kwargs))
     save_to_txt(kwargs)
     pj = gitlab.gitlab.gl.projects.get(repository_id)
-    if get_gitlab_file_todict(project_id, f"_{get_jwt_identity()['user_id']}-model.txt"):
+    paths = [{
+        "software_name": "SideeX",
+        "path": "iiidevops/sideex",
+        "file_name_key": ""
+    }]
+    repository_id = nx_get_project_plugin_relation(
+        nexus_project_id=project_id).git_repository_id
+    for path in paths:
+        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
+        for tree in trees:
+            if tree['name'] == f"_{get_jwt_identity()['user_id']}-model.txt":
+                model_exist = True
+    if model_exist:
         url = urllib.parse.quote(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", safe='')
         gitlab.gitlab.gl_delete_file(repository_id, url, {"commit_message": "delete _model.txt by sideex_auto_test"}, "master")
     gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", f"_{get_jwt_identity()['user_id']}-model.txt", "iiidevops/sideex", "master")
@@ -305,6 +323,8 @@ def update_config_file(project_id, kwargs):
         trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
         for tree in trees:
             if filename == tree['name']:
+                # if not_last:
+                #     next_run = pipeline.get_pipeline_next_run(gl_pj_id)
                 f = gitlab.gitlab.gl_get_file_from_lib(repository_id, tree['path'])
                 f.content = json.dumps(kwargs)
                 f.save(
@@ -312,6 +332,8 @@ def update_config_file(project_id, kwargs):
                     author_email='system@iiidevops.org.tw',
                     author_name='iiidevops',
                     commit_message=f'Add "iiidevops" in branch.rancher-pipeline.yml.')
+                # if not_last:
+                #     pipeline.stop_and_delete_pipeline(gl_pj_id, next_run, branch=branch)
                 break
         if not f:
             gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-setting_sideex.json", f"_{get_jwt_identity()['user_id']}-setting_sideex.json",
