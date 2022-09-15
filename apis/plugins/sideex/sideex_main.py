@@ -269,7 +269,7 @@ def save_to_txt(kwargs):
     df = pd.DataFrame(kwargs['var'])
     df['name'] = df['name'].apply(lambda x: x + ':')
     df['value'] = df['value'].apply(lambda x: str(x).replace('[', '').replace(']', '').replace("\'", ''))
-    np.savetxt(f"./iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", df[['name', 'value']].values, fmt='%s')
+    np.savetxt(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", df[['name', 'value']].values, fmt='%s')
 
 
 def check_variable_not_null(kwargs):
@@ -291,16 +291,16 @@ def update_config_file(project_id, kwargs):
     }]
     repository_id = nx_get_project_plugin_relation(
         nexus_project_id=project_id).git_repository_id
-    if not os.path.isdir('./iiidevops/sideex'):
-        Path('./iiidevops/sideex').mkdir(parents=True, exist_ok=True)
-    with open(f'./iiidevops/sideex/_{get_jwt_identity()["user_id"]}-setting_sideex.json', "w+") as json_data:
+    if not os.path.isdir('iiidevops/sideex'):
+        Path('iiidevops/sideex').mkdir(parents=True, exist_ok=True)
+    with open(f'iiidevops/sideex/_{get_jwt_identity()["user_id"]}-setting_sideex.json', "w+") as json_data:
         json_data.write(json.dumps(kwargs))
     save_to_txt(kwargs)
     pj = gitlab.gitlab.gl.projects.get(repository_id)
     if get_gitlab_file_todict(project_id, f"_{get_jwt_identity()['user_id']}-model.txt"):
         url = urllib.parse.quote(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", safe='')
         gitlab.gitlab.gl_delete_file(repository_id, url, {"commit_message": "delete _model.txt by sideex_auto_test"}, "master")
-    gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", f"_{get_jwt_identity()['user_id']}-model.txt", "./iiidevops/sideex", "master")
+    gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", f"_{get_jwt_identity()['user_id']}-model.txt", "iiidevops/sideex", "master")
     for path in paths:
         trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
         for tree in trees:
@@ -315,12 +315,12 @@ def update_config_file(project_id, kwargs):
                 break
         if not f:
             gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-setting_sideex.json", f"_{get_jwt_identity()['user_id']}-setting_sideex.json",
-                                               "./iiidevops/sideex", "master")
+                                               "iiidevops/sideex", "master")
 
 
 def pict_convert_result():
-    if os.path.isfile(f"./iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"):
-        std_output = subprocess.check_output(['pict', f"./iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"])
+    if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"):
+        std_output = subprocess.check_output(['pict', f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"])
         # std_output = b'abc\tdef\txx2\n10\ta54\t12\n123\tabc\t12\n123\ta54\tab\n3\tabc\t99\n10\tabc\t56\n3\txyz\tab\n3\txyz\t99\n3\ta54\t12\n10\txyz\tab\n123\txyz\t99\n10\ta54\t99\n2\tabc\t99\n123\ta54\t56\n3\tabc\tab\n2\txyz\t12\n2\ta54\t56\n3\txyz\t56\n3\ta54\t12\n2\txyz\tab\n3\tabc\t56\n'
         remove_space = std_output.decode("ascii").split('\t')
         concat = '\n'.join(remove_space)
@@ -333,7 +333,7 @@ def pict_convert_result():
 
 def sort_convert_result_to_df():
     pict_list = pict_convert_result()
-    file = open(f"./iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", 'r')
+    file = open(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", 'r')
     txt_content = file.read()
     cut_num = txt_content.count('\n')
     df_input = pd.DataFrame(pict_list)
@@ -364,9 +364,9 @@ def gernerate_json_file(project_id, filename):
     for i in range(1, len(df_sorted)):
         for key, value in df_sorted.T.to_dict()[i].items():
             result = re.sub('\${%s\}' % key, value, json.dumps(txt_content, indent=4))
-            with open(f'./iiidevops/sideex/*{get_jwt_identity()["user_id"]}-sideex{i}.json', 'w') as json_writer:
+            with open(f'iiidevops/sideex/*{get_jwt_identity()["user_id"]}-sideex{i}.json', 'w') as json_writer:
                 json_writer.write(result)
-                file = open(f'./iiidevops/sideex/*{get_jwt_identity()["user_id"]}-sideex{i}.json', 'r')
+                file = open(f'iiidevops/sideex/*{get_jwt_identity()["user_id"]}-sideex{i}.json', 'r')
                 txt_content = json.loads(file.read())
         update_to_gitlab(paths, repository_id, pj, i, result)
         data = get_gitlab_file_todict(project_id, filename)
@@ -395,7 +395,7 @@ def update_to_gitlab(paths, repository_id, pj, i, result):
             gitlab.gitlab.gl_create_file(pj,
                                          f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json",
                                          f"*{get_jwt_identity()['user_id']}-sideex{i}.json",
-                                         "./iiidevops/sideex", "master")
+                                         "iiidevops/sideex", "master")
         if os.path.isfile(f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json"):
             os.remove(f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json")
 
