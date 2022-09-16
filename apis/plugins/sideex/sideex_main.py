@@ -3,12 +3,15 @@ from datetime import datetime, timedelta
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
+from gitlab.v4 import objects
 from sqlalchemy import desc
 
 import model
 import nexus
 import util
+from enums.gitlab_enums import FileActions
 from resources import role, gitlab
+from resources.gitlab import single_file
 from resources.test_generated_issue import tgi_feed_sideex
 import os
 import re
@@ -301,46 +304,47 @@ def check_variable_not_null(kwargs):
 
 def update_config_file(project_id, kwargs):
     check_variable_not_null(kwargs)
-    f = False
-    model_exist = False
-    filename = f'_{get_jwt_identity()["user_id"]}-setting_sideex.json'
-    paths = [{
+    json_exist: bool = False
+    model_exist: bool = False
+    json_filename: str = f"_{get_jwt_identity()['user_id']}-setting_sideex.json"
+    model_filename: str = f"_{get_jwt_identity()['user_id']}-model.txt"
+
+    config: dict[str, str] = {
         "software_name": "SideeX",
         "path": "iiidevops/sideex/parameter",
         "file_name_key": ""
-    }]
-    repository_id = nx_get_project_plugin_relation(
-        nexus_project_id=project_id).git_repository_id
-    if not os.path.isdir('iiidevops/sideex'):
-        Path('iiidevops/sideex').mkdir(parents=True, exist_ok=True)
-    with open(f'iiidevops/sideex/_{get_jwt_identity()["user_id"]}-setting_sideex.json', "w+") as json_data:
-        json_data.write(json.dumps(kwargs))
+    }
+    relation: model.ProjectPluginRelation = nx_get_project_plugin_relation(nexus_project_id=project_id)
+    repository_id: int = relation.git_repository_id
+    project: objects.projects.Project = gitlab.gitlab.gl.projects.get(repository_id)
+
+    if not os.path.isdir("iiidevops/sideex"):
+        Path("iiidevops/sideex").mkdir(parents=True, exist_ok=True)
+    with open(f"iiidevops/sideex/{json_filename}", "w+") as f:
+        f.write(json.dumps(kwargs))
     save_to_txt(kwargs)
-    pj = gitlab.gitlab.gl.projects.get(repository_id)
-    for path in paths:
-        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
-        for tree in trees:
-            if tree['name'] == f"_{get_jwt_identity()['user_id']}-model.txt":
-                model_exist = True
-    if model_exist:
-        url = urllib.parse.quote(f"iiidevops/sideex/parameter/_{get_jwt_identity()['user_id']}-model.txt", safe='')
-        gitlab.gitlab.gl_delete_file(repository_id, url, {"commit_message": "delete _model.txt by sideex_auto_test"}, "master")
-    gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/parameter/_{get_jwt_identity()['user_id']}-model.txt", f"_{get_jwt_identity()['user_id']}-model.txt", "iiidevops/sideex", "master")
-    for path in paths:
-        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
-        for tree in trees:
-            if filename == tree['name']:
-                f = gitlab.gitlab.gl_get_file_from_lib(repository_id, tree['path'])
-                f.content = json.dumps(kwargs)
-                f.save(
-                    branch='master',
-                    author_email='system@iiidevops.org.tw',
-                    author_name='iiidevops',
-                    commit_message=f'Add "iiidevops" in branch.rancher-pipeline.yml.')
-                break
-        if not f:
-            gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/parameter/_{get_jwt_identity()['user_id']}-setting_sideex.json", f"_{get_jwt_identity()['user_id']}-setting_sideex.json",
-                                               "iiidevops/sideex", "master")
+
+    trees: list[dict[str, str]] = gitlab.gitlab.ql_get_tree(repository_id, config['path'], all=True)
+
+    for tree in trees:
+        if tree["name"] == model_filename:
+            model_exist = True
+        if tree["name"] == json_filename:
+            json_exist = True
+
+    files = [
+        single_file(
+            f"iiidevops/sideex/parameter/{model_filename}",
+            f"iiidevops/sideex/{model_filename}",
+            FileActions.UPDATE if model_exist else FileActions.CREATE
+        ),
+        single_file(
+            f"iiidevops/sideex/parameter/{json_filename}",
+            f"iiidevops/sideex/{json_filename}",
+            FileActions.UPDATE if model_exist else FileActions.CREATE
+        )
+    ]
+    gitlab.gitlab.create_multiple_file_commit(project, files, "master")
 
 
 def pict_convert_result():
