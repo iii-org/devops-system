@@ -1,13 +1,17 @@
-from resources import logger
-import redis
-import config
 import json
 from datetime import datetime
+from typing import Any, Optional
+
+import redis
+
+import config
+from resources import logger
 
 ISSUS_FAMILIES_KEY = 'issue_families'
 PROJECT_ISSUE_CALCULATE_KEY = 'project_issue_calculation'
 SERVER_ALIVE_KEY = 'system_all_alive'
 TEMPLATE_CACHE = 'template_list_cache'
+SHOULD_UPDATE_TEMPLATE = 'should_update_template'
 
 
 class RedisOperator:
@@ -29,6 +33,9 @@ class RedisOperator:
         '''
         self.r = redis.Redis(connection_pool=self.pool)
 
+    #####################
+    # String type
+    #####################
     def str_get(self, key):
         return self.r.get(key)
 
@@ -36,10 +43,57 @@ class RedisOperator:
         return self.r.set(key, value)
 
     def str_delete(self, key):
-        value = self.get(key)
         self.r.delete(key)
-        return value
 
+    #####################
+    # Boolean type
+    #####################
+    def bool_get(self, key: str) -> bool:
+        """
+        Get a boolean value from redis. Redis stores boolean into strings,
+        so this function will convert strings below to ``True``.
+
+            - "1"
+            - "true"
+            - "yes"
+
+        Other values will be converted to ``False``.
+
+        :param key: The key to get
+        :return: The result from redis server
+        """
+        value: Optional[str] = self.r.get(key)
+        if value:  # if value is not None or not empty string
+            if value.lower() in ('1', 'true', 'yes'):
+                return True
+        return False
+
+    def bool_set(self, key: str, value: bool) -> bool:
+        """
+        Set a boolean value to redis.
+
+        :param key: The key to set
+        :param value: The boolean value to set
+        :return: True if set successfully, False if not
+        """
+        return self.r.set(key, str(value).lower())
+
+    def bool_delete(self, key: str) -> bool:
+        """
+        Delete a key from redis.
+
+        :param key: The key to delete
+        :return: True if the key was deleted, False if the key did not exist
+        """
+        result: int = self.r.delete(key)
+        if result == 1:
+            return True
+        else:
+            return False
+
+    #####################
+    # Dictionary type
+    #####################
     def dict_set_all(self, key, value):
         return self.r.hset(key, mapping=value)
 
@@ -166,11 +220,31 @@ def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):
 
 
 # Template cache
-def update_template_cache_all(dict_all):
+def update_template_cache_all(data: dict) -> None:
     logger.logger.info(f"Before data {redis_op.dict_get_all(TEMPLATE_CACHE)}")  
+    delete_template_cache()
+    if data:
+        redis_op.dict_set_all(TEMPLATE_CACHE, data)
+        redis_op.bool_set(SHOULD_UPDATE_TEMPLATE, False)
+
+
+def should_update_template_cache() -> bool:
+    """
+    Handy function to check if template cache should be updated.
+
+    :return: Redis value of template cache update flag.
+    """
+    return redis_op.bool_get(SHOULD_UPDATE_TEMPLATE)
+
+
+def delete_template_cache() -> None:
+    """
+    Delete all template cache.
+
+    :return: None
+    """
     redis_op.dict_delete_all(TEMPLATE_CACHE)
-    if dict_all != {}:
-        redis_op.dict_set_all(TEMPLATE_CACHE, dict_all)
+    redis_op.bool_set(SHOULD_UPDATE_TEMPLATE, True)
 
 
 def update_template_cache(id, dict_val):
@@ -178,10 +252,8 @@ def update_template_cache(id, dict_val):
 
 
 def get_template_caches_all():
-    out = []
-    cal_infos = redis_op.dict_get_all(TEMPLATE_CACHE)
-    for k, v in cal_infos.items():
-        out.append({k: json.loads(v)})
+    redis_data: dict[str, str] = redis_op.dict_get_all(TEMPLATE_CACHE)
+    out: list[dict[str, Any]] = [{_: json.loads(redis_data[_])} for _ in redis_data]
     return out
 
 

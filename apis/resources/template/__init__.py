@@ -260,7 +260,7 @@ def update_redis_template_cache(pj, group_name, pip_set_json, tag_list):
                                   'group_name': TEMPLATE_GROUP_DICT.get(group_name)})
 
 
-def __force_update_template_cache_table():
+def fetch_and_update_template_cache():
     logger.logger.info("Start updating template cache.")
     output = [{
         "source": "Public Templates",
@@ -329,9 +329,9 @@ def lock_project(pj_name, info):
 
 def tm_get_template_list(force_update=0):
     if force_update == 1:
-        return __force_update_template_cache_table()
+        return fetch_and_update_template_cache()
     elif count_template_number() == 0:
-        return __force_update_template_cache_table()
+        return fetch_and_update_template_cache()
     else:
         total_data = get_template_caches_all()
         output = [{
