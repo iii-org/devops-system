@@ -719,6 +719,7 @@ class GitLab(object):
         :param branch: branch name
         :return: None
         """
+        commit_message: str = "Add or update files\n\n"
         for file in files:
             if not (file.get("action", False) and file.get("file_path", False) and file.get("content", False)):
                 raise apiError.DevOpsError(
@@ -726,15 +727,14 @@ class GitLab(object):
                     "Error when create multiple file commit.",
                     error=f"{file} missing required parameter."
                 )
-
-            if file.get("action") != "create":
-                pass
+            path: Path = Path(file['file_path'])
+            commit_message += f"- {file['action'].capitalize()} {path.stem}{path.suffix}\n"
 
         data = {
             "branch": branch,
             "author_email": "system@iiidevops.org.tw",
             "author_name": "iiidevops",
-            "commit_message": "Add files from iiidevops",
+            "commit_message": commit_message,
             "actions": files
         }
 
