@@ -243,9 +243,22 @@ def get_global_json(project_id, filename):
 
 def get_setting_file(project_id, filename):
     result_list = []
+    setting_data = None
     result_dict = get_global_json(project_id, filename)
     output_list = get_sideex_json_variable(project_id, filename)
-    setting_data = get_gitlab_file_todict(project_id, f'_{get_jwt_identity()["user_id"]}-setting_sideex.json')
+    paths = [{
+        "software_name": "SideeX",
+        "path": "iiidevops/sideex/parameter",
+        "file_name_key": ""
+    }]
+    repository_id = nx_get_project_plugin_relation(
+        nexus_project_id=project_id).git_repository_id
+    for path in paths:
+        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
+        for tree in trees:
+            if tree['name'] == f'_{get_jwt_identity()["user_id"]}-setting_sideex.json':
+                setting_data = load_file_from_gitlab(repository_id, tree['path'])
+                break
     if setting_data and type(setting_data) == str:
         setting_data = json.loads(setting_data)
     sorted_dict = {}
@@ -261,7 +274,7 @@ def get_setting_file(project_id, filename):
         result_list = [{"name": k, "type": str(type(v[0])).replace('<class \'', '').replace('\'>', '') if v != [] else None, "value": v} for k, v in result_dict.items()]
     return_dict = {
           "var": result_list,
-          "rule": []
+          "rule": setting_data['rule'] if setting_data else []
         }
     return return_dict
 
