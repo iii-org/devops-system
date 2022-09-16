@@ -7,7 +7,7 @@ import redis
 import config
 from resources import logger
 
-ISSUS_FAMILIES_KEY = 'issue_families'
+ISSUE_FAMILIES_KEY = 'issue_families'
 PROJECT_ISSUE_CALCULATE_KEY = 'project_issue_calculation'
 SERVER_ALIVE_KEY = 'system_all_alive'
 TEMPLATE_CACHE = 'template_list_cache'
@@ -144,41 +144,41 @@ def update_server_alive(alive):
 
 
 def check_issue_has_son(issue_id):
-    return redis_op.r.hexists(ISSUS_FAMILIES_KEY, issue_id)
+    return redis_op.r.hexists(ISSUE_FAMILIES_KEY, issue_id)
 
 
 def update_issue_relations(issue_families):
-    redis_op.dict_delete_all(ISSUS_FAMILIES_KEY)
+    redis_op.dict_delete_all(ISSUE_FAMILIES_KEY)
     if issue_families != {}:
-        return redis_op.dict_set_all(ISSUS_FAMILIES_KEY, issue_families)
+        return redis_op.dict_set_all(ISSUE_FAMILIES_KEY, issue_families)
 
 
 def update_issue_relation(parent_issue_id, son_issue_ids):
-    return redis_op.dict_set_certain(ISSUS_FAMILIES_KEY, parent_issue_id, son_issue_ids)
+    return redis_op.dict_set_certain(ISSUE_FAMILIES_KEY, parent_issue_id, son_issue_ids)
 
 
 def remove_issue_relation(parent_issue_id, son_issue_id):
-    son_issue_ids = redis_op.dict_get_certain(ISSUS_FAMILIES_KEY, parent_issue_id)
+    son_issue_ids = redis_op.dict_get_certain(ISSUE_FAMILIES_KEY, parent_issue_id)
     if son_issue_ids is None:
         return
     son_issue_ids = son_issue_ids.split(",")
     if son_issue_id in son_issue_ids:
         if len(son_issue_ids) == 1:
-            redis_op.dict_delete_certain(ISSUS_FAMILIES_KEY, parent_issue_id)
+            redis_op.dict_delete_certain(ISSUE_FAMILIES_KEY, parent_issue_id)
         else:
             son_issue_ids.remove(son_issue_id)
             update_issue_relation(parent_issue_id, ",".join(son_issue_ids))
 
 
 def remove_issue_relations(parent_issue_id):
-    redis_op.dict_delete_certain(ISSUS_FAMILIES_KEY, parent_issue_id)
+    redis_op.dict_delete_certain(ISSUE_FAMILIES_KEY, parent_issue_id)
 
 
 def add_issue_relation(parent_issue_id, son_issue_id):
     if not check_issue_has_son(parent_issue_id):
-        redis_op.dict_set_certain(ISSUS_FAMILIES_KEY, parent_issue_id, str(son_issue_id))
+        redis_op.dict_set_certain(ISSUE_FAMILIES_KEY, parent_issue_id, str(son_issue_id))
     else:
-        son_issue_ids = redis_op.dict_get_certain(ISSUS_FAMILIES_KEY, parent_issue_id)
+        son_issue_ids = redis_op.dict_get_certain(ISSUE_FAMILIES_KEY, parent_issue_id)
         son_issue_ids = son_issue_ids.split(",")
         if son_issue_id not in son_issue_ids:
             update_issue_relation(parent_issue_id, ",".join(son_issue_ids+[str(son_issue_id)]))
