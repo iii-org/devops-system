@@ -399,7 +399,9 @@ def gernerate_json_file(project_id, filename):
                 txt_content = json.loads(file.read())
         if i != len(df_sorted):
             next_run = pipeline.get_pipeline_next_run(repository_id)
-        update_to_gitlab(paths, repository_id, pj, i, result)
+        change_suite = re.sub('django-sqlite-todo', f'{get_jwt_identity()["user_id"]}_django-sqlite-todo-{i}',
+                              json.dumps(json.loads(result), indent=4))
+        update_to_gitlab(paths, repository_id, pj, i, change_suite)
         data = get_gitlab_file_todict(project_id, filename)
         txt_content = data
         if i == len(df_sorted):
