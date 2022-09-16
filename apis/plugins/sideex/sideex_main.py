@@ -23,6 +23,7 @@ import pandas as pd
 import subprocess
 import urllib.parse
 from flask_jwt_extended import get_jwt_identity
+import resources.pipeline as pipeline
 
 
 def sd_start_test(args):
@@ -292,7 +293,7 @@ def update_config_file(project_id, kwargs):
     filename = f'_{get_jwt_identity()["user_id"]}-setting_sideex.json'
     paths = [{
         "software_name": "SideeX",
-        "path": "iiidevops/sideex",
+        "path": "iiidevops/sideex/parameter",
         "file_name_key": ""
     }]
     repository_id = nx_get_project_plugin_relation(
@@ -309,15 +310,13 @@ def update_config_file(project_id, kwargs):
             if tree['name'] == f"_{get_jwt_identity()['user_id']}-model.txt":
                 model_exist = True
     if model_exist:
-        url = urllib.parse.quote(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", safe='')
+        url = urllib.parse.quote(f"iiidevops/sideex/parameter/_{get_jwt_identity()['user_id']}-model.txt", safe='')
         gitlab.gitlab.gl_delete_file(repository_id, url, {"commit_message": "delete _model.txt by sideex_auto_test"}, "master")
-    gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", f"_{get_jwt_identity()['user_id']}-model.txt", "iiidevops/sideex", "master")
+    gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/parameter/_{get_jwt_identity()['user_id']}-model.txt", f"_{get_jwt_identity()['user_id']}-model.txt", "iiidevops/sideex", "master")
     for path in paths:
         trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
         for tree in trees:
             if filename == tree['name']:
-                # if not_last:
-                #     next_run = pipeline.get_pipeline_next_run(gl_pj_id)
                 f = gitlab.gitlab.gl_get_file_from_lib(repository_id, tree['path'])
                 f.content = json.dumps(kwargs)
                 f.save(
@@ -325,11 +324,9 @@ def update_config_file(project_id, kwargs):
                     author_email='system@iiidevops.org.tw',
                     author_name='iiidevops',
                     commit_message=f'Add "iiidevops" in branch.rancher-pipeline.yml.')
-                # if not_last:
-                #     pipeline.stop_and_delete_pipeline(gl_pj_id, next_run, branch=branch)
                 break
         if not f:
-            gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-setting_sideex.json", f"_{get_jwt_identity()['user_id']}-setting_sideex.json",
+            gitlab.gitlab.gl_create_file(pj, f"iiidevops/sideex/parameter/_{get_jwt_identity()['user_id']}-setting_sideex.json", f"_{get_jwt_identity()['user_id']}-setting_sideex.json",
                                                "iiidevops/sideex", "master")
 
 
@@ -383,9 +380,13 @@ def gernerate_json_file(project_id, filename):
                 json_writer.write(result)
                 file = open(f'iiidevops/sideex/*{get_jwt_identity()["user_id"]}-sideex{i}.json', 'r')
                 txt_content = json.loads(file.read())
+        if i != len(df_sorted):
+            next_run = pipeline.get_pipeline_next_run(repository_id)
         update_to_gitlab(paths, repository_id, pj, i, result)
         data = get_gitlab_file_todict(project_id, filename)
         txt_content = data
+        if i == len(df_sorted):
+            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch="master")
     if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"):
         os.remove(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt")
     if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-setting_sideex.json"):
