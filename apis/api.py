@@ -1,64 +1,63 @@
-
 import os
 import sys
 import threading
+import traceback
+from os.path import isfile
 from pathlib import Path
+
+import werkzeug
+from apispec import APISpec
+from apispec.ext.marshmallow import MarshmallowPlugin
+from flask import Flask
+from flask_apispec.extension import FlaskApiSpec
+from flask_cors import CORS
+from flask_jwt_extended import jwt_required
+from flask_restful import Resource, Api, reqparse
+from flask_socketio import SocketIO
+from sqlalchemy.exc import NoResultFound
+from sqlalchemy_utils import database_exists, create_database
+from werkzeug.routing import IntegerConverter
 
 if str(Path(__file__).parent) not in sys.path:
     sys.path.insert(1, str(Path(__file__).parent))
 
 import config
+import migrate
+import model
+import plugins
+import resources.apiError as apiError
+import resources.pipeline as pipeline
+import resources.rancher as rancher
+import routine_job
+import util
+from jsonwebtoken import jsonwebtoken
+from model import db
+from resources import logger, role as role, activity, starred_project, devops_version, cicd
+from resources import project, gitlab, issue, user, redmine, apiTest, template, release, sync_redmine, plugin, \
+    kubernetesClient, project_permission, quality, deploy, alert, trace_order, system_parameter, maintenance, \
+    issue_display_field
+from resources.redis import should_update_template_cache
+from resources.template import fetch_and_update_template_cache
+
 if config.get("DEBUG") is False:
     import eventlet
     eventlet.monkey_patch(socket=True, select=True, thread=True)
 
-import traceback
-from os.path import isfile
-
-import werkzeug
-from flask import Flask
-from flask_cors import CORS
-from flask_jwt_extended import jwt_required
-from flask_restful import Resource, Api, reqparse
-from flask_socketio import SocketIO
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy_utils import database_exists, create_database
-from werkzeug.routing import IntegerConverter
-
-import plugins
-import migrate
-import model
-import resources.apiError as apiError
-import resources.pipeline as pipeline
-import resources.rancher as rancher
-import util
-import routine_job
-from jsonwebtoken import jsonwebtoken
-from model import db
-from resources import logger, role as role, activity, starred_project, devops_version, cicd
-from resources import project, gitlab, issue, user, redmine, wiki, version, apiTest, mock, \
-    template, release, sync_redmine, plugin, kubernetesClient, project_permission, quality, \
-    sync_user, router, deploy, alert, trace_order, tag, lock, system_parameter, \
-    maintenance, issue_display_field
-from apispec import APISpec
-from flask_apispec.extension import FlaskApiSpec
-from apispec.ext.marshmallow import MarshmallowPlugin
-
 # This import will merge to the above one after all API move to V2.
-from urls.project import project_url
+from urls import monitoring
+from urls.harbor import harbor_url
 from urls.issue import issue_url
-from urls.user import user_url
-from urls.tag import tag_url
 from urls.lock import lock_url
+from urls.notification_message import notification_message_url
+from urls.project import project_url
+from urls.router import router_url
 from urls.sync_projects import sync_projects_url
 from urls.sync_users import sync_users_url
-from urls.router import router_url
-from urls import monitoring
-from urls.system_parameter import sync_system_parameter_url
-from urls.notification_message import notification_message_url
-from urls.template import template_url
-from urls.harbor import harbor_url
 from urls.system import system_url
+from urls.system_parameter import sync_system_parameter_url
+from urls.tag import tag_url
+from urls.template import template_url
+from urls.user import user_url
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -635,7 +634,6 @@ def login():
     return login(args)
 
 
-
 def start_prod():
     try:
         db.init_app(app)
@@ -646,8 +644,14 @@ def start_prod():
         kubernetesClient.create_iiidevops_env_secret_namespace()
         threading.Thread(target=kubernetesClient.apply_cronjob_yamls).start()
         logger.logger.info('Apply k8s-yaml cronjob.')
+
+        # Template init
+        if should_update_template_cache():
+            fetch_and_update_template_cache()
+            logger.logger.info("Created template cache.")
         template.tm_get_template_list()
-        logger.logger.info('Get the public and local template list')
+        logger.logger.info("Get the public and local template list")
+
         plugins.create_plugins_api_router(api, add_resource)
         plugins.sync_plugins_in_db_and_code()
         with app.app_context():  # Prevent error appear(Working outside of application context.)
