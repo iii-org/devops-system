@@ -327,12 +327,14 @@ def generate_json_file(project_id, filename):
     gitlab_files: list[dict[str,str]] = []
 
     for i in range(1, len(df_sorted)):
-        file_path: str = f"iiidevops/sideex/u{get_jwt_identity()['user_id']}-sideex{i}.json"
+        file_path: str = f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json"
 
         for key, value in df_sorted.T.to_dict()[i].items():
             result = re.sub('\${%s\}' % key, value, json.dumps(template_content, indent=4))
             with open(file_path, 'w') as f:
                 f.write(result)
+                file = open(f'iiidevops/sideex/*{get_jwt_identity()["user_id"]}-sideex{i}.json', 'r')
+                template_content = json.loads(file.read())
 
         if i != len(df_sorted):
             next_run = pipeline.get_pipeline_next_run(repository_id)
