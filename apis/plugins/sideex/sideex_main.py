@@ -24,7 +24,6 @@ from pathlib import Path
 import resources.apiError as apiError
 import pandas as pd
 import subprocess
-import urllib.parse
 from flask_jwt_extended import get_jwt_identity
 import resources.pipeline as pipeline
 
@@ -209,21 +208,10 @@ def get_setting_file(project_id, filename):
     setting_data = None
     result_dict = get_global_json(project_id, filename)
     output_list = get_sideex_json_variable(project_id, filename)
-    paths = [{
-        "software_name": "SideeX",
-        "path": "iiidevops/sideex/parameter",
-        "file_name_key": ""
-    }]
-    repository_id = nx_get_project_plugin_relation(
-        nexus_project_id=project_id).git_repository_id
-    for path in paths:
-        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
-        for tree in trees:
-            if tree['name'] == f'_{get_jwt_identity()["user_id"]}-setting_sideex.json':
-                setting_data = load_file_from_gitlab(repository_id, tree['path'])
-                break
-    if setting_data and type(setting_data) == str:
-        setting_data = json.loads(setting_data)
+    project_name = nexus.nx_get_project(id=project_id).name
+    if os.path.isfile(f'devops-data/project-data/{project_name}/_{get_jwt_identity()["user_id"]}-setting_sideex.json'):
+        with open(f'devops-data/project-data/{project_name}/_{get_jwt_identity()["user_id"]}-setting_sideex.json') as json_data:
+            setting_data = json.load(json_data)
     sorted_dict = {}
     if setting_data:
         for var in setting_data['var']:
