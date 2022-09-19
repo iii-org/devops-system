@@ -26,8 +26,8 @@ from urls.monitoring import router_model
 # All
 ####################
 @doc(tags=['Monitoring'], description="Get all services list")
-@marshal_with(router_model.ServersAliveResponse)
-class ServicesList(Resource):
+@marshal_with(router_model.ServiceListSchema)
+class ServicesListV2(MethodResource):
     @jwt_required()
     def get(self):
         return util.success(ServicesNames)
