@@ -153,45 +153,6 @@ class Sideex(Resource):
         return util.success(sd_get_tests(project_id))
 
 
-# def get_sideex_json_variable():
-#     variable_name = []
-#     variable_value = []
-#     if os.path.isfile('./iiidevops/sideex/sideex.json'):
-#         with open('./iiidevops/sideex/sideex.json') as json_data:
-#             if json_data is not None:
-#                 data = json.load(json_data)
-#         for a in data['suites']:
-#             for b, c in a.items():
-#                 if b == "cases":
-#                     for d in c:
-#                         for e, f in d.items():
-#                             if e == 'records':
-#                                 for g in f:
-#                                     for h, i in g.items():
-#                                         if h == 'name':
-#                                             variable_name.append(i)
-#                                         elif h == 'value':
-#                                             variable_value.append(i['options'][0]['value'])
-#     else:
-#         return util.respond(404, f"{'sideex.json'} not found")
-#     uncheck_set = set(zip(variable_name, variable_value))
-#     value_dict = {}
-#     variable_unique = np.unique(variable_name).tolist()
-#     df2 = pd.DataFrame(uncheck_set)
-#     for i in variable_unique:
-#         value_dict.update({i: df2.loc[df2[0] == i][1].tolist()})
-#     if os.path.isfile('./iiidevops/sideex/global_variables.json'):
-#         with open('./iiidevops/sideex/global_variables.json') as json_data:
-#             if json_data is not None:
-#                 variables_data = json.load(json_data)
-#         global_list = [value for key, value in variables_data.items()]
-#         for key, value_list in value_dict.items():
-#             for value in value_list:
-#                 if value in global_list:
-#                     value_list.remove(value)
-#     else:
-#         return util.respond(404, f"{'global_variables.json'} not found")
-#     return value_dict
 def load_file_from_gitlab(repository_id, path):
     f = gitlab.gitlab.gl_get_file_from_lib(repository_id, path)
     decode_dict = yaml.safe_load(f.decode())
@@ -282,13 +243,16 @@ def get_setting_file(project_id, filename):
     return return_dict
 
 
-def save_to_txt(kwargs):
+def save_to_txt(project_id, kwargs):
     df = pd.DataFrame(kwargs['var'])
     df['name'] = df['name'].apply(lambda x: x + ':')
     df['value'] = df['value'].apply(lambda x: str(x).replace('[', '').replace(']', '').replace("\'", ''))
-    np.savetxt(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", df[['name', 'value']].values, fmt='%s')
+    project_name = nexus.nx_get_project(id=project_id).name
+    if not os.path.isdir(f'devops-data/project-data/{project_name}'):
+        Path(f"devops-data/project-data/{project_name}").mkdir(parents=True, exist_ok=True)
+    np.savetxt(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt", df[['name', 'value']].values, fmt='%s')
     write_list = kwargs['rule']
-    with open(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", 'a+') as data:
+    with open(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt", 'a+') as data:
         for i in write_list:
             i = i.replace('\'', '\"')
             data.write(f"\n{i}")
@@ -304,52 +268,18 @@ def check_variable_not_null(kwargs):
 
 def update_config_file(project_id, kwargs):
     check_variable_not_null(kwargs)
-    json_exist: bool = False
-    model_exist: bool = False
-    json_filename: str = f"_{get_jwt_identity()['user_id']}-setting_sideex.json"
-    model_filename: str = f"_{get_jwt_identity()['user_id']}-model.txt"
-
-    config: dict[str, str] = {
-        "software_name": "SideeX",
-        "path": "iiidevops/sideex/parameter",
-        "file_name_key": ""
-    }
-    relation: model.ProjectPluginRelation = nx_get_project_plugin_relation(nexus_project_id=project_id)
-    repository_id: int = relation.git_repository_id
-    project: objects.projects.Project = gitlab.gitlab.gl.projects.get(repository_id)
-
-    if not os.path.isdir("iiidevops/sideex"):
-        Path("iiidevops/sideex").mkdir(parents=True, exist_ok=True)
-    with open(f"iiidevops/sideex/{json_filename}", "w+") as f:
-        f.write(json.dumps(kwargs))
-    save_to_txt(kwargs)
-
-    trees: list[dict[str, str]] = gitlab.gitlab.ql_get_tree(repository_id, config['path'], all=True)
-
-    for tree in trees:
-        if tree["name"] == model_filename:
-            model_exist = True
-        if tree["name"] == json_filename:
-            json_exist = True
-
-    files = [
-        single_file(
-            f"iiidevops/sideex/parameter/{model_filename}",
-            f"iiidevops/sideex/{model_filename}",
-            FileActions.UPDATE if model_exist else FileActions.CREATE
-        ),
-        single_file(
-            f"iiidevops/sideex/parameter/{json_filename}",
-            f"iiidevops/sideex/{json_filename}",
-            FileActions.UPDATE if model_exist else FileActions.CREATE
-        )
-    ]
-    gitlab.gitlab.create_multiple_file_commit(project, files, "master")
+    project_name = nexus.nx_get_project(id=project_id).name
+    if not os.path.isdir(f'devops-data/project-data/{project_name}'):
+        Path(f"devops-data/project-data/{project_name}").mkdir(parents=True, exist_ok=True)
+    with open(f'devops-data/project-data/{project_name}/_{get_jwt_identity()["user_id"]}-setting_sideex.json', "w+") as json_data:
+        json_data.write(json.dumps(kwargs))
+    save_to_txt(project_id, kwargs)
 
 
-def pict_convert_result():
-    if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"):
-        std_output = subprocess.check_output(['pict', f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"])
+def pict_convert_result(project_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    if os.path.isfile(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt"):
+        std_output = subprocess.check_output(['pict', f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt"])
         # std_output = b'abc\tdef\txx2\n10\ta54\t12\n123\tabc\t12\n123\ta54\tab\n3\tabc\t99\n10\tabc\t56\n3\txyz\tab\n3\txyz\t99\n3\ta54\t12\n10\txyz\tab\n123\txyz\t99\n10\ta54\t99\n2\tabc\t99\n123\ta54\t56\n3\tabc\tab\n2\txyz\t12\n2\ta54\t56\n3\txyz\t56\n3\ta54\t12\n2\txyz\tab\n3\tabc\t56\n'
         remove_space = std_output.decode("ascii").split('\t')
         concat = '\n'.join(remove_space)
@@ -360,9 +290,10 @@ def pict_convert_result():
         raise apiError.DevOpsError(404, f"_{get_jwt_identity()['user_id']}-model.txt not found")
 
 
-def sort_convert_result_to_df():
-    pict_list = pict_convert_result()
-    file = open(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt", 'r')
+def sort_convert_result_to_df(project_id):
+    pict_list = pict_convert_result(project_id)
+    project_name = nexus.nx_get_project(id=project_id).name
+    file = open(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt", 'r')
     txt_content = file.read()
     cut_num = txt_content.count('\n')
     df_input = pd.DataFrame(pict_list)
@@ -379,7 +310,7 @@ def sort_convert_result_to_df():
 
 
 def gernerate_json_file(project_id, filename):
-    df_sorted = sort_convert_result_to_df()
+    df_sorted = sort_convert_result_to_df(project_id)
     data = get_gitlab_file_todict(project_id, filename)
     txt_content = data
     paths = [{
@@ -406,10 +337,6 @@ def gernerate_json_file(project_id, filename):
         txt_content = data
         if i == len(df_sorted):
             pipeline.stop_and_delete_pipeline(repository_id, next_run, branch="master")
-    if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt"):
-        os.remove(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-model.txt")
-    if os.path.isfile(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-setting_sideex.json"):
-        os.remove(f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-setting_sideex.json")
 
 
 def update_to_gitlab(paths, repository_id, pj, i, result):
