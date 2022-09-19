@@ -49,7 +49,7 @@ ServicesNames = [
     "Redmine",
     "GitLab",
     "Harbor",
-    "K8s",
+    "Kubernetes",
     "Sonarqube",
     "Rancher",
     "Excalidraw"
@@ -266,7 +266,7 @@ class Monitoring:
                 self.detail = {}
         return harbor_alive
 
-    def k8s_alive(self):
+    def kubernetes_alive(self):
         self.server = "K8s"
         self.alert_service_id = 401
         return self.__check_server_alive(
@@ -353,7 +353,7 @@ class Monitoring:
                 "Redmine": self.redmine_alive(),
                 "GitLab": self.gitlab_alive(is_project),
                 "Harbor": self.harbor_alive(is_project),
-                "K8s": self.k8s_alive(),
+                "K8s": self.kubernetes_alive(),
                 "Sonarqube": self.sonarqube_alive(),
                 "Rancher": self.rancher_alive(),
             },
@@ -391,7 +391,7 @@ def generate_alive_response(name: str) -> dict[str, Any]:
     monitoring = Monitoring()
     mapping = service_alive_map(monitoring)
     return {
-        "name": name.capitalize(),
+        "name": name,
         "status": mapping[name](),
         "message": monitoring.error_message,
         "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),

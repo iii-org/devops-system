@@ -319,10 +319,14 @@ def generate_json_file(project_id, filename):
 
         for key, value in df_sorted.T.to_dict()[i].items():
             result = re.sub('\${%s\}' % key, value, json.dumps(template_content, indent=4))
-            with open(file_path, 'w') as f:
+            with open(file_path, 'w+') as f:
                 f.write(result)
-                file = open(f'iiidevops/sideex/*{get_jwt_identity()["user_id"]}-sideex{i}.json', 'r')
-                template_content = json.loads(file.read())
+
+                # Reset cursor
+                f.seek(0)
+
+                # Fetch file result
+                template_content = json.loads(f.read())
 
         if i != len(df_sorted):
             next_run = pipeline.get_pipeline_next_run(repository_id)
