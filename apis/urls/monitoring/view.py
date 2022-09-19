@@ -220,13 +220,13 @@ class DeleteApprevisions(MethodResource):
 class K8sAliveV2(MethodResource):
     @jwt_required()
     def get(self):
-        return server_alive("K8s")
+        return server_alive("Kubernetes")
 
 
 class K8sAlive(Resource):
     @jwt_required()
     def get(self):
-        return server_alive("K8s")
+        return server_alive("Kubernetes")
 
 
 class CollectPodRestartTimeV2(MethodResource):
