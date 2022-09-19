@@ -160,19 +160,18 @@ def load_file_from_gitlab(repository_id, path):
 
 
 def get_gitlab_file_todict(project_id, filename):
-    paths = [{
+    configs: dict[str, str] = {
         "software_name": "SideeX",
         "path": "iiidevops/sideex",
         "file_name_key": ""
-    }]
-    repository_id = nx_get_project_plugin_relation(
-        nexus_project_id=project_id).git_repository_id
-    for path in paths:
-        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
-        for tree in trees:
-            if filename == tree['name']:
-                data = load_file_from_gitlab(repository_id, tree['path'])
-                return data
+    }
+    repository_id: int = nx_get_project_plugin_relation(nexus_project_id=project_id).git_repository_id
+    trees = gitlab.gitlab.ql_get_tree(repository_id, configs['path'], all=True)
+
+    for tree in trees:
+        if filename == tree['name']:
+            data = load_file_from_gitlab(repository_id, tree['path'])
+            return data
 
 
 def get_sideex_json_variable(project_id, filename):
@@ -276,18 +275,27 @@ def update_config_file(project_id, kwargs):
     save_to_txt(project_id, kwargs)
 
 
-def pict_convert_result(project_id):
+def pict_convert_result(project_id) -> list[str]:
+    """
+    將 model 透過 pict 轉換成 list
+
+    :param project_id: 專案 id
+    :return: 轉換後的 list
+    """
     project_name = nexus.nx_get_project(id=project_id).name
-    if os.path.isfile(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt"):
-        std_output = subprocess.check_output(['pict', f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt"])
+    file: str = f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt"
+
+    if os.path.isfile(file):
+        # Get pict from https://github.com/microsoft/pict
+        std_output: bytes = subprocess.check_output(['pict', file])
         # std_output = b'abc\tdef\txx2\n10\ta54\t12\n123\tabc\t12\n123\ta54\tab\n3\tabc\t99\n10\tabc\t56\n3\txyz\tab\n3\txyz\t99\n3\ta54\t12\n10\txyz\tab\n123\txyz\t99\n10\ta54\t99\n2\tabc\t99\n123\ta54\t56\n3\tabc\tab\n2\txyz\t12\n2\ta54\t56\n3\txyz\t56\n3\ta54\t12\n2\txyz\tab\n3\tabc\t56\n'
-        remove_space = std_output.decode("ascii").split('\t')
-        concat = '\n'.join(remove_space)
-        remove_n = concat.split('\n')
-        remove_n.remove('')
-        return remove_n
+        decoded: str = std_output.decode("ascii")
+        concat: str = decoded.replace("\t", "\n").replace("\r\n", "\n")
+        result: list[str] = concat.split("\n")
+        result.remove("")
+        return result
     else:
-        raise apiError.DevOpsError(404, f"_{get_jwt_identity()['user_id']}-model.txt not found")
+        raise apiError.DevOpsError(404, f"{file} not found")
 
 
 def sort_convert_result_to_df(project_id):
@@ -309,57 +317,66 @@ def sort_convert_result_to_df(project_id):
     return df_sorted
 
 
-def gernerate_json_file(project_id, filename):
+def generate_json_file(project_id, filename):
     df_sorted = sort_convert_result_to_df(project_id)
-    data = get_gitlab_file_todict(project_id, filename)
-    txt_content = data
-    paths = [{
-        "software_name": "SideeX",
-        "path": "iiidevops/sideex",
-        "file_name_key": ""
-    }]
-    repository_id = nx_get_project_plugin_relation(
-        nexus_project_id=project_id).git_repository_id
-    pj = gitlab.gitlab.gl.projects.get(repository_id)
+    template_content: dict = get_gitlab_file_todict(project_id, filename)
+
+    repository_id: int = nx_get_project_plugin_relation(nexus_project_id=project_id).git_repository_id
+    project: objects.Project = gitlab.gitlab.gl.projects.get(repository_id)
+
+    gitlab_files: list[dict[str,str]] = []
+
     for i in range(1, len(df_sorted)):
+        file_path: str = f"iiidevops/sideex/u{get_jwt_identity()['user_id']}-sideex{i}.json"
+
         for key, value in df_sorted.T.to_dict()[i].items():
-            result = re.sub('\${%s\}' % key, value, json.dumps(txt_content, indent=4))
-            with open(f'iiidevops/sideex/*{get_jwt_identity()["user_id"]}-sideex{i}.json', 'w') as json_writer:
-                json_writer.write(result)
-                file = open(f'iiidevops/sideex/*{get_jwt_identity()["user_id"]}-sideex{i}.json', 'r')
-                txt_content = json.loads(file.read())
+            result = re.sub('\${%s\}' % key, value, json.dumps(template_content, indent=4))
+            with open(file_path, 'w') as f:
+                f.write(result)
+
         if i != len(df_sorted):
             next_run = pipeline.get_pipeline_next_run(repository_id)
-        change_suite = re.sub('django-sqlite-todo', f'{get_jwt_identity()["user_id"]}_django-sqlite-todo-{i}',
-                              json.dumps(json.loads(result), indent=4))
-        update_to_gitlab(paths, repository_id, pj, i, change_suite)
-        data = get_gitlab_file_todict(project_id, filename)
-        txt_content = data
+
+        # 將變動寫回 file 裡面
+        change_suite = re.sub(
+            'django-sqlite-todo',
+            f'{get_jwt_identity()["user_id"]}_django-sqlite-todo-{i}',
+            json.dumps(json.loads(result), indent=4)
+        )
+        with open(file_path, 'w') as f:
+            f.write(change_suite)
+
+        # 將檔案加入等待推送到 GitLab 的清單
+        gitlab_files.append(single_file(file_path, file_path))
+
         if i == len(df_sorted):
             pipeline.stop_and_delete_pipeline(repository_id, next_run, branch="master")
 
+    commit_to_gitlab(project, gitlab_files)
 
-def update_to_gitlab(paths, repository_id, pj, i, result):
-    f = False
-    for path in paths:
-        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
-        for tree in trees:
-            if tree['name'] == f'*{get_jwt_identity()["user_id"]}-sideex{i}.json':
-                f = gitlab.gitlab.gl_get_file_from_lib(repository_id, tree['path'])
-                f.content = result
-                f.save(
-                    branch='master',
-                    author_email='system@iiidevops.org.tw',
-                    author_name='iiidevops',
-                    commit_message=f'Add "iiidevops" in branch.rancher-pipeline.yml.')
-                break
-        if not f:
-            gitlab.gitlab.gl_create_file(pj,
-                                         f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json",
-                                         f"*{get_jwt_identity()['user_id']}-sideex{i}.json",
-                                         "iiidevops/sideex", "master")
-        if os.path.isfile(f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json"):
-            os.remove(f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json")
+
+def commit_to_gitlab(project: objects.Project, files: list[dict[str, str]]) -> None:
+    """
+    將檔案通送到 GitLab 並移除本地檔案
+
+    :param project:
+    :param files:
+    :return:
+    """
+    # 檢查檔案是否存在
+    origin_files: list[dict[str, str]] = gitlab.gitlab.ql_get_tree(project.get_id(), "iiidevops/sideex", all=True)
+    origin_files_map: dict[str, dict[str, str]] = {_["name"]: _ for _ in origin_files}
+
+    for file in files:
+        if Path(file["file_path"]).name in origin_files_map:
+            file["action"] = str(FileActions.UPDATE.value)
+
+        # Clean up local files
+        if os.path.isfile(file["file_path"]):
+            os.remove(file["file_path"])
+
+    # Push to GitLab
+    gitlab.gitlab.create_multiple_file_commit(project, files)
 
 
 class SideexJsonfileVariable(Resource):
@@ -378,7 +395,7 @@ class SideexGenerateJsonfile(Resource):
     @jwt_required()
     @use_kwargs(router_model.SideexGetVariableRes, location="json")
     def post(self, project_id, **kwargs):
-        gernerate_json_file(project_id, kwargs['filename'])
+        generate_json_file(project_id, kwargs['filename'])
         return util.success()
 
 
