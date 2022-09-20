@@ -197,7 +197,7 @@ def get_global_json(project_id, filename):
         output_list = get_sideex_json_variable(project_id, filename)
         for k in output_list:
             if k in variables_data.keys():
-                result_dict.update({k: variables_data[k]})
+                result_dict.update({k: [variables_data[k]]})
             else:
                 result_dict.update({k: []})
         return result_dict
@@ -254,7 +254,7 @@ def check_variable_not_null(kwargs):
 
 
 def update_config_file(project_id, kwargs):
-    check_variable_not_null(kwargs)
+    # check_variable_not_null(kwargs)
     project_name = nexus.nx_get_project(id=project_id).name
     if not os.path.isdir(f'devops-data/project-data/{project_name}'):
         Path(f"devops-data/project-data/{project_name}").mkdir(parents=True, exist_ok=True)
