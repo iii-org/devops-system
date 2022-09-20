@@ -291,7 +291,7 @@ def sort_convert_result_to_df(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
     file = open(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt", 'r')
     txt_content = file.read()
-    cut_num = txt_content.count('\n')
+    cut_num = txt_content.count(':')
     df_input = pd.DataFrame(pict_list)
     sorted_list = []
     # sort by variable num
@@ -339,6 +339,8 @@ def generate_json_file(project_id, filename):
         )
         with open(file_path, 'w') as f:
             f.write(change_suite)
+        data = get_gitlab_file_todict(project_id, filename)
+        template_content = data
 
         # 將檔案加入等待推送到 GitLab 的清單
         gitlab_files.append(single_file(file_path, file_path))
@@ -373,6 +375,32 @@ def commit_to_gitlab(project: objects.Project, files: list[dict[str, str]]) -> N
     gitlab.gitlab.create_multiple_file_commit(project, files)
 
 
+def delete_json_configfile(project_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    if os.path.isfile(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt"):
+        os.remove(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt")
+    if os.path.isfile(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-setting_sideex.json"):
+        os.remove(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-setting_sideex.json")
+    repository_id = nx_get_project_plugin_relation(nexus_project_id=project_id).git_repository_id
+    project = gitlab.gitlab.gl.projects.get(repository_id)
+    paths = [{
+        "software_name": "SideeX",
+        "path": "iiidevops/sideex",
+        "file_name_key": ""
+    }]
+    delete_list = []
+    for path in paths:
+        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
+        for tree in trees:
+            if f'*{get_jwt_identity()["user_id"]}-sideex' in tree["name"]:
+                delete_list.append({
+                    'action': 'delete',
+                    'file_path': tree['path']
+                })
+    gitlab.gitlab.gl_operate_multi_files(project, delete_list,
+                                         f"delete *{get_jwt_identity()['user_id']}-sideex json file", "master")
+
+
 class SideexJsonfileVariable(Resource):
     @jwt_required()
     @use_kwargs(router_model.SideexGetVariableRes, location="json")
@@ -390,6 +418,11 @@ class SideexGenerateJsonfile(Resource):
     @use_kwargs(router_model.SideexGetVariableRes, location="json")
     def post(self, project_id, **kwargs):
         generate_json_file(project_id, kwargs['filename'])
+        return util.success()
+
+    @jwt_required()
+    def delete(self, project_id):
+        delete_json_configfile(project_id)
         return util.success()
 
 

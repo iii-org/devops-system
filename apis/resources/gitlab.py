@@ -741,6 +741,15 @@ class GitLab(object):
 
         project.commits.create(data)
 
+    def gl_operate_multi_files(self, project, operate_list, commit_msg, branch=""):
+        data = {
+            'branch': branch,
+            'commit_message': commit_msg,
+            'actions': operate_list
+        }
+        commit = project.commits.create(data)
+        return commit
+
     def list_pj_commits_and_wirte_in_file(self):
         # Check this process is active or not
         git_commit_history = SystemParameter.query.filter_by(name="git_commit_history").one()
