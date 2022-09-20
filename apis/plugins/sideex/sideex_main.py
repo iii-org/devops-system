@@ -313,7 +313,8 @@ def generate_json_file(project_id, filename):
     project: objects.Project = gitlab.gitlab.gl.projects.get(repository_id)
 
     gitlab_files: list[dict[str,str]] = []
-
+    if not os.path.isdir('iiidevops/sideex'):
+        Path('iiidevops/sideex').mkdir(parents=True, exist_ok=True)
     for i in range(1, len(df_sorted)):
         file_path: str = f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json"
 
