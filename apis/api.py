@@ -139,6 +139,10 @@ def internal_error(exception):
         traceback.print_exc()
         logger.logger.exception(str(exception))
         return util.respond(exception.status_code, exception.message, error=exception.error_value)
+    if type(exception) is werkzeug.exceptions.UnprocessableEntity:
+        mes = exception.data.get("messages", {})
+        error_message = mes.get("json") or mes.get("query") or mes.get("form")
+        return util.respond(422, error_message)
     traceback.print_exc()
     logger.logger.exception(str(exception))
     return util.respond(500, "Unexpected internal error",
