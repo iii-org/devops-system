@@ -51,3 +51,4 @@ class ActionType(Enum):
     DISABLE_ISSUE_CHECK = 15 # Requires argument "project_id"
     ENABLE_PLUGIN = 16 # Required user_id
     DISABLE_PLUGIN = 17 # Required user_id
+    DELETE_SIDEEX_JOSOFILE = 18
