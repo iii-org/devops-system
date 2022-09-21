@@ -432,8 +432,7 @@ def delete_project_all_config_file(project_id):
                     'action': 'delete',
                     'file_path': tree['path']
                 })
-    gitlab.gitlab.gl_operate_multi_files(project, delete_list,
-                                         f"delete *{get_jwt_identity()['user_id']}-sideex json file", "master")
+    gitlab.gitlab.gl_operate_multi_files(project, delete_list, "PM delete all the json file", "master")
 
 
 class SideexJsonfileVariable(Resource):
