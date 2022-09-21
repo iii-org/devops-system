@@ -238,6 +238,7 @@ def save_to_txt(project_id, kwargs):
     if not os.path.isdir(f'devops-data/project-data/{project_name}'):
         Path(f"devops-data/project-data/{project_name}").mkdir(parents=True, exist_ok=True)
     np.savetxt(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt", df[['name', 'value']].values, fmt='%s')
+    np.savetxt(f"devops-data/project-data/{project_name}/_model.txt",df[['name', 'value']].values, fmt='%s')
     write_list = kwargs['rule']
     with open(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt", 'a+') as data:
         for i in write_list:
@@ -259,6 +260,8 @@ def update_config_file(project_id, kwargs):
     if not os.path.isdir(f'devops-data/project-data/{project_name}'):
         Path(f"devops-data/project-data/{project_name}").mkdir(parents=True, exist_ok=True)
     with open(f'devops-data/project-data/{project_name}/_{get_jwt_identity()["user_id"]}-setting_sideex.json', "w+") as json_data:
+        json_data.write(json.dumps(kwargs))
+    with open(f'devops-data/project-data/{project_name}/_setting_sideex.json', "w+") as json_data:
         json_data.write(json.dumps(kwargs))
     save_to_txt(project_id, kwargs)
 
@@ -402,6 +405,37 @@ def delete_json_configfile(project_id):
                                          f"delete *{get_jwt_identity()['user_id']}-sideex json file", "master")
 
 
+def delete_project_all_config_file(project_id):
+    role.require_pm(exclude_admin=True)
+    project_name = nexus.nx_get_project(id=project_id).name
+    path = f"devops-data/project-data/{project_name}"
+    files = os.listdir(path)
+    # delete project-data file start with "_"
+    if files:
+        for file in files:
+            if str(file)[0] == '_':
+                os.remove(f"{path}/{file}")
+    # delete gitlab file start with "*"
+    repository_id = nx_get_project_plugin_relation(nexus_project_id=project_id).git_repository_id
+    project = gitlab.gitlab.gl.projects.get(repository_id)
+    delete_list = []
+    paths = [{
+        "software_name": "SideeX",
+        "path": "iiidevops/sideex",
+        "file_name_key": ""
+    }]
+    for path in paths:
+        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
+        for tree in trees:
+            if tree['name'][0] == '*':
+                delete_list.append({
+                    'action': 'delete',
+                    'file_path': tree['path']
+                })
+    gitlab.gitlab.gl_operate_multi_files(project, delete_list,
+                                         f"delete *{get_jwt_identity()['user_id']}-sideex json file", "master")
+
+
 class SideexJsonfileVariable(Resource):
     @jwt_required()
     @use_kwargs(router_model.SideexGetVariableRes, location="json")
@@ -424,6 +458,13 @@ class SideexGenerateJsonfile(Resource):
     @jwt_required()
     def delete(self, project_id):
         delete_json_configfile(project_id)
+        return util.success()
+
+
+class SideexDeleteAllfile(Resource):
+    @jwt_required()
+    def delete(self, project_id):
+        delete_project_all_config_file(project_id)
         return util.success()
 
 
