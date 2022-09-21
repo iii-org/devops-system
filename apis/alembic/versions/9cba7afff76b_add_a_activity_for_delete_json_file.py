@@ -18,7 +18,7 @@ depends_on = None
 
 def upgrade():
     with op.get_context().autocommit_block():
-        op.execute("ALTER TYPE actiontype ADD VALUE IF NOT EXISTS 'DELETE_SIDEEX_JOSOFILE'")
+        op.execute("ALTER TYPE actiontype ADD VALUE IF NOT EXISTS 'DELETE_SIDEEX_JSONFILE'")
 
 
 def downgrade():

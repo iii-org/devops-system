@@ -26,6 +26,8 @@ import pandas as pd
 import subprocess
 from flask_jwt_extended import get_jwt_identity
 import resources.pipeline as pipeline
+from resources.activity import record_activity
+from enums.action_type import ActionType
 
 
 def sd_start_test(args):
@@ -405,8 +407,9 @@ def delete_json_configfile(project_id):
                                          f"delete *{get_jwt_identity()['user_id']}-sideex json file", "master")
 
 
+@record_activity(ActionType.DELETE_SIDEEX_JSONFILE)
 def delete_project_all_config_file(project_id):
-    role.require_pm(exclude_admin=True)
+    role.require_pm(exclude_admin=False)
     project_name = nexus.nx_get_project(id=project_id).name
     path = f"devops-data/project-data/{project_name}"
     files = os.listdir(path)
