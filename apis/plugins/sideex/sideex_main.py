@@ -409,7 +409,7 @@ def delete_json_configfile(project_id):
 
 @record_activity(ActionType.DELETE_SIDEEX_JSONFILE)
 def delete_project_all_config_file(project_id):
-    role.require_pm(exclude_admin=False)
+    role.require_project_owner(get_jwt_identity()['user_id'], project_id)
     project_name = nexus.nx_get_project(id=project_id).name
     path = f"devops-data/project-data/{project_name}"
     files = os.listdir(path)
