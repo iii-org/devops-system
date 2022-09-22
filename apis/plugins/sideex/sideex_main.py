@@ -211,8 +211,8 @@ def get_setting_file(project_id, filename):
     result_dict = get_global_json(project_id, filename)
     output_list = get_sideex_json_variable(project_id, filename)
     project_name = nexus.nx_get_project(id=project_id).name
-    if os.path.isfile(f'devops-data/project-data/{project_name}/_{get_jwt_identity()["user_id"]}-setting_sideex.json'):
-        with open(f'devops-data/project-data/{project_name}/_{get_jwt_identity()["user_id"]}-setting_sideex.json') as json_data:
+    if os.path.isfile(f'devops-data/project-data/{project_name}/pict/_{get_jwt_identity()["user_id"]}-setting_sideex.json'):
+        with open(f'devops-data/project-data/{project_name}/pict/_{get_jwt_identity()["user_id"]}-setting_sideex.json') as json_data:
             setting_data = json.load(json_data)
     sorted_dict = {}
     if setting_data:
@@ -237,12 +237,11 @@ def save_to_txt(project_id, kwargs):
     df['name'] = df['name'].apply(lambda x: x + ':')
     df['value'] = df['value'].apply(lambda x: str(x).replace('[', '').replace(']', '').replace("\'", ''))
     project_name = nexus.nx_get_project(id=project_id).name
-    if not os.path.isdir(f'devops-data/project-data/{project_name}'):
-        Path(f"devops-data/project-data/{project_name}").mkdir(parents=True, exist_ok=True)
-    np.savetxt(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt", df[['name', 'value']].values, fmt='%s')
-    np.savetxt(f"devops-data/project-data/{project_name}/_model.txt",df[['name', 'value']].values, fmt='%s')
+    if not os.path.isdir(f'devops-data/project-data/{project_name}/pict'):
+        Path(f"devops-data/project-data/{project_name}/pict").mkdir(parents=True, exist_ok=True)
+    np.savetxt(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-model.txt", df[['name', 'value']].values, fmt='%s')
     write_list = kwargs['rule']
-    with open(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt", 'a+') as data:
+    with open(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-model.txt", 'a+') as data:
         for i in write_list:
             i = i.replace('\'', '\"')
             data.write(f"\n{i}")
@@ -259,12 +258,12 @@ def check_variable_not_null(kwargs):
 def update_config_file(project_id, kwargs):
     # check_variable_not_null(kwargs)
     project_name = nexus.nx_get_project(id=project_id).name
-    if not os.path.isdir(f'devops-data/project-data/{project_name}'):
-        Path(f"devops-data/project-data/{project_name}").mkdir(parents=True, exist_ok=True)
-    with open(f'devops-data/project-data/{project_name}/_{get_jwt_identity()["user_id"]}-setting_sideex.json', "w+") as json_data:
-        json_data.write(json.dumps(kwargs))
-    with open(f'devops-data/project-data/{project_name}/_setting_sideex.json', "w+") as json_data:
-        json_data.write(json.dumps(kwargs))
+    if not os.path.isdir(f'devops-data/project-data/{project_name}/pict'):
+        Path(f"devops-data/project-data/{project_name}/pict").mkdir(parents=True, exist_ok=True)
+    with open(f'devops-data/project-data/{project_name}/pict/_{get_jwt_identity()["user_id"]}-setting_sideex.json', "w+", encoding="utf8") as json_data:
+        json_data.write(json.dumps(kwargs, ensure_ascii=False))
+    with open(f'devops-data/project-data/{project_name}/pict/_setting_sideex.json', "w+", encoding="utf8") as json_data:
+        json_data.write(json.dumps(kwargs, ensure_ascii=False))
     save_to_txt(project_id, kwargs)
 
 
@@ -276,13 +275,13 @@ def pict_convert_result(project_id) -> list[str]:
     :return: 轉換後的 list
     """
     project_name = nexus.nx_get_project(id=project_id).name
-    file: str = f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt"
+    file: str = f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-model.txt"
 
     if os.path.isfile(file):
         # Get pict from https://github.com/microsoft/pict
         std_output: bytes = subprocess.check_output(['pict', file])
-        # std_output = b'abc\tdef\txx2\n10\ta54\t12\n123\tabc\t12\n123\ta54\tab\n3\tabc\t99\n10\tabc\t56\n3\txyz\tab\n3\txyz\t99\n3\ta54\t12\n10\txyz\tab\n123\txyz\t99\n10\ta54\t99\n2\tabc\t99\n123\ta54\t56\n3\tabc\tab\n2\txyz\t12\n2\ta54\t56\n3\txyz\t56\n3\ta54\t12\n2\txyz\tab\n3\tabc\t56\n'
-        decoded: str = std_output.decode("ascii")
+        # std_output = b'abc\tdef\txx2\nx5\txyz\t56\nx5\t\xe6\xb8\xac\xe8\xa9\xa6\t99\nb1\txyz\t12\n\xe7\xb5\x84\xe5\x90\x88\txyz\t99\nw10\ta54\t99\nw10\t\xe6\xb8\xac\xe8\xa9\xa6\t56\n\xe7\xb5\x84\xe5\x90\x88\ta54\t12\nb1\t\xe6\xb8\xac\xe8\xa9\xa6\t12\nc3\ta54\t99\nc3\txyz\tab\n\xe7\xb5\x84\xe5\x90\x88\tabc\t56\nx5\ta54\t12\nb1\ta54\t99\nb1\ta54\t56\nc3\t\xe6\xb8\xac\xe8\xa9\xa6\tab\n\xe7\xb5\x84\xe5\x90\x88\tabc\t12\nc3\txyz\t56\nc3\ta54\t12\nw10\txyz\t12\n\xe7\xb5\x84\xe5\x90\x88\tabc\t99\n\xe7\xb5\x84\xe5\x90\x88\t\xe6\xb8\xac\xe8\xa9\xa6\t99\nc3\ta54\tab\n'
+        decoded: str = std_output.decode("utf-8")
         concat: str = decoded.replace("\t", "\n").replace("\r\n", "\n")
         result: list[str] = concat.split("\n")
         result.remove("")
@@ -294,7 +293,7 @@ def pict_convert_result(project_id) -> list[str]:
 def sort_convert_result_to_df(project_id):
     pict_list = pict_convert_result(project_id)
     project_name = nexus.nx_get_project(id=project_id).name
-    file = open(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt", 'r')
+    file = open(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-model.txt", 'r', encoding="utf8")
     txt_content = file.read()
     cut_num = txt_content.count(':')
     df_input = pd.DataFrame(pict_list)
@@ -307,6 +306,7 @@ def sort_convert_result_to_df(project_id):
     df_sorted = pd.DataFrame(sorted_list)
     df_sorted.columns = df_sorted.loc[0]
     df_sorted = df_sorted.drop(0)
+    np.savetxt(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-result.txt", df_sorted, fmt='%s')
     return df_sorted
 
 
@@ -320,12 +320,12 @@ def generate_json_file(project_id, filename):
     gitlab_files: list[dict[str,str]] = []
     if not os.path.isdir('iiidevops/sideex'):
         Path('iiidevops/sideex').mkdir(parents=True, exist_ok=True)
-    for i in range(1, len(df_sorted)):
+    for i in range(1, len(df_sorted)+1):
         file_path: str = f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json"
 
         for key, value in df_sorted.T.to_dict()[i].items():
-            result = re.sub('\${%s\}' % key, value, json.dumps(template_content, indent=4))
-            with open(file_path, 'w+') as f:
+            result = re.sub('\${%s\}' % key, value, json.dumps(template_content, indent=4, ensure_ascii=False))
+            with open(file_path, 'w+', encoding="utf8") as f:
                 f.write(result)
 
                 # Reset cursor
@@ -341,9 +341,9 @@ def generate_json_file(project_id, filename):
         change_suite = re.sub(
             'django-sqlite-todo',
             f'{get_jwt_identity()["user_id"]}_django-sqlite-todo-{i}',
-            json.dumps(json.loads(result), indent=4)
+            json.dumps(json.loads(result), indent=4, ensure_ascii=False)
         )
-        with open(file_path, 'w') as f:
+        with open(file_path, 'w', encoding="utf8") as f:
             f.write(change_suite)
         data = get_gitlab_file_todict(project_id, filename)
         template_content = data
@@ -353,7 +353,6 @@ def generate_json_file(project_id, filename):
 
         if i == len(df_sorted):
             pipeline.stop_and_delete_pipeline(repository_id, next_run, branch="master")
-
     commit_to_gitlab(project, gitlab_files)
 
 
@@ -383,10 +382,10 @@ def commit_to_gitlab(project: objects.Project, files: list[dict[str, str]]) -> N
 
 def delete_json_configfile(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
-    if os.path.isfile(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt"):
-        os.remove(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-model.txt")
-    if os.path.isfile(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-setting_sideex.json"):
-        os.remove(f"devops-data/project-data/{project_name}/_{get_jwt_identity()['user_id']}-setting_sideex.json")
+    if os.path.isfile(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-model.txt"):
+        os.remove(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-model.txt")
+    if os.path.isfile(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-setting_sideex.json"):
+        os.remove(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-setting_sideex.json")
     repository_id = nx_get_project_plugin_relation(nexus_project_id=project_id).git_repository_id
     project = gitlab.gitlab.gl.projects.get(repository_id)
     paths = [{
@@ -411,7 +410,7 @@ def delete_json_configfile(project_id):
 def delete_project_all_config_file(project_id):
     role.require_project_owner(get_jwt_identity()['user_id'], project_id)
     project_name = nexus.nx_get_project(id=project_id).name
-    path = f"devops-data/project-data/{project_name}"
+    path = f"devops-data/project-data/{project_name}/pict"
     files = os.listdir(path)
     # delete project-data file start with "_"
     if files:
