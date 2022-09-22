@@ -22,7 +22,7 @@ class DataSchema(Schema):
 
 class LoginAdInfoJsonSchema(Schema):
     is_pass = fields.Boolean(required=True)
-    login = fields.Str(required=True)
+    login = fields.Str(required=True, example = "postman_test_rd")
     data = fields.Nested(DataSchema,required=False)
 
 class LoginJsonSchema(Schema):
@@ -46,8 +46,8 @@ class LoginResponse(Schema):
 #################################### Schema ####################################
 
 class PostSingleUserSchema(Schema):
-    phone = fields.Str(required=True, doc='phone',example="0999999999#123")
-    name = fields.Str(required=True, doc='name',example="測試用蒸發RD")
+    phone = fields.Str(required=True, doc='phone',example="098765432")
+    name = fields.Str(required=True, doc='name',example="初始管理者")
     email = fields.Email(required=True, doc='email',example="rd@vapor.nowhere")
     login = fields.Str(required=True, doc='login',example="postman_test_rd")
     password = fields.Str(required=True, doc='password',example="OpenStack0")
@@ -73,13 +73,13 @@ class SingleUserDefaultRoleResponse(Schema):
     name = fields.Str(required=False, doc='name')
 
 class SingleUserListResponse(Schema):
-    phone = fields.Str(required=False, doc='phone',example="0999999999#123")
-    name = fields.Str(required=False, doc='name',example="測試用蒸發RD")
-    email = fields.Email(required=False, doc='email',example="rd@vapor.nowhere")
+    phone = fields.Str(required=False, doc='phone',example="098765432")
+    name = fields.Str(required=False, doc='name',example="初始管理者")
+    email = fields.Email(required=False, doc='email',example="pm001@iidevops.org")
     login = fields.Str(required=False, doc='login',example="postman_test_rd")
     status = fields.Str(required=False, doc='status',example="enable")
-    department = fields.Str(required=False, doc='department',example="department")
-    title = fields.Str(required=False, doc='title',example="title")
+    department = fields.Str(required=False, doc='department',example="數位轉型院所")
+    title = fields.Str(required=False, doc='title',example="資深工程師")
     id = fields.Integer(required=False, doc='role_id',example=1)
     update_at = fields.Str(required=False, doc='update_at')
     from_ad = fields.Boolean(required=False,doc='from_ad',example=False)
@@ -87,8 +87,8 @@ class SingleUserListResponse(Schema):
     default_role = fields.Nested(SingleUserDefaultRoleResponse,required=False)
 
 class SingleUserGetResponse(Schema):
-    phone = fields.Str(required=False, doc='phone', example="0999999999#123")
-    name = fields.Str(required=False, doc='name', example="測試用蒸發RD")
+    phone = fields.Str(required=False, doc='phone', example="098765432")
+    name = fields.Str(required=False, doc='name', example="初始管理者")
     email = fields.Email(required=False, doc='email', example="tech@iii-devops.org")
     login = fields.Str(required=False, doc='login', example="postman_test_rd")
     status = fields.Str(required=False, doc='status', example="enable")
@@ -123,8 +123,8 @@ class GetSingleUserResponse(CommonBasicResponse):
 #################################### Schema ####################################
 
 class PutSingleUserSchema(Schema):
-    phone = fields.Str(required=False, doc='phone',example="0999999999#123")
-    name = fields.Str(required=False, doc='name',example="測試用蒸發RD")
+    phone = fields.Str(required=False, doc='phone',example="098765432")
+    name = fields.Str(required=False, doc='name',example="初始管理者")
     email = fields.Email(required=False, doc='email',example="rd@vapor.nowhere")
     login = fields.Str(required=False, doc='login',example="postman_test_rd")
     password = fields.Str(required=True, doc='password',example="OpenStack0")
@@ -132,7 +132,7 @@ class PutSingleUserSchema(Schema):
     role_id = fields.Integer(required=False, doc='role_id',example=1)
     status = fields.Str(required=False, doc='status',example="enable")
     force = fields.Boolean(required=False,doc='force',example=False) 
-    department = fields.Str(required=False, doc='department',example="department")
+    department = fields.Str(required=False, doc='department',example="助理工程師")
     title = fields.Str(required=False, doc='title',example="title")
 
 ########## API Action ##########

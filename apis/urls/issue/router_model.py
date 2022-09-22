@@ -15,7 +15,7 @@ class FileSchema(Schema):
         fields.Raw(doc='upload_files', example="(binary)", validate=check_upload_type))
 
 class CommonSingleIssueSchema(Schema):
-    description = fields.Str(doc='description', example="string")
+    description = fields.Str(doc='description', example="此為自動產生專案")
     assigned_to_id = fields.Str(doc='assigned_to_id', example="-1")
     estimated_hours = fields.Int(doc='estimated_hours', example=0)
     parent_id = fields.Str(doc='parent_id', example="-1")
@@ -27,8 +27,8 @@ class CommonSingleIssueSchema(Schema):
     tags = fields.Str(doc='tags', example="1,2")
     # Attachment upload
     # still finding how to test file type.
-    upload_filename = fields.Str(doc='upload_filename', example="string")
-    upload_description = fields.Str(doc='upload_description', example="string")
+    upload_filename = fields.Str(doc='upload_filename', example="sport.csv")
+    upload_description = fields.Str(doc='upload_description', example="運動數據")
     upload_content_type = fields.Str(doc='upload_content_type', example="string")
 
 ########## API Action ##########
@@ -48,7 +48,7 @@ class SingleIssuePutSchema(CommonSingleIssueSchema):
     tracker_id = fields.Int(doc='tracker_id', example=-1)
     status_id = fields.Int(doc='status_id', example=-1)
     priority_id = fields.Int(doc='priority_id', example=-1)
-    name = fields.Str(doc='name', example="string")
+    name = fields.Str(doc='name', example="專案子議題")
     note = fields.Str(doc='name', example="string")
     close_all = fields.Bool(doc='close_all', example="True")
 
