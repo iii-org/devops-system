@@ -377,7 +377,7 @@ def commit_to_gitlab(project: objects.Project, files: list[dict[str, str]]) -> N
             os.remove(file["file_path"])
 
     # Push to GitLab
-    gitlab.gitlab.create_multiple_file_commit(project, files)
+    gitlab.gitlab.create_multiple_file_commit(project, files, commit_message=f"update *{get_jwt_identity()['user_id']}-sideex.json file")
 
 
 def delete_json_configfile(project_id):
@@ -434,7 +434,7 @@ def delete_project_all_config_file(project_id):
                     'action': 'delete',
                     'file_path': tree['path']
                 })
-    gitlab.gitlab.gl_operate_multi_files(project, delete_list, "PM delete all the json file", "master")
+    gitlab.gitlab.gl_operate_multi_files(project, delete_list, "PM or Admin delete all the json file", "master")
 
 
 class SideexJsonfileVariable(Resource):
