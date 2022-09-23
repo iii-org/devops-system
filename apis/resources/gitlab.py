@@ -743,7 +743,9 @@ class GitLab(object):
 
     def gl_operate_multi_files(self, project, operate_list, commit_msg, branch=""):
         data = {
-            'branch': branch,
+            'branch': branch if branch else project.default_branch,
+            "author_email": "system@iiidevops.org.tw",
+            "author_name": "iiidevops",
             'commit_message': commit_msg,
             'actions': operate_list
         }

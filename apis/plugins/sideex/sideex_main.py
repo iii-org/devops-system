@@ -352,11 +352,27 @@ def generate_json_file(project_id, filename):
         gitlab_files.append(single_file(file_path, file_path))
 
         if i == len(df_sorted):
-            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch="master")
-    commit_to_gitlab(project, gitlab_files)
+            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch="")
+    paths = [{
+        "software_name": "SideeX",
+        "path": "iiidevops/sideex",
+        "file_name_key": ""
+    }]
+    for path in paths:
+        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
+        for tree in trees:
+            if f'*{get_jwt_identity()["user_id"]}-sideex' in tree["name"]:
+                action = "Update"
+                break
+            else:
+                action = "Create"
+    commit_msg = f"{action} sideex file *{get_jwt_identity()['user_id']}-sideex.json, replace variable " \
+                 f"{df_sorted.columns.tolist()} with {df_sorted.values.tolist()}"
+
+    commit_to_gitlab(project, gitlab_files, commit_msg)
 
 
-def commit_to_gitlab(project: objects.Project, files: list[dict[str, str]]) -> None:
+def commit_to_gitlab(project: objects.Project, files: list[dict[str, str]], commit_msg: str) -> None:
     """
     將檔案通送到 GitLab 並移除本地檔案
 
@@ -377,7 +393,7 @@ def commit_to_gitlab(project: objects.Project, files: list[dict[str, str]]) -> N
             os.remove(file["file_path"])
 
     # Push to GitLab
-    gitlab.gitlab.create_multiple_file_commit(project, files, commit_message=f"update *{get_jwt_identity()['user_id']}-sideex.json file")
+    gitlab.gitlab.create_multiple_file_commit(project, files, commit_message=commit_msg)
 
 
 def delete_json_configfile(project_id):
@@ -403,7 +419,7 @@ def delete_json_configfile(project_id):
                     'file_path': tree['path']
                 })
     gitlab.gitlab.gl_operate_multi_files(project, delete_list,
-                                         f"delete *{get_jwt_identity()['user_id']}-sideex json file", "master")
+                                         f"delete *{get_jwt_identity()['user_id']}-sideex json file", "")
 
 
 @record_activity(ActionType.DELETE_SIDEEX_JSONFILE)
@@ -434,7 +450,7 @@ def delete_project_all_config_file(project_id):
                     'action': 'delete',
                     'file_path': tree['path']
                 })
-    gitlab.gitlab.gl_operate_multi_files(project, delete_list, "delete all the json file by api", "master")
+    gitlab.gitlab.gl_operate_multi_files(project, delete_list, "delete all the *sideex.json files by api", "")
 
 
 class SideexJsonfileVariable(Resource):
