@@ -11,6 +11,7 @@ from plugins import get_plugin_config
 import psycopg2
 from . import role, user
 from util import check_url_alive
+from resources import logger
 
 
 def excalidraw_get_config(key):
@@ -238,6 +239,7 @@ def sync_excalidraw_db():
             WHERE key NOT IN ({excalidraw_keys});
             '''
         )
+        logger.logger.info(f"Excalidraw removed any room_key not in {excalidraw_keys}.")
         conn.commit()
     except Exception as e:
         print(str(e))
