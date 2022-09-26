@@ -244,4 +244,18 @@ class GetUsersMessageTypeRes(CommonBasicResponse):
             },
         ]}
     )
-    
+
+
+class GetUserPasswordInfoRes(CommonBasicResponse):
+    data = fields.List(fields.Dict(example={
+                "id": 9,
+                "password": "IIIdevops123!",
+                "server": "harbor",
+                "user": {
+                    "id": 143,
+                    "login": "testaccount",
+                    "name": "testaccount"
+                }
+            }, required=False
+        )
+    )

@@ -5,7 +5,7 @@ from flask_restful import Resource, reqparse
 import util
 from urls.user import router_model
 from resources.user import login, change_user_status, create_user, NexusUser, delete_user, update_user, user_list, user_sa_config, \
-    get_user_message_types, update_user_message_types, get_user_message_type
+    get_user_message_types, update_user_message_types, get_user_message_type, get_decode_password
 from resources import harbor, role
 from . import router_model
 import json
@@ -212,3 +212,10 @@ class MessageType(MethodResource):
         return util.success()
 
 
+@doc(tags=['User'], description="User's server password operate")
+class UserNewpasswordInfoV2(MethodResource):
+    @marshal_with(router_model.GetUserPasswordInfoRes)
+    @jwt_required()
+    def get(self, user_id):
+        password_info = get_decode_password(user_id)
+        return util.success(password_info)
