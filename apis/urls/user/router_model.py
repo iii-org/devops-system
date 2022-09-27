@@ -259,3 +259,9 @@ class GetUserPasswordInfoRes(CommonBasicResponse):
             }, required=False
         )
     )
+
+
+class NewpasswordResponse(Schema):
+    new_pwd = fields.Str(required=True)
+    server = fields.Str(required=True)
+    old_pwd = fields.Str(required=False)
