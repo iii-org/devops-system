@@ -16,6 +16,8 @@ from nexus import nx_get_project_plugin_relation
 from model import RancherPiplineNumberEachDays, ProjectPluginRelation, db, Project, SystemParameter
 from resources import kubernetesClient
 from resources.logger import logger
+from flask_apispec import use_kwargs
+from urls import route_model
 
 
 def get_ci_last_test_result(relation):
@@ -507,6 +509,19 @@ class Rancher(object):
         output = self.__api_get(url)
         return output.json()['data']
 
+    def rc_create_apps(self, kwargs):
+        self.rc_get_project_id()
+        url = f'/project/{self.project_id}/apps'
+        body = {
+            "name": kwargs['name'],
+            "namespace": kwargs['namespace'],
+            "appRevisionId": kwargs['appRevisionId'] if kwargs.get('appRevisionId') else None,
+            "targetNamespace": kwargs['targetNamespace'] if kwargs.get('targetNamespace') else None,
+            "externalId": kwargs['externalId'] if kwargs.get('externalId') else None,
+            "answers": kwargs['answers'] if kwargs.get('answers') else None
+        }
+        self.__api_post(url, data=body)
+
     def rc_del_app(self, app_name):
         self.rc_get_project_id()
         url = f"/projects/{self.project_id}/apps/{self.project_id.split(':')[1]}:{app_name}"
@@ -716,4 +731,11 @@ class RancherDeleteAPP(Resource):
         
         from resources.pipeline import delete_rest_pipelines
         delete_rest_pipelines(args["project_name"], args["branch_name"])
+        return util.success()
+
+
+class RancherCreateAPP(Resource):
+    @use_kwargs(route_model.RancherCreateAppSchema, location="json")
+    def post(self, **kwargs):
+        rancher.rc_create_apps(kwargs)
         return util.success()

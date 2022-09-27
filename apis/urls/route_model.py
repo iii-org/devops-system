@@ -26,6 +26,25 @@ class GitlabSourceCodeSchema(Schema):
     branch_name = fields.Str(doc='branch_name', example="master")
     commit_id = fields.Str(doc='commit_id', example="4419301qa")
     source_code_num = fields.Int(doc='source_code_num', example=3352)
+
+
+class RancherCreateAppSchema(Schema):
+    name = fields.Str(doc='name', example="daily-check1")
+    namespace = fields.Str(doc='namespace', example="daily-check-0711")
+    externalId = fields.Str(doc='externalId', example="catalog://?catalog=iii-dev-charts3&template=test-sideex&version=0.3.1")
+    appRevisionId = fields.Str(doc='appRevisionId', example="apprevision - tdwxf")
+    targetNamespace = fields.Str(doc='targetNamespace', example="daily-check-0711")
+    anwsers = fields.Dict(doc='answers', example={
+                "git.branch": "master",
+                "git.commitID": "a32c8ab",
+                "git.repoName": "daily-check-0711",
+                "git.url": "http://gitlab-dev.iiidevops.org/root/daily-check-0711.git",
+                "harbor.host": "harbor-dev.iiidevops.org",
+                "pipeline.sequence": "2",
+                "web.deployName": "daily-check-0711-master-serv",
+                "web.port": "5000"
+                })
+
 ########## API Action ##########    
 
 # class FileSchema(Schema):
