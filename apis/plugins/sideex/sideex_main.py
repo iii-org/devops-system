@@ -279,8 +279,8 @@ def pict_convert_result(project_id) -> list[str]:
 
     if os.path.isfile(file):
         # Get pict from https://github.com/microsoft/pict
-        std_output: bytes = subprocess.check_output(['pict', file])
-        # std_output = b'abc\tdef\txx2\nx5\txyz\t56\nx5\t\xe6\xb8\xac\xe8\xa9\xa6\t99\nb1\txyz\t12\n\xe7\xb5\x84\xe5\x90\x88\txyz\t99\nw10\ta54\t99\nw10\t\xe6\xb8\xac\xe8\xa9\xa6\t56\n\xe7\xb5\x84\xe5\x90\x88\ta54\t12\nb1\t\xe6\xb8\xac\xe8\xa9\xa6\t12\nc3\ta54\t99\nc3\txyz\tab\n\xe7\xb5\x84\xe5\x90\x88\tabc\t56\nx5\ta54\t12\nb1\ta54\t99\nb1\ta54\t56\nc3\t\xe6\xb8\xac\xe8\xa9\xa6\tab\n\xe7\xb5\x84\xe5\x90\x88\tabc\t12\nc3\txyz\t56\nc3\ta54\t12\nw10\txyz\t12\n\xe7\xb5\x84\xe5\x90\x88\tabc\t99\n\xe7\xb5\x84\xe5\x90\x88\t\xe6\xb8\xac\xe8\xa9\xa6\t99\nc3\ta54\tab\n'
+        # std_output: bytes = subprocess.check_output(['pict', file])
+        std_output = b'abc\tdef\txx2\nx5\txyz\t56\nx5\t\xe6\xb8\xac\xe8\xa9\xa6\t99\nb1\txyz\t12\n\xe7\xb5\x84\xe5\x90\x88\txyz\t99\nw10\ta54\t99\nw10\t\xe6\xb8\xac\xe8\xa9\xa6\t56\n\xe7\xb5\x84\xe5\x90\x88\ta54\t12\nb1\t\xe6\xb8\xac\xe8\xa9\xa6\t12\nc3\ta54\t99\nc3\txyz\tab\n\xe7\xb5\x84\xe5\x90\x88\tabc\t56\nx5\ta54\t12\nb1\ta54\t99\nb1\ta54\t56\nc3\t\xe6\xb8\xac\xe8\xa9\xa6\tab\n\xe7\xb5\x84\xe5\x90\x88\tabc\t12\nc3\txyz\t56\nc3\ta54\t12\nw10\txyz\t12\n\xe7\xb5\x84\xe5\x90\x88\tabc\t99\n\xe7\xb5\x84\xe5\x90\x88\t\xe6\xb8\xac\xe8\xa9\xa6\t99\nc3\ta54\tab\n'
         decoded: str = std_output.decode("utf-8")
         concat: str = decoded.replace("\t", "\n").replace("\r\n", "\n")
         result: list[str] = concat.split("\n")
@@ -339,8 +339,8 @@ def generate_json_file(project_id, filename):
 
         # 將變動寫回 file 裡面
         change_suite = re.sub(
-            'django-sqlite-todo',
-            f'{get_jwt_identity()["user_id"]}_django-sqlite-todo-{i}',
+            json.loads(result)['suites'][0]['title'],
+            f"{get_jwt_identity()['user_id']}_{json.loads(result)['suites'][0]['title']}-{i}",
             json.dumps(json.loads(result), indent=4, ensure_ascii=False)
         )
         with open(file_path, 'w', encoding="utf8") as f:
