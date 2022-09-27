@@ -1,26 +1,34 @@
 from marshmallow import Schema, fields
+
 from util import CommonBasicResponse, CommonResponse
 
 
 class ServersAliveSchema(Schema):
     project_id = fields.Int(doc='project_id', example=-1)
 
+
+class ServiceListSchema(CommonBasicResponse):
+    data = fields.List(fields.Str)
+
+
 class ServersAliveResAliveSchema(Schema):
-    redmine = fields.Bool(required=True)    
-    gitlab = fields.Bool(required=True)    
-    harbor = fields.Bool(required=True)    
-    k8s = fields.Bool(required=True)    
+    redmine = fields.Bool(required=True)
+    gitlab = fields.Bool(required=True)
+    harbor = fields.Bool(required=True)
+    k8s = fields.Bool(required=True)
     sonarqube = fields.Bool(required=True)
     rancher = fields.Bool(required=True)
-    
+
 
 class ServersAliveResSchema(Schema):
     alive = fields.Nested(ServersAliveResAliveSchema, required=True)
     all_alive = fields.Bool(required=True)
 
+
 # All
 class ServersAliveResponse(CommonBasicResponse):
     data = fields.Nested(ServersAliveResSchema, required=True)
+
 
 # Each
 class ServerAliveResponse(CommonBasicResponse):

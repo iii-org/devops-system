@@ -76,7 +76,7 @@ class ProjectExtraResponse(BasicIsssueResponse):
 
 
 class SingleIssueGetDataAuthorResponse(BasicIsssueResponse):
-    login = fields.Str(required=True)
+    login = fields.Str(required=True, example="postman_test_rd")
 
 
 class IssueTagResponse(Schema):

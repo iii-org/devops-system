@@ -152,10 +152,10 @@ def qu_get_testfile_list(project_id):
     out_list = []
     issues_info = qu_get_testplan_list(project_id)
     for path in paths:
-        trees = gitlab.ql_get_tree(repository_id, path['path'])
+        trees = gitlab.ql_get_tree(repository_id, path['path'], all=True)
         for tree in trees:
             if path["file_name_key"] in tree["name"] and path["variables_file_name"] != tree['name'] and \
-                    tree["name"][-5:] == ".json":
+                    tree["name"][-5:] == ".json" and tree["name"][0] != '_' and tree["name"][0] != '*':
                 path_file = f'{path["path"]}/{tree["name"]}'
                 gl_raw_lib = gitlab.gl_get_raw_from_lib(repository_id, path_file).decode()
                 if gl_raw_lib is None:
@@ -219,6 +219,7 @@ def qu_get_testfile_list(project_id):
                         "test_plans": test_plans,
                         "the_last_test_result": the_last_result
                     })
+    print(out_list)
     return out_list
 
 
@@ -316,7 +317,7 @@ def qu_upload_testfile(project_id, file, software_name):
     save_file_to_local(local_file_path, file)
     for br in gitlab.gl_get_branches(repository_id):
         next_run = pipeline.get_pipeline_next_run(repository_id)
-        gitlab.gl_create_file(pj, file_path, file, local_file_path, branch=br['name'])
+        gitlab.gl_create_file(pj, file_path, file_name, local_file_path, branch=br['name'])
         pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br['name'])
     print(f"file_name: {file_name}")
     remove_file_from_local(local_file_path, file_name)

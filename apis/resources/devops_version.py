@@ -2,18 +2,17 @@ import uuid
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource
-from flask_socketio import emit
 from sqlalchemy.sql import and_
 
 import config
 import model
+import resources.kubernetesClient as kubernetesClient
 import util
-from resources import kubernetesClient, role, apiError
+from resources import role, apiError
 from resources.apiError import DevOpsError
 from resources.logger import logger
 from resources.notification_message import check_message_exist, create_notification_message, close_notification_message
-import resources.kubernetesClient as kubernetesClient
-
+from resources.redis import delete_template_cache
 
 version_center_token = None
 
@@ -117,6 +116,11 @@ def update_deployment(versions):
     if deployer_node_ip is None:
         # get the k8s cluster the oldest node ip
         deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
+
+    # Delete old templates cache
+    delete_template_cache()
+
+    # Continue update process
     output_str, error_str = util.ssh_to_node_by_key("/home/rkeuser/deploy-devops/bin/update-perl.pl", deployer_node_ip)
     if error_str != "":
         not_found_message = error_str.split(":")[-1].replace("\n", "")

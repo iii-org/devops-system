@@ -14,6 +14,9 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from model import db, Lock
 from sqlalchemy.exc import IntegrityError
+from resources import logger
+import resources.apiError as apiError
+
 
 STATUS_IN_PROGRESS = 'in_progress'
 STATUS_NOT_STARTED = 'not_started'
@@ -318,19 +321,24 @@ def init_data_first_time():
 
 
 def init_data(now=False):
-    clear_all_tables()
-    sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    if now:
-        update_lock_redmine(is_lock=True, sync_date=sync_date)
-    else:
-        update_lock_redmine(sync_date=sync_date)
+    try:
+        clear_all_tables()
+        sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        if now:
+            update_lock_redmine(is_lock=True, sync_date=sync_date)
+        else:
+            update_lock_redmine(sync_date=sync_date)
 
-    need_to_track_issue = sync_redmine(sync_date)
-    if need_to_track_issue:
-        for project_id in need_to_track_issue:
-            insert_all_issues(project_id, sync_date)
-    if now:
+        need_to_track_issue = sync_redmine(sync_date)
+        if need_to_track_issue:
+            for project_id in need_to_track_issue:
+                insert_all_issues(project_id, sync_date)
+        if now:
+            update_lock_redmine(is_lock=False)
+    except Exception as e:
         update_lock_redmine(is_lock=False)
+        logger.logger.info(str(e))
+        raise apiError(404, str(e))
 
 
 def get_project_members_count(own_project):

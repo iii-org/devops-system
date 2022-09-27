@@ -322,7 +322,7 @@ def update_user(user_id, args, from_ad=False):
             user.update_at = args['update_at']
         else:
             user.update_at = util.date_to_str(datetime.datetime.utcnow())
-     
+
         if user.from_ad and not from_ad:
             return util.respond(400, 'Error when updating Message',
                                 error=apiError.user_from_ad(user_id))
@@ -363,6 +363,19 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
                 "type_parameters": {"user_ids": [user_id]}
             }
             create_notification_message(args2, user_id=user_id)
+            # update db
+            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="redmine").first()
+            encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
+            if row:
+                update = {"user_id": user_id, "server": "redmine", "password": encode_password.decode('UTF-8')}
+                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="redmine").update(update)
+                db.session.commit()
+            else:
+                insert = model.UpdatePasswordError(
+                    user_id=user_id, server="redmine", password=encode_password.decode('UTF-8')
+                )
+                db.session.add(insert)
+                db.session.commit()
         gitlab_user_id = user_relation.repository_user_id
         b = gitlab.gl_update_password(gitlab_user_id, new_pwd)
         if int(b.status_code / 100) != 2:
@@ -377,6 +390,19 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
                 "type_parameters": {"user_ids": [user_id]}
             }
             create_notification_message(args2, user_id=user_id)
+            # update db
+            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="gitlab").first()
+            encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
+            if row:
+                update = {"user_id": user_id, "server": "gitlab", "password": encode_password.decode('UTF-8')}
+                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="gitlab").update(update)
+                db.session.commit()
+            else:
+                insert = model.UpdatePasswordError(
+                    user_id=user_id, server="gitlab", password=encode_password.decode('UTF-8')
+                )
+                db.session.add(insert)
+                db.session.commit()
         harbor_user_id = user_relation.harbor_user_id
         c = harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
         if int(c.status_code / 100) != 2:
@@ -391,6 +417,19 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
                 "type_parameters": {"user_ids": [user_id]}
             }
             create_notification_message(args2, user_id=user_id)
+            # update db
+            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="harbor").first()
+            encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
+            if row:
+                update = {"user_id": user_id, "server": "harbor", "password": encode_password.decode('UTF-8')}
+                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="harbor").update(update)
+                db.session.commit()
+            else:
+                insert = model.UpdatePasswordError(
+                    user_id=user_id, server="harbor", password=encode_password.decode('UTF-8')
+                )
+                db.session.add(insert)
+                db.session.commit()
         d = sonarqube.sq_update_password(user_login, new_pwd)
         if int(d.status_code / 100) != 2:
             logger.info(d)
@@ -404,10 +443,60 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
                 "type_parameters": {"user_ids": [user_id]}
             }
             create_notification_message(args2, user_id=user_id)
+            # update db
+            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="sonarqube").first()
+            encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
+            if row:
+                update = {"user_id": user_id, "server": "sonarqube", "password": encode_password.decode('UTF-8')}
+                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="sonarqube").update(
+                    update)
+                db.session.commit()
+            else:
+                insert = model.UpdatePasswordError(
+                    user_id=user_id, server="sonarqube", password=encode_password.decode('UTF-8')
+                )
+                db.session.add(insert)
+                db.session.commit()
         return reset_dict
     except Exception as e:
         logger.info(e)
         return e
+
+
+def is_json(string):
+    try:
+        json.loads(string)
+    except ValueError:
+        return False
+    return True
+
+
+def row_to_dict(row):
+    ret = {}
+    if row is None:
+        return row
+    for key in type(row).__table__.columns.keys():
+        value = getattr(row, key)
+        if type(value) is datetime or type(value) is datetime.date:
+            ret[key] = str(value)
+        elif isinstance(value, str) and is_json(value):
+            ret[key] = json.loads(value)
+        else:
+            ret[key] = value
+    return ret
+
+
+def get_decode_password(user_id):
+    rows = model.UpdatePasswordError.query.filter_by(user_id=user_id).all()
+    ret = []
+    for row in rows:
+        password = row_to_dict(row)['password']
+        decode_password = base64.b64decode(f'{password}'.encode('UTF-8'))
+        result_dict = row_to_dict(row)
+        result_dict.update({"password": decode_password.decode('UTF-8')})
+        ret.append(result_dict)
+    return ret
+
 
 
 def update_external_email(user_id, user_name, new_email):
@@ -899,10 +988,10 @@ def get_user_message_types(limit=None, offset=None):
     if limit is not None and offset is not None:
         users_message_type, page_dict = util.orm_pagination(
             users_message_type, limit, offset)
-    
+
     for user_message_type in users_message_type.all():
         ret.append(row_to_dict(user_message_type))
-    
+
     if page_dict is not None:
         ret = {
             "user_message_type": ret,
@@ -926,7 +1015,7 @@ def update_user_message_types(user_id, args):
         if mail is not None:
             if not mail_server_is_open() and mail:
                 raise DevOpsError(
-                    400, 
+                    400,
                     "Mail notificaiton setting can not be opened, when mail server is disable.",
                     error=apiError.argument_error('mail')
                 )

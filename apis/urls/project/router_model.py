@@ -313,8 +313,8 @@ class IssuesStatisticsByProjectResponse(CommonBasicResponse):
 
 #################################### Schema ####################################
 class IssueFilterByProjectPostAndPutSchema(Schema):
-    name = fields.Str(doc='name', example='string', required=True)
-    type = fields.Str(doc='type', example='string', required=True)
+    name = fields.Str(doc='name', example='程式碼檢查', required=True)
+    type = fields.Str(doc='type', example='測試計畫', required=True)
     assigned_to_id = fields.Str(doc='assigned_to_id', example='1', allow_none=True)
     fixed_version_id = fields.Str(doc='fixed_version_id', example='1', allow_none=True)
     focus_tab = fields.Str(doc='focus_tab', example='string', allow_none=True)
@@ -438,12 +438,12 @@ class ProjectsBasicResponse(BasicIsssueResponse):
     start_date = fields.Str(required=True, example="1970-01-01", default=None)
     # trace_order = fields.List()
     update_at = fields.Str(required=True, example="1970-01-01 00:00:00.000000", default=None)
-    git_url = fields.Str(required=True)
+    git_url = fields.Str(required=True, example="http://gitlab-dev.iiidevops123.org/root/")
     repository_ids = fields.List(fields.Int())
-    redmine_url = fields.Str(required=True)
-    harbor_url = fields.Str(required=True)
-    owner_name = fields.Str(required=True)
-    department = fields.Str(required=True)  
+    redmine_url = fields.Str(required=True, example="http://redmine-dev3.iiidevops123.org/")
+    harbor_url = fields.Str(required=True, example="https://harbor-dev3.iiidevops234.org/harbor/")
+    owner_name = fields.Str(required=True, example="初始管理者")
+    department = fields.Str(required=True, example="數位轉型院所")
     is_empty_project = fields.Bool()
     
 class ListMyProjectsDataProjectListResponse(ProjectsBasicResponse):
@@ -490,8 +490,8 @@ class ListMyProjectsByUserResponse(CommonBasicResponse):
 #################################### Schema ####################################
 
 class SingleProjectPutSchema(Schema):
-    display = fields.Str(doc='display',  example='string', required=True)
-    description = fields.Str(doc='description',  example="")
+    display = fields.Str(doc='display',  example='議題測試專案', required=True)
+    description = fields.Str(doc='description',  example="此為測試專案")
     disabled = fields.Bool(doc='disabled',  example=True, required=True)
     start_date = fields.Str(doc='start_date', example="1970-01-01", required=True)
     due_date = fields.Str(doc='due_date', example="1970-01-01", required=True)
@@ -499,7 +499,7 @@ class SingleProjectPutSchema(Schema):
     parent_id = fields.Str(doc='parent_id', example="1")
     is_inheritance_member = fields.Bool(doc='is_inheritance_member', example=True)
     template_id = fields.Int(doc='template_id', example=1)
-    tag_name = fields.Str(doc='tag_name', example="string")
+    tag_name = fields.Str(doc='tag_name', example="子專案")
     arguments = fields.Str(doc='arguments', example="string")
 
 class SingleProjectPatchSchema(Schema):
@@ -507,10 +507,10 @@ class SingleProjectPatchSchema(Schema):
 
 
 class SingleProjectPostSchema(SingleProjectPutSchema):
-    name = fields.Str(doc='name',  example='string', required=True)
-    display = fields.Str(doc='display',  example='string')
+    name = fields.Str(doc='name',  example='API開發專案', required=True)
+    display = fields.Str(doc='display',  example='議題測試專案')
     template_id = fields.Int(doc='template_id', example=1)
-    tag_name = fields.Str(doc='tag_name', example="string")
+    tag_name = fields.Str(doc='tag_name', example="子專案")
     arguments = fields.Str(doc='arguments', example="string")
     owner_id = fields.Int(doc='owner_id', example=1)
 
@@ -557,17 +557,17 @@ class ProjectUserListSchema(Schema):
 
 class ProjectUserLists(BasicIsssueResponse):
     create_at = fields.Str(example="1970-01-01 00:00:00.000000", default=None)
-    department = fields.Str(example="string")
-    status = fields.Str(example="string")
-    email = fields.Str(example="string")
+    department = fields.Str(example="數位轉型院所")
+    status = fields.Str(example="enable")
+    email = fields.Str(example="rd@vapor.nowhere")
     from_ad = fields.Bool(example=True)
-    login = fields.Str(example="string")
+    login = fields.Str(example="postman_test_rd")
     phone = fields.Str()
-    title = fields.Str(example="string")
+    title = fields.Str(example="專案經理")
     update_at = fields.Str(example="1970-01-01 00:00:00.000000", default=None)
     default_role = fields.Dict()
     role_id = fields.Int(example=1)
-    role_name = fields.Str(example="string")
+    role_name = fields.Str(example="PM")
 
 
 class ProjectUserListData(Schema):
@@ -610,7 +610,7 @@ class ProjectFileGetDataFiles(Schema):
     filename = fields.Str(example="filename")
     filesize = fields.Int(example=1)
     content_type = fields.Str(example="string", default=None)
-    description = fields.Str(example="string")
+    description = fields.Str(example="此為重點專案")
     content_url = fields.Str()
     thumbnail_url = fields.Str()
     author = fields.Dict()

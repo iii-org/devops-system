@@ -30,4 +30,7 @@ def user_url(api, add_resource):
     add_resource(view.MessageTypes, "public")
     api.add_resource(view.MessageType, '/v2/user/message_type/<int:user_id>')
     add_resource(view.MessageType, "public")
+
+    api.add_resource(view.UserNewpasswordInfoV2, '/v2/user/<int:user_id>/newpasswordinfo')
+    add_resource(view.UserNewpasswordInfoV2, "public")
     

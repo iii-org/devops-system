@@ -2,6 +2,8 @@ from . import view
 
 
 def monitoring_url(api, add_resource):
+    api.add_resource(view.ServicesListV2, "/v2/monitoring/services_list")
+    add_resource(view.ServicesListV2, "public")
     api.add_resource(view.ServersAliveHelper, '/v2/monitoring/check_alive')
     add_resource(view.ServersAliveHelper, "public")
     api.add_resource(view.ServersAlive, '/monitoring/alive')
@@ -31,8 +33,8 @@ def monitoring_url(api, add_resource):
     api.add_resource(view.RancherDefaultName, '/monitoring/rancher/default_name')
     api.add_resource(view.RancherDefaultNameV2, '/v2/monitoring/rancher/default_name')
     add_resource(view.RancherDefaultNameV2, "public")
-    api.add_resource(view.K8sAlive, '/monitoring/k8s/alive')
-    api.add_resource(view.K8sAliveV2, '/v2/monitoring/k8s/alive')
+    api.add_resource(view.K8sAlive, '/monitoring/kubernetes/alive')
+    api.add_resource(view.K8sAliveV2, '/v2/monitoring/kubernetes/alive')
     add_resource(view.K8sAliveV2, "public")
     api.add_resource(view.ExcalidrawAliveV2, '/v2/monitoring/excalidraw/alive')
     add_resource(view.ExcalidrawAliveV2, "public")
