@@ -419,9 +419,10 @@ def create_project(user_id, args):
                                                   args["tag_name"], args["arguments"], uuids)
 
         # Create PipelineUpdateVersion
+        from resources.check_version import LATEST_VERSION
         row = model.PipelineUpdateVersion(
             project_id=project_id,
-            version=1
+            version=LATEST_VERSION
         )
         db.session.add(row)
         db.session.commit()
