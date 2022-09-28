@@ -296,6 +296,7 @@ def sort_convert_result_to_df(project_id):
     with open(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-setting_sideex.json",
                 'r', encoding="utf8") as file:
         txt_content = json.load(file)
+    # calculate by setting.json
     cut_num = len(txt_content["var"])
     df_input = pd.DataFrame(pict_list)
     sorted_list = []
