@@ -192,11 +192,20 @@ def upload_file_types_handle(func):
 def get_upload_file_types_obj():
     return SystemParameter.query.filter_by(name="upload_file_types").first()
 
+def get_upload_file_size():
+    return SystemParameter.query.filter_by(name="upload_file_size").first().value
 
 def get_upload_file_types():
     value = get_upload_file_types_obj().value
     return util.success(value)
 
+def update_upload_file_size(kwargs):
+    if kwargs.get("upload_file_size") and kwargs.get("upload_file_size") <= 100:
+        db.session.query(SystemParameter).filter_by(name="upload_file_size").update({"value": kwargs})
+        db.session.commit()
+        return util.success()
+    else:
+        raise DevOpsError(404, 'invalid value! Please input the size between 0-100')
 
 @upload_file_types_handle
 def create_upload_file_types(args, upload_file_types={}):

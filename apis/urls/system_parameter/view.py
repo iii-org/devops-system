@@ -42,3 +42,17 @@ class GetUploadFileDistinctName(MethodResource):
     @jwt_required()
     def get(self):
         return system_parameter.get_upload_file_distinct_name()
+
+
+class UploadFileSize(MethodResource):
+    @doc(tags=["System"], description="Get upload_file_size.")
+    # @marshal_with(route_model.UpdateFileGetResponse)
+    @jwt_required()
+    def get(self):
+        return system_parameter.get_upload_file_size()
+
+    @doc(tags=["System"], description="Update upload_file_size.")
+    @use_kwargs(route_model.UpdateUploadFileSizeSchema, location="json")
+    @jwt_required()
+    def patch(self, **kwargs):
+        return system_parameter.update_upload_file_size(kwargs)
