@@ -279,8 +279,8 @@ def pict_convert_result(project_id) -> list[str]:
 
     if os.path.isfile(file):
         # Get pict from https://github.com/microsoft/pict
-        # std_output: bytes = subprocess.check_output(['pict', file])
-        std_output = b'abc\tdef\txx2\nx5\txyz\t56\nx5\t\xe6\xb8\xac\xe8\xa9\xa6\t99\nb1\txyz\t12\n\xe7\xb5\x84\xe5\x90\x88\txyz\t99\nw10\ta54\t99\nw10\t\xe6\xb8\xac\xe8\xa9\xa6\t56\n\xe7\xb5\x84\xe5\x90\x88\ta54\t12\nb1\t\xe6\xb8\xac\xe8\xa9\xa6\t12\nc3\ta54\t99\nc3\txyz\tab\n\xe7\xb5\x84\xe5\x90\x88\tabc\t56\nx5\ta54\t12\nb1\ta54\t99\nb1\ta54\t56\nc3\t\xe6\xb8\xac\xe8\xa9\xa6\tab\n\xe7\xb5\x84\xe5\x90\x88\tabc\t12\nc3\txyz\t56\nc3\ta54\t12\nw10\txyz\t12\n\xe7\xb5\x84\xe5\x90\x88\tabc\t99\n\xe7\xb5\x84\xe5\x90\x88\t\xe6\xb8\xac\xe8\xa9\xa6\t99\nc3\ta54\tab\n'
+        std_output: bytes = subprocess.check_output(['pict', file])
+        # std_output = b'abc\tdef\txx2\nx5\txyz\t56\nx5\t\xe6\xb8\xac\xe8\xa9\xa6\t99\nb1\txyz\t12\n\xe7\xb5\x84\xe5\x90\x88\txyz\t99\nw10\ta54\t99\nw10\t\xe6\xb8\xac\xe8\xa9\xa6\t56\n\xe7\xb5\x84\xe5\x90\x88\ta54\t12\nb1\t\xe6\xb8\xac\xe8\xa9\xa6\t12\nc3\ta54\t99\nc3\txyz\tab\n\xe7\xb5\x84\xe5\x90\x88\tabc\t56\nx5\ta54\t12\nb1\ta54\t99\nb1\ta54\t56\nc3\t\xe6\xb8\xac\xe8\xa9\xa6\tab\n\xe7\xb5\x84\xe5\x90\x88\tabc\t12\nc3\txyz\t56\nc3\ta54\t12\nw10\txyz\t12\n\xe7\xb5\x84\xe5\x90\x88\tabc\t99\n\xe7\xb5\x84\xe5\x90\x88\t\xe6\xb8\xac\xe8\xa9\xa6\t99\nc3\ta54\tab\n'
         decoded: str = std_output.decode("utf-8")
         concat: str = decoded.replace("\t", "\n").replace("\r\n", "\n")
         result: list[str] = concat.split("\n")
@@ -293,9 +293,10 @@ def pict_convert_result(project_id) -> list[str]:
 def sort_convert_result_to_df(project_id):
     pict_list = pict_convert_result(project_id)
     project_name = nexus.nx_get_project(id=project_id).name
-    file = open(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-model.txt", 'r', encoding="utf8")
-    txt_content = file.read()
-    cut_num = txt_content.count(':')
+    with open(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-setting_sideex.json",
+                'r', encoding="utf8") as file:
+        txt_content = json.load(file)
+    cut_num = len(txt_content["var"])
     df_input = pd.DataFrame(pict_list)
     sorted_list = []
     # sort by variable num
