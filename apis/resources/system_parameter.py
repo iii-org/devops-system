@@ -201,7 +201,7 @@ def get_upload_file_types():
 
 def update_upload_file_size(kwargs):
     query = SystemParameter.query.filter_by(name="upload_file_size").first()
-    if kwargs.get("upload_file_size") and kwargs.get("upload_file_size") <= 100:
+    if kwargs.get("upload_file_size") >= 0 and kwargs.get("upload_file_size") <= 100:
         if query:
             db.session.query(SystemParameter).filter_by(name="upload_file_size").update({"value": kwargs})
             db.session.commit()
