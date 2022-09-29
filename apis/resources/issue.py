@@ -724,6 +724,7 @@ def create_issue(args, operator_id):
         for file in file_list:
             blob = file.read()
             file_size = int(len(blob))
+            file.seek(0)
             if file_size/1048576 > file_size_limit:
                 raise DevOpsError(404, 'file size exceed maximum')
 
@@ -881,6 +882,7 @@ def update_issue(issue_id, args, operator_id=None):
         for file in file_list:
             blob = file.read()
             file_size = int(len(blob))
+            file.seek(0)
             if file_size / 1048576 > file_size_limit:
                 raise DevOpsError(404, 'file size exceed maximum')
 

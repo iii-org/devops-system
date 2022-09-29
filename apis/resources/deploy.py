@@ -268,6 +268,7 @@ class Clusters(Resource):
                     model.SystemParameter.query.filter_by(name="upload_file_size").first().value["upload_file_size"])
                 blob = file.read()
                 file_size = int(len(blob))
+                file.seek(0)
                 if file_size / 1048576 > file_size_limit:
                     raise DevOpsError(404, 'file size exceed maximum')
 
