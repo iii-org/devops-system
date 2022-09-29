@@ -969,6 +969,14 @@ class ExcalidrawIssueRelation(db.Model):
     issue_id = Column(Integer)
 
 
+class ExcalidrawHistory(db.Model):
+    id = Column(Integer, primary_key=True)
+    excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete='CASCADE'))
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+    updated_at = Column(DateTime)
+    value = Column(JSON)
+
+
 class ProjectResourceStoragelevel(db.Model):
     '''
     {
