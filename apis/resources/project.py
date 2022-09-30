@@ -29,7 +29,7 @@ from resources.apiError import DevOpsError
 from resources.starred_project import spj_unset
 from accessories import redmine_lib
 from util import DevOpsThread
-from redminelib.exceptions import ResourceNotFoundError
+from redminelib.exceptions import ResourceNotFoundError , ForbiddenError
 from . import user, harbor, kubernetesClient, role, template
 from .activity import record_activity, ActionType
 from plugins.webinspect import webinspect_main as webinspect
@@ -104,7 +104,7 @@ def get_project_issue_calculation(user_id, project_ids=[]):
     return ret
 
 
-def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
+def  get_project_list(user_id, role="simple", args={}, disable=None, sync=False):  
     limit = args.get("limit")
     offset = args.get("offset")
     extra_data = args.get("test_result", "false") == "true"
@@ -124,7 +124,7 @@ def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
                 else:
                     project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
                 rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
-            except ResourceNotFoundError:
+            except (ResourceNotFoundError , ForbiddenError):
                 # When Redmin project was missing
                 sync_project.lock_project(nexus_project.name, "Redmine")
                 rm_project = {"updated_on": datetime.utcnow(), "id": -1}
@@ -419,9 +419,10 @@ def create_project(user_id, args):
                                                   args["tag_name"], args["arguments"], uuids)
 
         # Create PipelineUpdateVersion
+        from resources.check_version import LATEST_VERSION
         row = model.PipelineUpdateVersion(
             project_id=project_id,
-            version=1
+            version=LATEST_VERSION
         )
         db.session.add(row)
         db.session.commit()
