@@ -1,4 +1,4 @@
-FROM dockerhub/library/python:3.9.12-slim
+FROM dockerhub/library/python:3.9.14-slim
 RUN apt-get update && apt-get install -y --no-install-recommends git curl 
 RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.19.0/bin/linux/amd64/kubectl && chmod +x ./kubectl && mv ./kubectl /usr/local/bin/kubectl
 COPY iiidevops/bin/pict /usr/local/bin/pict
