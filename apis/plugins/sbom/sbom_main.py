@@ -333,6 +333,10 @@ class SbomDownloadReportV2(MethodResource):
         project_name = Project.query.get(project_id).name
         folder_name = f'{commit}-{sequence}'
         file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
+        with open(f"{file_path}/{kwargs['file_name']}", 'r', encoding="utf8") as file:
+            data = json.dumps(json.load(file), indent=4)
+        with open(f"{file_path}/{kwargs['file_name']}", 'w', encoding="utf8") as file:
+            file.write(data)
         return download_report_file(file_path, kwargs["file_name"])
 
 
