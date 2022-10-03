@@ -333,14 +333,7 @@ class SbomDownloadReportV2(MethodResource):
         project_name = Project.query.get(project_id).name
         folder_name = f'{commit}-{sequence}'
         file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-        with open(f"{file_path}/{kwargs['file_name']}") as file:
-            data = json.load(file)
-        return data
-        # print(data)
-        # response = make_response(download_report_file(file_path, kwargs["file_name"]))
-        # response.headers["Content-Type"] = "application/octet-stream"
-        # response.headers["Content-Disposition"] = f"attachment; filename={kwargs['file_name']}"
-
+        return download_report_file(file_path, kwargs["file_name"])
 
 
 def check_status(sbom_id):
