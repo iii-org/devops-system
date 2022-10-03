@@ -323,8 +323,8 @@ class SbomGetRiskOverviewV2(MethodResource):
 
 
 @doc(tags=['Sbom'], description="download report")
-@use_kwargs(router_model.SbomDownloadReportRes, location="query")
-@marshal_with(util.CommonResponse)
+@use_kwargs(router_model.SbomDownloadReportRes, location="json")
+# @marshal_with(util.CommonResponse)
 class SbomDownloadReportV2(MethodResource):
     @jwt_required()
     def get(self, sbom_id, **kwargs):
@@ -335,11 +335,12 @@ class SbomDownloadReportV2(MethodResource):
         file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
         with open(f"{file_path}/{kwargs['file_name']}") as file:
             data = json.load(file)
+        return data
         # print(data)
         # response = make_response(download_report_file(file_path, kwargs["file_name"]))
         # response.headers["Content-Type"] = "application/octet-stream"
         # response.headers["Content-Disposition"] = f"attachment; filename={kwargs['file_name']}"
-        return data
+
 
 
 def check_status(sbom_id):
