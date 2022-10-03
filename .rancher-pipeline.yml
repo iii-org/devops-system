@@ -194,6 +194,27 @@ stages:
       include:
       - master
       - develop
+- name: Test--Anchore SBOM
+  iiidevops: anchore
+  steps:
+  - applyAppConfig:
+      answers:
+        git.branch: ${CICD_GIT_BRANCH}
+        git.commitID: ${CICD_GIT_COMMIT}
+        git.repoName: ${CICD_GIT_REPO_NAME}
+        git.url: ${CICD_GIT_URL}
+        harbor.host: harbor-dev3.iiidevops.org
+        pipeline.sequence: ${CICD_EXECUTION_SEQUENCE}
+        anchore.image: ${CICD_GIT_REPO_NAME}/${CICD_GIT_BRANCH}:${CICD_GIT_COMMIT}
+      catalogTemplate: cattle-global-data:iii-dev-charts3-scan-anchore
+      name: ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-sbom
+      targetNamespace: ${CICD_GIT_REPO_NAME}
+      version: 0.0.1
+  when:
+    branch:
+      include:
+      - master
+      - develop
 - name: Test--ZAP
   iiidevops: zap
   steps:
