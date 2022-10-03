@@ -323,7 +323,7 @@ class SbomGetRiskOverviewV2(MethodResource):
 
 
 @doc(tags=['Sbom'], description="download report")
-@use_kwargs(router_model.SbomDownloadReportRes, location="json")
+@use_kwargs(router_model.SbomDownloadReportRes, location="query")
 # @marshal_with(util.CommonResponse)
 class SbomDownloadReportV2(MethodResource):
     @jwt_required()
