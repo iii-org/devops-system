@@ -187,13 +187,13 @@ def risk_detail(file_path=None):
     for i in ['id', 'severity', 'description']:
         if i not in list(df_vulnerability_info.columns):
             df_vulnerability_info[i] = None
-    df_vulnerability_info = df_vulnerability_info[['id', 'severity', 'description']]
+    df_vulnerability_info = df_vulnerability_info[['id', 'severity', 'description', 'dataSource']]
     df_artifact_info = pd.DataFrame(
         [data['matches'][index]['artifact'] for index, value in enumerate(data['matches'])])
-    for i in ['name', 'version']:
+    for i in ['name']:
         if i not in list(df_artifact_info.columns):
             df_artifact_info[i] = None
-    df_artifact_info = df_artifact_info[['name', 'version']]
+    df_artifact_info = df_artifact_info[['name']]
     df_fix_versions = pd.DataFrame(
         [data['matches'][index]['vulnerability']['fix']['versions'] for index, value in enumerate(data['matches'])])
     if df_fix_versions.isnull().shape[0] == df_fix_versions.shape[0]:
@@ -201,7 +201,17 @@ def risk_detail(file_path=None):
         df_result['versions'] = None
     else:
         df_result = df_vulnerability_info.join(df_artifact_info).join(df_fix_versions)
-    return df_result
+    # merge sbom json file
+    with open(f'{file_path}/sbom.syft.json') as json_data:
+        data = json.load(json_data)
+    df = pd.DataFrame(data['artifacts'])
+    df_merge = pd.merge(df[['name', 'licenses', 'type', 'version']], df_result, how="left", on='name')
+    df_merge = df_merge[['name', 'id', 'severity', 'licenses', 'type', 'version', 'versions', 'dataSource', 'description']]
+    sorted_list = ['Critical', 'High', 'Medium', 'Low', 'Negligible', 'Unknown']
+    df_sorted = pd.DataFrame()
+    for i in sorted_list:
+        df_sorted = df_sorted.append(df_merge[df_merge.severity == i])
+    return df_sorted
 
 
 def get_sbom_scan_file_list(sbom_id):
@@ -324,7 +334,7 @@ class SbomGetRiskOverviewV2(MethodResource):
 
 @doc(tags=['Sbom'], description="download report")
 @use_kwargs(router_model.SbomDownloadReportRes, location="query")
-# @marshal_with(util.CommonResponse)
+@marshal_with(util.CommonResponse)
 class SbomDownloadReportV2(MethodResource):
     @jwt_required()
     def get(self, sbom_id, **kwargs):
@@ -333,11 +343,10 @@ class SbomDownloadReportV2(MethodResource):
         project_name = Project.query.get(project_id).name
         folder_name = f'{commit}-{sequence}'
         file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-        with open(f"{file_path}/{kwargs['file_name']}", 'r', encoding="utf8") as file:
-            data = json.dumps(json.load(file), indent=4)
-        with open(f"{file_path}/{kwargs['file_name']}", 'w', encoding="utf8") as file:
-            file.write(data)
-        return download_report_file(file_path, kwargs["file_name"])
+        response = make_response(download_report_file(file_path, kwargs["file_name"]))
+        response.headers["Content-Type"] = "application/octet-stream"
+        response.headers["Content-Disposition"] = f"attachment; filename={kwargs['file_name']}"
+        return response
 
 
 def check_status(sbom_id):
