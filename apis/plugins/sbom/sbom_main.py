@@ -210,7 +210,8 @@ def risk_detail(file_path=None):
     sorted_list = ['Critical', 'High', 'Medium', 'Low', 'Negligible', 'Unknown']
     df_sorted = pd.DataFrame()
     for i in sorted_list:
-        df_sorted = df_sorted.append(df_merge[df_merge.severity == i])
+        df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.notnull())])
+        df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.isnull())])
     return df_sorted
 
 
