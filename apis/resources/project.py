@@ -249,6 +249,9 @@ def get_project_rows_by_user(user_id, disable: Optional, args={}):
 
     all_projects.sort(key=cmp_to_key(sort_func))
 
+    if not offset or not limit:
+        return all_projects, total_count
+
     return all_projects[offset : offset + limit], total_count
 
 
