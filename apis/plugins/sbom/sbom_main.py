@@ -212,6 +212,7 @@ def risk_detail(file_path=None):
     for i in sorted_list:
         df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.notnull())])
         df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.isnull())])
+    df_sorted = df_sorted.append(df_merge[df_merge.severity.isnull()])
     return df_sorted
 
 
