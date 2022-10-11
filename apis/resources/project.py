@@ -2,10 +2,12 @@ import os
 import shutil
 import re
 import zipfile
-from datetime import datetime
+from datetime import date, datetime
+from functools import cmp_to_key
 from io import BytesIO
 import json
 import uuid
+from typing import Optional
 
 from accessories import redmine_lib
 from flask import send_file
@@ -13,8 +15,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from kubernetes.client import ApiException
 from sqlalchemy import desc, or_
-from sqlalchemy.orm import joinedload
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm import Query, joinedload
+from sqlalchemy.exc import NoResultFound
 
 import model
 import nexus
@@ -145,79 +147,112 @@ def  get_project_list(user_id, role="simple", args={}, disable=None, sync=False)
     return ret
 
 
-def get_project_rows_by_user(user_id, disable, args={}):
-    search = args.get("search")
-    accsearch = args.get("accsearch")
-    is_empty_project = args.get("is_empty_project")
-    limit, offset = args.get("limit"), args.get("offset")
-    pj_due_start = datetime.strptime(args.get("pj_due_date_start"),
-                                     "%Y-%m-%d").date() if args.get("pj_due_date_start") is not None else None
-    pj_due_end = datetime.strptime(args.get("pj_due_date_end"),
-                                   "%Y-%m-%d").date() if args.get("pj_due_date_end") is not None else None
+def get_project_rows_by_user(user_id, disable: Optional, args={}):
+    search: str = args.get("search")
+    accsearch: str = args.get("accsearch")
+    is_empty_project: bool = args.get("is_empty_project")
+    limit: int = args.get("limit")
+    offset: int = args.get("offset")
+    pj_due_start: Optional[date] = (
+        datetime.strptime(args.get("pj_due_date_start"), "%Y-%m-%d").date()
+        if args.get("pj_due_date_start", False)
+        else None
+    )
+    pj_due_end: Optional[date] = (
+        datetime.strptime(args.get("pj_due_date_end"), "%Y-%m-%d").date()
+        if args.get("pj_due_date_end", False)
+        else None
+    )
 
-    query = model.Project.query.options(
+    query: Query = model.Project.query.options(
         joinedload(model.Project.user_role, innerjoin=True)
     )
     # 如果不是admin（也就是一般RD/PM/QA），取得 user_id 有參加的 project 列表
     if user.get_role_id(user_id) != role.ADMIN.id:
-        query = query.filter(model.Project.user_role.any(user_id=user_id))
-        stared_pjs = db.session.query(StarredProject).join(ProjectUserRole, StarredProject.project_id == ProjectUserRole.project_id). \
-            filter(ProjectUserRole.user_id == user_id).filter(StarredProject.user_id == user_id).all()
-    else:
-        stared_pjs = db.session.query(StarredProject).filter_by(user_id=user_id).all()
-    star_projects_obj = [model.Project.query.get(stared_pj.project_id) for stared_pj in stared_pjs]
+        query: Query = query.filter(Project.user_role.any(user_id=user_id))
+
+    stared_project_list: list[StarredProject] = (
+        db.session.query(StarredProject).filter_by(user_id=user_id).all()
+    )
+    stared_project_objects: list[Project] = [
+        Project.query.get(_.project_id) for _ in stared_project_list
+    ]
 
     if disable is not None:
-        query = query.filter_by(disabled=disable)
-        star_projects_obj = [star_project for star_project in star_projects_obj if star_project.disabled == disable]
+        query: Query = query.filter_by(disabled=disable)
+        stared_project_objects: list[Project] = [
+            star_project
+            for star_project in stared_project_objects
+            if star_project.disabled == disable
+        ]
 
     if search is not None:
-        users = model.User.query.filter(model.User.name.ilike(f'%{search}%')).all()
-        owner_ids = [user.id for user in users]
-        query = query.filter(or_(
-            model.Project.owner_id.in_(owner_ids),
-            model.Project.display.like(f'%{search}%'),
-            model.Project.name.like(f'%{search}%'),
-        ))
-        star_projects_obj = [
-            star_project for star_project in star_projects_obj
-            if star_project.owner_id in owner_ids or
-            search.upper() in star_project.display.upper() or
-            search.upper() in star_project.name.upper()]
+        users: list[model.User] = model.User.query.filter(
+            model.User.name.ilike(f"%{search}%")
+        ).all()
+        owner_ids: list[int] = [user.id for user in users]
+        query: Query = query.filter(
+            or_(
+                Project.owner_id.in_(owner_ids),
+                Project.display.like(f"%{search}%"),
+                Project.name.like(f"%{search}%"),
+            )
+        )
+        stared_project_objects: list[Project] = [
+            star_project
+            for star_project in stared_project_objects
+            if star_project.owner_id in owner_ids
+            or search.upper() in star_project.display.upper()
+            or search.upper() in star_project.name.upper()
+        ]
 
     if accsearch is not None and search is None:
-        query = query.filter(
-            model.Project.name == accsearch
-        )
+        query: Query = query.filter(Project.name == accsearch)
 
     if is_empty_project is True:
-        query = query.filter(
-            model.Project.is_empty_project == is_empty_project
-        )
+        query: Query = query.filter(Project.is_empty_project == is_empty_project)
 
     if pj_due_start is not None and pj_due_end is not None:
-        query = query.filter(
-            model.Project.due_date.between(pj_due_start, pj_due_end))
-        star_projects_obj = [
-            star_project for star_project in star_projects_obj
-            if pj_due_start <= star_project.due_date <= pj_due_end]
+        query: Query = query.filter(Project.due_date.between(pj_due_start, pj_due_end))
+        stared_project_objects: list[Project] = [
+            star_project
+            for star_project in stared_project_objects
+            if pj_due_start <= star_project.due_date <= pj_due_end
+        ]
 
     # Remove dump_project and stared_project
-    project_ids = [star_project.id for star_project in star_projects_obj]
-    stared_project_num = len(project_ids)
-    query = query.filter(~model.Project.id.in_(project_ids + [-1])).order_by(desc(model.Project.id))
-    counts = query.count()
-    if limit is not None:
-        if offset == 0:
-            limit -= stared_project_num
+    stared_project_ids: list[int] = [_.id for _ in stared_project_objects]
+    stared_project_count: int = len(stared_project_ids)
+    # 取全部 project
+    query: Query = query.filter(~Project.id.in_([-1])).order_by(desc(Project.id))
+    # 全部的 project 數量
+    total_count: int = query.count()
+
+    all_projects: list[Project] = query.all()
+
+    def sort_func(a: Project, b: Project):
+        # Case 1, both in stared_project_ids
+        if a.id in stared_project_ids and b.id in stared_project_ids:
+            return b.id - a.id
+        # Case 2, both not in stared_project_ids
+        elif a.id not in stared_project_ids and b.id not in stared_project_ids:
+            return b.id - a.id
+        # Case 3, a in stared_project_ids, b not in stared_project_ids
+        elif a.id in stared_project_ids and b.id not in stared_project_ids:
+            return -1
+        # Case 4, a not in stared_project_ids, b in stared_project_ids
+        elif a.id not in stared_project_ids and b.id in stared_project_ids:
+            return 1
+        # Fallback case
         else:
-            offset -= stared_project_num
-        rows = query.limit(limit).offset(offset).all()
-        rows = star_projects_obj + rows if offset == 0 else rows
-    else:
-        rows = query.all()
-        rows = star_projects_obj + rows
-    return rows, counts + stared_project_num
+            return 0
+
+    all_projects.sort(key=cmp_to_key(sort_func))
+
+    if offset is None or limit is None:
+        return all_projects, total_count
+
+    return all_projects[offset : offset + limit], total_count
 
 
 # 新增redmine & gitlab的project並將db相關table新增資訊
