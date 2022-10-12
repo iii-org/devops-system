@@ -77,3 +77,19 @@ class CheckExcalidrawAliveRes(CommonBasicResponse):
     data = fields.Dict(
         example={"alive": True, "services": {"API": True, "UI": True, "Socket": True}}
     , required=True)
+
+
+class ExcalidrawHistoryGetRes(CommonBasicResponse):
+    data = fields.List(fields.Dict(
+        example=
+        {
+            "excalidraw_id": 3,
+            "id": 42,
+            "updated_at": "2022-10-05 02:41:34.317525",
+            "user_id": 1,
+            "value": {
+                "expires": "null",
+                "value": ":base64:hkjGR4TiFtcGX0krgEE+T5Dd6qxiWa1vsRdwGkqz"
+            }
+        }
+    ), required=True)

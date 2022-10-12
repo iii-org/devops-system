@@ -242,6 +242,13 @@ def row_to_dict(row):
     return ret
 
 
+def get_excalidraw_history(excalidraw_id):
+    rows = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).order_by(
+        desc(ExcalidrawHistory.updated_at)).all()
+    result_list = [row_to_dict(row) for row in rows]
+    return result_list
+
+
 def update_excalidraw_history(excalidraw_id):
     # database = "excalidraw"
     # user = "postgres"
@@ -285,7 +292,7 @@ def update_excalidraw_history(excalidraw_id):
                     change = True
             result_dict.update({k: v})
     if change:
-        if int(len(rows)) < 3:
+        if int(len(rows)) < 5:
             row = ExcalidrawHistory(**result_dict)
             db.session.add(row)
             db.session.commit()
@@ -293,6 +300,50 @@ def update_excalidraw_history(excalidraw_id):
             oldest_time = row_to_dict(rows[-1])["updated_at"]
             ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).filter_by(updated_at=oldest_time).update(result_dict)
             db.session.commit()
+
+
+def excalidraw_version_restore(excalidraw_hisrory_id):
+    excalidraw_history = ExcalidrawHistory.query.filter_by(id=excalidraw_hisrory_id).first()
+    excalidraw_id = excalidraw_history.excalidraw_id
+    value = excalidraw_history.value
+    excalidraw = Excalidraw.query.filter_by(id=excalidraw_id).first()
+    project_id = excalidraw.project_id
+    restore_key = excalidraw.room
+    if project_id:
+        role.require_project_owner(get_jwt_identity()['user_id'], project_id)
+    # database = "excalidraw"
+    # user = "postgres"
+    # password = "lxVN59Wfi7ua745kEIQ93Afrb"
+    # host = "10.20.0.96"
+    # port = 30503
+    database = excalidraw_get_config("excalidraw-db-database")
+    user = excalidraw_get_config("excalidraw-db-account")
+    password = excalidraw_get_config("excalidraw-db-password")
+    host = excalidraw_get_config("excalidraw-db-host")
+    port = excalidraw_get_config("excalidraw-db-port")
+    conn = psycopg2.connect(
+        database=database,
+        user=user,
+        password=password,
+        host=host,
+        port=port
+    )
+    value = str(value).replace('\'', '\"').replace('None', 'null')
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"""
+            UPDATE public.keyv
+            SET value= '{value}'
+            WHERE key like '%{restore_key}';
+            """
+        )
+        conn.commit()
+    except Exception as e:
+        print(str(e))
+        logger.logger.info(f"Excalidraw restore by key:{restore_key},value:{value} not success. Error:{e}")
+    finally:
+        conn.close()
 
 
 def sync_excalidraw_db():
