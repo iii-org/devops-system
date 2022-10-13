@@ -270,16 +270,14 @@ class CheckMarx(object):
         if rows:
             df = pd.DataFrame([CheckMarx.to_json(row, project_id) for row in rows])
             df.sort_values(by="run_at", ascending=False)
-            df_five_download = df[(df.status == "Finished") & (df.report_id != -1)][0:5]
-            df.report_id = -1
-            df.loc[df_five_download.index] = df_five_download
+            df_five_download = df[(df.report_id != -1)][0:5]
             update_list = list(df.drop(list(df_five_download.index)).scan_id)
             for i in update_list:
                 Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).filter_by(scan_id=i).update({"report_id": -1})
             db.session.commit()
-            rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(
+            updated_rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(
                 desc(Model.run_at)).all()
-            ret = [CheckMarx.to_json(row, project_id) for row in rows]
+            ret = [CheckMarx.to_json(row, project_id) for row in updated_rows]
             # df = df_five_download.append(df[df["report_id"] == -1].sort_values(by="run_at", ascending=False))
             # ret = [value for key, value in df.T.to_dict().items()]
         return ret
@@ -472,11 +470,15 @@ class CronjobScan(Resource):
 
                 if status_id in [1, 2, 3]:
                     logger.logger.info(f"Updating checkmarx scan: {id}'s status")
-                    checkmarx.register_report(id)
+                    # checkmarx.register_report(id)
                     logger.logger.info(f"Updating checkmarx scan: {id}'s report")
 
                 time.sleep(1)
             except Exception as e:
                 logger.logger.exception(str(e))
+        rows = Model.query.all()
+        id_list = [row.scan_id for row in rows]
+        for id in id_list:
+            checkmarx.register_report(id)
         return util.success()
 
