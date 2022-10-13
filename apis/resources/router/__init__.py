@@ -4,6 +4,7 @@ import model
 from model import UIRouteData
 
 key_return_json = ["parameter"]
+MAX_DEPTH: int = 50
 
 
 def row_to_dict(row):
@@ -59,7 +60,13 @@ def get_ui_route(node: UIRouteData, role_name: str) -> dict[str, ...]:
         child: UIRouteData = node.children_nodes[0].first_node
         child_routes.append(get_ui_route(child, role_name))
 
+        depth: int = 0
         while child.next_node:
+            depth += 1
+
+            if depth > MAX_DEPTH:
+                break
+
             child: UIRouteData = child.next_node
             child_routes.append(get_ui_route(child, role_name))
 
