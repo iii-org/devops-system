@@ -14,6 +14,7 @@ Steps to modify the ORM model:
 If you don't have the alembic.ini, copy _alembic.ini and replace the postgres uri by yourself.
 """
 import json
+from typing import Optional
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float, ARRAY, \
@@ -868,6 +869,30 @@ class UIRouteData(db.Model):
     ui_route = Column(JSON)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+
+    @property
+    def parent_node(self) -> Optional["UIRouteData"]:
+        if self.parent == 0:
+            return None
+        return self.query.filter_by(id=self.parent).first()
+
+    @property
+    def children_nodes(self) -> list["UIRouteData"]:
+        return self.query.filter_by(parent=self.id).all()
+
+    @property
+    def first_node(self) -> "UIRouteData":
+        return self.query.filter_by(parent=self.parent, old_brother=0).first()
+
+    @property
+    def prev_node(self) -> Optional["UIRouteData"]:
+        if self.old_brother == 0:
+            return None
+        return self.query.filter_by(parent=self.parent, id=self.old_brother).first()
+
+    @property
+    def next_node(self) -> Optional["UIRouteData"]:
+        return self.query.filter_by(parent=self.parent, old_brother=self.id).first()
 
 
 class MonitoringRecord(db.Model):
