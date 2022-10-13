@@ -470,11 +470,15 @@ class CronjobScan(Resource):
 
                 if status_id in [1, 2, 3]:
                     logger.logger.info(f"Updating checkmarx scan: {id}'s status")
-                    checkmarx.register_report(id)
+                    # checkmarx.register_report(id)
                     logger.logger.info(f"Updating checkmarx scan: {id}'s report")
 
                 time.sleep(1)
             except Exception as e:
                 logger.logger.exception(str(e))
+        rows = Model.query.all()
+        id_list = [row.scan_id for row in rows]
+        for id in id_list:
+            checkmarx.register_report(id)
         return util.success()
 
