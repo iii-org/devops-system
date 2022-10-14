@@ -1,32 +1,25 @@
-from flask_jwt_extended import get_jwt_identity
+from typing import Any
 
-import model
-from model import UIRouteData
+from flask_jwt_extended import get_jwt_identity
+from sqlalchemy.engine import Row
+
+from model import PluginSoftware, UIRouteData
 
 key_return_json = ["parameter"]
 MAX_DEPTH: int = 50
 
 
-def row_to_dict(row):
-    ret = {}
-    if row is None:
-        return row
-    ret["id"] = getattr(row, "id")
-    ret["name"] = getattr(row, "name")
-    ret["disabled"] = getattr(row, "disabled")
-    return ret
-
-
-def get_plugin_software():
-    plugins = model.PluginSoftware.query.with_entities(
-        model.PluginSoftware.id,
-        model.PluginSoftware.name,
-        model.PluginSoftware.disabled,
+def get_plugin_software() -> list[dict[str, Any]]:
+    plugins: list[Row] = PluginSoftware.query.with_entities(
+        PluginSoftware.id, PluginSoftware.name, PluginSoftware.disabled
     ).all()
-    output = []
-    for plugin in plugins:
-        if plugin is not None:
-            output.append(row_to_dict(plugin))
+
+    output: list[dict[str, Any]] = [
+        {"id": plugin["id"], "name": plugin["name"], "disabled": plugin["disabled"]}
+        for plugin in plugins
+        if plugin
+    ]
+
     return output
 
 
