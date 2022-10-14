@@ -1,66 +1,68 @@
-import datetime
-import json
+from typing import Any
+
 from flask_jwt_extended import get_jwt_identity
-import model
-import plugins
-import util
-from flask_jwt_extended import get_jwt_identity
-from model import UIRouteData, db
-from sqlalchemy.sql import and_
+from sqlalchemy.engine import Row
 
-key_return_json = ['parameter']
+from model import PluginSoftware, UIRouteData
+
+key_return_json = ["parameter"]
+MAX_DEPTH: int = 50
 
 
-def row_to_dict(row):
-    ret = {}
-    if row is None:
-        return row
-    ret['id'] = getattr(row,  'id')
-    ret['name'] = getattr(row,  'name')
-    ret['disabled'] = getattr(row,  'disabled')
-    return ret
+def get_plugin_software() -> list[dict[str, Any]]:
+    plugins: list[Row] = PluginSoftware.query.with_entities(
+        PluginSoftware.id, PluginSoftware.name, PluginSoftware.disabled
+    ).all()
 
+    output: list[dict[str, Any]] = [
+        {"id": plugin["id"], "name": plugin["name"], "disabled": plugin["disabled"]}
+        for plugin in plugins
+        if plugin
+    ]
 
-def get_plugin_software():
-    plugins = model.PluginSoftware.query.with_entities(
-        model.PluginSoftware.id, model.PluginSoftware.name, model.PluginSoftware.disabled).all()
-    output = []
-    for plugin in plugins:
-        if plugin is not None:
-            output.append(row_to_dict(plugin))
     return output
 
 
-def display_by_permission():
-    ui_route_list = []
-    role_name = get_jwt_identity()['role_name']
-    i = 0
-    times = 0
-    while True:
-        ui_route = UIRouteData.query.filter_by(parent=0, role=role_name, old_brother=i).first()
-        if ui_route is None or times > 50:
-            break
-        ui_route_list.append(get_ui_route(ui_route, role_name))
-        i = ui_route.id
-        times += 1
-    # get error page
-    error_route = UIRouteData.query.filter_by(role="").first()
-    ui_route_list.append(error_route.ui_route)
-    return ui_route_list
+def get_error_route() -> dict[str, ...]:
+    error_route: UIRouteData = UIRouteData.query.filter_by(role="").first()
+    return error_route.ui_route
 
 
-def get_ui_route(ui_route, role_name):
-    children = []
-    i = 0
-    times = 0
-    while True:
-        child_route = UIRouteData.query.filter_by(parent=ui_route.id, role=role_name, old_brother=i).first()
-        if child_route is None or times > 50:
-            break
-        children.append(get_ui_route(child_route, role_name))
-        i = child_route.id
-        times += 1
-    ui_route_dict = ui_route.ui_route
-    if len(children) > 0:
-        ui_route_dict['children'] = children
-    return ui_route_dict
+def display_by_permission() -> list[dict[str, ...]]:
+    role_name: str = get_jwt_identity()["role_name"]
+
+    route_list: list[dict[str, ...]] = []
+    node: UIRouteData = UIRouteData.query.filter_by(
+        parent=0, role=role_name, old_brother=0
+    ).first()
+    route_list.append(get_ui_route(node, role_name))
+
+    while node.next_node:
+        node: UIRouteData = node.next_node
+        route_list.append(get_ui_route(node, role_name))
+
+    route_list.append(get_error_route())
+    return route_list
+
+
+def get_ui_route(node: UIRouteData, role_name: str) -> dict[str, ...]:
+    route: dict[str, ...] = node.ui_route
+
+    if node.children_nodes:
+        child_routes: list[dict[str, ...]] = []
+        child: UIRouteData = node.children_nodes[0].first_node
+        child_routes.append(get_ui_route(child, role_name))
+
+        depth: int = 0
+        while child.next_node:
+            depth += 1
+
+            if depth > MAX_DEPTH:
+                break
+
+            child: UIRouteData = child.next_node
+            child_routes.append(get_ui_route(child, role_name))
+
+        route["children"] = child_routes
+
+    return route
