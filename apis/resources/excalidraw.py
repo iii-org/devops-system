@@ -305,6 +305,7 @@ def update_excalidraw_history(excalidraw_id):
 def excalidraw_version_restore(excalidraw_hisrory_id):
     excalidraw_history = ExcalidrawHistory.query.filter_by(id=excalidraw_hisrory_id).first()
     excalidraw_id = excalidraw_history.excalidraw_id
+    update_excalidraw_history(excalidraw_id)
     value = excalidraw_history.value
     excalidraw = Excalidraw.query.filter_by(id=excalidraw_id).first()
     project_id = excalidraw.project_id
