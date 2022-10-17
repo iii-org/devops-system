@@ -28,6 +28,7 @@ from flask_jwt_extended import get_jwt_identity
 import resources.pipeline as pipeline
 from resources.activity import record_activity
 from enums.action_type import ActionType
+from flask import send_file, make_response
 
 
 def sd_start_test(args):
@@ -308,7 +309,8 @@ def sort_convert_result_to_df(project_id):
     df_sorted = pd.DataFrame(sorted_list)
     df_sorted.columns = df_sorted.loc[0]
     df_sorted = df_sorted.drop(0)
-    np.savetxt(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-result.txt", df_sorted, fmt='%s')
+    df_sorted.to_excel(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-result.xlsx")
+    # np.savetxt(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-result.txt", df_sorted, fmt='%s', header=','.join(df_sorted.columns.tolist()))
     return df_sorted
 
 
@@ -455,6 +457,17 @@ def delete_project_all_config_file(project_id):
     gitlab.gitlab.gl_operate_multi_files(project, delete_list, "delete all the _sideex.json files by api", "")
 
 
+def download_pict_result(project_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    file_path = f"devops-data/project-data/{project_name}/pict"
+    file_name = f"_{get_jwt_identity()['user_id']}-result.xlsx"
+    # file_name = "_1-result.xlsx"
+    response = make_response(send_file(f"../{file_path}/{file_name}"))
+    response.headers["Content-Type"] = "application/octet-stream"
+    response.headers["Content-Disposition"] = f"attachment; filename={file_name}"
+    return response
+
+
 class SideexJsonfileVariable(Resource):
     @jwt_required()
     @use_kwargs(router_model.SideexGetVariableRes, location="json")
@@ -485,6 +498,12 @@ class SideexDeleteAllfile(Resource):
     def delete(self, project_id):
         delete_project_all_config_file(project_id)
         return util.success()
+
+
+class DownloadPictResult(Resource):
+    @jwt_required()
+    def get(self, project_id):
+        return download_pict_result(project_id)
 
 
 class SideexReport(Resource):
