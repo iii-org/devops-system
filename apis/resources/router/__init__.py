@@ -1,9 +1,9 @@
-from typing import Any
+from typing import Any, Optional
 
 from flask_jwt_extended import get_jwt_identity
 from sqlalchemy.engine import Row
 
-from model import PluginSoftware, UIRouteData
+from model import PluginSoftware, UIRouteData, db
 
 key_return_json = ["parameter"]
 MAX_DEPTH: int = 50
@@ -66,3 +66,101 @@ def get_ui_route(node: UIRouteData, role_name: str) -> dict[str, ...]:
         route["children"] = child_routes
 
     return route
+
+
+def move_node(original: UIRouteData, move_to: Optional[UIRouteData]) -> None:
+    """
+    將 original 移動到 move_to 的位置
+
+    :param original: 原始節點
+    :param move_to: 移動到的節點位置
+    :return:
+    """
+    _prev: UIRouteData = original.prev_node
+    _next: UIRouteData = original.next_node
+
+    # Step 1: Update next node's link
+    if _next:
+        _next.prev_node = _prev
+
+    # Step 2: Check if the move_to is not None, if None, means move to the end
+    if move_to:
+        # Step 2.1: Move node to the new position
+        original.prev_node = move_to.prev_node
+
+        # Step 2.2: Add move_to node position point to the original node
+        move_to.prev_node = original
+    else:
+        # Step 2.3: If move_to is None, means move to the end
+        original.prev_node = _next.last_node
+
+
+def update_node_index(node: UIRouteData, index: int) -> None:
+    """
+    將 node 移動到指定 index 的位置
+
+    :param node: 要移動的 node
+    :param index: 要移動到的 index
+    :return:
+    """
+    current_index: int = node.node_index
+
+    # Index value check
+    if index < 1:
+        raise ValueError("Index must be greater than 0")
+    if index > node.node_counts:
+        raise ValueError("Index must be less than or equal to node counts")
+
+    # Do nothing if index is the same
+    if index == current_index:
+        return
+
+    # Calculate the move distance
+    diff: int = current_index - index
+
+    if diff > 0:
+        _move: UIRouteData = node
+        for _ in range(diff):
+            _move = _move.prev_node
+
+    elif diff < 0:
+        _move: UIRouteData = node
+        for _ in range(abs(diff) + 1):
+            _move = _move.next_node
+    else:
+        raise ValueError("diff is neither greater than 0 nor less than 0")
+
+    # Move node to the new position
+    move_node(node, _move)
+
+    # Commit the change to database
+    db.session.commit()
+
+
+def print_list(node: UIRouteData) -> None:
+    """
+    除錯用 print 整條 UI Route List 的連結資訊。
+
+    :param node: 想查看的 node
+    :return:
+    """
+    checker: UIRouteData = node.first_node
+    print("(head)", end=" ")
+
+    if not checker.prev_node:
+        print("<", end="")
+    print("=>", end=" ")
+    print(checker.id, end=" ")
+
+    while checker.next_node:
+        next_node = checker.next_node
+
+        if next_node.prev_node == checker:
+            print("<", end="")
+        print("=>", end=" ")
+        print(next_node.id, end=" ")
+
+        checker = next_node
+
+    if not checker.next_node:
+        print("<=> (tail)")

@@ -871,6 +871,14 @@ class UIRouteData(db.Model):
     updated_at = Column(DateTime)
 
     @property
+    def is_child(self) -> bool:
+        return self.parent != 0
+
+    @property
+    def is_parent(self) -> bool:
+        return self.query.filter_by(parent=self.id).count() > 0
+
+    @property
     def parent_node(self) -> Optional["UIRouteData"]:
         if self.parent == 0:
             return None
@@ -879,6 +887,21 @@ class UIRouteData(db.Model):
     @property
     def children_nodes(self) -> list["UIRouteData"]:
         return self.query.filter_by(parent=self.id).all()
+
+    @property
+    def node_counts(self) -> int:
+        return self.query.filter_by(parent=self.parent, role=self.role).count()
+
+    @property
+    def node_index(self) -> int:
+        checker: "UIRouteData" = self.first_node
+        index: int = 1
+
+        while checker.id != self.id:
+            checker = checker.next_node
+            index += 1
+
+        return index
 
     @property
     def first_node(self) -> "UIRouteData":
@@ -890,9 +913,35 @@ class UIRouteData(db.Model):
             return None
         return self.query.filter_by(parent=self.parent, id=self.old_brother).first()
 
+    @prev_node.setter
+    def prev_node(self, node: Optional["UIRouteData"]):
+        if node:
+            self.old_brother = node.id
+        else:
+            self.old_brother = 0
+
     @property
     def next_node(self) -> Optional["UIRouteData"]:
         return self.query.filter_by(parent=self.parent, old_brother=self.id).first()
+
+    @next_node.setter
+    def next_node(self, node: Optional["UIRouteData"]):
+        """因為資料庫只有存 old_brother 因此，如果要設定 next_node，必須先設定 prev_node"""
+        if node:
+            node.prev_node = self
+        else:
+            if self.next_node:
+                self.next_node.prev_node = None
+
+    @property
+    def last_node(self) -> "UIRouteData":
+        # Time complexity: O(n)
+        node: "UIRouteData" = self
+
+        while node.next_node:
+            node = node.next_node
+
+        return node
 
 
 class MonitoringRecord(db.Model):
