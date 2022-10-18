@@ -226,9 +226,11 @@ def get_setting_file(project_id, filename):
                 result_dict.update({k: []})
     if result_dict:
         result_list = [{"name": k, "type": str(type(v[0])).replace('<class \'', '').replace('\'>', '') if v != [] else None, "value": v} for k, v in result_dict.items()]
+    result_file_exist = True if os.path.isfile(f'devops-data/project-data/{project_name}/pict/_{get_jwt_identity()["user_id"]}-result.xlsx') else False
     return_dict = {
           "var": result_list,
-          "rule": setting_data['rule'] if setting_data else []
+          "rule": setting_data['rule'] if setting_data else [],
+          "result_file_exist": result_file_exist
         }
     return return_dict
 
