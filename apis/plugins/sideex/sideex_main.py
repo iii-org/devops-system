@@ -226,7 +226,7 @@ def get_setting_file(project_id, filename):
                 result_dict.update({k: []})
     if result_dict:
         result_list = [{"name": k, "type": str(type(v[0])).replace('<class \'', '').replace('\'>', '') if v != [] else None, "value": v} for k, v in result_dict.items()]
-    result_file_exist = True if os.path.isfile(f'devops-data/project-data/{project_name}/pict/_{get_jwt_identity()["user_id"]}-result.xlsx') else False
+    result_file_exist = True if os.path.isfile(f'devops-data/project-data/{project_name}/pict/result.xlsx') else False
     return_dict = {
           "var": result_list,
           "rule": setting_data['rule'] if setting_data else [],
@@ -311,7 +311,7 @@ def sort_convert_result_to_df(project_id):
     df_sorted = pd.DataFrame(sorted_list)
     df_sorted.columns = df_sorted.loc[0]
     df_sorted = df_sorted.drop(0)
-    df_sorted.to_excel(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-result.xlsx")
+    df_sorted.to_excel(f"devops-data/project-data/{project_name}/pict/result.xlsx")
     # np.savetxt(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-result.txt", df_sorted, fmt='%s', header=','.join(df_sorted.columns.tolist()))
     return df_sorted
 
@@ -462,12 +462,11 @@ def delete_project_all_config_file(project_id):
 def download_pict_result(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
     file_path = f"devops-data/project-data/{project_name}/pict"
-    file_name = f"_{get_jwt_identity()['user_id']}-result.xlsx"
-    # file_name = "_1-result.xlsx"
-    response = make_response(send_file(f"../{file_path}/{file_name}"))
-    response.headers["Content-Type"] = "application/octet-stream"
-    response.headers["Content-Disposition"] = f"attachment; filename={file_name}"
-    return response
+    file_name = "result.xlsx"
+    df = pd.read_excel(f"{file_path}/{file_name}", index_col=0)
+    df_dict = df.fillna("").T.to_dict()
+    result_list = [v for k, v in df_dict.items()]
+    return result_list
 
 
 class SideexJsonfileVariable(Resource):
