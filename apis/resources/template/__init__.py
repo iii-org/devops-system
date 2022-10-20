@@ -761,6 +761,10 @@ def update_nonexist_key_rancher_file(repository_id: int):
 def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
     update_nonexist_key_rancher_file(repository_id)
     initial_info = initial_rancher_pipline_info(repository_id)
+    disable_list = []
+    if PluginSoftware.query.filter_by(disabled=True).first():
+        rows = PluginSoftware.query.filter_by(disabled=True).all()
+        disable_list = [row.name for row in rows]
 
     if not initial_info:
         return initial_info
@@ -795,7 +799,7 @@ def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
             else:
                 single_stage["branches"] = include_branches
 
-        if single_stage not in return_stages and single_stage.get("name", False):
+        if single_stage not in return_stages and single_stage.get("name", False) and single_stage.get("name") not in disable_list:
             # 沒有 name 的 stage 表示是 initial-pipeline 的 stage
             return_stages.append(single_stage)
 
