@@ -505,6 +505,10 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
     project_branches = pj.branches.list(all=True)
     all_branch = [_.name for _ in project_branches]
     stages_info = tm_get_pipeline_default_branch(repository_id, is_default_branch=False)
+    disable_list = []
+    if PluginSoftware.query.filter_by(disabled=True).first():
+        rows = PluginSoftware.query.filter_by(disabled=True).all()
+        disable_list = [row.name for row in rows]
 
     if not stages_info:
         return out
@@ -530,6 +534,10 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
                         duplicate_tools.setdefault(f'{yaml_stage["key"]},{yaml_stage["name"]}', []).append(branch.name)
                 testing_tools.append(soft_key_and_status)
         out[branch.name]["testing_tools"] = testing_tools
+        if disable_list != []:
+            for index, value in enumerate(testing_tools):
+                if value['key'] in disable_list:
+                    del testing_tools[index]
 
     # Put duplicate tools to the end of the list(FrontEnd needs right order and same length)
     for key, branch_list in duplicate_tools.items():

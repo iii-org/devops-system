@@ -13,13 +13,15 @@ def get_plugin_software() -> list[dict[str, Any]]:
     plugins: list[Row] = PluginSoftware.query.with_entities(
         PluginSoftware.id, PluginSoftware.name, PluginSoftware.disabled
     ).all()
-
+    disable_list = []
+    if PluginSoftware.query.filter_by(disabled=True).first():
+        rows = PluginSoftware.query.filter_by(disabled=True).all()
+        disable_list = [row.name for row in rows]
     output: list[dict[str, Any]] = [
         {"id": plugin["id"], "name": plugin["name"], "disabled": plugin["disabled"]}
         for plugin in plugins
-        if plugin
+        if plugin and plugin["name"] not in disable_list
     ]
-
     return output
 
 
