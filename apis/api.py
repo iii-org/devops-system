@@ -647,6 +647,9 @@ def start_prod():
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
         kubernetesClient.create_iiidevops_env_secret_namespace()
+        with app.app_context():  # Prevent error appear(Working outside of application context.)
+            kubernetesClient.create_cron_secret()
+
         threading.Thread(target=kubernetesClient.apply_cronjob_yamls).start()
         logger.logger.info('Apply k8s-yaml cronjob.')
 
@@ -659,8 +662,6 @@ def start_prod():
 
         plugins.create_plugins_api_router(api, add_resource)
         plugins.sync_plugins_in_db_and_code()
-        with app.app_context():  # Prevent error appear(Working outside of application context.)
-            kubernetesClient.create_cron_secret()
         return app
     except Exception as e:
         ret = internal_error(e)

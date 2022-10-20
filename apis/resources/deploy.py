@@ -690,7 +690,8 @@ def create_deployment_object(app_name,
                              port,
                              registry_secret_name,
                              resource=None,
-                             image=None):
+                             image=None,
+                             env=None):
     # Configured Pod template container
     default_image_policy = 'Always'
     if image is not None and image.get('policy', None) is not None:
@@ -701,6 +702,12 @@ def create_deployment_object(app_name,
         ports=[k8s_client.V1ContainerPort(container_port=port)],
         resources=init_resource_requirements(resource),
         image_pull_policy=default_image_policy)
+    if env is not None:
+        env_list = [
+            k8s_client.V1EnvVar(name=key, value=value) for 
+            key, value in env.items()]
+        container.env = env_list
+
     # Create and configure a spec section
     template = k8s_client.V1PodTemplateSpec(
         metadata=k8s_client.V1ObjectMeta(labels={"app": app_name}),
@@ -1024,12 +1031,19 @@ class DeployDeployment:
     def get_deployment_info(self):
         return {'deployment_name': self.deployment_name}
 
+    def get_env(self):
+        env = None
+        environments = json.loads(self.app.k8s_yaml).get('environments', None)
+        if environments is not None:
+            env = {environment["key"]: environment["value"] for environment in environments}
+        return env
+
     def deployment_body(self):
         return create_deployment_object(
             self.name, self.deployment_name, self.harbor_info.get('image_uri'),
             self.service_info.get('container_port'),
             self.registry_secret_info.get('registry_secret_name'),
-            self.k8s_info.get('resources'), self.k8s_info.get('image'))
+            self.k8s_info.get('resources'), self.k8s_info.get('image'), self.get_env())
 
 
 class K8sDeployment:
