@@ -519,6 +519,8 @@ def harbor_nfs_storage_remain_limit():
         usage = node_storage_info.get("Usage")
         if usage is None:
             error_nodes_message.append(f"Can not get node {node_storage_info.get('node')} nfs usage.")
+        elif usage == "":
+            continue
         elif int(usage.replace("%", "")) > 75:
             error_nodes_message.append(
                 f"Node {node_storage_info.get('node')} nfs Folder Used percentage({usage}) exceeded 75%!")
