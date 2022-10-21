@@ -269,7 +269,7 @@ class CheckMarx(object):
         ret = []
         if rows:
             df = pd.DataFrame([CheckMarx.to_json(row, project_id) for row in rows])
-            df.sort_values(by="run_at", ascending=False)
+            df.sort_values(by="run_at", ascending=False, inplace=True)
             df_five_download = df[0:5]
             update_list = list(df.drop(list(df_five_download.index)).scan_id)
             # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
