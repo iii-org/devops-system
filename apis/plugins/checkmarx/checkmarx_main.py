@@ -484,8 +484,8 @@ class CronjobScan(Resource):
             rows = Model.query.filter_by(repo_id=id).order_by(desc(Model.scan_id)).all()
             if rows:
                 df = pd.DataFrame([row_to_dict(row) for row in rows])
-                df.sort_values(by="run_at", ascending=False)
-                df_five_download = df[(df.report_id != -1)][0:5]
+                df.sort_values(by="run_at", ascending=False, inplace=True)
+                df_five_download = df[0:5]
                 # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
                 for i in list(df_five_download.scan_id):
                     Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update(
