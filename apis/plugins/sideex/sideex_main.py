@@ -502,7 +502,7 @@ def delete_project_all_config_file(project_id):
     gitlab.gitlab.gl_operate_multi_files(project, delete_list, "delete all the _sideex.json files by api", "")
 
 
-def download_pict_result(project_id):
+def history_pict_result(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
     file_path = f"devops-data/project-data/{project_name}/pict"
     file_name = "result.xlsx"
@@ -544,10 +544,10 @@ class SideexDeleteAllfile(Resource):
         return util.success()
 
 
-class DownloadPictResult(Resource):
+class HistoryPictResult(Resource):
     @jwt_required()
     def get(self, project_id):
-        return download_pict_result(project_id)
+        return history_pict_result(project_id)
 
 
 class SideexReport(Resource):
