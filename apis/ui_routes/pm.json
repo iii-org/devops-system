@@ -416,133 +416,6 @@
             "Project Manager"
           ]
         }
-      },
-      {
-        "path": "kubernetesResources",
-        "component": "layout/components/parentBlank",
-        "name": "KubernetesResources",
-        "redirect": {
-          "name": "KubernetesResource"
-        },
-        "meta": {
-          "title": "KubernetesResources",
-          "roles": [
-            "Project Manager"
-          ]
-        },
-        "children": [
-          {
-            "path": "",
-            "name": "KubernetesResource",
-            "component": "views/Progress/KubernetesResources",
-            "hidden": true,
-            "meta": {
-              "roles": [
-                "Project Manager"
-              ]
-            }
-          },
-          {
-            "path": "podsLists",
-            "hidden": true,
-            "component": "layout/components/parentBlank",
-            "name": "PodsLists",
-            "redirect": {
-              "name": "PodsList"
-            },
-            "meta": {
-              "title": "PodsLists",
-              "roles": [
-                "Project Manager"
-              ]
-            },
-            "children": [
-              {
-                "path": "",
-                "name": "PodsList",
-                "hidden": true,
-                "component": "views/Progress/KubernetesResources/components/PodsList",
-                "meta": {
-                  "roles": [
-                    "Project Manager"
-                  ]
-                }
-              },
-              {
-                "path": "podExecuteShell",
-                "name": "PodExecuteShell",
-                "hidden": true,
-                "component": "views/Progress/KubernetesResources/components/PodsList/components/PodExecuteShell",
-                "meta": {
-                  "title": "PodExecuteShell",
-                  "roles": [
-                    "Project Manager"
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "path": "serviceList",
-            "name": "ServiceList",
-            "hidden": true,
-            "component": "views/Progress/KubernetesResources/components/ServiceList",
-            "meta": {
-              "title": "ServiceList",
-              "roles": [
-                "Project Manager"
-              ]
-            }
-          },
-          {
-            "path": "secretList",
-            "name": "SecretList",
-            "hidden": true,
-            "component": "views/Progress/KubernetesResources/components/SecretList",
-            "meta": {
-              "title": "SecretList",
-              "roles": [
-                "Project Manager"
-              ]
-            }
-          },
-          {
-            "path": "configmapsList",
-            "name": "ConfigMapsList",
-            "hidden": true,
-            "component": "views/Progress/KubernetesResources/components/ConfigMapsList",
-            "meta": {
-              "title": "ConfigMapsList",
-              "roles": [
-                "Project Manager"
-              ]
-            }
-          },
-          {
-            "path": "deploymentList",
-            "name": "DeploymentList",
-            "hidden": true,
-            "component": "views/Progress/KubernetesResources/components/DeploymentList",
-            "meta": {
-              "title": "DeploymentList",
-              "roles": [
-                "Project Manager"
-              ]
-            }
-          },
-          {
-            "path": "ingressesList",
-            "name": "IngressesList",
-            "hidden": true,
-            "component": "views/Progress/KubernetesResources/components/IngressesList",
-            "meta": {
-              "title": "IngressesList",
-              "roles": [
-                "Project Manager"
-              ]
-            }
-          }
-        ]
       }
     ]
   },
@@ -551,7 +424,7 @@
     "name": "Test",
     "component": "layout",
     "redirect": {
-      "name": "testPlans"
+      "name": "TestFile"
     },
     "meta": {
       "title": "TestManagement",
@@ -573,54 +446,15 @@
         }
       },
       {
-        "path": "testPlans",
-        "name": "TestPlans",
-        "component": "layout/components/parentBlank",
-        "redirect": {
-          "name": "TestPlan"
-        },
+        "path": "testPlan",
+        "name": "TestPlan",
+        "component": "views/Test/TestPlan",
         "meta": {
+          "title": "TestPlan",
           "roles": [
             "Project Manager"
           ]
-        },
-        "children": [
-          {
-            "path": "",
-            "name": "TestPlan",
-            "component": "views/Test/TestPlan",
-            "meta": {
-              "title": "TestPlan",
-              "roles": [
-                "Project Manager"
-              ]
-            }
-          },
-          {
-            "path": "create",
-            "name": "CreateTestPlan",
-            "hidden": true,
-            "component": "views/Project/IssueDetail",
-            "meta": {
-              "title": "IssueDetail",
-              "roles": [
-                "Project Manager"
-              ]
-            }
-          },
-          {
-            "path": ":issueId",
-            "name": "TestPlanDetail",
-            "hidden": true,
-            "component": "views/Project/IssueDetail",
-            "meta": {
-              "title": "IssueDetail",
-              "roles": [
-                "Project Manager"
-              ]
-            }
-          }
-        ]
+        }
       }
     ]
   },
@@ -648,7 +482,8 @@
           "roles": [
             "Project Manager"
           ]
-        }
+        },
+        "hidden": false
       },
       {
         "path": "checkmarx",
@@ -659,7 +494,31 @@
           "roles": [
             "Project Manager"
           ]
+        },
+        "hidden": true
+      },
+      {
+        "path": "clair",
+        "name": "DockerImage",
+        "component": "views/Scan/DockerImage",
+        "meta": {
+          "title": "DockerImage",
+          "roles": [
+            "Project Manager"
+          ]
         }
+      },
+      {
+        "path": "sbom",
+        "name": "Sbom",
+        "component": "views/Scan/Sbom",
+        "meta": {
+          "title": "Sbom",
+          "roles": [
+            "Project Manager"
+          ]
+        },
+        "hidden": true
       },
       {
         "path": "zap",
@@ -670,7 +529,8 @@
           "roles": [
             "Project Manager"
           ]
-        }
+        },
+        "hidden": false
       },
       {
         "path": "cmas",
@@ -681,7 +541,8 @@
           "roles": [
             "Project Manager"
           ]
-        }
+        },
+        "hidden": true
       },
       {
         "path": "webinspect",
@@ -696,6 +557,7 @@
             "Project Manager"
           ]
         },
+        "hidden": true,
         "children": [
           {
             "path": "",
@@ -710,11 +572,11 @@
           },
           {
             "path": "report/:scanId",
-            "name": "WebinspectReport",
+            "name": "WIEReportViewer",
             "component": "views/Scan/WIEReportViewer",
             "hidden": true,
             "meta": {
-              "title": "WebInspectReport",
+              "title": "WIEReportViewer",
               "roles": [
                 "Project Manager"
               ]
@@ -735,6 +597,7 @@
             "Project Manager"
           ]
         },
+        "hidden": false,
         "children": [
           {
             "path": "",
@@ -782,25 +645,15 @@
           "roles": [
             "Project Manager"
           ]
-        }
-      },
-      {
-        "path": "clair",
-        "name": "DockerImage",
-        "component": "views/Scan/DockerImage",
-        "meta": {
-          "title": "DockerImage",
-          "roles": [
-            "Project Manager"
-          ]
-        }
+        },
+        "hidden": false
       }
     ]
   },
   {
     "path": "/systemResource",
     "component": "layout",
-    "name": "System Resource",
+    "name": "SystemResource",
     "redirect": {
       "name": "PluginResource"
     },
@@ -872,6 +725,122 @@
                   "title": "Artifacts",
                   "roles": [
                     "Project Manager"
+                  ]
+                }
+              },
+              {
+                "path": "podsLists",
+                "hidden": true,
+                "component": "layout/components/parentBlank",
+                "name": "PodsLists",
+                "redirect": {
+                  "name": "PodsList"
+                },
+                "meta": {
+                  "title": "PodsLists",
+                  "roles": [
+                    "Engineer",
+                    "Project Manager",
+                    "Administrator"
+                  ]
+                },
+                "children": [
+                  {
+                    "path": "",
+                    "name": "PodsList",
+                    "hidden": true,
+                    "component": "views/SystemResource/PluginResource/components/PodsList",
+                    "meta": {
+                      "roles": [
+                        "Engineer",
+                        "Project Manager",
+                        "Administrator"
+                      ]
+                    }
+                  },
+                  {
+                    "path": "podExecuteShell",
+                    "name": "PodExecuteShell",
+                    "hidden": true,
+                    "component": "views/SystemResource/PluginResource/components/PodsList/components/PodExecuteShell",
+                    "meta": {
+                      "title": "PodExecuteShell",
+                      "roles": [
+                        "Engineer",
+                        "Project Manager",
+                        "Administrator"
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "path": "serviceList",
+                "name": "ServiceList",
+                "hidden": true,
+                "component": "views/SystemResource/PluginResource/components/ServiceList",
+                "meta": {
+                  "title": "ServiceList",
+                  "roles": [
+                    "Engineer",
+                    "Project Manager",
+                    "Administrator"
+                  ]
+                }
+              },
+              {
+                "path": "secretList",
+                "name": "SecretList",
+                "hidden": true,
+                "component": "views/SystemResource/PluginResource/components/SecretList",
+                "meta": {
+                  "title": "SecretList",
+                  "roles": [
+                    "Engineer",
+                    "Project Manager",
+                    "Administrator"
+                  ]
+                }
+              },
+              {
+                "path": "configmapsList",
+                "name": "ConfigMapsList",
+                "hidden": true,
+                "component": "views/SystemResource/PluginResource/components/ConfigMapsList",
+                "meta": {
+                  "title": "ConfigMapsList",
+                  "roles": [
+                    "Engineer",
+                    "Project Manager",
+                    "Administrator"
+                  ]
+                }
+              },
+              {
+                "path": "deploymentList",
+                "name": "DeploymentList",
+                "hidden": true,
+                "component": "views/SystemResource/PluginResource/components/DeploymentList",
+                "meta": {
+                  "title": "DeploymentList",
+                  "roles": [
+                    "Engineer",
+                    "Project Manager",
+                    "Administrator"
+                  ]
+                }
+              },
+              {
+                "path": "ingressesList",
+                "name": "IngressesList",
+                "hidden": true,
+                "component": "views/SystemResource/PluginResource/components/IngressesList",
+                "meta": {
+                  "title": "IngressesList",
+                  "roles": [
+                    "Engineer",
+                    "Project Manager",
+                    "Administrator"
                   ]
                 }
               }
@@ -989,6 +958,33 @@
         "name": "DockerReport",
         "meta": {
           "title": "DockerReport",
+          "roles": [
+            "Project Manager"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "path": "/sbom-report",
+    "name": "SbomReports",
+    "component": "layout",
+    "redirect": {
+      "name": "SbomReport"
+    },
+    "hidden": true,
+    "meta": {
+      "roles": [
+        "Project Manager"
+      ]
+    },
+    "children": [
+      {
+        "path": ":projectId/:commitBranch/:commitId/:sbomId",
+        "component": "views/Scan/Sbom/components/SbomReport",
+        "name": "SbomReport",
+        "meta": {
+          "title": "SbomReport",
           "roles": [
             "Project Manager"
           ]

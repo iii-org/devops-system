@@ -461,6 +461,14 @@ def is_json(content):
         return None
 
 
+def model_insert_default_value(db_name, data_list):
+    from model import db
+    for data in data_list:
+        new = db_name(**data)
+        db.session.add(new)
+        db.session.commit()
+
+    
 class CommonResponse(Schema):
     message = fields.Str(required=True)
 
