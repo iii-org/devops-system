@@ -1,4 +1,5 @@
 from typing import Any, Optional
+from xmlrpc.client import Boolean
 
 from flask_jwt_extended import get_jwt_identity
 from sqlalchemy.engine import Row
@@ -166,3 +167,25 @@ def print_list(node: UIRouteData) -> None:
 
     if not checker.next_node:
         print("<=> (tail)")
+
+
+def update_plugin_hidden(plugin_name: str, hidden: Boolean) -> None:
+    from time import sleep 
+    plugin_name_mapping = {
+        "checkmarx": "Checkmarx",
+        "cmas": "Cmas",
+        "postman": "Postmans",
+        "webinspect": "Webinspects",
+        "zap": "Zap",
+        "sbom": "Sbom",
+        "sonarqube": "Sonarqube",
+        "sideex": "Sideex"
+    }
+    plugin_name = plugin_name_mapping[plugin_name]
+    ui_route_obj_list = UIRouteData.query.filter_by(name=plugin_name).all()
+    for ui_route_obj in ui_route_obj_list:
+        ui_route_value = ui_route_obj.ui_route
+        ui_route_value["hidden"] = hidden
+        ui_route_obj.ui_route = ui_route_value
+        db.session.commit()
+        sleep(0.25)
