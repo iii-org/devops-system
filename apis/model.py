@@ -1119,3 +1119,12 @@ class UpdatePasswordError(db.Model):
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
     server = Column(String, nullable=False)
     password = Column(String, nullable=False)
+
+
+class Pict(db.Model):
+    id = Column(Integer, primary_key=True)
+    branch = Column(String)
+    commit_id = Column(String)
+    run_at = Column(DateTime)
+    status = Column(String)
+    sideex_id = Column(Integer, ForeignKey(Sideex.id, ondelete='CASCADE'), nullable=False)
