@@ -25,10 +25,9 @@ def insert_default_value_in_lock():
 
 
 def insert_default_value_in_system_parameter():
-    # mail_setting = redmine.rm_get_mail_setting()
-    # email_address = redmine.rm_get_or_set_emission_email_address(None)
-    # mail_setting["emission_email_address"] = email_address["message"]
-    mail_setting = {"smtp_settings": {"address": "smtp.gmail.com", "authentication": ":plain", "domain": "smtp.gmail.com", "enable_starttls_auto": True, "port": 587, "password": "vxdvgfnstncsspjr", "user_name": "iiidevops.dti.iii@gmail.com"}, "emission_email_address": "iiidevops.dti.iii@gmail.com"}
+    mail_setting = redmine.rm_get_mail_setting()
+    email_address = redmine.rm_get_or_set_emission_email_address(None)
+    mail_setting["emission_email_address"] = email_address["message"]
 
     data_list = [
         {
