@@ -231,9 +231,9 @@ def initialize(db_uri):
     }
     user.create_user(args)
     logger.logger.info('Initial admin created.')
+    migrate.init()
     my_uuid = devops_version.set_deployment_uuid()
     logger.logger.info(f'Deployment UUID set as {my_uuid}.')
-    migrate.init()
     logger.logger.info('Server initialized.')
 
 

@@ -96,7 +96,7 @@ class Project(db.Model):
         User, secondary='starred_project', backref='starred_project')
     plugin_relation = relationship('ProjectPluginRelation', uselist=False)
     user_role = relationship('ProjectUserRole', back_populates='project')
-    alert = Column(Boolean)
+    alert = Column(Boolean, default=False)
     trace_order = relationship('TraceOrder', backref='project')
     is_lock = Column(Boolean, default=False)
     lock_reason = Column(String)
@@ -1123,7 +1123,6 @@ class UpdatePasswordError(db.Model):
 
 class Pict(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     branch = Column(String)
     commit_id = Column(String)
     run_at = Column(DateTime)
