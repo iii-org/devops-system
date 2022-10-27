@@ -1123,7 +1123,6 @@ class UpdatePasswordError(db.Model):
 
 class Pict(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
     branch = Column(String)
     commit_id = Column(String)
     run_at = Column(DateTime)

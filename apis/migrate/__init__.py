@@ -8,7 +8,7 @@ from migrate.upgrade_function import v1_22_upgrade
 
 # Each time you add a migration, add a version code here.
 
-VERSIONS = ['1.22.0.1']
+VERSIONS = []
 ONLY_UPDATE_DB_MODELS = ['1.22.0.1', '1.22.0.2']
 
 
@@ -72,7 +72,7 @@ def current_version():
             current = row['api_version']
         else:
             # This is a new server, so NexusVersion table scheme should match the ORM
-            current = '1.22.0.1'
+            current = '1.22.9.9'
             new = model.NexusVersion(api_version=current)
             db.session.add(new)
             db.session.commit()
@@ -82,7 +82,7 @@ def current_version():
             with (open('.api_version', 'r')) as f:
                 current = f.read()
         else:
-            current = '1.22.0.1'
+            current = '1.22.9.9'
     return current
 
 

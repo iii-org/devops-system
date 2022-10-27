@@ -170,7 +170,8 @@ def print_list(node: UIRouteData) -> None:
 
 
 def update_plugin_hidden(plugin_name: str, hidden: Boolean) -> None:
-    from time import sleep 
+    from sqlalchemy.orm.attributes import flag_modified
+    
     plugin_name_mapping = {
         "checkmarx": "Checkmarx",
         "cmas": "Cmas",
@@ -187,5 +188,5 @@ def update_plugin_hidden(plugin_name: str, hidden: Boolean) -> None:
         ui_route_value = ui_route_obj.ui_route
         ui_route_value["hidden"] = hidden
         ui_route_obj.ui_route = ui_route_value
+        flag_modified(ui_route_obj, "ui_route")
         db.session.commit()
-        sleep(0.25)
