@@ -23,15 +23,21 @@ def upgrade(version):
 
 
 def init():
-    new = model.NexusVersion(api_version=VERSIONS[-1])
+    latest_api_version = VERSIONS[-1]
+    logger.info(f'Creat NexusVersion, api_version={latest_api_version}')
+    new = model.NexusVersion(api_version=latest_api_version)
     db.session.add(new)
     db.session.commit()
 
     # For the new server, need to add some default value
     # 1.22
+    logger.info('Start insert default value in v1.22')
     v1_22_upgrade.insert_default_value_in_lock()
+    logger.info('Insert default value in Lock done')
     v1_22_upgrade.insert_default_value_in_system_parameter()
+    logger.info('Insert default value in SystemParameter done')
     ui_route_first_version()
+    logger.info('Insert default value in UiRouteData done')
 
 
 
