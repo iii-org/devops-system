@@ -8,8 +8,8 @@ from migrate.upgrade_function import v1_22_upgrade
 
 # Each time you add a migration, add a version code here.
 
-VERSIONS = ['1.22.0.1', '1.22.0.2']
-ONLY_UPDATE_DB_MODELS = ['1.22.0.1', '1.22.0.2']
+VERSIONS = ['1.22.0.1', '1.22.0.2', '1.22.0.3']
+ONLY_UPDATE_DB_MODELS = ['1.22.0.1', '1.22.0.2', '1.22.0.3']
 
 
 def upgrade(version):
