@@ -295,7 +295,7 @@ def pict_convert_result(project_id) -> list[str]:
         raise apiError.DevOpsError(404, f"{file} not found")
 
 
-def sort_convert_result_to_df(project_id):
+def sort_convert_result_to_df(project_id, branch=None, commit_id=None):
     pict_list = pict_convert_result(project_id)
     project_name = nexus.nx_get_project(id=project_id).name
     with open(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-setting_sideex.json",
@@ -313,7 +313,11 @@ def sort_convert_result_to_df(project_id):
     df_sorted = pd.DataFrame(sorted_list)
     df_sorted.columns = df_sorted.loc[0]
     df_sorted = df_sorted.drop(0)
-    df_sorted.to_excel(f"devops-data/project-data/{project_name}/pict/result.xlsx")
+    if branch and commit_id:
+        extra_path = f"/{branch}/{commit_id}/"
+    else:
+        extra_path = "/"
+    df_sorted.to_excel(f"devops-data/project-data/{project_name}/pict{extra_path}result.xlsx")
     # np.savetxt(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-result.txt", df_sorted, fmt='%s', header=','.join(df_sorted.columns.tolist()))
     return df_sorted
 
@@ -420,6 +424,23 @@ def get_current_branch_commit(project_id, rec):
     branch = pipeline_outputs['data'][rec]['branch']
     commit_id = pipeline_outputs['data'][rec]['commit']
     return branch, commit_id
+
+
+def get_pict_status(project_id):
+    row = model.Pict.query.filter_by(project_id=project_id).order_by(desc(model.Pict.id)).first()
+    branch, commit_id = row.branch, row.commit_id
+    row = model.Sideex.query.filter_by(branch=branch).filter_by(commit_id=commit_id).first()
+    finish = False
+    if row:
+        finish = True if row.status == "Finished" else False
+    status_dict = {
+        "finish": finish,
+        "branch": branch,
+        "commit_id": commit_id
+    }
+    if finish:
+        delete_json_configfile(project_id)
+    return status_dict
 
 
 def delete_json_configfile(project_id):
@@ -562,6 +583,12 @@ class GenerateResult(Resource):
     @jwt_required()
     def get(self, project_id):
         return util.success(generate_result(project_id))
+
+
+class PictStatus(Resource):
+    @jwt_required()
+    def get(self, project_id):
+        return util.success(get_pict_status(project_id))
 # --------------------- API router ---------------------
 def router(api):
     api.add_resource(Sideex, '/sideex', '/project/<sint:project_id>/sideex')
