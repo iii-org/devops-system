@@ -182,7 +182,9 @@ def update_plugin_hidden(plugin_name: str, hidden: Boolean) -> None:
         "sonarqube": "Sonarqube",
         "sideex": "Sideex"
     }
-    plugin_name = plugin_name_mapping[plugin_name]
+    plugin_name = plugin_name_mapping.get(plugin_name)
+    if plugin_name is None:
+        return 
     ui_route_obj_list = UIRouteData.query.filter_by(name=plugin_name).all()
     for ui_route_obj in ui_route_obj_list:
         ui_route_value = ui_route_obj.ui_route
