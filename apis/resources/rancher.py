@@ -343,7 +343,7 @@ class Rancher(object):
             "sourceCodeCredentialId": "{0}:{1}-gitlab-root".format(user_id,
                                                                    self.project_id.split(':')[1]),
             "repositoryUrl": repository_url,
-            "triggerWebhookPr": True,
+            "triggerWebhookPr": False,
             "triggerWebhookPush": True,
             "triggerWebhookTag": False,
         }

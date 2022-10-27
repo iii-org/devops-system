@@ -4,6 +4,7 @@ import threading
 import traceback
 from os.path import isfile
 from pathlib import Path
+import this
 
 import werkzeug
 from apispec import APISpec
