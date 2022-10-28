@@ -221,14 +221,15 @@
     "children": [
       {
         "path": "whiteboard",
-        "name": "Excalidraw",
+        "name": "Whiteboard",
         "component": "views/WhiteBoard",
         "meta": {
           "title": "Whiteboard",
           "roles": [
             "Administrator"
           ]
-        }
+        },
+        "hidden": true
       },
       {
         "path": "issueBoards",
