@@ -14,3 +14,4 @@ def router(api, add_resource):
     api.add_resource(sideex_main.HistoryPictResult, '/sideex/<sint:project_id>/history/result')
     api.add_resource(sideex_main.GenerateResult, '/sideex/<sint:project_id>/generate_result')
     api.add_resource(sideex_main.PictStatus, '/sideex/<sint:project_id>/pict/status')
+    api.add_resource(sideex_main.CheckResultFileExist, '/sideex/<sint:project_id>/result/exist')
