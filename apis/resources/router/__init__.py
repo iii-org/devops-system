@@ -180,7 +180,8 @@ def update_plugin_hidden(plugin_name: str, hidden: Boolean) -> None:
         "zap": "Zap",
         "sbom": "Sbom",
         "sonarqube": "Sonarqube",
-        "sideex": "Sideex"
+        "sideex": "Sideex",
+        "excalidraw": "Whiteboard"
     }
     plugin_name = plugin_name_mapping.get(plugin_name)
     if plugin_name is None:
