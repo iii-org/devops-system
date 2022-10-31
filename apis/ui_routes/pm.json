@@ -740,9 +740,7 @@
                 "meta": {
                   "title": "PodsLists",
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Project Manager"
                   ]
                 },
                 "children": [
@@ -753,9 +751,7 @@
                     "component": "views/SystemResource/PluginResource/components/PodsList",
                     "meta": {
                       "roles": [
-                        "Engineer",
-                        "Project Manager",
-                        "Administrator"
+                        "Project Manager"
                       ]
                     }
                   },
@@ -767,9 +763,7 @@
                     "meta": {
                       "title": "PodExecuteShell",
                       "roles": [
-                        "Engineer",
-                        "Project Manager",
-                        "Administrator"
+                        "Project Manager"
                       ]
                     }
                   }
@@ -783,9 +777,7 @@
                 "meta": {
                   "title": "ServiceList",
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Project Manager"
                   ]
                 }
               },
@@ -797,9 +789,7 @@
                 "meta": {
                   "title": "SecretList",
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Project Manager"
                   ]
                 }
               },
@@ -811,9 +801,7 @@
                 "meta": {
                   "title": "ConfigMapsList",
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Project Manager"
                   ]
                 }
               },
@@ -825,9 +813,7 @@
                 "meta": {
                   "title": "DeploymentList",
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Project Manager"
                   ]
                 }
               },
@@ -839,9 +825,7 @@
                 "meta": {
                   "title": "IngressesList",
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Project Manager"
                   ]
                 }
               }

@@ -560,9 +560,7 @@
       "title": "SystemResource",
       "icon": "el-icon-pie-chart",
       "roles": [
-        "Engineer",
-        "Project Manager",
-        "Administrator"
+        "Engineer"
       ]
     },
     "children": [
@@ -576,9 +574,7 @@
         "meta": {
           "title": "PluginResource",
           "roles": [
-            "Engineer",
-            "Project Manager",
-            "Administrator"
+            "Engineer"
           ]
         },
         "children": [
@@ -589,9 +585,7 @@
             "component": "views/SystemResource/PluginResource",
             "meta": {
               "roles": [
-                "Engineer",
-                "Project Manager",
-                "Administrator"
+                "Engineer"
               ]
             }
           },
@@ -606,9 +600,7 @@
             "meta": {
               "title": "Harbor",
               "roles": [
-                "Engineer",
-                "Project Manager",
-                "Administrator"
+                "Engineer"
               ]
             },
             "children": [
@@ -619,9 +611,7 @@
                 "component": "views/SystemResource/Harbor/ResourceHarbor",
                 "meta": {
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Engineer"
                   ]
                 }
               },
@@ -633,9 +623,7 @@
                 "meta": {
                   "title": "Artifacts",
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Engineer"
                   ]
                 }
               },
@@ -650,9 +638,7 @@
                 "meta": {
                   "title": "PodsLists",
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Engineer"
                   ]
                 },
                 "children": [
@@ -663,9 +649,7 @@
                     "component": "views/SystemResource/PluginResource/components/PodsList",
                     "meta": {
                       "roles": [
-                        "Engineer",
-                        "Project Manager",
-                        "Administrator"
+                        "Engineer"
                       ]
                     }
                   },
@@ -677,9 +661,7 @@
                     "meta": {
                       "title": "PodExecuteShell",
                       "roles": [
-                        "Engineer",
-                        "Project Manager",
-                        "Administrator"
+                        "Engineer"
                       ]
                     }
                   }
@@ -693,9 +675,7 @@
                 "meta": {
                   "title": "ServiceList",
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Engineer"
                   ]
                 }
               },
@@ -707,9 +687,7 @@
                 "meta": {
                   "title": "SecretList",
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Engineer"
                   ]
                 }
               },
@@ -721,9 +699,7 @@
                 "meta": {
                   "title": "ConfigMapsList",
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Engineer"
                   ]
                 }
               },
@@ -735,9 +711,7 @@
                 "meta": {
                   "title": "DeploymentList",
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Engineer"
                   ]
                 }
               },
@@ -749,9 +723,7 @@
                 "meta": {
                   "title": "IngressesList",
                   "roles": [
-                    "Engineer",
-                    "Project Manager",
-                    "Administrator"
+                    "Engineer"
                   ]
                 }
               }
@@ -766,9 +738,7 @@
         "meta": {
           "title": "ServiceMonitoring",
           "roles": [
-            "Engineer",
-            "Project Manager",
-            "Administrator"
+            "Engineer"
           ]
         }
       }
