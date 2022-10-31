@@ -512,6 +512,7 @@ api.add_resource(rancher.Catalogs, '/rancher/catalogs',
 api.add_resource(rancher.Catalogs_Refresh, '/rancher/catalogs_refresh')
 api.add_resource(rancher.RancherDeleteAPP, '/rancher/delete_app')
 api.add_resource(rancher.RancherCreateAPP, '/rancher/create_app')
+api.add_resource(rancher.RancherYaml, '/rancher/yaml')
 
 # Activity
 api.add_resource(activity.AllActivities, '/all_activities')

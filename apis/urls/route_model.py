@@ -45,6 +45,10 @@ class RancherCreateAppSchema(Schema):
                 "web.port": "5000"
                 })
 
+
+class RancherGetYamlRes(Schema):
+    project_name = fields.Str(doc='project_name', example="local:p-wjcnf")
+    pipeline_name = fields.Str(doc='pipeline_name', example="p-wjcnf:p-476h9")
 ########## API Action ##########    
 
 # class FileSchema(Schema):

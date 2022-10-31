@@ -368,6 +368,12 @@ class Rancher(object):
                   message='"disable_rancher_project_pipeline error, error message: {0}'.format(
                       rancher_output.text))
 
+
+    def rc_get_yaml(self, project_name, pipeline_name):
+        output = self.__api_get(f"/project/{project_name}/pipelines/{pipeline_name}")
+        return output.json()
+
+
     def rc_get_project_pipeline(self):
         self.rc_get_project_id()
         output = self.__api_get('/projects/{0}/pipelines'.format(self.project_id))
@@ -739,3 +745,9 @@ class RancherCreateAPP(Resource):
     def post(self, **kwargs):
         rancher.rc_create_apps(kwargs)
         return util.success()
+
+
+class RancherYaml(Resource):
+    @use_kwargs(route_model.RancherGetYamlRes, location="json")
+    def get(self, **kwargs):
+        return util.success(rancher.rc_get_yaml(kwargs['project_name'], kwargs['pipeline_name']))
