@@ -1,6 +1,6 @@
 from flask_jwt_extended import get_jwt_identity
 from rstr import xeger
-from model import Excalidraw, ExcalidrawJson, ExcalidrawIssueRelation, Project, ProjectUserRole, db, User
+from model import Excalidraw, ExcalidrawJson, ExcalidrawIssueRelation, Project, ProjectUserRole, db, User, ExcalidrawHistory
 from datetime import datetime
 from accessories import redmine_lib
 import resources.project as project
@@ -12,6 +12,10 @@ import psycopg2
 from . import role, user
 from util import check_url_alive
 from resources import logger
+import pandas as pd
+import json
+from datetime import datetime, date
+from sqlalchemy import desc
 
 
 def excalidraw_get_config(key):
@@ -213,6 +217,134 @@ def update_excalidraw(excalidraw_id, name=None, issue_ids=None):
         "issue_ids": issue_ids,
         "url": get_excalidraw_url(excalidraw)
     }
+
+
+def is_json(string):
+    try:
+        json.loads(string)
+    except ValueError:
+        return False
+    return True
+
+
+def row_to_dict(row):
+    ret = {}
+    if row is None:
+        return row
+    for key in type(row).__table__.columns.keys():
+        value = getattr(row, key)
+        if type(value) is datetime or type(value) is date:
+            ret[key] = str(value)
+        elif isinstance(value, str) and is_json(value):
+            ret[key] = json.loads(value)
+        else:
+            ret[key] = value
+    return ret
+
+
+def get_excalidraw_history(excalidraw_id):
+    rows = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).order_by(
+        desc(ExcalidrawHistory.updated_at)).all()
+    result_list = [row_to_dict(row) for row in rows]
+    return result_list
+
+
+def update_excalidraw_history(excalidraw_id):
+    # database = "excalidraw"
+    # user = "postgres"
+    # password = "lxVN59Wfi7ua745kEIQ93Afrb"
+    # host = "10.20.0.96"
+    # port = 30503
+    database = excalidraw_get_config("excalidraw-db-database")
+    user = excalidraw_get_config("excalidraw-db-account")
+    password = excalidraw_get_config("excalidraw-db-password")
+    host = excalidraw_get_config("excalidraw-db-host")
+    port = excalidraw_get_config("excalidraw-db-port")
+    conn = psycopg2.connect(
+        database=database,
+        user=user,
+        password=password,
+        host=host,
+        port=port
+    )
+    df_keyv = pd.read_sql_query("SELECT * FROM keyv", conn)
+    df_keyv['key'] = df_keyv.key.apply(lambda x: x.split(':')[1])
+    rows = Excalidraw.query.all()
+    result_list = [row_to_dict(row)for row in rows]
+    df_excalidraw = pd.DataFrame(result_list)
+    df_merge = pd.merge(df_keyv, df_excalidraw, left_on='key', right_on='room')
+    df_merge['updated_at'] = datetime.utcnow()
+    df_merge['user_id'] = get_jwt_identity()["user_id"]
+    df_export = df_merge[['id', 'user_id', 'updated_at', 'value']]
+    df_export.rename(columns={"id": "excalidraw_id"}, inplace=True)
+    df_export = df_export[df_export.excalidraw_id == excalidraw_id]
+    result_dict = {}
+    change = False
+    rows = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).order_by(
+            desc(ExcalidrawHistory.updated_at)).all()
+    df_record = df_export[df_export['excalidraw_id'] == excalidraw_id]
+    rows_value_list = [row_to_dict(row)['value']['value'] for row in rows]
+    for index, value in df_record.fillna("").T.to_dict().items():
+        for k, v in value.items():
+            if type(v) == str:
+                v = json.loads(v)
+                if v['value'] not in rows_value_list:
+                    change = True
+            result_dict.update({k: v})
+    if change:
+        if int(len(rows)) < 5:
+            row = ExcalidrawHistory(**result_dict)
+            db.session.add(row)
+            db.session.commit()
+        else:
+            oldest_time = row_to_dict(rows[-1])["updated_at"]
+            ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).filter_by(updated_at=oldest_time).update(result_dict)
+            db.session.commit()
+
+
+def excalidraw_version_restore(excalidraw_hisrory_id):
+    excalidraw_history = ExcalidrawHistory.query.filter_by(id=excalidraw_hisrory_id).first()
+    excalidraw_id = excalidraw_history.excalidraw_id
+    update_excalidraw_history(excalidraw_id)
+    value = excalidraw_history.value
+    excalidraw = Excalidraw.query.filter_by(id=excalidraw_id).first()
+    project_id = excalidraw.project_id
+    restore_key = excalidraw.room
+    if project_id:
+        role.require_project_owner(get_jwt_identity()['user_id'], project_id)
+    # database = "excalidraw"
+    # user = "postgres"
+    # password = "lxVN59Wfi7ua745kEIQ93Afrb"
+    # host = "10.20.0.96"
+    # port = 30503
+    database = excalidraw_get_config("excalidraw-db-database")
+    user = excalidraw_get_config("excalidraw-db-account")
+    password = excalidraw_get_config("excalidraw-db-password")
+    host = excalidraw_get_config("excalidraw-db-host")
+    port = excalidraw_get_config("excalidraw-db-port")
+    conn = psycopg2.connect(
+        database=database,
+        user=user,
+        password=password,
+        host=host,
+        port=port
+    )
+    value = str(value).replace('\'', '\"').replace('None', 'null')
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"""
+            UPDATE public.keyv
+            SET value= '{value}'
+            WHERE key like '%{restore_key}';
+            """
+        )
+        conn.commit()
+    except Exception as e:
+        print(str(e))
+        logger.logger.info(f"Excalidraw restore by key:{restore_key},value:{value} not success. Error:{e}")
+    finally:
+        conn.close()
 
 
 def sync_excalidraw_db():

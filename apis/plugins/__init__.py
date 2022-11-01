@@ -28,6 +28,7 @@ from resources.kubernetesClient import read_namespace_secret, SYSTEM_SECRET_NAME
 from resources.rancher import rancher
 from resources.notification_message import close_notification_message, get_unclose_notification_message, create_notification_message
 from resources.kubernetesClient import ApiK8sClient
+from resources.router import update_plugin_hidden
 
 SYSTEM_SECRET_PREFIX = 'system-secret-'
 
@@ -280,6 +281,7 @@ def update_plugin_config(plugin_name, args):
         #  Update Project Plugin Status
         if bool(config.get('is_pipeline', True)):
             threading.Thread(target=template.update_pj_plugin_status, args=(plugin_name, args["disabled"],)).start()
+        update_plugin_hidden(plugin_name, args["disabled"])
 
     if args.get('arguments') is not None:
         for argument in args['arguments']:

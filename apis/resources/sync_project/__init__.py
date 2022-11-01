@@ -490,7 +490,11 @@ def pipeline_process(check_bot_list):
             check_bot_list.append(pj_row.id)
 
 
-def bot_process(check_bot_list):
+def bot_process(check_bot_list, project_id):
+    login = f"project_bot_{project_id}"
+    row = model.User.query.filter_by(login=login).first()
+    if not row:
+        project.create_bot(project_id)
     if check_bot_list:
         logger.logger.info(f'BOT project id to check: {check_bot_list}.')
         for nx_project_id in check_bot_list:
@@ -585,7 +589,7 @@ def recreate_project(project_id):
     sonarqube_process(projects_name, check_bot_list)
     unlock_project(pj_id=project_id)
     logger.logger.info('Project BOT start.')
-    bot_process(list(set(check_bot_list)))
+    bot_process(list(set(check_bot_list)), project_id)
     logger.logger.info('Project members start.')
     members_process(projects_name)
     logger.logger.info('All done.')

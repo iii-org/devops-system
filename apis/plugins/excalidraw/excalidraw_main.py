@@ -61,3 +61,27 @@ class CheckExcalidrawAliveV2(MethodResource):
     @jwt_required()
     def get(self):
         return util.success(excalidraw.check_excalidraw_alive())
+
+
+class ExcalidrawsHistoryV2(MethodResource):
+    @doc(tags=['Excalidraw'], description="Get excalidraw record by excalidraw_id.")
+    @marshal_with(router_model.ExcalidrawHistoryGetRes)
+    @jwt_required()
+    def get(self, excalidraw_id):
+        return util.success(excalidraw.get_excalidraw_history(excalidraw_id))
+
+
+    @doc(tags=['Excalidraw'], description="update one user excalidraw record.")
+    @marshal_with(util.CommonResponse)
+    @jwt_required()
+    def post(self, excalidraw_id):
+        excalidraw.update_excalidraw_history(excalidraw_id)
+        return util.success()
+
+
+class ExcalidrawsVersionRestoreV2(MethodResource):
+    @doc(tags=['Excalidraw'], description="restore excalidraw value by user assigned.")
+    @marshal_with(util.CommonResponse)
+    @jwt_required()
+    def put(self, excalidraw_hisrory_id):
+        return util.success(excalidraw.excalidraw_version_restore(excalidraw_hisrory_id))

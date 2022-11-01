@@ -1,4 +1,4 @@
-FROM dockerhub/library/python:3.9.12-slim
+FROM dockerhub/library/python:3.9.14-slim
 RUN apt-get update && apt-get install -y --no-install-recommends git curl 
 RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.19.0/bin/linux/amd64/kubectl && chmod +x ./kubectl && mv ./kubectl /usr/local/bin/kubectl
 COPY iiidevops/bin/pict /usr/local/bin/pict
@@ -10,7 +10,7 @@ COPY iiidevops/id_rsa iiidevops/id_rsa.pub ./
 WORKDIR /usr/src/app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt 
-RUN echo "1.21.1" > git_tag
+RUN echo "1.22.0" > git_tag
 COPY . .
 #RUN LOCAL_BRANCH=`git rev-parse --abbrev-ref HEAD | grep master`
 #RUN if [ -z "$LOCAL_BRANCH" ] ; then git remote add origin https://github.com/iii-org/devops-system.git; fi

@@ -364,7 +364,16 @@ class Redmine:
         return ret
 
     def rm_upload_to_project(self, plan_project_id, args):
-        file = args["file"]
+        # check file size
+        if args.get("file"):
+            file = args["file"]
+            file_size_limit = int(
+                SystemParameter.query.filter_by(name="upload_file_size").first().value["upload_file_size"])
+            blob = file.read()
+            file_size = int(len(blob))
+            file.seek(0)
+            if file_size / 1048576 > file_size_limit:
+                raise DevOpsError(404, 'file size exceed maximum')
 
         headers = {'Content-Type': 'application/octet-stream'}
         res = self.__api_post('/uploads', data=file, headers=headers)

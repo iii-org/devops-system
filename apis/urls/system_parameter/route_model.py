@@ -18,6 +18,8 @@ class UpdateFilesPatchSchema(Schema):
     name = fields.Str()
 
 
+class UpdateUploadFileSizeSchema(Schema):
+    upload_file_size = fields.Int(required=True)
 ################### Response ######################
 
 

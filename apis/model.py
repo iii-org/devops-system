@@ -14,6 +14,7 @@ Steps to modify the ORM model:
 If you don't have the alembic.ini, copy _alembic.ini and replace the postgres uri by yourself.
 """
 import json
+from typing import Optional
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float, ARRAY, \
@@ -95,7 +96,7 @@ class Project(db.Model):
         User, secondary='starred_project', backref='starred_project')
     plugin_relation = relationship('ProjectPluginRelation', uselist=False)
     user_role = relationship('ProjectUserRole', back_populates='project')
-    alert = Column(Boolean)
+    alert = Column(Boolean, default=False)
     trace_order = relationship('TraceOrder', backref='project')
     is_lock = Column(Boolean, default=False)
     lock_reason = Column(String)
@@ -869,6 +870,79 @@ class UIRouteData(db.Model):
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
 
+    @property
+    def is_child(self) -> bool:
+        return self.parent != 0
+
+    @property
+    def is_parent(self) -> bool:
+        return self.query.filter_by(parent=self.id).count() > 0
+
+    @property
+    def parent_node(self) -> Optional["UIRouteData"]:
+        if self.parent == 0:
+            return None
+        return self.query.filter_by(id=self.parent).first()
+
+    @property
+    def children_nodes(self) -> list["UIRouteData"]:
+        return self.query.filter_by(parent=self.id).all()
+
+    @property
+    def node_counts(self) -> int:
+        return self.query.filter_by(parent=self.parent, role=self.role).count()
+
+    @property
+    def node_index(self) -> int:
+        checker: "UIRouteData" = self.first_node
+        index: int = 1
+
+        while checker.id != self.id:
+            checker = checker.next_node
+            index += 1
+
+        return index
+
+    @property
+    def first_node(self) -> "UIRouteData":
+        return self.query.filter_by(parent=self.parent, old_brother=0).first()
+
+    @property
+    def prev_node(self) -> Optional["UIRouteData"]:
+        if self.old_brother == 0:
+            return None
+        return self.query.filter_by(parent=self.parent, id=self.old_brother).first()
+
+    @prev_node.setter
+    def prev_node(self, node: Optional["UIRouteData"]):
+        if node:
+            self.old_brother = node.id
+        else:
+            self.old_brother = 0
+
+    @property
+    def next_node(self) -> Optional["UIRouteData"]:
+        return self.query.filter_by(parent=self.parent, old_brother=self.id).first()
+
+    @next_node.setter
+    def next_node(self, node: Optional["UIRouteData"]):
+        """因為資料庫只有存 old_brother 因此，如果要設定 next_node，必須先設定 prev_node"""
+        if node:
+            node.prev_node = self
+        else:
+            if self.next_node:
+                self.next_node.prev_node = None
+
+    @property
+    def last_node(self) -> "UIRouteData":
+        # Time complexity: O(n)
+        node: "UIRouteData" = self
+
+        while node.next_node:
+            node = node.next_node
+
+        return node
+
 
 class MonitoringRecord(db.Model):
     id = Column(Integer, primary_key=True)
@@ -969,6 +1043,14 @@ class ExcalidrawIssueRelation(db.Model):
     issue_id = Column(Integer)
 
 
+class ExcalidrawHistory(db.Model):
+    id = Column(Integer, primary_key=True)
+    excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete='CASCADE'))
+    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+    updated_at = Column(DateTime)
+    value = Column(JSON)
+
+
 class ProjectResourceStoragelevel(db.Model):
     '''
     {
@@ -1037,3 +1119,13 @@ class UpdatePasswordError(db.Model):
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
     server = Column(String, nullable=False)
     password = Column(String, nullable=False)
+
+
+class Pict(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    branch = Column(String)
+    commit_id = Column(String)
+    run_at = Column(DateTime)
+    status = Column(String)
+    sideex_id = Column(Integer, ForeignKey(Sideex.id, ondelete='CASCADE'), nullable=False)

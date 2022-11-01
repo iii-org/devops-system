@@ -4,6 +4,7 @@ import threading
 import traceback
 from os.path import isfile
 from pathlib import Path
+import this
 
 import werkzeug
 from apispec import APISpec
@@ -231,9 +232,9 @@ def initialize(db_uri):
     }
     user.create_user(args)
     logger.logger.info('Initial admin created.')
+    migrate.init()
     my_uuid = devops_version.set_deployment_uuid()
     logger.logger.info(f'Deployment UUID set as {my_uuid}.')
-    migrate.init()
     logger.logger.info('Server initialized.')
 
 
@@ -510,6 +511,8 @@ api.add_resource(rancher.Catalogs, '/rancher/catalogs',
                  '/rancher/catalogs/<catalog_name>')
 api.add_resource(rancher.Catalogs_Refresh, '/rancher/catalogs_refresh')
 api.add_resource(rancher.RancherDeleteAPP, '/rancher/delete_app')
+api.add_resource(rancher.RancherCreateAPP, '/rancher/create_app')
+api.add_resource(rancher.RancherYaml, '/rancher/yaml')
 
 # Activity
 api.add_resource(activity.AllActivities, '/all_activities')
@@ -646,6 +649,9 @@ def start_prod():
         initialize(config.get('SQLALCHEMY_DATABASE_URI'))
         migrate.run()
         kubernetesClient.create_iiidevops_env_secret_namespace()
+        with app.app_context():  # Prevent error appear(Working outside of application context.)
+            kubernetesClient.create_cron_secret()
+
         threading.Thread(target=kubernetesClient.apply_cronjob_yamls).start()
         logger.logger.info('Apply k8s-yaml cronjob.')
 
@@ -658,8 +664,6 @@ def start_prod():
 
         plugins.create_plugins_api_router(api, add_resource)
         plugins.sync_plugins_in_db_and_code()
-        with app.app_context():  # Prevent error appear(Working outside of application context.)
-            kubernetesClient.create_cron_secret()
         return app
     except Exception as e:
         ret = internal_error(e)

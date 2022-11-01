@@ -28,6 +28,9 @@ from flask_jwt_extended import get_jwt_identity
 import resources.pipeline as pipeline
 from resources.activity import record_activity
 from enums.action_type import ActionType
+from resources import gitlab
+from resources.rancher import rancher
+from datetime import date
 
 
 def sd_start_test(args):
@@ -211,8 +214,8 @@ def get_setting_file(project_id, filename):
     result_dict = get_global_json(project_id, filename)
     output_list = get_sideex_json_variable(project_id, filename)
     project_name = nexus.nx_get_project(id=project_id).name
-    if os.path.isfile(f'devops-data/project-data/{project_name}/pict/_{get_jwt_identity()["user_id"]}-setting_sideex.json'):
-        with open(f'devops-data/project-data/{project_name}/pict/_{get_jwt_identity()["user_id"]}-setting_sideex.json') as json_data:
+    if os.path.isfile(f'devops-data/project-data/{project_name}/pict/_setting_sideex.json'):
+        with open(f'devops-data/project-data/{project_name}/pict/_setting_sideex.json') as json_data:
             setting_data = json.load(json_data)
     sorted_dict = {}
     if setting_data:
@@ -229,6 +232,15 @@ def get_setting_file(project_id, filename):
           "var": result_list,
           "rule": setting_data['rule'] if setting_data else []
         }
+    return return_dict
+
+
+def check_file_exist(project_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    result_file_exist = True if os.path.isfile(f'devops-data/project-data/{project_name}/pict/result.xlsx') else False
+    return_dict = {
+        "result_file_exist": result_file_exist
+    }
     return return_dict
 
 
@@ -290,12 +302,14 @@ def pict_convert_result(project_id) -> list[str]:
         raise apiError.DevOpsError(404, f"{file} not found")
 
 
-def sort_convert_result_to_df(project_id):
+def sort_convert_result_to_df(project_id, branch=None, commit_id=None):
     pict_list = pict_convert_result(project_id)
     project_name = nexus.nx_get_project(id=project_id).name
-    file = open(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-model.txt", 'r', encoding="utf8")
-    txt_content = file.read()
-    cut_num = txt_content.count(':')
+    with open(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-setting_sideex.json",
+                'r', encoding="utf8") as file:
+        txt_content = json.load(file)
+    # calculate by setting.json
+    cut_num = len(txt_content["var"])
     df_input = pd.DataFrame(pict_list)
     sorted_list = []
     # sort by variable num
@@ -306,8 +320,20 @@ def sort_convert_result_to_df(project_id):
     df_sorted = pd.DataFrame(sorted_list)
     df_sorted.columns = df_sorted.loc[0]
     df_sorted = df_sorted.drop(0)
-    np.savetxt(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-result.txt", df_sorted, fmt='%s')
+    if branch and commit_id:
+        extra_path = f"/{branch}/{commit_id}/"
+    else:
+        extra_path = "/"
+    df_sorted.to_excel(f"devops-data/project-data/{project_name}/pict{extra_path}result.xlsx")
+    # np.savetxt(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-result.txt", df_sorted, fmt='%s', header=','.join(df_sorted.columns.tolist()))
     return df_sorted
+
+
+def generate_result(project_id):
+    df_sorted = sort_convert_result_to_df(project_id)
+    df_dict = df_sorted.fillna("").T.to_dict()
+    result_list = [v for k, v in df_dict.items()]
+    return result_list
 
 
 def generate_json_file(project_id, filename):
@@ -321,7 +347,7 @@ def generate_json_file(project_id, filename):
     if not os.path.isdir('iiidevops/sideex'):
         Path('iiidevops/sideex').mkdir(parents=True, exist_ok=True)
     for i in range(1, len(df_sorted)+1):
-        file_path: str = f"iiidevops/sideex/*{get_jwt_identity()['user_id']}-sideex{i}.json"
+        file_path: str = f"iiidevops/sideex/_{get_jwt_identity()['user_id']}-sideex{i}.json"
 
         for key, value in df_sorted.T.to_dict()[i].items():
             result = re.sub('\${%s\}' % key, value, json.dumps(template_content, indent=4, ensure_ascii=False))
@@ -339,8 +365,8 @@ def generate_json_file(project_id, filename):
 
         # 將變動寫回 file 裡面
         change_suite = re.sub(
-            'django-sqlite-todo',
-            f'{get_jwt_identity()["user_id"]}_django-sqlite-todo-{i}',
+            json.loads(result)['suites'][0]['title'],
+            f"{get_jwt_identity()['user_id']}_{json.loads(result)['suites'][0]['title']}-{i}",
             json.dumps(json.loads(result), indent=4, ensure_ascii=False)
         )
         with open(file_path, 'w', encoding="utf8") as f:
@@ -361,12 +387,12 @@ def generate_json_file(project_id, filename):
     for path in paths:
         trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
         for tree in trees:
-            if f'*{get_jwt_identity()["user_id"]}-sideex' in tree["name"]:
+            if f'_{get_jwt_identity()["user_id"]}-sideex' in tree["name"]:
                 action = "Update"
                 break
             else:
                 action = "Create"
-    commit_msg = f"{action} sideex file *{get_jwt_identity()['user_id']}-sideex.json, replace variable " \
+    commit_msg = f"{action} sideex file _{get_jwt_identity()['user_id']}-sideex.json, replace variable " \
                  f"{df_sorted.columns.tolist()} with {df_sorted.values.tolist()}"
 
     commit_to_gitlab(project, gitlab_files, commit_msg)
@@ -396,30 +422,81 @@ def commit_to_gitlab(project: objects.Project, files: list[dict[str, str]], comm
     gitlab.gitlab.create_multiple_file_commit(project, files, commit_message=commit_msg)
 
 
+def get_current_branch_commit(project_id, rec):
+    repository_id: int = nx_get_project_plugin_relation(nexus_project_id=project_id).git_repository_id
+    relation = nx_get_project_plugin_relation(repo_id=repository_id)
+    pipeline_outputs = rancher.rc_get_pipeline_executions(
+        relation.ci_project_id,
+        relation.ci_pipeline_id, limit=2)
+    branch = pipeline_outputs['data'][rec]['branch']
+    commit_id = pipeline_outputs['data'][rec]['commit']
+    return branch, commit_id
+
+
+def get_pict_status(project_id):
+    row = model.Pict.query.filter_by(project_id=project_id).order_by(desc(model.Pict.id)).first()
+    branch, commit_id = row.branch, row.commit_id
+    row = model.Sideex.query.filter_by(branch=branch).filter_by(commit_id=commit_id).first()
+    finish = False
+    if row:
+        finish = True if row.status == "Finished" else False
+    status_dict = {
+        "finish": finish,
+        "branch": branch,
+        "commit_id": commit_id
+    }
+    if finish:
+        delete_json_configfile(project_id)
+    return status_dict
+
+
 def delete_json_configfile(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
     if os.path.isfile(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-model.txt"):
         os.remove(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-model.txt")
     if os.path.isfile(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-setting_sideex.json"):
         os.remove(f"devops-data/project-data/{project_name}/pict/_{get_jwt_identity()['user_id']}-setting_sideex.json")
-    repository_id = nx_get_project_plugin_relation(nexus_project_id=project_id).git_repository_id
-    project = gitlab.gitlab.gl.projects.get(repository_id)
-    paths = [{
-        "software_name": "SideeX",
-        "path": "iiidevops/sideex",
-        "file_name_key": ""
-    }]
-    delete_list = []
-    for path in paths:
-        trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
-        for tree in trees:
-            if f'*{get_jwt_identity()["user_id"]}-sideex' in tree["name"]:
-                delete_list.append({
-                    'action': 'delete',
-                    'file_path': tree['path']
-                })
-    gitlab.gitlab.gl_operate_multi_files(project, delete_list,
-                                         f"delete *{get_jwt_identity()['user_id']}-sideex json file", "")
+        repository_id = nx_get_project_plugin_relation(nexus_project_id=project_id).git_repository_id
+        project = gitlab.gitlab.gl.projects.get(repository_id)
+        paths = [{
+            "software_name": "SideeX",
+            "path": "iiidevops/sideex",
+            "file_name_key": ""
+        }]
+        delete_list = []
+        for path in paths:
+            trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
+            for tree in trees:
+                if f'_{get_jwt_identity()["user_id"]}-sideex' in tree["name"]:
+                    delete_list.append({
+                        'action': 'delete',
+                        'file_path': tree['path']
+                    })
+        gitlab.gitlab.gl_operate_multi_files(project, delete_list,
+                                             f"delete _{get_jwt_identity()['user_id']}-sideex json file", "")
+
+
+def is_json(string):
+    try:
+        json.loads(string)
+    except ValueError:
+        return False
+    return True
+
+
+def row_to_dict(row):
+    ret = {}
+    if row is None:
+        return row
+    for key in type(row).__table__.columns.keys():
+        value = getattr(row, key)
+        if type(value) is datetime or type(value) is date:
+            ret[key] = str(value)
+        elif isinstance(value, str) and is_json(value):
+            ret[key] = json.loads(value)
+        else:
+            ret[key] = value
+    return ret
 
 
 @record_activity(ActionType.DELETE_SIDEEX_JSONFILE)
@@ -433,7 +510,7 @@ def delete_project_all_config_file(project_id):
         for file in files:
             if str(file)[0] == '_':
                 os.remove(f"{path}/{file}")
-    # delete gitlab file start with "*"
+    # delete gitlab file start with "_"
     repository_id = nx_get_project_plugin_relation(nexus_project_id=project_id).git_repository_id
     project = gitlab.gitlab.gl.projects.get(repository_id)
     delete_list = []
@@ -445,12 +522,22 @@ def delete_project_all_config_file(project_id):
     for path in paths:
         trees = gitlab.gitlab.ql_get_tree(repository_id, path['path'], all=True)
         for tree in trees:
-            if tree['name'][0] == '*':
+            if tree['name'][0] == '_':
                 delete_list.append({
                     'action': 'delete',
                     'file_path': tree['path']
                 })
-    gitlab.gitlab.gl_operate_multi_files(project, delete_list, "delete all the *sideex.json files by api", "")
+    gitlab.gitlab.gl_operate_multi_files(project, delete_list, "delete all the _sideex.json files by api", "")
+
+
+def history_pict_result(project_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    file_path = f"devops-data/project-data/{project_name}/pict"
+    file_name = "result.xlsx"
+    df = pd.read_excel(f"{file_path}/{file_name}", index_col=0)
+    df_dict = df.fillna("").T.to_dict()
+    result_list = [v for k, v in df_dict.items()]
+    return result_list
 
 
 class SideexJsonfileVariable(Resource):
@@ -485,6 +572,12 @@ class SideexDeleteAllfile(Resource):
         return util.success()
 
 
+class HistoryPictResult(Resource):
+    @jwt_required()
+    def get(self, project_id):
+        return history_pict_result(project_id)
+
+
 class SideexReport(Resource):
     @jwt_required()
     def get(self, test_id):
@@ -493,6 +586,22 @@ class SideexReport(Resource):
         return util.success(sd_get_report(test_id))
 
 
+class GenerateResult(Resource):
+    @jwt_required()
+    def get(self, project_id):
+        return util.success(generate_result(project_id))
+
+
+class PictStatus(Resource):
+    @jwt_required()
+    def get(self, project_id):
+        return util.success(get_pict_status(project_id))
+
+
+class CheckResultFileExist(Resource):
+    @jwt_required()
+    def get(self, project_id):
+        return util.success(check_file_exist(project_id))
 # --------------------- API router ---------------------
 def router(api):
     api.add_resource(Sideex, '/sideex', '/project/<sint:project_id>/sideex')

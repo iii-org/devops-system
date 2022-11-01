@@ -2,7 +2,6 @@ import base64
 import json
 import numbers
 import os
-from re import I
 import time
 from datetime import datetime, timezone
 
@@ -1755,10 +1754,10 @@ class KubernetesPodExec(Namespace):
 def create_cron_secret():
     from resources.user import jwt_response_data
     '''
-    If we not replace the old token when server is redeployed, 
+    If we do not replace the old token when server is being redeployed, 
         token sometime can not be used.
     '''
-    if read_namespace_secret("default", "cornjob-bot") is not None:
+    if read_namespace_secret("default", "cornjob-bot"):
         delete_namespace_secret("default", "cornjob-bot")
     token = create_access_token(identity=jwt_response_data(None, None, None, None), expires_delta=timedelta(days=36500))
     create_namespace_secret(

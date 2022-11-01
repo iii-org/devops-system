@@ -16,6 +16,8 @@ from nexus import nx_get_project_plugin_relation
 from model import RancherPiplineNumberEachDays, ProjectPluginRelation, db, Project, SystemParameter
 from resources import kubernetesClient
 from resources.logger import logger
+from flask_apispec import use_kwargs
+from urls import route_model
 
 
 def get_ci_last_test_result(relation):
@@ -341,7 +343,7 @@ class Rancher(object):
             "sourceCodeCredentialId": "{0}:{1}-gitlab-root".format(user_id,
                                                                    self.project_id.split(':')[1]),
             "repositoryUrl": repository_url,
-            "triggerWebhookPr": True,
+            "triggerWebhookPr": False,
             "triggerWebhookPush": True,
             "triggerWebhookTag": False,
         }
@@ -365,6 +367,12 @@ class Rancher(object):
             abort(400,
                   message='"disable_rancher_project_pipeline error, error message: {0}'.format(
                       rancher_output.text))
+
+
+    def rc_get_yaml(self, project_name, pipeline_name):
+        output = self.__api_get(f"/project/{project_name}/pipelines/{pipeline_name}")
+        return output.json()
+
 
     def rc_get_project_pipeline(self):
         self.rc_get_project_id()
@@ -506,6 +514,19 @@ class Rancher(object):
         url = f'/projects/{self.project_id}/apps?name={name}'
         output = self.__api_get(url)
         return output.json()['data']
+
+    def rc_create_apps(self, kwargs):
+        self.rc_get_project_id()
+        url = f'/project/{self.project_id}/apps'
+        body = {
+            "name": kwargs['name'],
+            "namespace": kwargs['namespace'],
+            "appRevisionId": kwargs['appRevisionId'] if kwargs.get('appRevisionId') else None,
+            "targetNamespace": kwargs['targetNamespace'] if kwargs.get('targetNamespace') else None,
+            "externalId": kwargs['externalId'] if kwargs.get('externalId') else None,
+            "answers": kwargs['answers'] if kwargs.get('answers') else None
+        }
+        self.__api_post(url, data=body)
 
     def rc_del_app(self, app_name):
         self.rc_get_project_id()
@@ -717,3 +738,16 @@ class RancherDeleteAPP(Resource):
         from resources.pipeline import delete_rest_pipelines
         delete_rest_pipelines(args["project_name"], args["branch_name"])
         return util.success()
+
+
+class RancherCreateAPP(Resource):
+    @use_kwargs(route_model.RancherCreateAppSchema, location="json")
+    def post(self, **kwargs):
+        rancher.rc_create_apps(kwargs)
+        return util.success()
+
+
+class RancherYaml(Resource):
+    @use_kwargs(route_model.RancherGetYamlRes, location="json")
+    def get(self, **kwargs):
+        return util.success(rancher.rc_get_yaml(kwargs['project_name'], kwargs['pipeline_name']))

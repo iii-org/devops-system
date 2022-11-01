@@ -4,7 +4,7 @@ metadata:
   name: sync-excalidraw-db
 spec:
   concurrencyPolicy: Forbid
-  schedule: "0 0 * * 0"
+  schedule: "0 3 * * 0"
   successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 0
   jobTemplate:

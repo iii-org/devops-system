@@ -221,14 +221,15 @@
     "children": [
       {
         "path": "whiteboard",
-        "name": "Excalidraw",
+        "name": "Whiteboard",
         "component": "views/WhiteBoard",
         "meta": {
           "title": "Whiteboard",
           "roles": [
             "Administrator"
           ]
-        }
+        },
+        "hidden": true
       },
       {
         "path": "issueBoards",
@@ -401,133 +402,6 @@
             "Administrator"
           ]
         }
-      },
-      {
-        "path": "kubernetesResources",
-        "component": "layout/components/parentBlank",
-        "name": "KubernetesResources",
-        "redirect": {
-          "name": "KubernetesResource"
-        },
-        "meta": {
-          "title": "KubernetesResources",
-          "roles": [
-            "Administrator"
-          ]
-        },
-        "children": [
-          {
-            "path": "",
-            "name": "KubernetesResource",
-            "component": "views/Progress/KubernetesResources",
-            "hidden": true,
-            "meta": {
-              "roles": [
-                "Administrator"
-              ]
-            }
-          },
-          {
-            "path": "podsLists",
-            "hidden": true,
-            "component": "layout/components/parentBlank",
-            "name": "PodsLists",
-            "redirect": {
-              "name": "PodsList"
-            },
-            "meta": {
-              "title": "PodsLists",
-              "roles": [
-                "Administrator"
-              ]
-            },
-            "children": [
-              {
-                "path": "",
-                "name": "PodsList",
-                "hidden": true,
-                "component": "views/Progress/KubernetesResources/components/PodsList",
-                "meta": {
-                  "roles": [
-                    "Administrator"
-                  ]
-                }
-              },
-              {
-                "path": "podExecuteShell",
-                "name": "PodExecuteShell",
-                "hidden": true,
-                "component": "views/Progress/KubernetesResources/components/PodsList/components/PodExecuteShell",
-                "meta": {
-                  "title": "PodExecuteShell",
-                  "roles": [
-                    "Administrator"
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "path": "serviceList",
-            "name": "ServiceList",
-            "hidden": true,
-            "component": "views/Progress/KubernetesResources/components/ServiceList",
-            "meta": {
-              "title": "ServiceList",
-              "roles": [
-                "Administrator"
-              ]
-            }
-          },
-          {
-            "path": "secretList",
-            "name": "SecretList",
-            "hidden": true,
-            "component": "views/Progress/KubernetesResources/components/SecretList",
-            "meta": {
-              "title": "SecretList",
-              "roles": [
-                "Administrator"
-              ]
-            }
-          },
-          {
-            "path": "configmapsList",
-            "name": "ConfigMapsList",
-            "hidden": true,
-            "component": "views/Progress/KubernetesResources/components/ConfigMapsList",
-            "meta": {
-              "title": "ConfigMapsList",
-              "roles": [
-                "Administrator"
-              ]
-            }
-          },
-          {
-            "path": "deploymentList",
-            "name": "DeploymentList",
-            "hidden": true,
-            "component": "views/Progress/KubernetesResources/components/DeploymentList",
-            "meta": {
-              "title": "DeploymentList",
-              "roles": [
-                "Administrator"
-              ]
-            }
-          },
-          {
-            "path": "ingressesList",
-            "name": "IngressesList",
-            "hidden": true,
-            "component": "views/Progress/KubernetesResources/components/IngressesList",
-            "meta": {
-              "title": "IngressesList",
-              "roles": [
-                "Administrator"
-              ]
-            }
-          }
-        ]
       }
     ]
   },
@@ -536,7 +410,7 @@
     "name": "Test",
     "component": "layout",
     "redirect": {
-      "name": "testPlans"
+      "name": "TestFile"
     },
     "meta": {
       "title": "TestManagement",
@@ -558,54 +432,15 @@
         }
       },
       {
-        "path": "testPlans",
-        "name": "TestPlans",
-        "component": "layout/components/parentBlank",
-        "redirect": {
-          "name": "TestPlan"
-        },
+        "path": "testPlan",
+        "name": "TestPlan",
+        "component": "views/Test/TestPlan",
         "meta": {
+          "title": "TestPlan",
           "roles": [
             "Administrator"
           ]
-        },
-        "children": [
-          {
-            "path": "",
-            "name": "TestPlan",
-            "component": "views/Test/TestPlan",
-            "meta": {
-              "title": "TestPlan",
-              "roles": [
-                "Administrator"
-              ]
-            }
-          },
-          {
-            "path": "create",
-            "name": "CreateTestPlan",
-            "hidden": true,
-            "component": "views/Project/IssueDetail",
-            "meta": {
-              "title": "IssueDetail",
-              "roles": [
-                "Administrator"
-              ]
-            }
-          },
-          {
-            "path": ":issueId",
-            "name": "TestPlanDetail",
-            "hidden": true,
-            "component": "views/Project/IssueDetail",
-            "meta": {
-              "title": "IssueDetail",
-              "roles": [
-                "Administrator"
-              ]
-            }
-          }
-        ]
+        }
       }
     ]
   },
@@ -633,7 +468,8 @@
           "roles": [
             "Administrator"
           ]
-        }
+        },
+        "hidden": false
       },
       {
         "path": "checkmarx",
@@ -644,7 +480,31 @@
           "roles": [
             "Administrator"
           ]
+        },
+        "hidden": true
+      },
+      {
+        "path": "clair",
+        "name": "DockerImage",
+        "component": "views/Scan/DockerImage",
+        "meta": {
+          "title": "DockerImage",
+          "roles": [
+            "Administrator"
+          ]
         }
+      },
+      {
+        "path": "sbom",
+        "name": "Sbom",
+        "component": "views/Scan/Sbom",
+        "meta": {
+          "title": "Sbom",
+          "roles": [
+            "Administrator"
+          ]
+        },
+        "hidden": true
       },
       {
         "path": "zap",
@@ -655,7 +515,8 @@
           "roles": [
             "Administrator"
           ]
-        }
+        },
+        "hidden": false
       },
       {
         "path": "cmas",
@@ -666,7 +527,8 @@
           "roles": [
             "Administrator"
           ]
-        }
+        },
+        "hidden": true
       },
       {
         "path": "webinspect",
@@ -681,6 +543,7 @@
             "Administrator"
           ]
         },
+        "hidden": true,
         "children": [
           {
             "path": "",
@@ -695,11 +558,11 @@
           },
           {
             "path": "report/:scanId",
-            "name": "WebinspectReport",
+            "name": "WIEReportViewer",
             "component": "views/Scan/WIEReportViewer",
             "hidden": true,
             "meta": {
-              "title": "WebInspectReport",
+              "title": "WIEReportViewer",
               "roles": [
                 "Administrator"
               ]
@@ -720,6 +583,7 @@
             "Administrator"
           ]
         },
+        "hidden": false,
         "children": [
           {
             "path": "",
@@ -767,25 +631,15 @@
           "roles": [
             "Administrator"
           ]
-        }
-      },
-      {
-        "path": "clair",
-        "name": "DockerImage",
-        "component": "views/Scan/DockerImage",
-        "meta": {
-          "title": "DockerImage",
-          "roles": [
-            "Administrator"
-          ]
-        }
+        },
+        "hidden": false
       }
     ]
   },
   {
     "path": "/systemResource",
     "component": "layout",
-    "name": "System Resource",
+    "name": "SystemResource",
     "redirect": {
       "name": "PluginResource"
     },
@@ -855,6 +709,106 @@
                 "component": "views/SystemResource/Harbor/components/ProjectArtifacts",
                 "meta": {
                   "title": "Artifacts",
+                  "roles": [
+                    "Administrator"
+                  ]
+                }
+              },
+              {
+                "path": "podsLists",
+                "hidden": true,
+                "component": "layout/components/parentBlank",
+                "name": "PodsLists",
+                "redirect": {
+                  "name": "PodsList"
+                },
+                "meta": {
+                  "title": "PodsLists",
+                  "roles": [
+                    "Administrator"
+                  ]
+                },
+                "children": [
+                  {
+                    "path": "",
+                    "name": "PodsList",
+                    "hidden": true,
+                    "component": "views/SystemResource/PluginResource/components/PodsList",
+                    "meta": {
+                      "roles": [
+                        "Administrator"
+                      ]
+                    }
+                  },
+                  {
+                    "path": "podExecuteShell",
+                    "name": "PodExecuteShell",
+                    "hidden": true,
+                    "component": "views/SystemResource/PluginResource/components/PodsList/components/PodExecuteShell",
+                    "meta": {
+                      "title": "PodExecuteShell",
+                      "roles": [
+                        "Administrator"
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "path": "serviceList",
+                "name": "ServiceList",
+                "hidden": true,
+                "component": "views/SystemResource/PluginResource/components/ServiceList",
+                "meta": {
+                  "title": "ServiceList",
+                  "roles": [
+                    "Administrator"
+                  ]
+                }
+              },
+              {
+                "path": "secretList",
+                "name": "SecretList",
+                "hidden": true,
+                "component": "views/SystemResource/PluginResource/components/SecretList",
+                "meta": {
+                  "title": "SecretList",
+                  "roles": [
+                    "Administrator"
+                  ]
+                }
+              },
+              {
+                "path": "configmapsList",
+                "name": "ConfigMapsList",
+                "hidden": true,
+                "component": "views/SystemResource/PluginResource/components/ConfigMapsList",
+                "meta": {
+                  "title": "ConfigMapsList",
+                  "roles": [
+                    "Administrator"
+                  ]
+                }
+              },
+              {
+                "path": "deploymentList",
+                "name": "DeploymentList",
+                "hidden": true,
+                "component": "views/SystemResource/PluginResource/components/DeploymentList",
+                "meta": {
+                  "title": "DeploymentList",
+                  "roles": [
+                    "Administrator"
+                  ]
+                }
+              },
+              {
+                "path": "ingressesList",
+                "name": "IngressesList",
+                "hidden": true,
+                "component": "views/SystemResource/PluginResource/components/IngressesList",
+                "meta": {
+                  "title": "IngressesList",
                   "roles": [
                     "Administrator"
                   ]
@@ -1057,6 +1011,33 @@
         "name": "DockerReport",
         "meta": {
           "title": "DockerReport",
+          "roles": [
+            "Administrator"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "path": "/sbom-report",
+    "name": "SbomReports",
+    "component": "layout",
+    "redirect": {
+      "name": "SbomReport"
+    },
+    "hidden": true,
+    "meta": {
+      "roles": [
+        "Administrator"
+      ]
+    },
+    "children": [
+      {
+        "path": ":projectId/:commitBranch/:commitId/:sbomId",
+        "component": "views/Scan/Sbom/components/SbomReport",
+        "name": "SbomReport",
+        "meta": {
+          "title": "SbomReport",
           "roles": [
             "Administrator"
           ]

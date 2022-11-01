@@ -1,0 +1,466 @@
+{
+	"info": {
+		"_postman_id": "bdf884e6-a431-4b7c-816b-d2764236ccce",
+		"name": "III Devops Test - AM",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "13159247"
+	},
+	"item": [
+		{
+			"name": "Add user",
+			"item": [
+				{
+					"name": "AM登入",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"function jwt_decode(jwt) {",
+									"    var parts = jwt.split('.'); // header, payload, signature",
+									"    return JSON.parse(atob(parts[1]));",
+									"}",
+									"pm.test(\"JWT Token 檢查\", function () {",
+									"    const decode_jwt = jwt_decode(pm.response.json().data.token);",
+									"    pm.environment.set(\"token\", pm.response.json().data.token)",
+									"    pm.environment.set(\"am_user_id\", decode_jwt.sub.user_id)",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{am_username}}\",\n    \"password\": \"{{am_password}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{test_origin}}/user/login",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"user",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "取得可使用角色列表",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Role list contain PM & Engineer\", function () {",
+									"    const ret = pm.response.json();",
+									"    const role_list = ret.data.role_list;",
+									"    pm.expect(role_list).to.eql([",
+									"            {",
+									"                \"id\": 1,",
+									"                \"name\": \"Engineer\"",
+									"            },",
+									"            {",
+									"                \"id\": 3,",
+									"                \"name\": \"Project Manager\"",
+									"            },",
+									"            {",
+									"                \"id\": 5,",
+									"                \"name\": \"Administrator\"",
+									"            },",
+									"            {",
+									"                \"id\": 7,",
+									"                \"name\": \"QA\"",
+									"            }",
+									"        ]);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{test_origin}}/user/role/list",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"user",
+								"role",
+								"list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "取得所有使用者列表",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{test_origin}}/user/list",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"user",
+								"list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "新增 PM 用戶",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"儲存新 user ID\", function () {\r",
+									"    let jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.data.user_id).to.be.a(\"number\");\r",
+									"    pm.environment.set(\"am_create_pm_id\", pm.response.json().data.user_id)\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"{{am_create_pm_username}}\",\n    \"email\": \"amcreatePM@yahoo.com.tw\",\n    \"password\": \"{{am_create_pm_password}}\",\n    \"login\": \"{{am_create_pm_login}}\",\n    \"role_id\": 3\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{test_origin}}/user",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"user"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "新增 RD 用戶",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"儲存新 user ID\", function () {\r",
+									"    let jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.data.user_id).to.be.a(\"number\");\r",
+									"    pm.environment.set(\"am_create_rd_id\", pm.response.json().data.user_id)\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"{{am_create_rd_username}}\",\n    \"email\": \"amcreateRD@yahoo.com.tw\",\n    \"password\": \"{{am_create_rd_password}}\",\n    \"login\": \"{{am_create_rd_login}}\",\n    \"role_id\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{test_origin}}/user",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"user"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "編輯使用者",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.environment.set('am_update_pm_phone',\"0999999999\")",
+									"pm.environment.set('am_update_pm_old_password',pm.environment.get(\"am_create_pm_password\"))",
+									"pm.environment.set('am_update_pm_password', \"Pww12345!\")",
+									"pm.environment.set('am_update_pm_name',\"upamtestusernamepm\")",
+									"pm.environment.set('am_update_pm_email',\"am_update_pm_email@yahoo.nowhere\")",
+									"pm.environment.set('am_update_pm_status',\"enable\")"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"upamtestusernamepm\",       \n    \"old_password\": \"{{am_create_pm_password}}\",\n    \"password\": \"Pww12345!\",\n    \"phone\": \"0999999999\",     \n    \"email\": \"am_update_pm_email@yahoo.nowhere\",\n    \"status\": \"enable\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{test_origin}}/user/{{am_create_pm_id}}",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"user",
+								"{{am_create_pm_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "取得編輯後的使用者資訊",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"比對編輯後的user\", function () {",
+									"    const pmUserInfo = pm.response.json();",
+									"    pm.expect(pmUserInfo.data.name).to.eql(pm.environment.get(\"am_update_pm_name\"));",
+									"    pm.expect(pmUserInfo.data.phone).to.eql(pm.environment.get(\"am_update_pm_phone\"));",
+									"    pm.expect(pmUserInfo.data.email).to.eql(pm.environment.get(\"am_update_pm_email\"));",
+									"    pm.expect(pmUserInfo.data.status).to.eql(pm.environment.get(\"am_update_pm_status\"));",
+									"    pm.expect(pmUserInfo.data.default_role.id).to.eql(3)",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{test_origin}}/user/{{am_create_pm_id}}",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"user",
+								"{{am_create_pm_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "刪除 RD 用戶",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{test_origin}}/user/{{am_create_rd_id}}",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"user",
+								"{{am_create_rd_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "刪除 PM 用戶",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{test_origin}}/user/{{am_create_pm_id}}",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"user",
+								"{{am_create_pm_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"correctStatus = pm.variables.get('correctStatus') || 200",
+					"pm.test(\"Status code 檢查\", () => {",
+					"    pm.response.to.have.status(correctStatus);",
+					"});"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

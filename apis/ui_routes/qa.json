@@ -250,7 +250,7 @@
     "name": "Test",
     "component": "layout",
     "redirect": {
-      "name": "TestPlans"
+      "name": "TestFile"
     },
     "meta": {
       "title": "TestReport",
@@ -261,93 +261,15 @@
     },
     "children": [
       {
-        "path": "testPlan",
-        "redirect": {
-          "name": "TestPlan"
-        },
-        "name": "TestPlans",
-        "component": "layout/components/parentBlank",
+        "path": "testFile",
+        "name": "TestFile",
+        "component": "views/Test/TestFile",
         "meta": {
+          "title": "TestFile",
           "roles": [
             "QA"
           ]
-        },
-        "children": [
-          {
-            "path": "",
-            "name": "TestPlan",
-            "component": "views/Test/TestPlan",
-            "meta": {
-              "title": "TestCase",
-              "roles": [
-                "QA"
-              ]
-            }
-          },
-          {
-            "path": "create",
-            "name": "CreateTestPlan",
-            "hidden": true,
-            "component": "views/Project/IssueDetail",
-            "meta": {
-              "title": "IssueDetail",
-              "roles": [
-                "QA"
-              ]
-            }
-          },
-          {
-            "path": ":issueId",
-            "name": "TestPlanDetail",
-            "hidden": true,
-            "component": "views/Project/IssueDetail",
-            "meta": {
-              "title": "IssueDetail",
-              "roles": [
-                "QA"
-              ]
-            }
-          }
-        ]
-      },
-      {
-        "path": "releaseVersion",
-        "name": "ReleaseVersions",
-        "component": "layout/components/parentBlank",
-        "redirect": {
-          "name": "ReleaseVersion"
-        },
-        "meta": {
-          "title": "TestResult",
-          "roles": [
-            "QA"
-          ]
-        },
-        "children": [
-          {
-            "path": "",
-            "name": "ReleaseVersion",
-            "component": "views/Project/ReleaseVersion",
-            "hidden": true,
-            "meta": {
-              "roles": [
-                "QA"
-              ]
-            }
-          },
-          {
-            "path": ":issueTag",
-            "name": "ClosedIssueList",
-            "hidden": true,
-            "component": "views/Project/ReleaseVersion/ClosedIssueList",
-            "meta": {
-              "title": "IssueDetail",
-              "roles": [
-                "QA"
-              ]
-            }
-          }
-        ]
+        }
       }
     ]
   },
@@ -375,7 +297,8 @@
           "roles": [
             "QA"
           ]
-        }
+        },
+        "hidden": false
       },
       {
         "path": "checkmarx",
@@ -386,7 +309,31 @@
           "roles": [
             "QA"
           ]
+        },
+        "hidden": true
+      },
+      {
+        "path": "clair",
+        "name": "DockerImage",
+        "component": "views/Scan/DockerImage",
+        "meta": {
+          "title": "DockerImage",
+          "roles": [
+            "QA"
+          ]
         }
+      },
+      {
+        "path": "sbom",
+        "name": "Sbom",
+        "component": "views/Scan/Sbom",
+        "meta": {
+          "title": "Sbom",
+          "roles": [
+            "QA"
+          ]
+        },
+        "hidden": true
       },
       {
         "path": "zap",
@@ -397,7 +344,8 @@
           "roles": [
             "QA"
           ]
-        }
+        },
+        "hidden": false
       },
       {
         "path": "cmas",
@@ -408,7 +356,8 @@
           "roles": [
             "QA"
           ]
-        }
+        },
+        "hidden": true
       },
       {
         "path": "webinspect",
@@ -423,6 +372,7 @@
             "QA"
           ]
         },
+        "hidden": true,
         "children": [
           {
             "path": "",
@@ -437,11 +387,11 @@
           },
           {
             "path": "report/:scanId",
-            "name": "WebinspectReport",
+            "name": "WIEReportViewer",
             "component": "views/Scan/WIEReportViewer",
             "hidden": true,
             "meta": {
-              "title": "WebInspectReport",
+              "title": "WIEReportViewer",
               "roles": [
                 "QA"
               ]
@@ -462,6 +412,7 @@
             "QA"
           ]
         },
+        "hidden": false,
         "children": [
           {
             "path": "",
@@ -509,18 +460,8 @@
           "roles": [
             "QA"
           ]
-        }
-      },
-      {
-        "path": "clair",
-        "name": "DockerImage",
-        "component": "views/Scan/DockerImage",
-        "meta": {
-          "title": "DockerImage",
-          "roles": [
-            "QA"
-          ]
-        }
+        },
+        "hidden": false
       }
     ]
   },
@@ -571,6 +512,33 @@
         "name": "DockerReport",
         "meta": {
           "title": "DockerReport",
+          "roles": [
+            "QA"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "path": "/sbom-report",
+    "name": "SbomReports",
+    "component": "layout",
+    "redirect": {
+      "name": "SbomReport"
+    },
+    "hidden": true,
+    "meta": {
+      "roles": [
+        "QA"
+      ]
+    },
+    "children": [
+      {
+        "path": ":projectId/:commitBranch/:commitId/:sbomId",
+        "component": "views/Scan/Sbom/components/SbomReport",
+        "name": "SbomReport",
+        "meta": {
+          "title": "SbomReport",
           "roles": [
             "QA"
           ]

@@ -8,4 +8,6 @@ def sync_system_parameter_url(api, add_resource):
     add_resource(view.GetUploadFileDistinctName, 'private')
     api.add_resource(view.UploadFile, '/v2/system_parameter/upload_file_type/<int:upload_file_type_id>')
     add_resource(view.UploadFile, 'private')
+    api.add_resource(view.UploadFileSize, '/v2/system_parameter/upload_file_size')
+    add_resource(view.UploadFileSize, 'private')
 
