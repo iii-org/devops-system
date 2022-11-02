@@ -24,7 +24,7 @@ def upgrade(version):
     elif version == '1.22.0.4':
         recreate_ui_route()
     elif version == '1.22.0.5':
-        if SystemParameter.query.filter_by(name="upload_file_size").first() is not None:
+        if SystemParameter.query.filter_by(name="upload_file_size").first() is None:
             row = SystemParameter(
                 name="upload_file_size",
                 value={"upload_file_size": 5},
