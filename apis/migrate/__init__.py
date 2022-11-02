@@ -1,7 +1,7 @@
 import os
 import config
 import model
-from model import db, UIRouteData, PluginSoftware
+from model import db, UIRouteData, PluginSoftware, SystemParameter
 from resources.logger import logger
 from migrate.upgrade_function.ui_route_upgrade import ui_route_first_version
 from migrate.upgrade_function import v1_22_upgrade
@@ -9,7 +9,7 @@ from resources.router import update_plugin_hidden
 
 # Each time you add a migration, add a version code here.
 
-VERSIONS = ['1.22.0.1', '1.22.0.2', '1.22.0.3', '1.22.0.4']
+VERSIONS = ['1.22.0.1', '1.22.0.2', '1.22.0.3', '1.22.0.4', '1.22.0.5']
 ONLY_UPDATE_DB_MODELS = ['1.22.0.1', '1.22.0.2', '1.22.0.3']
 
 
@@ -23,6 +23,15 @@ def upgrade(version):
         alembic_upgrade()
     elif version == '1.22.0.4':
         recreate_ui_route()
+    elif version == '1.22.0.5':
+        if SystemParameter.query.filter_by(name="upload_file_size").first() is not None:
+            row = SystemParameter(
+                name="upload_file_size",
+                value={"upload_file_size": 5},
+                active=True
+            )
+            db.session.add(row)
+            db.session.commit()
 
 
 def recreate_ui_route():
