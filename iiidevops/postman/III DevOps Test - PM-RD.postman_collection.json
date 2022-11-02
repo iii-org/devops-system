@@ -1,10 +1,10 @@
 {
 	"info": {
-		"_postman_id": "a49f6296-7b32-4b75-ad3c-8148defac982",
-		"name": "III DevOps API PM/RD 關連測試 Run (Auto)",
+		"_postman_id": "2fe6058d-be3b-497f-81a4-360e22b710a3",
+		"name": "III DevOps Test - PM/RD",
 		"description": "# 非測試項目\r\n- Checkmarx、WebInspect、Postman 的建立掃描 API 為 runner 驅動，不測試\r\n- 檔案上傳類因為 postman 限制不測試\r\n- Harbor 的 DELETE artifact/tag API 因為無法重建資料，不測試\r\n- Rancher Pipeline 的新增或修改 CI/CD 會破壞 pipeline 執行，不測試",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "11502387"
+		"_exporter_id": "13159247"
 	},
 	"item": [
 		{
@@ -24,8 +24,8 @@
 									"",
 									"pm.test(\"JWT Token 檢查\", function () {",
 									"    const decode_jwt = jwt_decode(pm.response.json().data.token);",
-									"    pm.variables.set(\"user_id_pm\", decode_jwt.sub.user_id)",
-									"    pm.variables.set(\"token_pm\", pm.response.json().data.token)",
+									"    pm.environment.set(\"pm_user_id\", decode_jwt.sub.user_id)",
+									"    pm.environment.set(\"token_pm\", pm.response.json().data.token)",
 									"});",
 									""
 								],
@@ -50,7 +50,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\": \"{{username_pm}}\",\n    \"password\": \"{{password_pm}}\"\n}",
+							"raw": "{\n    \"username\": \"{{am_create_pm_login}}\",\n    \"password\": \"{{am_update_pm_password}}\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -138,8 +138,8 @@
 									"",
 									"pm.test(\"JWT Token 檢查\", function () {",
 									"    const decode_jwt = jwt_decode(pm.response.json().data.token);",
-									"    pm.variables.set(\"user_id_rd\", decode_jwt.sub.user_id)",
-									"    pm.variables.set(\"token_rd\", pm.response.json().data.token)",
+									"    pm.environment.set(\"rd_user_id\", decode_jwt.sub.user_id)",
+									"    pm.environment.set(\"token_rd\", pm.response.json().data.token)",
 									"});",
 									""
 								],
@@ -164,7 +164,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\": \"{{username_rd}}\",\n    \"password\": \"{{password_rd}}\"\n}",
+							"raw": "{\n    \"username\": \"{{am_create_rd_username}}\",\n    \"password\": \"{{am_create_rd_password}}\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -257,6 +257,16 @@
 						}
 					],
 					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token_pm}}",
+									"type": "string"
+								}
+							]
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
@@ -324,11 +334,11 @@
 								"exec": [
 									"pm.test(\"儲存專案各項id\", function () {\r",
 									"    const data = pm.response.json().data;\r",
-									"    pm.variables.set(\"project_id\", data.project_id)\r",
-									"    pm.variables.set(\"plan_project_id\", data.plan_project_id)\r",
-									"    pm.variables.set(\"repository_id\", data.git_repository_id)\r",
-									"    pm.variables.set(\"harbor_project_id\", data.harbor_project_id)\r",
-									"    console.log(pm.variables.get(\"project_id\"))\r",
+									"    pm.environment.set(\"project_id\", data.project_id)\r",
+									"    pm.environment.set(\"plan_project_id\", data.plan_project_id)\r",
+									"    pm.environment.set(\"repository_id\", data.git_repository_id)\r",
+									"    pm.environment.set(\"harbor_project_id\", data.harbor_project_id)\r",
+									"    console.log(pm.environment.get(\"project_id\"))\r",
 									"});\r",
 									""
 								],
@@ -463,17 +473,26 @@
 						}
 					},
 					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token_pm}}",
+									"type": "string"
+								}
+							]
+						},
 						"method": "POST",
 						"header": [],
 						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "user_id",
-									"value": "{{user_id_rd}}",
-									"type": "text"
+							"mode": "raw",
+							"raw": "{\n    \"user_id\": \"{{rd_user_id}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
 								}
-							]
+							}
 						},
 						"url": {
 							"raw": "{{test_origin}}/project/{{project_id}}/member",
@@ -553,7 +572,7 @@
 							"script": {
 								"exec": [
 									"var fixed_version_id = pm.response.json().data.version.id\r",
-									"pm.variables.set('version_id', fixed_version_id) \r",
+									"pm.environment.set('version_id', fixed_version_id) \r",
 									""
 								],
 								"type": "text/javascript"
@@ -674,7 +693,7 @@
 									"pm.test(\"儲存議題 ID\", function () {\r",
 									"    var jsonData = pm.response.json();\r",
 									"    pm.expect(jsonData.data).to.have.property('id');\r",
-									"    pm.variables.set('issue_id', jsonData.data.id)\r",
+									"    pm.environment.set('issue_id', jsonData.data.id)\r",
 									"});\r",
 									"\r",
 									""
@@ -721,7 +740,7 @@
 								},
 								{
 									"key": "assigned_to_id",
-									"value": "{{issue.assign_to}}",
+									"value": "{{pm_user_id}}",
 									"type": "text"
 								},
 								{
@@ -866,6 +885,16 @@
 						}
 					],
 					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token_pm}}",
+									"type": "string"
+								}
+							]
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
@@ -1011,7 +1040,8 @@
 											"var year = now.getFullYear();\r",
 											"var month = now.getMonth();\r",
 											"var day = now.getDate();\r",
-											"var c = new Date(year + 3, month, day);\r",
+											"var c = new Date(year + 1, month, day);\r",
+											"pm.variables.set('start_date',date)\r",
 											"pm.variables.set('due_date',c.toISOString())\r",
 											"\r",
 											"\r",
@@ -1035,7 +1065,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n\t\"description\": \"{{new.project_descripiton}}\",\r\n    \"display\": \"{{new.project_display}}\",\r\n    \"owner_id\": {{user_id_pm}},\r\n    \"start_date\": \"{{start_date}}\",\r\n    \"due_date\": \"{{due_date}}\", \r\n    \"disabled\": false\r\n}",
+									"raw": "{\r\n\t\"description\": \"{{new.project_descripiton}}\",\r\n    \"display\": \"{{new.project_display}}\",\r\n    \"owner_id\": \"{{pm_user_id}}\",\r\n    \"start_date\": \"{{start_date}}\",\r\n    \"due_date\": \"{{due_date}}\", \r\n    \"disabled\": false\r\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -2541,13 +2571,13 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{test_origin}}/dashboard_issues_priority/{{user_id}}",
+											"raw": "{{test_origin}}/dashboard_issues_priority/{{pm_user_id}}",
 											"host": [
 												"{{test_origin}}"
 											],
 											"path": [
 												"dashboard_issues_priority",
-												"{{user_id}}"
+												"{{pm_user_id}}"
 											]
 										}
 									},
@@ -2616,13 +2646,13 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{test_origin}}/dashboard_issues_type/{{user_id}}",
+											"raw": "{{test_origin}}/dashboard_issues_type/{{pm_user_id}}",
 											"host": [
 												"{{test_origin}}"
 											],
 											"path": [
 												"dashboard_issues_type",
-												"{{user_id}}"
+												"{{pm_user_id}}"
 											]
 										}
 									},
@@ -2695,13 +2725,13 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{test_origin}}/dashboard_issues_project/{{user_id}}",
+											"raw": "{{test_origin}}/dashboard_issues_project/{{pm_user_id}}",
 											"host": [
 												"{{test_origin}}"
 											],
 											"path": [
 												"dashboard_issues_project",
-												"{{user_id}}"
+												"{{pm_user_id}}"
 											]
 										}
 									},
@@ -3813,14 +3843,13 @@
 								"method": "PUT",
 								"header": [],
 								"body": {
-									"mode": "formdata",
-									"formdata": [
-										{
-											"key": "wiki_text",
-											"value": "這是被API變更後的內容",
-											"type": "text"
+									"mode": "raw",
+									"raw": "{\n    \"wiki_text\": \"這是被API變更後的內容\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
 										}
-									]
+									}
 								},
 								"url": {
 									"raw": "{{test_origin}}/project/{{project_id}}/wiki/auto_test_wiki",
@@ -4650,7 +4679,7 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.variables.set('testCase_id', pm.response.json().data.testCase_id)"
+											"pm.environment.set('testCase_id', pm.response.json().data.testCase_id)"
 										],
 										"type": "text/javascript"
 									}
@@ -4808,7 +4837,7 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.variables.set('testItem_id', pm.response.json().data.testItem_id)"
+											"pm.environment.set('testItem_id', pm.response.json().data.testItem_id)"
 										],
 										"type": "text/javascript"
 									}
@@ -4818,29 +4847,13 @@
 								"method": "POST",
 								"header": [],
 								"body": {
-									"mode": "formdata",
-									"formdata": [
-										{
-											"key": "project_id",
-											"value": "{{project_id}}",
-											"type": "text"
-										},
-										{
-											"key": "name",
-											"value": "忘記密碼",
-											"type": "text"
-										},
-										{
-											"key": "is_passed",
-											"value": "true",
-											"type": "text"
-										},
-										{
-											"key": "issue_id",
-											"value": "{{issue_id}}",
-											"type": "text"
+									"mode": "raw",
+									"raw": "{\n    \"project_id\": \"{{project_id}}\",\n    \"name\": \"忘記密碼\",\n    \"is_passed\": true,\n    \"issue_id\": \"{{issue_id}}\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
 										}
-									]
+									}
 								},
 								"url": {
 									"raw": "{{test_origin}}/testItems_by_testCase/{{testCase_id}}",
@@ -5102,7 +5115,7 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.variables.set('testValue_id', pm.response.json().data.testValue_id)"
+											"pm.environment.set('testValue_id', pm.response.json().data.testValue_id)"
 										],
 										"type": "text/javascript"
 									}
@@ -5112,46 +5125,13 @@
 								"method": "POST",
 								"header": [],
 								"body": {
-									"mode": "formdata",
-									"formdata": [
-										{
-											"key": "project_id",
-											"value": "{{project_id}}",
-											"type": "text"
-										},
-										{
-											"key": "issue_id",
-											"value": "{{issue_id}}",
-											"type": "text"
-										},
-										{
-											"key": "testCase_id",
-											"value": "{{testCase_id}}",
-											"type": "text"
-										},
-										{
-											"key": "type_id",
-											"value": "2",
-											"description": "{\"1\": \"Request\",\"2\",\"Response\"}",
-											"type": "text"
-										},
-										{
-											"key": "location_id",
-											"value": "2",
-											"description": "{\"1\": \"Header\",\"2\",\"Body\"}",
-											"type": "text"
-										},
-										{
-											"key": "key",
-											"value": "message",
-											"type": "text"
-										},
-										{
-											"key": "value",
-											"value": "success",
-											"type": "text"
+									"mode": "raw",
+									"raw": "{\n    \"project_id\": \"{{project_id}}\",\n    \"issue_id\": \"{{issue_id}}\",\n    \"testCase_id\": \"{{testCase_id}}\",\n    \"type_id\": 2,\n    \"location_id\": 2,\n    \"key\": \"message\",\n    \"value\": \"success\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
 										}
-									]
+									}
 								},
 								"url": {
 									"raw": "{{test_origin}}/testValues_by_testItem/{{testItem_id}}",
@@ -5265,29 +5245,13 @@
 								"method": "PUT",
 								"header": [],
 								"body": {
-									"mode": "formdata",
-									"formdata": [
-										{
-											"key": "key",
-											"value": "account",
-											"type": "text"
-										},
-										{
-											"key": "value",
-											"value": "becky",
-											"type": "text"
-										},
-										{
-											"key": "type_id",
-											"value": "1",
-											"type": "text"
-										},
-										{
-											"key": "location_id",
-											"value": "2",
-											"type": "text"
+									"mode": "raw",
+									"raw": "{\n    \"key\": \"account\",\n    \"value\": \"becky\",\n    \"type_id\": 1,\n    \"location_id\": 2\n}",
+									"options": {
+										"raw": {
+											"language": "json"
 										}
-									]
+									}
 								},
 								"url": {
 									"raw": "{{test_origin}}/testValues/{{testValue_id}}",
@@ -5718,19 +5682,13 @@
 										"method": "POST",
 										"header": [],
 										"body": {
-											"mode": "formdata",
-											"formdata": [
-												{
-													"key": "branch",
-													"value": "new-branch",
-													"type": "text"
-												},
-												{
-													"key": "ref",
-													"value": "master",
-													"type": "text"
+											"mode": "raw",
+											"raw": "{\n    \"branch\": \"new-branch\",\n    \"ref\": \"master\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
 												}
-											]
+											}
 										},
 										"url": {
 											"raw": "{{test_origin}}/repositories/{{repository_id}}/branches",
@@ -6201,29 +6159,13 @@
 										"method": "POST",
 										"header": [],
 										"body": {
-											"mode": "formdata",
-											"formdata": [
-												{
-													"key": "tag_name",
-													"value": "test-tag",
-													"type": "text"
-												},
-												{
-													"key": "ref",
-													"value": "master",
-													"type": "text"
-												},
-												{
-													"key": "message",
-													"value": "add test-tag",
-													"type": "text"
-												},
-												{
-													"key": "release_description",
-													"value": "",
-													"type": "text"
+											"mode": "raw",
+											"raw": "{\n    \"tag_name\": \"test-tag\",\n    \"ref\": \"master\",\n    \"message\": \"add test-tag\",\n    \"release_description\": \"\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
 												}
-											]
+											}
 										},
 										"url": {
 											"raw": "{{test_origin}}/repositories/{{repository_id}}/tags",
@@ -7196,7 +7138,7 @@
 							}
 						},
 						"url": {
-							"raw": "{{test_origin}}/project/{{project_id}}/member/{{issue.assign_to}}",
+							"raw": "{{test_origin}}/project/{{project_id}}/member/{{rd_user_id}}",
 							"host": [
 								"{{test_origin}}"
 							],
@@ -7204,7 +7146,7 @@
 								"project",
 								"{{project_id}}",
 								"member",
-								"{{issue.assign_to}}"
+								"{{rd_user_id}}"
 							]
 						}
 					},
@@ -7397,6 +7339,62 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "刪除 PM 用戶",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{test_origin}}/user/{{am_create_pm_id}}",
+					"host": [
+						"{{test_origin}}"
+					],
+					"path": [
+						"user",
+						"{{am_create_pm_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "刪除 RD 用戶",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{test_origin}}/user/{{am_create_rd_id}}",
+					"host": [
+						"{{test_origin}}"
+					],
+					"path": [
+						"user",
+						"{{am_create_rd_id}}"
+					]
+				}
+			},
+			"response": []
 		}
 	],
 	"event": [
@@ -7405,8 +7403,8 @@
 			"script": {
 				"type": "text/javascript",
 				"exec": [
-					"pm.environment.unset('project_id')",
-					"pm.environment.unset('issue_id')"
+					"",
+					""
 				]
 			}
 		},
@@ -7426,7 +7424,8 @@
 	"variable": [
 		{
 			"key": "prebuilt_project_id",
-			"value": "286"
+			"value": "286",
+			"disabled": true
 		}
 	]
 }

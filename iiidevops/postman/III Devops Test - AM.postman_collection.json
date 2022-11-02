@@ -373,62 +373,6 @@
 						}
 					},
 					"response": []
-				},
-				{
-					"name": "刪除 RD 用戶",
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{test_origin}}/user/{{am_create_rd_id}}",
-							"host": [
-								"{{test_origin}}"
-							],
-							"path": [
-								"user",
-								"{{am_create_rd_id}}"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "刪除 PM 用戶",
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{test_origin}}/user/{{am_create_pm_id}}",
-							"host": [
-								"{{test_origin}}"
-							],
-							"path": [
-								"user",
-								"{{am_create_pm_id}}"
-							]
-						}
-					},
-					"response": []
 				}
 			]
 		}
