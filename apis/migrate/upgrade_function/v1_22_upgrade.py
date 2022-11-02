@@ -79,6 +79,11 @@ def insert_default_value_in_system_parameter():
             "name": "rancher_app_revision_limit",
             "value": {"limit_nums": 3000},
             "active": True
+        },
+        {
+            "name": "upload_file_size",
+            "value": {"upload_file_size": 5},
+            "active": True
         }
     ]
     model_insert_default_value(SystemParameter, data_list)
