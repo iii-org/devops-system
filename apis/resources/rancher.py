@@ -18,6 +18,7 @@ from resources import kubernetesClient
 from resources.logger import logger
 from flask_apispec import use_kwargs
 from urls import route_model
+import requests
 
 
 def get_ci_last_test_result(relation):
@@ -368,11 +369,27 @@ class Rancher(object):
                   message='"disable_rancher_project_pipeline error, error message: {0}'.format(
                       rancher_output.text))
 
+    def rc_get_yaml(self, pipeline_name):
+        token = self.__generate_token()
+        headers = {'Cookie': f'R_LOCALE=en-us; R_USERNAME=admin; R_PCS=light; CSRF=b88fa1f502; R_SESS={token}'}
+        result = requests.get(
+            f"https://{config.get('RANCHER_IP_PORT')}/v1/project.cattle.io.pipelines/{pipeline_name.split(':')[0]}/{pipeline_name.split(':')[1]}",
+            verify=False, headers=headers)
+        return result.json()
 
-    def rc_get_yaml(self, project_name, pipeline_name):
-        output = self.__api_get(f"/project/{project_name}/pipelines/{pipeline_name}")
-        return output.json()
-
+    def rc_put_yaml_run(self, pipeline_name):
+        result = self.rc_get_yaml(pipeline_name)
+        if result['status'].get('lastExecutionId'):
+            if int(result['status']['nextRun']) <= int(result['status']['lastExecutionId'].split('-')[3]):
+                result['status']['nextRun'] = int(result['status']['lastExecutionId'].split('-')[3]) + 1
+                token = self.__generate_token()
+                headers = {'Cookie': f'R_LOCALE=en-us; R_USERNAME=admin; R_PCS=light; CSRF=b88fa1f502; R_SESS={token}'}
+                result = requests.put(
+                    f"https://{config.get('RANCHER_IP_PORT')}/v1/project.cattle.io.pipelines/{pipeline_name.split(':')[0]}/{pipeline_name.split(':')[1]}",
+                    verify=False, headers=headers, json=result)
+                # subprocess.run(['kubectl', 'apply', '-f', f"pipeline-{pipeline_name.split(':')[1]}.yaml", '-n',
+                #                 f"{pipeline_name.split(':')[0]}"])
+                return result.json()
 
     def rc_get_project_pipeline(self):
         self.rc_get_project_id()
@@ -666,6 +683,14 @@ def version_list(cat_id):
                     if k == "versionLinks":
                         version_dict.update({data["name"]: [version for version, url in v.items()]})
     return version_dict
+
+
+def check_all_rancher_pipeline_run():
+    rancher.rc_get_project_id()
+    pipeline_list = rancher.rc_get_project_pipeline()
+    for pipeline in pipeline_list:
+        pipeline_name = pipeline['id']
+        rancher.rc_put_yaml_run(pipeline_name)
 # --------------------- Resources ---------------------
 class Catalogs(Resource):
     @jwt_required()
@@ -750,4 +775,14 @@ class RancherCreateAPP(Resource):
 class RancherYaml(Resource):
     @use_kwargs(route_model.RancherGetYamlRes, location="json")
     def get(self, **kwargs):
-        return util.success(rancher.rc_get_yaml(kwargs['project_name'], kwargs['pipeline_name']))
+        return util.success(rancher.rc_get_yaml(kwargs['pipeline_name']))
+
+    @use_kwargs(route_model.RancherGetYamlRes, location="json")
+    def put(self, **kwargs):
+        return util.success(rancher.rc_put_yaml_run(kwargs['pipeline_name']))
+
+
+class RancherCheckAllYamlRun(Resource):
+    def put(self):
+        check_all_rancher_pipeline_run()
+        return util.success()
