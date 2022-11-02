@@ -60,6 +60,8 @@ def pipeline_exec_list(repository_id, args):
         relation.ci_pipeline_id, limit=args['limit'], page_start=args['start'])
     pagination = __rancher_pagination(pipeline_outputs)
     out["pagination"] = pagination
+    project_id = relation.project_id
+    rancher.rc_put_yaml_run(project_id)
     for pipeline_output in pipeline_outputs['data']:
         output_dict = {
             'id': pipeline_output['run'],
