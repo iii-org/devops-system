@@ -44,6 +44,10 @@ class RancherCreateAppSchema(Schema):
                 "web.deployName": "daily-check-0711-master-serv",
                 "web.port": "5000"
                 })
+
+
+class RouterSimpleSchema(Schema):
+    simple = fields.Boolean(example=True)
 ########## API Action ##########    
 
 # class FileSchema(Schema):
