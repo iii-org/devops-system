@@ -51,6 +51,7 @@ from flask_apispec.views import MethodResource
 from resources import role
 from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
 import config
+import pandas as pd
 
 
 def get_pj_id_by_name(name):
@@ -580,11 +581,11 @@ def pm_update_project(project_id, args):
     nexus.nx_update_project(project_id, args)
 
     # 如果有disable, 調整專案在gitlab archive狀態
-    disabled = args.get('disabled')
-    if disabled is not None:
+    if args.get('disabled'):
+        disabled = args['disabled']
         gitlab.gl_archive_project(
             plugin_relation.git_repository_id, disabled)
-        rancher.rc_del_app_with_prefix(f'{project_name}-')   
+        rancher.rc_del_app_with_prefix(f'{project_name}-')
 
     # 若有父專案, 加關聯進ProjectParentSonRelation, 須等redmine更新完再寫入
     if args.get('parent_plan_project_id') is not None:
@@ -1144,10 +1145,15 @@ def get_kubernetes_namespace_quota(project_id):
     project_quota = kubernetesClient.get_namespace_quota(project_name)
     deployments = kubernetesClient.list_namespace_deployments(project_name)
     ingresses = kubernetesClient.list_namespace_ingresses(project_name)
+    apps = rancher.rc_get_apps_all()
+    df_app = pd.DataFrame(apps)
+    df_project_app = df_app[df_app['targetNamespace'] == project_name]
     project_quota["quota"]["deployments"] = None
     project_quota["used"]["deployments"] = str(len(deployments))
     project_quota["quota"]["ingresses"] = None
     project_quota["used"]["ingresses"] = str(len(ingresses))
+    project_quota["quota"]["apps"] = None
+    project_quota["used"]["apps"] = str(len(df_project_app))
     if "secrets" not in project_quota["quota"]:
         secrets = kubernetesClient.list_namespace_secrets(project_name)
         project_quota["quota"]["secrets"] = None
