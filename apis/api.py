@@ -514,6 +514,7 @@ api.add_resource(rancher.RancherDeleteAPP, '/rancher/delete_app')
 api.add_resource(rancher.RancherCreateAPP, '/rancher/create_app')
 api.add_resource(rancher.RancherYaml, '/rancher/<sint:project_id>/yaml')
 api.add_resource(rancher.RancherCheckAllYamlRun, '/rancher/yaml/check_all_run')
+api.add_resource(rancher.RancherAppnameByProject, '/rancher/<sint:project_id>/app')
 
 # Activity
 api.add_resource(activity.AllActivities, '/all_activities')

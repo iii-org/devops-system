@@ -19,6 +19,8 @@ from resources.logger import logger
 from flask_apispec import use_kwargs
 from urls import route_model
 import requests
+import model
+import pandas as pd
 
 
 def get_ci_last_test_result(relation):
@@ -697,6 +699,15 @@ def check_all_rancher_pipeline_run():
     for pipeline in pipeline_list:
         pipeline_name = pipeline['id']
         rancher.rc_put_yaml_run(pipeline_name)
+
+
+def get_all_appname_by_project(project_id):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    apps = rancher.rc_get_apps_all()
+    df_app = pd.DataFrame(apps)
+    df_project_app = df_app[df_app['targetNamespace'] == project_name]
+    result_list = [value['name'] for key, value in df_project_app.fillna("").T.to_dict().items()]
+    return result_list
 # --------------------- Resources ---------------------
 class Catalogs(Resource):
     @jwt_required()
@@ -790,3 +801,8 @@ class RancherCheckAllYamlRun(Resource):
     def put(self):
         check_all_rancher_pipeline_run()
         return util.success()
+
+
+class RancherAppnameByProject(Resource):
+    def get(self, project_id):
+        return util.success(get_all_appname_by_project(project_id))
