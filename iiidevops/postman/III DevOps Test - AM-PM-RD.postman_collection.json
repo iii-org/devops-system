@@ -4975,7 +4975,7 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.variables.set('testCase_id', pm.response.json().data.testCase_id)"
+											"pm.environment.set('testCase_id＿with_issue', pm.response.json().data.tc_id)"
 										],
 										"type": "text/javascript"
 									}
@@ -5012,7 +5012,7 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.variables.set('testCase_id', pm.response.json().data.testCase_id)"
+											"pm.environment.set('testCase_id＿without_issue', pm.response.json().data.tc_id)"
 										],
 										"type": "text/javascript"
 									}
@@ -5698,6 +5698,64 @@
 									"path": [
 										"testCases",
 										"{{testCase_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete TestCase  by TestCase_id Copy",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{test_origin}}/testCases/{{testCase_id＿with_issue}}",
+									"host": [
+										"{{test_origin}}"
+									],
+									"path": [
+										"testCases",
+										"{{testCase_id＿with_issue}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete TestCase  by TestCase_id Copy 2",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{test_origin}}/testCases/{{testCase_id＿without_issue}}",
+									"host": [
+										"{{test_origin}}"
+									],
+									"path": [
+										"testCases",
+										"{{testCase_id＿without_issue}}"
 									]
 								}
 							},
