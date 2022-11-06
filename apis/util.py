@@ -281,7 +281,7 @@ def df_pagination(df, per_page, page):
     total = len(df)
     index_list = str(pd.cut([0, pages * per_page], pages).categories[page - 1]).replace("(", "").replace("]", "").split(
         ',')
-    index_top = math.ceil(float(index_list[0]))
+    index_top = 0 if not prev else math.ceil(float(index_list[0]))
     index_down = math.ceil(float(index_list[1]))
     df = df.where(pd.notnull(df), None)
     data = df[index_top:index_down].T.to_dict()
