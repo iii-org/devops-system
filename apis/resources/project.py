@@ -1398,6 +1398,128 @@ def get_plugin_usage(project_id):
     return util.success(plugin_info)
 
 
+def delete_all_pods_and_services_by_app(project_id, app_name):
+    # delete all pods by app_name
+    delete_list = app_name_find_pod_name(project_id, app_name)
+    if delete_list:
+        for pod_name in delete_list:
+            delete_kubernetes_namespace_pod(project_id, pod_name)
+
+    # delete all service by app_name
+    delete_list = app_name_find_service_name(project_id, app_name)
+    if delete_list:
+        for service_name in delete_list:
+            delete_kubernetes_namespace_service(project_id, service_name)
+
+    # delete app
+    rancher.rc_del_app(app_name)
+
+
+def app_name_find_service_name(project_id, app_name):
+    service_list = get_kubernetes_namespace_services(project_id)
+    # service_list = [{"name": "ui-create-case-allow-nothing-serv-svc", "is_iii": True},
+    #                 {"name": "ui-create-case-master-serv-svc", "is_iii": True}]
+    if service_list != []:
+        delete_list = []
+        for service in service_list:
+            service_app_name = '-'.join(service['name'].split('-')[0:-1])
+            if service_app_name == app_name:
+                delete_list.append(service['name'])
+        return delete_list
+
+
+def app_name_find_pod_name(project_id, app_name):
+    project_name = str(model.Project.query.filter_by(
+        id=project_id).first().name)
+    pods_list = kubernetesClient.list_namespace_pods_info(project_name)
+    # pods_list = [{
+    #         "name": "ui-create-case-allow-nothing-cmx-686-xzgk6",
+    #         "created_time": "2022-10-20 08:07:39+00:00",
+    #         "containers": [
+    #             {
+    #                 "name": "checkmarx-scan-46674d1-686",
+    #                 "image": "harbor-dev.iiidevops.org/dockerhub/iiiorg/checkmarx-runner:3.0.2",
+    #                 "restart": 0,
+    #                 "state": "terminated",
+    #                 "time": "2022-10-20 08:07:43+00:00"
+    #             }
+    #         ]
+    #     },
+    #     {
+    #         "name": "ui-create-case-master-pm-689-hn7ps",
+    #         "created_time": "2022-10-20 09:38:19+00:00",
+    #         "containers": [
+    #             {
+    #                 "name": "newman-runner-1037ecf-689",
+    #                 "image": "harbor-dev.iiidevops.org/dockerhub/iiiorg/newman-runner:4.0.5",
+    #                 "restart": 0,
+    #                 "state": "terminated",
+    #                 "time": "2022-10-20 09:38:24+00:00"
+    #             }
+    #         ]
+    #     },
+    #     {
+    #         "name": "ui-create-case-master-sdx-689-8dltk",
+    #         "created_time": "2022-10-20 09:38:36+00:00",
+    #         "containers": [
+    #             {
+    #                 "name": "test-sideex-1037ecf-689",
+    #                 "image": "harbor-dev.iiidevops.org/dockerhub/iiiorg/sideex-runner:1.2.1",
+    #                 "restart": 0,
+    #                 "state": "terminated",
+    #                 "time": "2022-10-20 09:38:38+00:00"
+    #             }
+    #         ]
+    #     },
+    #     {
+    #         "name": "ui-create-case-master-sq-689-fntrh",
+    #         "created_time": "2022-10-20 09:36:16+00:00",
+    #         "containers": [
+    #             {
+    #                 "name": "sonarqube-scan-1037ecf-689",
+    #                 "image": "iiiorg/sonarqube-runner:1.0.1",
+    #                 "restart": 0,
+    #                 "state": "terminated",
+    #                 "time": "2022-10-20 09:36:18+00:00"
+    #             }
+    #         ]
+    #     },
+    #     {
+    #         "name": "ui-create-case-master-zap-689-88kzn",
+    #         "created_time": "2022-10-20 09:38:01+00:00",
+    #         "containers": [
+    #             {
+    #                 "name": "test-zap-1037ecf-689",
+    #                 "image": "harbor-dev.iiidevops.org/dockerhub/iiiorg/zap-runner:1.0.2",
+    #                 "restart": 0,
+    #                 "state": "terminated",
+    #                 "time": "2022-10-20 09:38:50+00:00"
+    #             }
+    #         ]
+    #     },
+    #     {
+    #         "name": "ui-create-case-test-merge-cmx-688-dkzmg",
+    #         "created_time": "2022-10-20 08:07:57+00:00",
+    #         "containers": [
+    #             {
+    #                 "name": "checkmarx-scan-e9e85d8-688",
+    #                 "image": "harbor-dev.iiidevops.org/dockerhub/iiiorg/checkmarx-runner:3.0.2",
+    #                 "restart": 0,
+    #                 "state": "terminated",
+    #                 "time": "2022-10-20 08:08:02+00:00"
+    #             }
+    #         ]
+    #     }
+    # ]
+    if pods_list != []:
+        delete_list = []
+        for pod in pods_list:
+            pod_app_name = '-'.join(pod['name'].split('-')[0:-2])
+            if pod_app_name == app_name:
+                delete_list.append(pod['name'])
+        return delete_list
+
+
 def git_repo_id_to_ci_pipe_id(repository_id):
     project_plugin_relation = model.ProjectPluginRelation.query.filter_by(
         git_repository_id=int(repository_id)).first()
@@ -1504,3 +1626,9 @@ class GitRepoIdToCiPipeId(Resource):
     @jwt_required()
     def get(self, repository_id):
         return git_repo_id_to_ci_pipe_id(repository_id)
+
+
+class AllPodsAndServicesUnderApp(Resource):
+    @jwt_required()
+    def delete(self, project_id, app_name):
+        return util.success(delete_all_pods_and_services_by_app(project_id, app_name))

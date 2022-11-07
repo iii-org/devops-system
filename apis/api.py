@@ -257,6 +257,10 @@ api.add_resource(gitlab.SyncGitCommitIssueRelationByPjName,
 api.add_resource(pipeline.PipelineFile, '/project/<string:project_name>/pipeline_file')
 
 
+# App
+api.add_resource(project.AllPodsAndServicesUnderApp, '/project/<sint:project_id>/app/<app_name>')
+
+
 # Project son relation
 api.add_resource(gitlab.SyncGitCommitIssueRelation,
                  '/project/<sint:project_id>/issues_commit',
