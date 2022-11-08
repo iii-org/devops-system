@@ -1418,7 +1418,7 @@ def delete_all_pods_and_services_by_app(project_id, app_name):
 
 
 def app_name_find_service_name(project_id, app_name):
-    service_list = get_kubernetes_namespace_services(project_id)
+    service_list = kubernetesClient.list_namespace_services(project_id)
     # service_list = [{"name": "ui-create-case-allow-nothing-serv-svc", "is_iii": True},
     #                 {"name": "ui-create-case-master-serv-svc", "is_iii": True}]
     if service_list != []:
