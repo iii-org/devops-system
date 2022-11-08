@@ -83,5 +83,5 @@ class ExcalidrawsVersionRestoreV2(MethodResource):
     @doc(tags=['Excalidraw'], description="restore excalidraw value by user assigned.")
     @marshal_with(util.CommonResponse)
     @jwt_required()
-    def put(self, excalidraw_hisrory_id):
-        return util.success(excalidraw.excalidraw_version_restore(excalidraw_hisrory_id))
+    def put(self, excalidraw_history_id):
+        return util.success(excalidraw.excalidraw_version_restore(excalidraw_history_id))

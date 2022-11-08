@@ -246,13 +246,19 @@ def get_excalidraw_history(excalidraw_id):
     rows = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).order_by(
         desc(ExcalidrawHistory.updated_at)).all()
     result_list = []
-    for row in rows:
-        user_name = User.query.filter_by(id=row.user_id).first().name
-        result_dict = row_to_dict(row)
-        result_dict['user_name'] = user_name
-        result_dict.pop('user_id')
-        result_list.append(result_dict)
-    return result_list
+    if rows:
+        for row in rows:
+            user_name = User.query.filter_by(id=row.user_id).first().name
+            result_dict = row_to_dict(row)
+            result_dict['user_name'] = user_name
+            result_dict['size'] = utf8len(row.value['value'])
+            result_dict.pop('user_id')
+            result_list.append(result_dict)
+        return result_list
+
+
+def utf8len(s):
+    return len(s.encode('utf-8'))
 
 
 def update_excalidraw_history(excalidraw_id):
