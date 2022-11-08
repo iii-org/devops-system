@@ -188,7 +188,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"{{am_create_pm_username}}\",\n    \"email\": \"amcreatePM@yahoo.com.tw\",\n    \"password\": \"{{am_create_pm_password}}\",\n    \"login\": \"{{am_create_pm_login}}\",\n    \"role_id\": 3\n}",
+							"raw": "{\n    \"name\": \"{{am_create_pm_username}}\",\n    \"email\": \"tech@iiidevops.org\",\n    \"password\": \"{{am_create_pm_password}}\",\n    \"login\": \"{{am_create_pm_login}}\",\n    \"role_id\": 3\n}",
 							"options": {
 								"raw": {
 									"language": "json"
