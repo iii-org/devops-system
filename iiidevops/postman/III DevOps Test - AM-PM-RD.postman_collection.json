@@ -287,7 +287,7 @@
 									"pm.environment.set('am_update_pm_old_password',pm.environment.get(\"am_create_pm_password\"))",
 									"pm.environment.set('am_update_pm_password', \"Pww12345!\")",
 									"pm.environment.set('am_update_pm_name',\"upamtestusernamepm\")",
-									"pm.environment.set('am_update_pm_email',\"am_update_pm_email@yahoo.nowhere\")",
+									"pm.environment.set('am_update_pm_email',\"tech@iiidevops.org\")",
 									"pm.environment.set('am_update_pm_status',\"enable\")"
 								],
 								"type": "text/javascript"
@@ -309,7 +309,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"upamtestusernamepm\",       \n    \"old_password\": \"{{am_create_pm_password}}\",\n    \"password\": \"Pww12345!\",\n    \"phone\": \"0999999999\",     \n    \"email\": \"am_update_pm_email@yahoo.nowhere\",\n    \"status\": \"enable\"\n}",
+							"raw": "{\n    \"name\": \"upamtestusernamepm\",       \n    \"old_password\": \"{{am_create_pm_password}}\",\n    \"password\": \"Pww12345!\",\n    \"phone\": \"0999999999\",     \n    \"email\": \"tech@iiidevops.org\",\n    \"status\": \"enable\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
