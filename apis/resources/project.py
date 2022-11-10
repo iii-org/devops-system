@@ -52,6 +52,7 @@ from resources import role
 from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
 import config
 import pandas as pd
+from .rancher import get_all_appname_by_project
 
 
 def get_pj_id_by_name(name):
@@ -1399,22 +1400,25 @@ def get_plugin_usage(project_id):
 
 
 def delete_all_pods_and_services_by_app(project_id, app_name):
+    # delete app
+    rancher.rc_del_app(app_name)
+
     # delete all pods by app_name
     delete_list = app_name_find_pod_name(project_id, app_name)
     if delete_list:
         for pod_name in delete_list:
             delete_kubernetes_namespace_pod(project_id, pod_name)
-            # pass
 
     # delete all service by app_name
     delete_list = app_name_find_service_name(project_id, app_name)
     if delete_list:
         for service_name in delete_list:
             delete_kubernetes_namespace_service(project_id, service_name)
-            # pass
 
-    # delete app
-    rancher.rc_del_app(app_name)
+    while True:
+        app_list = get_all_appname_by_project(project_id)
+        if app_name not in app_list:
+            break
 
 
 def app_name_find_service_name(project_id, app_name):
