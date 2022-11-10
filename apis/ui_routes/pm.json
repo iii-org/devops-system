@@ -828,6 +828,18 @@
                     "Project Manager"
                   ]
                 }
+              },
+              {
+                "path": "appsList",
+                "name": "AppsList",
+                "hidden": true,
+                "component": "views/SystemResource/PluginResource/components/AppsList",
+                "meta": {
+                  "title": "AppsList",
+                  "roles": [
+                    "Project Manager"
+                  ]
+                }
               }
             ]
           }
