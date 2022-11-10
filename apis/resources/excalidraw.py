@@ -251,7 +251,7 @@ def get_excalidraw_history(excalidraw_id):
             user_name = User.query.filter_by(id=row.user_id).first().name
             result_dict = row_to_dict(row)
             result_dict['user_name'] = user_name
-            result_dict['size'] = utf8len(row.value['value'])
+            result_dict['size'] = utf8len(row.value['value'])/1000
             result_dict.pop('user_id')
             result_list.append(result_dict)
         return result_list
@@ -314,10 +314,35 @@ def update_excalidraw_history(excalidraw_id):
             db.session.commit()
 
 
-def excalidraw_version_restore(excalidraw_hisrory_id):
-    excalidraw_history = ExcalidrawHistory.query.filter_by(id=excalidraw_hisrory_id).first()
+def add_new_record_to_history(excalidraw_history_id):
+    excalidraw_history = ExcalidrawHistory.query.filter_by(id=excalidraw_history_id).first()
+    add_dict = row_to_dict(excalidraw_history)
+    excalidraw_id = excalidraw_history.excalidraw_id
+    del add_dict['id']
+    rows = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).order_by(
+        desc(ExcalidrawHistory.updated_at)).all()
+    if int(len(rows)) < 5:
+        add_to_db(add_dict)
+    else:
+        oldest_time = row_to_dict(rows[-1])["updated_at"]
+        oldest_row = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).filter_by(updated_at=oldest_time).first()
+        db.session.delete(oldest_row)
+        add_to_db(add_dict)
+
+
+def add_to_db(add_dict):
+    add_dict['updated_at'] = datetime.utcnow()
+    add_dict['user_id'] = get_jwt_identity()["user_id"]
+    row = ExcalidrawHistory(**add_dict)
+    db.session.add(row)
+    db.session.commit()
+
+
+def excalidraw_version_restore(excalidraw_history_id):
+    excalidraw_history = ExcalidrawHistory.query.filter_by(id=excalidraw_history_id).first()
     excalidraw_id = excalidraw_history.excalidraw_id
     update_excalidraw_history(excalidraw_id)
+    add_new_record_to_history(excalidraw_history_id)
     value = excalidraw_history.value
     excalidraw = Excalidraw.query.filter_by(id=excalidraw_id).first()
     project_id = excalidraw.project_id
