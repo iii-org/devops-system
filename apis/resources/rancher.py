@@ -145,9 +145,10 @@ class Rancher(object):
             params['branch'] = branch
         elif run is not None:
             params['run'] = run
-
+        #slow here
         response = self.__api_get(path, params=params)
         output_array = response.json()
+        #slow here
         return output_array
 
     def rc_get_pipeline_executions_action(self, ci_project_id, ci_pipeline_id, pipelines_exec_run,

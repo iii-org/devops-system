@@ -180,40 +180,53 @@ def remove_parsing_data():
             
 
 def risk_detail(file_path=None):
-    with open(f'{file_path}/grype.json') as json_data:
-        data = json.load(json_data)
-    df_vulnerability_info = pd.DataFrame(
-        [data['matches'][index]['vulnerability'] for index, value in enumerate(data['matches'])])
-    for i in ['id', 'severity', 'description']:
-        if i not in list(df_vulnerability_info.columns):
-            df_vulnerability_info[i] = None
-    df_vulnerability_info = df_vulnerability_info[['id', 'severity', 'description', 'dataSource']]
-    df_artifact_info = pd.DataFrame(
-        [data['matches'][index]['artifact'] for index, value in enumerate(data['matches'])])
-    for i in ['name']:
-        if i not in list(df_artifact_info.columns):
-            df_artifact_info[i] = None
-    df_artifact_info = df_artifact_info[['name']]
-    df_fix_versions = pd.DataFrame(
-        [data['matches'][index]['vulnerability']['fix']['versions'] for index, value in enumerate(data['matches'])])
-    if df_fix_versions.isnull().shape[0] == df_fix_versions.shape[0]:
-        df_result = df_vulnerability_info.join(df_artifact_info)
-        df_result['versions'] = None
+    if os.path.isfile(f'{file_path}/grype.json'):
+        with open(f'{file_path}/grype.json') as json_data:
+            data = json.load(json_data)
+        # 擷取grype.json中的['id', 'severity', 'description']
+        df_vulnerability_info = pd.DataFrame(
+            [data['matches'][index]['vulnerability'] for index, value in enumerate(data['matches'])])
+        for i in ['id', 'severity', 'description']:
+            if i not in list(df_vulnerability_info.columns):
+                df_vulnerability_info[i] = None
+        # 依照指定順序排序
+        df_vulnerability_info = df_vulnerability_info[['id', 'severity', 'description', 'dataSource']]
+        # 擷取grype.json中的['name']
+        df_artifact_info = pd.DataFrame(
+            [data['matches'][index]['artifact'] for index, value in enumerate(data['matches'])])
+        for i in ['name']:
+            if i not in list(df_artifact_info.columns):
+                df_artifact_info[i] = None
+        df_artifact_info = df_artifact_info[['name']]
+        # 擷取grype.json中的['versions']
+        df_fix_versions = pd.DataFrame(
+            [data['matches'][index]['vulnerability']['fix']['versions'] for index, value in enumerate(data['matches'])])
+        if df_fix_versions.isnull().shape[0] == df_fix_versions.shape[0]:
+            df_result = df_vulnerability_info.join(df_artifact_info)
+            df_result['versions'] = None
+        else:
+            df_result = df_vulnerability_info.join(df_artifact_info).join(df_fix_versions)
     else:
-        df_result = df_vulnerability_info.join(df_artifact_info).join(df_fix_versions)
+        raise apiError.DevOpsError(404, f'{file_path}/grype.json not exist')
+
     # merge sbom json file
-    with open(f'{file_path}/sbom.syft.json') as json_data:
-        data = json.load(json_data)
-    df = pd.DataFrame(data['artifacts'])
-    df_merge = pd.merge(df[['name', 'licenses', 'type', 'version']], df_result, how="left", on='name')
-    df_merge = df_merge[['name', 'id', 'severity', 'licenses', 'type', 'version', 'versions', 'dataSource', 'description']]
-    sorted_list = ['Critical', 'High', 'Medium', 'Low', 'Negligible', 'Unknown']
-    df_sorted = pd.DataFrame()
-    for i in sorted_list:
-        df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.notnull())])
-        df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.isnull())])
-    df_sorted = df_sorted.append(df_merge[df_merge.severity.isnull()])
-    return df_sorted
+    if os.path.isfile(f'{file_path}/sbom.syft.json'):
+        with open(f'{file_path}/sbom.syft.json') as json_data:
+            data = json.load(json_data)
+        df = pd.DataFrame(data['artifacts'])
+        # 將grype.json和sbom.syft.json兩邊資料做merge
+        df_merge = pd.merge(df[['name', 'licenses', 'type', 'version']], df_result, how="left", on='name')
+        df_merge = df_merge[['name', 'id', 'severity', 'licenses', 'type', 'version', 'versions', 'dataSource', 'description']]
+        sorted_list = ['Critical', 'High', 'Medium', 'Low', 'Negligible', 'Unknown']
+        df_sorted = pd.DataFrame()
+        # 將輸出整理為指定排序
+        for i in sorted_list:
+            df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.notnull())])
+            df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.isnull())])
+        df_sorted = df_sorted.append(df_merge[df_merge.severity.isnull()])
+        return df_sorted
+    else:
+        raise apiError.DevOpsError(404, f'{file_path}/sbom.syft.json not exist')
 
 
 def get_sbom_scan_file_list(sbom_id):
