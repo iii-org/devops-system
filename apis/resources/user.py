@@ -660,6 +660,13 @@ def delete_user(user_id):
         filter(model.ProjectUserRole.user_id == user_id, model.ProjectUserRole.project_id != -1,
                model.ProjectUserRole.project_id == model.Project.id).all()
 
+    # change owner_id to system admin
+    rows = model.Project.query.filter_by(owner_id=user_id).all()
+    if rows:
+        for row in rows:
+            row.owner_id = 1
+        db.session.commit()
+
     try_to_delete(gitlab.gl_delete_user, relation.repository_user_id)
     try_to_delete(redmine.rm_delete_user, relation.plan_user_id)
     try_to_delete(harbor.hb_delete_user, relation.harbor_user_id)

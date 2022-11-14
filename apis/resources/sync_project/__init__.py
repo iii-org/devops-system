@@ -124,6 +124,12 @@ def set_args(project):
 
 def members_process(projects_name):
     rc_members.set_all_members()
+    # update owner_id if owner_id is nul
+    rows = model.Project.query.filter_by(owner_id=None).all()
+    if rows:
+        for row in rows:
+            row.owner_id = 1
+        db.session.commit()
     for name in projects_name:
         logger.logger.info(f'Checking project {name} members.')
         pj = nexus.nx_get_project(name=name)
