@@ -108,7 +108,12 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_timeout': 300,
     'pool_size': 20
 }
-app.config['MAX_CONTENT_LENGTH'] = 20 * 1000 * 1000
+
+'''
+To adjust file size, there are five different plan need to change,
+K8s, Ingress, UI-nginx, Redmine-setting, Flask-setting(the code below), DB(SystmeParameter)
+'''
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1000 * 1000
 
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)

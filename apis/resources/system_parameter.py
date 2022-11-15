@@ -200,6 +200,10 @@ def get_upload_file_types():
     return util.success(value)
 
 def update_upload_file_size(kwargs):
+    '''
+    To adjust file size, there are five different plan need to change,
+    K8s, Ingress, UI-nginx, Redmine-setting, Flask-setting(the code below), DB(SystmeParameter)
+    '''
     query = SystemParameter.query.filter_by(name="upload_file_size").first()
     if kwargs.get("upload_file_size") >= 0 and kwargs.get("upload_file_size") <= 100:
         if query:
