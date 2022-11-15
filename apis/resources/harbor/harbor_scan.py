@@ -7,6 +7,7 @@ from nexus import nx_get_project_plugin_relation, nx_get_project
 from resources.template import gl, tm_get_git_pipeline_json
 from resources.gitlab import commit_id_to_url
 from . import hb_get_artifact_scan_overview, hb_get_artifact_scan_vulnerabilities_detail
+from sqlalchemy import or_
 
 harbor_scan_list_keys = ["Critical", "High", "Low", "Medium", "fixable"]
 harbor_scan_report_keys = ["Critical", "High", "Low", "Medium", "Negligible", "Unknown"]
@@ -67,6 +68,13 @@ def harbor_scan_list(project_id, kwargs):
     scan_list = []
     page_dict = {}
     query = HarborScan.query.filter_by(project_id=project_id).order_by(HarborScan.id.desc())
+    if kwargs.get('search'):
+        query = query.filter(
+            or_(
+                HarborScan.branch.like(f"%{kwargs['search']}%"),
+                HarborScan.commit.like(f"%{kwargs['search']}%")
+            )
+        )
     if 'per_page' in kwargs:
         per_page = kwargs['per_page']
     if 'page' in kwargs:

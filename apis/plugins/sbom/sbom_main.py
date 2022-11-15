@@ -20,7 +20,7 @@ from os import listdir
 from resources import gitlab
 from resources.kubernetesClient import ApiK8sClient
 from resources import logger
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 
 
 
@@ -301,6 +301,13 @@ class SbomListV2(MethodResource):
     def get(self, project_id, **kwargs):
         page_dict = {}
         query = Sbom.query.filter_by(project_id=project_id).order_by(Sbom.created_at.desc())
+        if kwargs.get('search'):
+            query = query.filter(
+                or_(
+                    Sbom.branch.like(f"%{kwargs['search']}%"),
+                    Sbom.commit.like(f"%{kwargs['search']}%")
+                )
+            )
         if 'per_page' in kwargs:
             per_page = kwargs['per_page']
         if 'page' in kwargs:
