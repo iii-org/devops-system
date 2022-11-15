@@ -96,7 +96,7 @@
         "end_version": "v1.23.9"
     },
     "react-app-template":{
-        "start_version": "v1.20.1",
+        "start_version": "v1.18.1",
         "end_version": "v1.23.9"
     },
     "spring-boot-gradle-hello":{
