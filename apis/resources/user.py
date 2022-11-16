@@ -489,12 +489,23 @@ def row_to_dict(row):
 def get_decode_password(user_id):
     rows = model.UpdatePasswordError.query.filter_by(user_id=user_id).all()
     ret = []
-    for row in rows:
-        password = row_to_dict(row)['password']
-        decode_password = base64.b64decode(f'{password}'.encode('UTF-8'))
-        result_dict = row_to_dict(row)
-        result_dict.update({"password": decode_password.decode('UTF-8')})
-        ret.append(result_dict)
+    if rows:
+        for row in rows:
+            password = row_to_dict(row)['password']
+            decode_password = base64.b64decode(f'{password}'.encode('UTF-8'))
+            result_dict = {
+                "server": row.server,
+                "status": 0,
+                "password": decode_password.decode('UTF-8')
+            }
+            ret.append(result_dict)
+    sever_list = [data['server'] for data in ret]
+    for server in ['redmine', 'gitlab', 'harbor', 'sonarqube']:
+        if server not in sever_list:
+            ret.append({
+                "sever": server,
+                "status": 1
+            })
     return ret
 
 

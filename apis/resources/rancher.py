@@ -383,22 +383,21 @@ class Rancher(object):
                 verify=False, headers=headers)
             return result.json()
 
-    def rc_put_yaml_run(self, project_id):
+    def rc_put_yaml_run(self, project_id, total_run):
         project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
         if project_relation:
             pipeline_name = project_relation.ci_pipeline_id
             result = self.rc_get_yaml(project_id)
-            if result['status'].get('lastExecutionId'):
-                if int(result['status']['nextRun']) <= int(result['status']['lastExecutionId'].split('-')[3]):
-                    result['status']['nextRun'] = int(result['status']['lastExecutionId'].split('-')[3]) + 1
-                    token = self.__generate_token()
-                    headers = {'Cookie': f'R_LOCALE=en-us; R_USERNAME=admin; R_PCS=light; CSRF=b88fa1f502; R_SESS={token}'}
-                    result = requests.put(
-                        f"https://{config.get('RANCHER_IP_PORT')}/v1/project.cattle.io.pipelines/{pipeline_name.split(':')[0]}/{pipeline_name.split(':')[1]}",
-                        verify=False, headers=headers, json=result)
-                    # subprocess.run(['kubectl', 'apply', '-f', f"pipeline-{pipeline_name.split(':')[1]}.yaml", '-n',
-                    #                 f"{pipeline_name.split(':')[0]}"])
-                    return result.json()
+            if int(result['status']['nextRun']) <= total_run:
+                result['status']['nextRun'] = total_run + 1
+                token = self.__generate_token()
+                headers = {'Cookie': f'R_LOCALE=en-us; R_USERNAME=admin; R_PCS=light; CSRF=b88fa1f502; R_SESS={token}'}
+                result = requests.put(
+                    f"https://{config.get('RANCHER_IP_PORT')}/v1/project.cattle.io.pipelines/{pipeline_name.split(':')[0]}/{pipeline_name.split(':')[1]}",
+                    verify=False, headers=headers, json=result)
+                # subprocess.run(['kubectl', 'apply', '-f', f"pipeline-{pipeline_name.split(':')[1]}.yaml", '-n',
+                #                 f"{pipeline_name.split(':')[0]}"])
+                return result.json()
 
     def rc_get_project_pipeline(self):
         self.rc_get_project_id()
@@ -694,12 +693,12 @@ def version_list(cat_id):
     return version_dict
 
 
-def check_all_rancher_pipeline_run():
-    rancher.rc_get_project_id()
-    pipeline_list = rancher.rc_get_project_pipeline()
-    for pipeline in pipeline_list:
-        pipeline_name = pipeline['id']
-        rancher.rc_put_yaml_run(pipeline_name)
+# def check_all_rancher_pipeline_run():
+#     rancher.rc_get_project_id()
+#     pipeline_list = rancher.rc_get_project_pipeline()
+#     for pipeline in pipeline_list:
+#         pipeline_name = pipeline['id']
+#         rancher.rc_put_yaml_run(pipeline_name)
 
 
 def get_all_appname_by_project(project_id):
@@ -793,15 +792,6 @@ class RancherCreateAPP(Resource):
 class RancherYaml(Resource):
     def get(self, project_id):
         return util.success(rancher.rc_get_yaml(project_id))
-
-    def put(self, project_id):
-        return util.success(rancher.rc_put_yaml_run(project_id))
-
-
-class RancherCheckAllYamlRun(Resource):
-    def put(self):
-        check_all_rancher_pipeline_run()
-        return util.success()
 
 
 class RancherAppnameByProject(Resource):
