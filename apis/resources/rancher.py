@@ -388,16 +388,20 @@ class Rancher(object):
         if project_relation:
             pipeline_name = project_relation.ci_pipeline_id
             result = self.rc_get_yaml(project_id)
-            if int(result['status']['nextRun']) <= total_run:
-                result['status']['nextRun'] = total_run + 1
-                token = self.__generate_token()
-                headers = {'Cookie': f'R_LOCALE=en-us; R_USERNAME=admin; R_PCS=light; CSRF=b88fa1f502; R_SESS={token}'}
-                result = requests.put(
-                    f"https://{config.get('RANCHER_IP_PORT')}/v1/project.cattle.io.pipelines/{pipeline_name.split(':')[0]}/{pipeline_name.split(':')[1]}",
-                    verify=False, headers=headers, json=result)
-                # subprocess.run(['kubectl', 'apply', '-f', f"pipeline-{pipeline_name.split(':')[1]}.yaml", '-n',
-                #                 f"{pipeline_name.split(':')[0]}"])
-                return result.json()
+            if result['status'].get('lastExecutionId'):
+                if int(result['status']['nextRun']) <= int(result['status']['lastExecutionId'].split('-')[3]):
+                    result['status']['nextRun'] = int(result['status']['lastExecutionId'].split('-')[3]) + 1
+            else:
+                if int(result['status']['nextRun']) <= total_run:
+                    result['status']['nextRun'] = total_run + 1
+            token = self.__generate_token()
+            headers = {'Cookie': f'R_LOCALE=en-us; R_USERNAME=admin; R_PCS=light; CSRF=b88fa1f502; R_SESS={token}'}
+            result = requests.put(
+                f"https://{config.get('RANCHER_IP_PORT')}/v1/project.cattle.io.pipelines/{pipeline_name.split(':')[0]}/{pipeline_name.split(':')[1]}",
+                verify=False, headers=headers, json=result)
+            # subprocess.run(['kubectl', 'apply', '-f', f"pipeline-{pipeline_name.split(':')[1]}.yaml", '-n',
+            #                 f"{pipeline_name.split(':')[0]}"])
+            return result.json()
 
     def rc_get_project_pipeline(self):
         self.rc_get_project_id()
