@@ -85,7 +85,8 @@ def pipeline_exec_list(repository_id, args):
                                  'success': success_time}
         output_array.append(output_dict)
     out["pipe_execs"] = output_array
-    rancher.rc_put_yaml_run(project_id, len(out["pipe_execs"]))
+    if out["pipe_execs"] != []:
+        rancher.rc_put_yaml_run(project_id, out["pipe_execs"][0]['id'])
     return out
 
 

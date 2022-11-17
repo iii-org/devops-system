@@ -388,12 +388,8 @@ class Rancher(object):
         if project_relation:
             pipeline_name = project_relation.ci_pipeline_id
             result = self.rc_get_yaml(project_id)
-            if result['status'].get('lastExecutionId'):
-                if int(result['status']['nextRun']) <= int(result['status']['lastExecutionId'].split('-')[3]):
-                    result['status']['nextRun'] = int(result['status']['lastExecutionId'].split('-')[3]) + 1
-            else:
-                if int(result['status']['nextRun']) <= total_run:
-                    result['status']['nextRun'] = total_run + 1
+            if int(result['status']['nextRun']) <= total_run:
+                result['status']['nextRun'] = total_run + 1
             token = self.__generate_token()
             headers = {'Cookie': f'R_LOCALE=en-us; R_USERNAME=admin; R_PCS=light; CSRF=b88fa1f502; R_SESS={token}'}
             result = requests.put(
