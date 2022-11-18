@@ -499,11 +499,11 @@ def get_decode_password(user_id):
                 "password": decode_password.decode('UTF-8')
             }
             ret.append(result_dict)
-    sever_list = [data['server'] for data in ret]
+    server_list = [data['server'] for data in ret]
     for server in ['redmine', 'gitlab', 'harbor', 'sonarqube']:
-        if server not in sever_list:
+        if server not in server_list:
             ret.append({
-                "sever": server,
+                "server": server,
                 "status": 1
             })
     return ret
