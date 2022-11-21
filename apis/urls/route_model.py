@@ -55,6 +55,11 @@ class RouterSimpleSchema(Schema):
 
  
 # !!!
+class IssueVesionListSchema(CommonIssueSchema):
+    fixed_version_id = fields.Str(doc='fixed_version_id', required=True, example="-1")
+    is_closed = fields.Boolean(doc='is_closed', example=True)
+
+
 class IssueByUserSchema(CommonIssueSchema):
     project_id = fields.Int(doc='project_id', example=1)
     # this one is reserved word!!!

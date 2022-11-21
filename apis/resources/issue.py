@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime, date, timedelta
 from distutils.util import strtobool
 
+import pandas as pd
 from flask_socketio import Namespace, emit, join_room, leave_room
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
@@ -869,6 +870,76 @@ def close_all_issue(issue_id):
             issue.save()
             pj_id = get_project_id(issue.project.id)
             update_pj_issue_calc(pj_id, closed_count=1)
+
+
+def filter_all_issue(issue_id, close_list=[]):
+    sub_issue_list = filter_sub_issue(issue_id)
+    if sub_issue_list:
+        for sub_issue_id in sub_issue_list:
+            close_list.append(sub_issue_id)
+            filter_all_issue(sub_issue_id, close_list)
+        print(close_list)
+        return close_list
+
+
+def get_version_list(project_id, kwargs):
+    child_list = []
+    result_dict = {}
+    output_dict = {}
+    if kwargs.get('fixed_version_id'):
+        # return get_issue_info(project_id, kwargs)
+        df_version = pd.DataFrame(get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"]))
+        if kwargs.get('is_closed') is not None:
+            df_version = df_version[df_version['is_closed'] == kwargs['is_closed']]
+        issue_list = list(df_version['id'])
+        df_head = df_version[(df_version['has_father'] == False)]
+        for index in df_head.index:
+            if filter_sub_issue(df_head.loc[index]['id']):
+                child_list = filter_all_issue(df_head.loc[index]['id'])
+        print(child_list)
+        df_version_head = df_version[~df_version['id'].isin(child_list)]
+        print(df_version_head)
+        for index in df_version_head.index:
+            if df_version_head.loc[index]['has_children']:
+                result_list = all_sub_issue(df_version_head.loc[index]['id'], kwargs, list(df_version_head['id']), issue_list)
+                drop_list = []
+                for issue in result_list:
+                    for key, value in issue.items():
+                        if value not in issue_list:
+                            drop_list.append(issue)
+                for i in drop_list:
+                    result_list.remove(i)
+                if result_list == []:
+                    result_list.append(str(df_version_head.loc[index]['id']))
+                result_dict.update({str(df_version_head.loc[index]['id']): result_list})
+            else:
+                result_dict.update({str(df_version_head.loc[index]['id']): [str(df_version_head.loc[index]['id'])]})
+        output_dict.update({'relation': result_dict})
+        output_dict.update({'info': get_issue_info(project_id, kwargs)})
+        return output_dict
+        # print(get_issue_info(project_id, kwargs))
+
+
+def all_sub_issue(issue_id, kwargs, father_list, issue_list, result_list=[], split_list=[]):
+    sub_issue_list = filter_sub_issue(issue_id)
+    output_list = []
+    if sub_issue_list:
+        for index, sub_issue_id in enumerate(sub_issue_list):
+            result_list.append({str(issue_id): sub_issue_id})
+            all_sub_issue(sub_issue_id, kwargs, father_list, issue_list, result_list=result_list, split_list=split_list)
+        for index, relation in enumerate(result_list):
+            for key, value in relation.items():
+                if int(key) in father_list and issue_id == int(key):
+                    output_list = result_list[index:]
+                if result_list[index].keys() == result_list[index-1].keys():
+                    output_list.append(result_list[index-1])
+        return output_list
+
+
+def get_issue_info(project_id, kwargs):
+    result = get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
+    row_dict = {row['id']: row for row in result}
+    return [row_dict]
 
 
 def update_issue(issue_id, args, operator_id=None):
@@ -2416,6 +2487,13 @@ class DumpByIssue(Resource):
     def get(self, issue_id):
         require_issue_visible(issue_id)
         return dump_by_issue(issue_id)
+
+
+class IssueVesionListV2(MethodResource):
+    @jwt_required()
+    @use_kwargs(route_model.IssueVesionListSchema, location="query")
+    def get(self, project_id, **kwargs):
+        return util.success(get_version_list(project_id, kwargs))
 
 
 @doc(tags=['Issue'], description="Get issue list by user")
