@@ -300,8 +300,13 @@ def update_excalidraw_history(excalidraw_id):
         for k, v in value.items():
             if type(v) == str:
                 v = json.loads(v)
-                if v['value'] not in rows_value_list:
+                if v['value'] not in rows_value_list and utf8len(v['value']) != 48:
                     change = True
+                elif utf8len(v['value']) == 48:
+                    row = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).order_by(desc(ExcalidrawHistory.updated_at)).first()
+                    if row:
+                        excalidraw_history_id = row.id
+                        excalidraw_version_restore(excalidraw_history_id, True)
             result_dict.update({k: v})
     if change:
         if int(len(rows)) < 5:
@@ -338,11 +343,12 @@ def add_to_db(add_dict):
     db.session.commit()
 
 
-def excalidraw_version_restore(excalidraw_history_id):
+def excalidraw_version_restore(excalidraw_history_id, simple=False):
     excalidraw_history = ExcalidrawHistory.query.filter_by(id=excalidraw_history_id).first()
     excalidraw_id = excalidraw_history.excalidraw_id
-    update_excalidraw_history(excalidraw_id)
-    add_new_record_to_history(excalidraw_history_id)
+    if not simple:
+        update_excalidraw_history(excalidraw_id)
+        add_new_record_to_history(excalidraw_history_id)
     value = excalidraw_history.value
     excalidraw = Excalidraw.query.filter_by(id=excalidraw_id).first()
     project_id = excalidraw.project_id
