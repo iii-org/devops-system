@@ -878,7 +878,6 @@ def filter_all_issue(issue_id, close_list=[]):
         for sub_issue_id in sub_issue_list:
             close_list.append(sub_issue_id)
             filter_all_issue(sub_issue_id, close_list)
-        print(close_list)
         return close_list
 
 
@@ -896,12 +895,10 @@ def get_version_list(project_id, kwargs):
         for index in df_head.index:
             if filter_sub_issue(df_head.loc[index]['id']):
                 child_list = filter_all_issue(df_head.loc[index]['id'])
-        print(child_list)
         df_version_head = df_version[~df_version['id'].isin(child_list)]
-        print(df_version_head)
         for index in df_version_head.index:
             if df_version_head.loc[index]['has_children']:
-                result_list = all_sub_issue(df_version_head.loc[index]['id'], kwargs, list(df_version_head['id']), issue_list)
+                result_list = all_sub_issue(df_version_head.loc[index]['id'], kwargs, list(df_version_head['id']), issue_list, return_list=[])
                 drop_list = []
                 for issue in result_list:
                     for key, value in issue.items():
@@ -920,20 +917,13 @@ def get_version_list(project_id, kwargs):
         # print(get_issue_info(project_id, kwargs))
 
 
-def all_sub_issue(issue_id, kwargs, father_list, issue_list, result_list=[], split_list=[]):
+def all_sub_issue(issue_id, kwargs, father_list, issue_list, return_list=[], split_list=[]):
     sub_issue_list = filter_sub_issue(issue_id)
-    output_list = []
     if sub_issue_list:
         for index, sub_issue_id in enumerate(sub_issue_list):
-            result_list.append({str(issue_id): sub_issue_id})
-            all_sub_issue(sub_issue_id, kwargs, father_list, issue_list, result_list=result_list, split_list=split_list)
-        for index, relation in enumerate(result_list):
-            for key, value in relation.items():
-                if int(key) in father_list and issue_id == int(key):
-                    output_list = result_list[index:]
-                if result_list[index].keys() == result_list[index-1].keys():
-                    output_list.append(result_list[index-1])
-        return output_list
+            return_list.append({str(issue_id): sub_issue_id})
+            all_sub_issue(sub_issue_id, kwargs, father_list, issue_list, return_list=return_list, split_list=split_list)
+        return return_list
 
 
 def get_issue_info(project_id, kwargs):
