@@ -717,18 +717,6 @@ def get_issue_assign_to_detail(issue):
 
 
 def create_issue(args, operator_id):
-    # check file size
-    if args.get("upload_files"):
-        file_list = args["upload_files"]
-        file_size_limit = int(
-            model.SystemParameter.query.filter_by(name="upload_file_size").first().value["upload_file_size"])
-        for file in file_list:
-            blob = file.read()
-            file_size = int(len(blob))
-            file.seek(0)
-            if file_size/1048576 > file_size_limit:
-                raise DevOpsError(404, 'file size exceed maximum')
-
     changeUrl = args.get("changeUrl")
     update_cache_issue_family = False
     project_id = args['project_id']
@@ -934,18 +922,6 @@ def get_issue_info(project_id, kwargs):
 
 def update_issue(issue_id, args, operator_id=None):
     from resources.project_relation import get_project_id
-
-    # check file size
-    if args.get("upload_files"):
-        file_list = args["upload_files"]
-        file_size_limit = int(
-            model.SystemParameter.query.filter_by(name="upload_file_size").first().value["upload_file_size"])
-        for file in file_list:
-            blob = file.read()
-            file_size = int(len(blob))
-            file.seek(0)
-            if file_size / 1048576 > file_size_limit:
-                raise DevOpsError(404, 'file size exceed maximum')
 
     project_id = args.get('project_id')
     update_cache_issue_family = False
