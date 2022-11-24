@@ -39,6 +39,8 @@ from flask_apispec.views import MethodResource
 from urls import route_model
 from resources.redis import check_issue_has_son, update_issue_relations, remove_issue_relation, remove_issue_relations, \
     add_issue_relation, update_pj_issue_calc
+from resources.redis import RedisOperator
+from copy import deepcopy
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -860,64 +862,90 @@ def close_all_issue(issue_id):
             update_pj_issue_calc(pj_id, closed_count=1)
 
 
-def filter_all_issue(issue_id, close_list=[]):
-    sub_issue_list = filter_sub_issue(issue_id)
-    if sub_issue_list:
-        for sub_issue_id in sub_issue_list:
-            close_list.append(sub_issue_id)
-            filter_all_issue(sub_issue_id, close_list)
-        return close_list
+def get_all_issue(redis_mapping):
+    check_redis_mapping = deepcopy(redis_mapping)
+    issue_family_mapping = {}
+    get_son_issue_id_list = lambda x: x.split(",") if x != "" else []
+
+    def find_all(issue_id, father_map):
+        son_issue_ids = check_redis_mapping.pop(issue_id, None)
+        if son_issue_ids is None:
+            return
+        son_issue_id_list = get_son_issue_id_list(son_issue_ids)
+        for son_issue_id in son_issue_id_list:
+            father_map[son_issue_id] = {}
+            father_son_map = father_map[son_issue_id]
+            find_all(son_issue_id, father_son_map)
+
+    for head_id, value_ids in redis_mapping.items():
+        if head_id in check_redis_mapping:
+            issue_family_mapping[head_id] = {}
+            in_issue_family_mapping_ids = []
+            not_in_issue_family_mapping_ids = []
+
+            for value_id in get_son_issue_id_list(value_ids):
+                if value_id in issue_family_mapping:
+                    in_issue_family_mapping_ids.append(value_id)
+                else:
+                    not_in_issue_family_mapping_ids.append(value_id)
+            if in_issue_family_mapping_ids:
+                for in_issue_family_mapping_id in in_issue_family_mapping_ids:
+                    issue_family_mapping[head_id][in_issue_family_mapping_id] = issue_family_mapping.pop(
+                        in_issue_family_mapping_id)
+            for not_in_issue_family_mapping_id in not_in_issue_family_mapping_ids:
+                issue_family_mapping[head_id][not_in_issue_family_mapping_id] = {}
+                val_mapping = issue_family_mapping[head_id][not_in_issue_family_mapping_id]
+                find_all(not_in_issue_family_mapping_id, val_mapping)
+    return issue_family_mapping
+
+
+def fixed_version_id_filter(redis_mapping, issue_list):
+    issue_mapping = {}
+    for issue_id in issue_list:
+        if issue_id in redis_mapping:
+            son_value_ids = redis_mapping[issue_id].split(",")
+            son_value_ids = [
+                son_value_id for son_value_id in son_value_ids if son_value_id in issue_list]
+            issue_mapping[issue_id] = ",".join(son_value_ids)
+        else:
+            for _, value_ids in redis_mapping.items():
+                if issue_id in value_ids.split(","):
+                    issue_mapping[issue_id] = ""
+    return issue_mapping
 
 
 def get_version_list(project_id, kwargs):
-    child_list = []
-    result_dict = {}
-    output_dict = {}
     if kwargs.get('fixed_version_id'):
-        # return get_issue_info(project_id, kwargs)
-        df_version = pd.DataFrame(get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"]))
+        issue_version = get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
+        issue_dict = {str(issue['id']): issue for issue in issue_version}
+        df_version = pd.DataFrame(issue_version)
         if kwargs.get('is_closed') is not None:
             df_version = df_version[df_version['is_closed'] == kwargs['is_closed']]
-        issue_list = list(df_version['id'])
-        df_head = df_version[(df_version['has_father'] == False)]
-        for index in df_head.index:
-            if filter_sub_issue(df_head.loc[index]['id']):
-                child_list = filter_all_issue(df_head.loc[index]['id'])
-        df_version_head = df_version[~df_version['id'].isin(child_list)]
-        for index in df_version_head.index:
-            if df_version_head.loc[index]['has_children']:
-                result_list = all_sub_issue(df_version_head.loc[index]['id'], kwargs, list(df_version_head['id']), issue_list, return_list=[])
-                drop_list = []
-                for issue in result_list:
-                    for key, value in issue.items():
-                        if value not in issue_list:
-                            drop_list.append(issue)
-                for i in drop_list:
-                    result_list.remove(i)
-                if result_list == []:
-                    result_list.append(str(df_version_head.loc[index]['id']))
-                result_dict.update({str(df_version_head.loc[index]['id']): result_list})
-            else:
-                result_dict.update({str(df_version_head.loc[index]['id']): [str(df_version_head.loc[index]['id'])]})
-        output_dict.update({'relation': result_dict})
-        output_dict.update({'info': get_issue_info(project_id, kwargs)})
-        return output_dict
-        # print(get_issue_info(project_id, kwargs))
+        issue_list = [str(i) for i in list(df_version['id'])]
+        redis_mapping = get_redis()
+        issue_mapping = fixed_version_id_filter(redis_mapping, issue_list)
+        result = get_all_issue(issue_mapping)
+        return add_issue_info(result, issue_dict)
 
 
-def all_sub_issue(issue_id, kwargs, father_list, issue_list, return_list=[], split_list=[]):
-    sub_issue_list = filter_sub_issue(issue_id)
-    if sub_issue_list:
-        for index, sub_issue_id in enumerate(sub_issue_list):
-            return_list.append({str(issue_id): sub_issue_id})
-            all_sub_issue(sub_issue_id, kwargs, father_list, issue_list, return_list=return_list, split_list=split_list)
-        return return_list
+def get_redis():
+    redis = RedisOperator()
+    return redis.dict_get_all('issue_families')
 
 
-def get_issue_info(project_id, kwargs):
-    result = get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
-    row_dict = {row['id']: row for row in result}
-    return [row_dict]
+def add_issue_info_helper(id, son_ids, issud_id_info_mapping):
+    if son_ids == {}:
+        return issud_id_info_mapping[id]
+    issud_id_info_mapping[id]["children"] = [
+        add_issue_info_helper(son_id, son_son_ids, issud_id_info_mapping) for son_id, son_son_ids in son_ids.items()
+    ]
+    return issud_id_info_mapping[id]
+
+
+def add_issue_info(redis_mapping, issud_id_info_mapping):
+    return [
+        add_issue_info_helper(id, son_ids, issud_id_info_mapping) for id, son_ids in redis_mapping.items()
+    ]
 
 
 def update_issue(issue_id, args, operator_id=None):
