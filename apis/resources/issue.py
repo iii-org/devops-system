@@ -922,15 +922,15 @@ def get_version_list(project_id, kwargs):
         if kwargs.get('is_closed') is not None:
             df_version = df_version[df_version['is_closed'] == kwargs['is_closed']]
         issue_list = [str(i) for i in list(df_version['id'])]
-        redis_mapping = get_redis()
+        redis_mapping = get_redis('issue_families')
         issue_mapping = fixed_version_id_filter(redis_mapping, issue_list)
         result = get_all_issue(issue_mapping)
         return add_issue_info(result, issue_dict)
 
 
-def get_redis():
+def get_redis(key):
     redis = RedisOperator()
-    return redis.dict_get_all('issue_families')
+    return redis.dict_get_all(key)
 
 
 def add_issue_info_helper(id, son_ids, issud_id_info_mapping):
