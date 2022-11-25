@@ -862,7 +862,7 @@ def close_all_issue(issue_id):
             update_pj_issue_calc(pj_id, closed_count=1)
 
 
-def get_all_issue(redis_mapping):
+def get_all_issue(redis_mapping, child_list):
     check_redis_mapping = deepcopy(redis_mapping)
     issue_family_mapping = {}
     get_son_issue_id_list = lambda x: x.split(",") if x != "" else []
@@ -896,22 +896,27 @@ def get_all_issue(redis_mapping):
                 issue_family_mapping[head_id][not_in_issue_family_mapping_id] = {}
                 val_mapping = issue_family_mapping[head_id][not_in_issue_family_mapping_id]
                 find_all(not_in_issue_family_mapping_id, val_mapping)
+    for child_issue in child_list:
+        if child_issue in issue_family_mapping.keys():
+            issue_family_mapping.pop(child_issue)
     return issue_family_mapping
 
 
 def fixed_version_id_filter(redis_mapping, issue_list):
     issue_mapping = {}
+    child_list = []
     for issue_id in issue_list:
         if issue_id in redis_mapping:
             son_value_ids = redis_mapping[issue_id].split(",")
             son_value_ids = [
                 son_value_id for son_value_id in son_value_ids if son_value_id in issue_list]
             issue_mapping[issue_id] = ",".join(son_value_ids)
+            child_list.extend(son_value_ids)
         else:
             for _, value_ids in redis_mapping.items():
                 if issue_id in value_ids.split(","):
                     issue_mapping[issue_id] = ""
-    return issue_mapping
+    return issue_mapping, child_list
 
 
 def get_version_list(project_id, kwargs):
@@ -923,8 +928,8 @@ def get_version_list(project_id, kwargs):
             df_version = df_version[df_version['is_closed'] == kwargs['is_closed']]
         issue_list = [str(i) for i in list(df_version['id'])]
         redis_mapping = get_redis('issue_families')
-        issue_mapping = fixed_version_id_filter(redis_mapping, issue_list)
-        result = get_all_issue(issue_mapping)
+        issue_mapping, child_list = fixed_version_id_filter(redis_mapping, issue_list)
+        result = get_all_issue(issue_mapping, child_list)
         return add_issue_info(result, issue_dict)
 
 
