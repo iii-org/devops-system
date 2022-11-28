@@ -57,8 +57,6 @@ class RouterSimpleSchema(Schema):
 # !!!
 class IssueVesionListSchema(CommonIssueSchema):
     fixed_version_id = fields.Str(doc='fixed_version_id', required=True, example="1")
-    is_closed = fields.Boolean(doc='is_closed', example=True)
-    tracker_id = fields.Str(doc='tracker_id', example="2")
 
 
 class IssueByUserSchema(CommonIssueSchema):

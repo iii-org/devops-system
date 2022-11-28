@@ -141,6 +141,8 @@ def update_server_alive(alive):
     return redis_op.str_set(SERVER_ALIVE_KEY, alive)
 
 # Issue Family Cache
+def get_all_issue_relations():
+    return redis_op.dict_get_all(ISSUE_FAMILIES_KEY)
 
 
 def check_issue_has_son(issue_id):
@@ -183,9 +185,8 @@ def add_issue_relation(parent_issue_id, son_issue_id):
         if son_issue_id not in son_issue_ids:
             update_issue_relation(parent_issue_id, ",".join(son_issue_ids+[str(son_issue_id)]))
 
+
 # Project issue calculate Cache
-
-
 def get_certain_pj_issue_calc(pj_id):
     cal_info = redis_op.dict_get_certain(PROJECT_ISSUE_CALCULATE_KEY, pj_id)
     if cal_info is None:
