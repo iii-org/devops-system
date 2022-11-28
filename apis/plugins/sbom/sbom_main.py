@@ -203,6 +203,7 @@ def risk_detail(file_path=None):
             [data['matches'][index]['vulnerability']['fix']['versions'] for index, value in enumerate(data['matches'])],
             columns=['versions'])
         df_result = df_vulnerability_info.join(df_artifact_info).join(df_fix_versions)
+        df_result['versions'] = df_result['versions'].apply(lambda x: [x] if x else None)
     else:
         raise apiError.DevOpsError(404, f'{file_path}/grype.json not exist')
 
@@ -326,9 +327,10 @@ class SbomListV2(MethodResource):
             rows = query.all()
         sbom_list = []
         for row in rows:
-            row = row_to_dict(row)
-            row["commit_url"] = gitlab.commit_id_to_url(project_id, row["commit"])
-            sbom_list.append(row)
+            row_dict = row_to_dict(row)
+            row_dict['commit'] = row.commit
+            row_dict["commit_url"] = gitlab.commit_id_to_url(project_id, row_dict["commit"])
+            sbom_list.append(row_dict)
         out_dict = {"Sbom_list": sbom_list, "page": page_dict}
         if page_dict:
             out_dict['page'] = page_dict
