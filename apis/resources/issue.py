@@ -38,8 +38,7 @@ from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 from urls import route_model
 from resources.redis import check_issue_has_son, update_issue_relations, remove_issue_relation, remove_issue_relations, \
-    add_issue_relation, update_pj_issue_calc
-from resources.redis import RedisOperator
+    add_issue_relation, update_pj_issue_calc, get_all_issue_relations
 from copy import deepcopy
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
@@ -862,7 +861,7 @@ def close_all_issue(issue_id):
             update_pj_issue_calc(pj_id, closed_count=1)
 
 
-def get_all_issue(redis_mapping, child_list):
+def get_all_issue(redis_mapping):
     check_redis_mapping = deepcopy(redis_mapping)
     issue_family_mapping = {}
     get_son_issue_id_list = lambda x: x.split(",") if x != "" else []
@@ -896,46 +895,48 @@ def get_all_issue(redis_mapping, child_list):
                 issue_family_mapping[head_id][not_in_issue_family_mapping_id] = {}
                 val_mapping = issue_family_mapping[head_id][not_in_issue_family_mapping_id]
                 find_all(not_in_issue_family_mapping_id, val_mapping)
-    for child_issue in child_list:
-        if child_issue in issue_family_mapping.keys():
-            issue_family_mapping.pop(child_issue)
     return issue_family_mapping
 
 
 def fixed_version_id_filter(redis_mapping, issue_list):
+    exist_issues = []
     issue_mapping = {}
-    child_list = []
     for issue_id in issue_list:
         if issue_id in redis_mapping:
-            son_value_ids = redis_mapping[issue_id].split(",")
-            son_value_ids = [
-                son_value_id for son_value_id in son_value_ids if son_value_id in issue_list]
-            issue_mapping[issue_id] = ",".join(son_value_ids)
-            child_list.extend(son_value_ids)
+            son_issues = redis_mapping[issue_id]
+            issue_mapping[issue_id] = son_issues
+            exist_issues.append(issue_id)
+            exist_issues += son_issues.split(",")
         else:
             for _, value_ids in redis_mapping.items():
-                if issue_id in value_ids.split(","):
+                if issue_id in value_ids.split(",") and issue_id not in exist_issues:
                     issue_mapping[issue_id] = ""
-    return issue_mapping, child_list
+                    exist_issues.append(issue_id)
+    exist_issues = ",".join(exist_issues)
+    return issue_mapping, exist_issues
 
 
 def get_version_list(project_id, kwargs):
+    operator_id = get_jwt_identity()["user_id"]
+    nx_project = NexusProject().set_project_id(project_id)
+    plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
+    
     if kwargs.get('fixed_version_id'):
-        issue_version = get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
-        issue_dict = {str(issue['id']): issue for issue in issue_version}
-        df_version = pd.DataFrame(issue_version)
-        if kwargs.get('is_closed') is not None:
-            df_version = df_version[df_version['is_closed'] == kwargs['is_closed']]
-        issue_list = [str(i) for i in list(df_version['id'])]
-        redis_mapping = get_redis('issue_families')
-        issue_mapping, child_list = fixed_version_id_filter(redis_mapping, issue_list)
-        result = get_all_issue(issue_mapping, child_list)
-        return add_issue_info(result, issue_dict)
+        issue_list, id_info_mapping = [], {}
+
+        personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
+        default_filters = get_custom_filters_by_args(kwargs, project_id=plan_id)
+        all_issues, _ = personal_redmine_obj.rm_list_issues(params=default_filters)
+        issue_list = [str(issue_info["id"]) for issue_info in all_issues]
 
 
-def get_redis(key):
-    redis = RedisOperator()
-    return redis.dict_get_all(key)
+        redis_mapping = get_all_issue_relations()
+        issue_mapping, exist_issues = fixed_version_id_filter(redis_mapping, issue_list)
+        result = get_all_issue(issue_mapping)
+        all_issues = get_issue_list_by_project_helper(project_id, {"issue_id": exist_issues}, operator_id=operator_id)
+        id_info_mapping = {str(all_issue["id"]): all_issue for all_issue in all_issues}
+        
+        return add_issue_info(result, id_info_mapping)
 
 
 def add_issue_info_helper(id, son_ids, issud_id_info_mapping):
@@ -1419,7 +1420,7 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None, childre
 
 
 def handle_allowed_keywords(default_filters, args):
-    allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id', 'parent_id']
+    allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id', 'parent_id', 'issue_id']
     for key in allowed_keywords:
         if args.get(key, None):
             # 如果 keywords 值為 'null'，python-redmine filter 值為 '!*'
