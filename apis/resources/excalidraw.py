@@ -411,7 +411,7 @@ def sync_excalidraw_db():
         cur.execute(
             f'''
             DELETE FROM public.keyv
-            WHERE key NOT IN ({excalidraw_keys});
+            WHERE key NOT IN ({excalidraw_keys}) AND key NOT LIKE 'FILES%';
             '''
         )
         logger.logger.info(f"Excalidraw removed any room_key not in {excalidraw_keys}.")
