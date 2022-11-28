@@ -253,7 +253,6 @@ class RelationSchema(Schema):
     issue_to_ids = fields.List(fields.Int(), doc='issue_id', example=[1,2,3])
 
 
-##### Issue closable
 
 #################################### Response ####################################
 

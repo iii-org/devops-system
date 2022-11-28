@@ -43,6 +43,11 @@ def issue_url(api, add_resource):
     api.add_resource(view.CheckIssueClosableV2, '/v2/issues/<issue_id>/check_closable')
     add_resource(view.CheckIssueClosableV2, 'public')
 
+    # api.add_resource(view.ClosableAllV2, '/v2/issues/close_all')
+    # add_resource(view.ClosableAllV2, 'public')
+    api.add_resource(view.IssueSonsV2, '/v2/<sint:project_id>/issue/<int:issue_id>/sons')
+    add_resource(view.IssueSonsV2, 'public')
+
 
     # Issue commit relation
     api.add_resource(view.IssueCommitRelation, '/issue/relation')

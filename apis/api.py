@@ -352,9 +352,6 @@ api.add_resource(issue.IssueByUser, '/user/<sint:user_id>/issues')
 api.add_resource(issue.IssueByUserV2, '/v2/user/<sint:user_id>/issues')
 add_resource(issue.IssueByUserV2, 'public')
 
-api.add_resource(issue.IssueVesionListV2, '/v2/<sint:project_id>/version/list')
-add_resource(issue.IssueVesionListV2, 'public')
-
 api.add_resource(issue.IssueByVersion, '/issues_by_versions')
 api.add_resource(issue.IssueByVersionV2, '/v2/issues_by_versions')
 add_resource(issue.IssueByVersionV2, 'public')
