@@ -78,6 +78,14 @@ def sq_list_project(params):
     return __api_post('/projects/search', params=params)
 
 
+def sq_update_project_key(oldname, newname):
+    data = {
+        "from": oldname,
+        "to": newname
+    }
+    return __api_post('/projects/update_key', params=data).json()
+
+
 def sq_create_project(project_name, display):
     return __api_post(f'/projects/create?name={display}&project={project_name}'
                       f'&visibility=private')
