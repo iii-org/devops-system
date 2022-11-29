@@ -861,82 +861,35 @@ def close_all_issue(issue_id):
             update_pj_issue_calc(pj_id, closed_count=1)
 
 
-def get_all_issue(redis_mapping):
-    check_redis_mapping = deepcopy(redis_mapping)
-    issue_family_mapping = {}
-    get_son_issue_id_list = lambda x: x.split(",") if x != "" else []
 
-    def find_all(issue_id, father_map):
-        son_issue_ids = check_redis_mapping.pop(issue_id, None)
-        if son_issue_ids is None:
+def get_all_sons_ids(main_issue_id):
+    redis_mapping = get_all_issue_relations()
+    mapping = {}
+    exist_issues_ids = []
+    def find_all(issue_id, issue_mapping, exist_issues_ids):
+        exist_issues_ids.append(issue_id)
+        if issue_id not in redis_mapping:
             return
-        son_issue_id_list = get_son_issue_id_list(son_issue_ids)
-        for son_issue_id in son_issue_id_list:
-            father_map[son_issue_id] = {}
-            father_son_map = father_map[son_issue_id]
-            find_all(son_issue_id, father_son_map)
 
-    for head_id, value_ids in redis_mapping.items():
-        if head_id in check_redis_mapping:
-            issue_family_mapping[head_id] = {}
-            in_issue_family_mapping_ids = []
-            not_in_issue_family_mapping_ids = []
-
-            for value_id in get_son_issue_id_list(value_ids):
-                if value_id in issue_family_mapping:
-                    in_issue_family_mapping_ids.append(value_id)
-                else:
-                    not_in_issue_family_mapping_ids.append(value_id)
-            if in_issue_family_mapping_ids:
-                for in_issue_family_mapping_id in in_issue_family_mapping_ids:
-                    issue_family_mapping[head_id][in_issue_family_mapping_id] = issue_family_mapping.pop(
-                        in_issue_family_mapping_id)
-            for not_in_issue_family_mapping_id in not_in_issue_family_mapping_ids:
-                issue_family_mapping[head_id][not_in_issue_family_mapping_id] = {}
-                val_mapping = issue_family_mapping[head_id][not_in_issue_family_mapping_id]
-                find_all(not_in_issue_family_mapping_id, val_mapping)
-    return issue_family_mapping
-
-
-def fixed_version_id_filter(redis_mapping, issue_list):
-    exist_issues = []
-    issue_mapping = {}
-    for issue_id in issue_list:
-        if issue_id in redis_mapping:
-            son_issues = redis_mapping[issue_id]
-            issue_mapping[issue_id] = son_issues
-            exist_issues.append(issue_id)
-            exist_issues += son_issues.split(",")
-        else:
-            for _, value_ids in redis_mapping.items():
-                if issue_id in value_ids.split(",") and issue_id not in exist_issues:
-                    issue_mapping[issue_id] = ""
-                    exist_issues.append(issue_id)
-    exist_issues = ",".join(exist_issues)
-    return issue_mapping, exist_issues
-
-
-def get_version_list(project_id, kwargs):
-    operator_id = get_jwt_identity()["user_id"]
-    nx_project = NexusProject().set_project_id(project_id)
-    plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
+        son_issue_ids = redis_mapping[issue_id].split(",")
+        for son_issue_id in son_issue_ids:
+            issue_mapping[son_issue_id] = {}
+            son_mapping = issue_mapping[son_issue_id]
+            
+            find_all(son_issue_id, son_mapping, exist_issues_ids)
     
-    if kwargs.get('fixed_version_id'):
-        issue_list, id_info_mapping = [], {}
-
-        personal_redmine_obj = get_redmine_obj(operator_id=operator_id)
-        default_filters = get_custom_filters_by_args(kwargs, project_id=plan_id)
-        all_issues, _ = personal_redmine_obj.rm_list_issues(params=default_filters)
-        issue_list = [str(issue_info["id"]) for issue_info in all_issues]
+    main_issue_id = str(main_issue_id)
+    mapping[main_issue_id] = {}
+    _ = mapping[main_issue_id]
+    find_all(str(main_issue_id), _, exist_issues_ids)
+    return mapping, exist_issues_ids
 
 
-        redis_mapping = get_all_issue_relations()
-        issue_mapping, exist_issues = fixed_version_id_filter(redis_mapping, issue_list)
-        result = get_all_issue(issue_mapping)
-        all_issues = get_issue_list_by_project_helper(project_id, {"issue_id": exist_issues}, operator_id=operator_id)
-        id_info_mapping = {str(all_issue["id"]): all_issue for all_issue in all_issues}
-        
-        return add_issue_info(result, id_info_mapping)
+def get_all_sons(project_id, issue_id):
+    mapping, exist_issues_ids = get_all_sons_ids(issue_id)
+    all_issues = get_issue_list_by_project_helper(project_id, {"issue_id": ",".join(exist_issues_ids)}, operator_id=get_jwt_identity()["user_id"])
+    id_info_mapping = {str(all_issue["id"]): all_issue for all_issue in all_issues}
+    return add_issue_info(mapping, id_info_mapping)
 
 
 def add_issue_info_helper(id, son_ids, issud_id_info_mapping):
@@ -2487,13 +2440,6 @@ class DumpByIssue(Resource):
     def get(self, issue_id):
         require_issue_visible(issue_id)
         return dump_by_issue(issue_id)
-
-
-class IssueVesionListV2(MethodResource):
-    @jwt_required()
-    @use_kwargs(route_model.IssueVesionListSchema, location="query")
-    def get(self, project_id, **kwargs):
-        return util.success(get_version_list(project_id, kwargs))
 
 
 @doc(tags=['Issue'], description="Get issue list by user")
