@@ -13,7 +13,7 @@ from resources.issue import get_issue, require_issue_visible, get_issue_tags, ge
     update_issue, get_issue_family, delete_issue, create_issue, NexusIssue, get_issue_statistics, \
     get_open_issue_statistics, get_issue_statistics_in_period, post_issue_relation, put_issue_relation, \
     delete_issue_relation, check_issue_closable, get_commit_hook_issues, modify_hook, sync_issue_relation, \
-    get_issue_children, get_all_sons
+    get_issue_children, get_all_sons, find_head_and_close_issues
 from resources.system_parameter import check_upload_type
 from resources.excalidraw import get_excalidraw_by_issue_id
 from resources import role
@@ -519,13 +519,15 @@ class IssueSonsV2(MethodResource):
         return util.success(get_all_sons(project_id, issue_id))
 
 
-# class ClosableAllV2(MethodResource):
-#     @doc(tags=['Issue'], description="Close multi issues")
-#     @use_kwargs(router_model.ClosableAllSchema)
-#     @marshal_with(util.CommonResponse)
-#     @jwt_required()
-#     def post(self, **kwargs):
-#         return util.success(find_head_and_close_issues(kwargs["issue_ids"]))
+class ClosableAllV2(MethodResource):
+    @doc(tags=['Issue'], description="Close multi issues")
+    @use_kwargs(router_model.ClosableAllSchema)
+    @marshal_with(util.CommonResponse)
+    @jwt_required()
+    def delete(self, **kwargs):
+        return util.success(
+            find_head_and_close_issues([str(issue_id) for issue_id in kwargs["issue_ids"]])
+        )
 
 ##### Issue commit relationship ######
 

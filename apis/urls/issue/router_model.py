@@ -216,6 +216,9 @@ class SingleIssueDeleteResponse(CommonBasicResponse):
 class IssueIssueFamilySchema(Schema):
     with_point = fields.Str(doc='with_point', example=True)
 
+class ClosableAllSchema(Schema):
+    issue_ids = fields.List(fields.Int(), required=True)
+
 #################################### Response ####################################
 
 class IssueFamilyResponse(CommonBasicResponse):

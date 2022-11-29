@@ -861,6 +861,33 @@ def close_all_issue(issue_id):
             update_pj_issue_calc(pj_id, closed_count=1)
 
 
+def find_head(issue_ids: list[int]):
+    head_issues = []
+    all_issues = []
+    for issue_id in issue_ids:
+        _ , exist_issues_ids = get_all_sons_ids(issue_id)
+        if issue_id in all_issues:
+            continue
+        
+        temp_remove_ids = []
+        for head_issue in head_issues:
+            if head_issue in exist_issues_ids:
+                temp_remove_ids.append(head_issue)
+                all_issues.append(head_issue)
+    
+        if temp_remove_ids:
+            head_issues = list(set(head_issues) - set(temp_remove_ids))
+        
+        head_issues.append(issue_id)
+        all_issues += exist_issues_ids
+    return head_issues
+
+
+def find_head_and_close_issues(issue_ids: list[int]):
+    head_issues = find_head(issue_ids)
+    for head_issue in head_issues:
+        close_all_issue(int(head_issue))
+
 
 def get_all_sons_ids(main_issue_id):
     redis_mapping = get_all_issue_relations()
