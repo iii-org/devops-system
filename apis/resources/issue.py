@@ -845,14 +845,14 @@ def filter_sub_issue(issue_id):
             return sub_issue_list
 
 
-def close_all_issue(issue_id):
+def close_all_sub_issue(issue_id):
     from resources.project_relation import get_project_id
     close_list = []
     sub_issue_list = filter_sub_issue(issue_id)
     if sub_issue_list:
         for sub_issue_id in sub_issue_list:
             close_list.append(sub_issue_id)
-            close_all_issue(sub_issue_id)
+            close_all_sub_issue(sub_issue_id)
         for close_id in close_list:
             issue = redmine_lib.redmine.issue.get(close_id)
             issue.status_id = 6
@@ -886,7 +886,7 @@ def find_head(issue_ids: list[int]):
 def find_head_and_close_issues(issue_ids: list[int]):
     head_issues = find_head(issue_ids)
     for head_issue in head_issues:
-        close_all_issue(int(head_issue))
+        close_all_sub_issue(int(head_issue))
 
 
 def get_all_sons_ids(main_issue_id):
@@ -1023,7 +1023,7 @@ def update_issue(issue_id, args, operator_id=None):
 
         # close all issue
     if args.get("close_all"):
-        close_all_issue(issue_id)
+        close_all_sub_issue(issue_id)
 
     # Get issue extension
     point = args.pop("point", None)
