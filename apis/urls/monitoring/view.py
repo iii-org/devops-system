@@ -15,7 +15,7 @@ from resources import logger
 from resources import role
 from resources.kubernetesClient import list_namespace_pods_info
 from resources.monitoring import Monitoring, row_to_dict, verify_github_info, docker_image_pull_limit_alert, \
-    harbor_nfs_storage_remain_limit, server_alive, ServicesNames
+    harbor_nfs_storage_remain_limit, server_alive, plugin_disable_or_not
 from resources.rancher import rancher
 from resources.rancher import remove_extra_executions
 from resources.redis import get_server_alive, update_server_alive
@@ -30,7 +30,7 @@ from urls.monitoring import router_model
 class ServicesListV2(MethodResource):
     @jwt_required()
     def get(self):
-        return util.success(ServicesNames)
+        return util.success(plugin_disable_or_not())
 
 
 @doc(tags=['Monitoring'], description="Check all server is alive and update cache.")
