@@ -45,7 +45,7 @@ def issue_url(api, add_resource):
 
     api.add_resource(view.ClosableAllV2, '/v2/issues/close_all')
     add_resource(view.ClosableAllV2, 'public')
-    api.add_resource(view.IssueSonsV2, '/v2/<sint:project_id>/issue/<int:issue_id>/sons')
+    api.add_resource(view.IssueSonsV2, '/v2/project/<sint:project_id>/issue/sons')
     add_resource(view.IssueSonsV2, 'public')
 
 

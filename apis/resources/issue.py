@@ -912,11 +912,21 @@ def get_all_sons_ids(main_issue_id):
     return mapping, exist_issues_ids
 
 
-def get_all_sons(project_id, issue_id):
-    mapping, exist_issues_ids = get_all_sons_ids(issue_id)
-    all_issues = get_issue_list_by_project_helper(project_id, {"issue_id": ",".join(exist_issues_ids)}, operator_id=get_jwt_identity()["user_id"])
+def get_all_sons(project_id, fix_version_ids):
+    issue_list = []
+    for fixed_version_id in fix_version_ids.split(","):
+        issue_list += [a_issue["id"] for a_issue in get_issue_list_by_project_helper(project_id, {"parent_id": "null", "fixed_version_id": fixed_version_id}, operator_id=get_jwt_identity()["user_id"])]
+
+    a_mapping, a_exist_issues_ids = {}, []
+    for issue in issue_list:
+        mapping, exist_issues_ids = get_all_sons_ids(issue)
+        a_mapping.update(mapping)
+        a_exist_issues_ids += exist_issues_ids
+
+    all_issues = get_issue_list_by_project_helper(project_id, {"issue_id": ",".join(a_exist_issues_ids)}, operator_id=get_jwt_identity()["user_id"])
     id_info_mapping = {str(all_issue["id"]): all_issue for all_issue in all_issues}
-    return add_issue_info(mapping, id_info_mapping)
+    return add_issue_info(a_mapping, id_info_mapping)
+
 
 
 def add_issue_info_helper(id, son_ids, issud_id_info_mapping):

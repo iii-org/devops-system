@@ -513,10 +513,11 @@ class CheckIssueClosable(Resource):
 
 class IssueSonsV2(MethodResource):
     @doc(tags=['Issue'], description="Check issue is closable or not.")
+    @use_kwargs(router_model.IssueSonsSchema, location='query')
     # @marshal_with(router_model.CheckIssueClosableResponse)
     @jwt_required()
-    def get(self, project_id, issue_id):
-        return util.success(get_all_sons(project_id, issue_id))
+    def get(self, project_id, **kwargs):
+        return util.success(get_all_sons(project_id, kwargs["fixed_version_ids"]))
 
 
 class ClosableAllV2(MethodResource):

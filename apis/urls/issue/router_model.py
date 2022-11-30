@@ -219,6 +219,12 @@ class IssueIssueFamilySchema(Schema):
 class ClosableAllSchema(Schema):
     issue_ids = fields.List(fields.Int(), required=True)
 
+
+class IssueSonsSchema(Schema):
+    # Add a valiate
+    fixed_version_ids = fields.Str(example='15,18', required=True)
+
+
 #################################### Response ####################################
 
 class IssueFamilyResponse(CommonBasicResponse):
