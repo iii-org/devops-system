@@ -567,7 +567,7 @@ def pm_update_project(project_id, args):
 
     # update sonarqube project key
     if args.get('display'):
-        old_project_name = nexus.nx_get_project(id=project_id).name
+        old_project_name = nexus.nx_get_project(id=project_id).display
         new_project_name = args['display']
         if old_project_name != new_project_name:
             sonarqube.sq_update_project_key(old_project_name, new_project_name)
