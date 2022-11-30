@@ -884,9 +884,17 @@ def find_head(issue_ids: list[int]):
 
 
 def find_head_and_close_issues(issue_ids: list[int]):
+    from resources.project_relation import get_project_id
     head_issues = find_head(issue_ids)
     for head_issue in head_issues:
         close_all_issue(int(head_issue))
+
+    for close_id in head_issues:
+        issue = redmine_lib.redmine.issue.get(close_id)
+        issue.status_id = 6
+        issue.save()
+        pj_id = get_project_id(issue.project.id)
+        update_pj_issue_calc(pj_id, closed_count=1)
 
 
 def get_all_sons_ids(main_issue_id):
