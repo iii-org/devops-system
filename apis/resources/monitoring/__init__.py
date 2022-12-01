@@ -48,12 +48,21 @@ AlertServiceIDMapping = {
 
 
 def plugin_disable_or_not():
+    ServicesNames = [
+        "Redmine",
+        "GitLab",
+        "Harbor",
+        "Kubernetes",
+        "Sonarqube",
+        "Rancher",
+        "Excalidraw"
+    ]
     plugin_software = PluginSoftware.query.all()
     if plugin_software:
-        ServicesNames = [row.name for row in plugin_software if not row.disabled]
-        return ServicesNames
-    else:
-        return []
+        for row in plugin_software:
+            if row.name.title() in ServicesNames and row.disabled:
+                ServicesNames.remove(row.name.title())
+    return ServicesNames
 
 
 class Monitoring:
