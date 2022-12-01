@@ -200,6 +200,10 @@ def get_upload_file_types():
     return util.success(value)
 
 def update_upload_file_size(kwargs):
+    '''
+    To adjust file size, there are five different plan need to change,
+    K8s, Ingress, UI-nginx, Redmine-setting, Flask-setting(the code below), DB(SystmeParameter)
+    '''
     query = SystemParameter.query.filter_by(name="upload_file_size").first()
     if kwargs.get("upload_file_size") >= 0 and kwargs.get("upload_file_size") <= 100:
         if query:
@@ -280,7 +284,13 @@ def check_upload_type(file):
     if file.mimetype not in get_all_upload_file_mimetype():
         raise DevOpsError(400, 'Argument upload_file type is not supported.',
                           error=apiError.argument_error("upload_file"))
-
+    file_size_limit = int(
+        SystemParameter.query.filter_by(name="upload_file_size").first().value["upload_file_size"])
+    blob = file.read()
+    file_size = int(len(blob))
+    file.seek(0)
+    if file_size / 1048576 > file_size_limit:
+        raise DevOpsError(404, 'file size exceed maximum', error=apiError.argument_error("upload_file"))
 # --------------------- Resources ---------------------
 
 

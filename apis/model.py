@@ -1028,13 +1028,14 @@ class Excalidraw(db.Model):
         User.id, ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+    file_key = Column(String)
 
 
 class ExcalidrawJson(db.Model):
     id = Column(Integer, primary_key=True)
     excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete='CASCADE'))
     name = Column(String)
-    json_key = Column(String, nullable=False)
+    file_value = Column(JSON)
 
 
 class ExcalidrawIssueRelation(db.Model):

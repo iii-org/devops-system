@@ -4,6 +4,7 @@ import util
 from collections import defaultdict
 from flask_restful import Resource
 
+import config
 from resources.notification_message import create_notification_message, get_unread_notification_message_list
 from resources.role import get_role_name
 from model import db
@@ -16,7 +17,7 @@ from resources import harbor, redmine, gitlab, kubernetesClient, \
 
 
 # 新建用戶預設密碼
-DEFAULT_PASSWORD = 'IIIdevops123!'
+DEFAULT_PASSWORD = config.get("ADMIN_INIT_PASSWORD")
 
 
 class ResourceUsers(object):

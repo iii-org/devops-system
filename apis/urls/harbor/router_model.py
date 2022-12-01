@@ -10,3 +10,4 @@ class CreateHarborScan(Schema):
 class HarborScanList(Schema):
     per_page = fields.Int(required=False, description='Show how many items at one page', example="10")
     page = fields.Int(required=False, description='Page number', example="1")
+    search = fields.Str(required=False, description='params', example="master")

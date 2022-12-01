@@ -20,6 +20,7 @@ from model import db
 from resources import apiError, role
 from resources import harbor, kubernetesClient
 from resources import release
+from resources.system_parameter import check_upload_type
 from resources.apiError import DevOpsError
 
 from resources.logger import logger
@@ -261,16 +262,11 @@ class Clusters(Resource):
             parser.add_argument('k8s_config_string', type=str, location="form")
             parser.add_argument('disabled', type=inputs.boolean, location="form")
             args = parser.parse_args()
-            # check file size
+            # check file upload
             if args.get("k8s_config_file"):
                 file = args.get("k8s_config_file")
-                file_size_limit = int(
-                    model.SystemParameter.query.filter_by(name="upload_file_size").first().value["upload_file_size"])
-                blob = file.read()
-                file_size = int(len(blob))
-                file.seek(0)
-                if file_size / 1048576 > file_size_limit:
-                    raise DevOpsError(404, 'file size exceed maximum')
+                check_upload_type(file)
+                # check_upload_size(file)
 
             server_name = args.get('name').strip()
             if check_cluster(server_name) is not None:

@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime, date, timedelta
 from distutils.util import strtobool
 
+import pandas as pd
 from flask_socketio import Namespace, emit, join_room, leave_room
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
@@ -37,7 +38,8 @@ from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 from urls import route_model
 from resources.redis import check_issue_has_son, update_issue_relations, remove_issue_relation, remove_issue_relations, \
-    add_issue_relation, update_pj_issue_calc
+    add_issue_relation, update_pj_issue_calc, get_all_issue_relations
+from copy import deepcopy
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -716,18 +718,6 @@ def get_issue_assign_to_detail(issue):
 
 
 def create_issue(args, operator_id):
-    # check file size
-    if args.get("upload_files"):
-        file_list = args["upload_files"]
-        file_size_limit = int(
-            model.SystemParameter.query.filter_by(name="upload_file_size").first().value["upload_file_size"])
-        for file in file_list:
-            blob = file.read()
-            file_size = int(len(blob))
-            file.seek(0)
-            if file_size/1048576 > file_size_limit:
-                raise DevOpsError(404, 'file size exceed maximum')
-
     changeUrl = args.get("changeUrl")
     update_cache_issue_family = False
     project_id = args['project_id']
@@ -855,14 +845,14 @@ def filter_sub_issue(issue_id):
             return sub_issue_list
 
 
-def close_all_issue(issue_id):
+def close_all_sub_issue(issue_id):
     from resources.project_relation import get_project_id
     close_list = []
     sub_issue_list = filter_sub_issue(issue_id)
     if sub_issue_list:
         for sub_issue_id in sub_issue_list:
             close_list.append(sub_issue_id)
-            close_all_issue(sub_issue_id)
+            close_all_sub_issue(sub_issue_id)
         for close_id in close_list:
             issue = redmine_lib.redmine.issue.get(close_id)
             issue.status_id = 6
@@ -871,20 +861,99 @@ def close_all_issue(issue_id):
             update_pj_issue_calc(pj_id, closed_count=1)
 
 
+def find_head(issue_ids: list[int]):
+    head_issues = []
+    all_issues = []
+    for issue_id in issue_ids:
+        _ , exist_issues_ids = get_all_sons_ids(issue_id)
+        if issue_id in all_issues:
+            continue
+        
+        temp_remove_ids = []
+        for head_issue in head_issues:
+            if head_issue in exist_issues_ids:
+                temp_remove_ids.append(head_issue)
+                all_issues.append(head_issue)
+    
+        if temp_remove_ids:
+            head_issues = list(set(head_issues) - set(temp_remove_ids))
+        
+        head_issues.append(issue_id)
+        all_issues += exist_issues_ids
+    return head_issues
+
+
+def find_head_and_close_issues(issue_ids: list[int]):
+    from resources.project_relation import get_project_id
+    head_issues = find_head(issue_ids)
+    for head_issue in head_issues:
+        close_all_sub_issue(int(head_issue))
+
+    for close_id in head_issues:
+        issue = redmine_lib.redmine.issue.get(close_id)
+        issue.status_id = 6
+        issue.save()
+        pj_id = get_project_id(issue.project.id)
+        update_pj_issue_calc(pj_id, closed_count=1)
+
+
+def get_all_sons_ids(main_issue_id):
+    redis_mapping = get_all_issue_relations()
+    mapping = {}
+    exist_issues_ids = []
+    def find_all(issue_id, issue_mapping, exist_issues_ids):
+        exist_issues_ids.append(issue_id)
+        if issue_id not in redis_mapping:
+            return
+
+        son_issue_ids = redis_mapping[issue_id].split(",")
+        for son_issue_id in son_issue_ids:
+            issue_mapping[son_issue_id] = {}
+            son_mapping = issue_mapping[son_issue_id]
+            
+            find_all(son_issue_id, son_mapping, exist_issues_ids)
+    
+    main_issue_id = str(main_issue_id)
+    mapping[main_issue_id] = {}
+    _ = mapping[main_issue_id]
+    find_all(str(main_issue_id), _, exist_issues_ids)
+    return mapping, exist_issues_ids
+
+
+def get_all_sons(project_id, fix_version_ids):
+    issue_list = []
+    for fixed_version_id in fix_version_ids.split(","):
+        issue_list += [a_issue["id"] for a_issue in get_issue_list_by_project_helper(project_id, {"parent_id": "null", "fixed_version_id": fixed_version_id}, operator_id=get_jwt_identity()["user_id"])]
+
+    a_mapping, a_exist_issues_ids = {}, []
+    for issue in issue_list:
+        mapping, exist_issues_ids = get_all_sons_ids(issue)
+        a_mapping.update(mapping)
+        a_exist_issues_ids += exist_issues_ids
+
+    all_issues = get_issue_list_by_project_helper(project_id, {"issue_id": ",".join(a_exist_issues_ids)}, operator_id=get_jwt_identity()["user_id"])
+    id_info_mapping = {str(all_issue["id"]): all_issue for all_issue in all_issues}
+    return add_issue_info(a_mapping, id_info_mapping)
+
+
+
+def add_issue_info_helper(id, son_ids, issud_id_info_mapping):
+    if son_ids == {}:
+        return issud_id_info_mapping[id]
+    issud_id_info_mapping[id]["children"] = [
+        add_issue_info_helper(son_id, son_son_ids, issud_id_info_mapping) for son_id, son_son_ids in son_ids.items()
+    ]
+    return issud_id_info_mapping[id]
+
+
+def add_issue_info(redis_mapping, issud_id_info_mapping):
+    return [
+        add_issue_info_helper(id, son_ids, issud_id_info_mapping) for id, son_ids in redis_mapping.items()
+    ]
+
+
 def update_issue(issue_id, args, operator_id=None):
     from resources.project_relation import get_project_id
-
-    # check file size
-    if args.get("upload_files"):
-        file_list = args["upload_files"]
-        file_size_limit = int(
-            model.SystemParameter.query.filter_by(name="upload_file_size").first().value["upload_file_size"])
-        for file in file_list:
-            blob = file.read()
-            file_size = int(len(blob))
-            file.seek(0)
-            if file_size / 1048576 > file_size_limit:
-                raise DevOpsError(404, 'file size exceed maximum')
 
     project_id = args.get('project_id')
     update_cache_issue_family = False
@@ -962,7 +1031,7 @@ def update_issue(issue_id, args, operator_id=None):
 
         # close all issue
     if args.get("close_all"):
-        close_all_issue(issue_id)
+        close_all_sub_issue(issue_id)
 
     # Get issue extension
     point = args.pop("point", None)
@@ -1349,7 +1418,7 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None, childre
 
 
 def handle_allowed_keywords(default_filters, args):
-    allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id', 'parent_id']
+    allowed_keywords = ['fixed_version_id', 'status_id', 'tracker_id', 'assigned_to_id', 'priority_id', 'parent_id', 'issue_id']
     for key in allowed_keywords:
         if args.get(key, None):
             # 如果 keywords 值為 'null'，python-redmine filter 值為 '!*'

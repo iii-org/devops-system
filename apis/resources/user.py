@@ -489,12 +489,23 @@ def row_to_dict(row):
 def get_decode_password(user_id):
     rows = model.UpdatePasswordError.query.filter_by(user_id=user_id).all()
     ret = []
-    for row in rows:
-        password = row_to_dict(row)['password']
-        decode_password = base64.b64decode(f'{password}'.encode('UTF-8'))
-        result_dict = row_to_dict(row)
-        result_dict.update({"password": decode_password.decode('UTF-8')})
-        ret.append(result_dict)
+    if rows:
+        for row in rows:
+            password = row_to_dict(row)['password']
+            decode_password = base64.b64decode(f'{password}'.encode('UTF-8'))
+            result_dict = {
+                "server": row.server,
+                "status": 0,
+                "password": decode_password.decode('UTF-8')
+            }
+            ret.append(result_dict)
+    server_list = [data['server'] for data in ret]
+    for server in ['redmine', 'gitlab', 'harbor', 'sonarqube']:
+        if server not in server_list:
+            ret.append({
+                "server": server,
+                "status": 1
+            })
     return ret
 
 
@@ -659,6 +670,13 @@ def delete_user(user_id):
     pj_ur_rls = db.session.query(model.Project, model.ProjectUserRole).join(model.ProjectUserRole). \
         filter(model.ProjectUserRole.user_id == user_id, model.ProjectUserRole.project_id != -1,
                model.ProjectUserRole.project_id == model.Project.id).all()
+
+    # change owner_id to system admin
+    rows = model.Project.query.filter_by(owner_id=user_id).all()
+    if rows:
+        for row in rows:
+            row.owner_id = 1
+        db.session.commit()
 
     try_to_delete(gitlab.gl_delete_user, relation.repository_user_id)
     try_to_delete(redmine.rm_delete_user, relation.plan_user_id)

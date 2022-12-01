@@ -9,8 +9,8 @@ from resources.router import update_plugin_hidden
 
 # Each time you add a migration, add a version code here.
 
-VERSIONS = ['1.22.0.1', '1.22.0.2', '1.22.0.3', '1.22.0.4', '1.22.0.5']
-ONLY_UPDATE_DB_MODELS = ['1.22.0.1', '1.22.0.2', '1.22.0.3']
+VERSIONS = ['1.22.0.1', '1.22.0.2', '1.22.0.3', '1.22.0.4', '1.22.0.5', '1.23.0.1', '1.23.0.2']
+ONLY_UPDATE_DB_MODELS = ['1.22.0.1', '1.22.0.2', '1.22.0.3', '1.23.0.2']
 
 
 def upgrade(version):
@@ -32,6 +32,8 @@ def upgrade(version):
             )
             db.session.add(row)
             db.session.commit()
+    elif version == '1.23.0.1':
+        recreate_ui_route()
 
 
 def recreate_ui_route():
@@ -44,9 +46,9 @@ def recreate_ui_route():
 
 
 def init():
-    latest_api_version = VERSIONS[-1]
-    logger.info(f'Creat NexusVersion, api_version={latest_api_version}')
-    new = model.NexusVersion(api_version=latest_api_version)
+    latest_api_version, deploy_version = VERSIONS[-1], config.get("DEPLOY_VERSION")
+    logger.info(f'Creat NexusVersion, api_version={latest_api_version}, deploy_version={deploy_version}')
+    new = model.NexusVersion(api_version=latest_api_version, deploy_version=deploy_version)
     db.session.add(new)
     db.session.commit()
 
@@ -118,8 +120,10 @@ def run():
     try:
         for version in VERSIONS:
             if needs_upgrade(current, version):
-                current = version
+                current, deploy_version = version, config.get("DEPLOY_VERSION")
                 row = model.NexusVersion.query.first()
+                if row.deploy_version != deploy_version:
+                    row.deploy_version = deploy_version
                 row.api_version = current
                 db.session.commit()
                 logger.info('Upgrade to {0}'.format(version))

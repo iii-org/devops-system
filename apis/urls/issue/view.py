@@ -13,10 +13,10 @@ from resources.issue import get_issue, require_issue_visible, get_issue_tags, ge
     update_issue, get_issue_family, delete_issue, create_issue, NexusIssue, get_issue_statistics, \
     get_open_issue_statistics, get_issue_statistics_in_period, post_issue_relation, put_issue_relation, \
     delete_issue_relation, check_issue_closable, get_commit_hook_issues, modify_hook, sync_issue_relation, \
-    get_issue_children
+    get_issue_children, get_all_sons, find_head_and_close_issues
 from resources.system_parameter import check_upload_type
 from resources.excalidraw import get_excalidraw_by_issue_id
-
+from resources import role
 ##### Issue single #####
 
 
@@ -28,11 +28,17 @@ class SingleIssueV2(MethodResource):
         issue_info = get_issue(issue_id)
         require_issue_visible(issue_id, issue_info)
         if 'parent_id' in issue_info:
-            parent_info = get_issue(issue_info['parent_id'], with_children=False)
-            parent_info['name'] = parent_info.pop('subject', None)
-            parent_info['tags'] = get_issue_tags(parent_info["id"])
-            issue_info.pop('parent_id', None)
-            issue_info['parent'] = parent_info
+            parent_check_info = get_issue(issue_info['parent_id'])
+            identity = get_jwt_identity()
+            user_id = identity['user_id']
+            if not identity['role_id'] == role.ADMIN.id or parent_check_info['assigned_to']['id'] != user_id:
+                issue_info.pop('parent_id', None)
+            else:
+                parent_info = get_issue(issue_info['parent_id'], with_children=False)
+                parent_info['name'] = parent_info.pop('subject', None)
+                parent_info['tags'] = get_issue_tags(parent_info["id"])
+                issue_info.pop('parent_id', None)
+                issue_info['parent'] = parent_info
 
         for items in ["children", "relations"]:
             if issue_info.get(items) is not None:
@@ -488,7 +494,7 @@ class Relation(Resource):
         return util.success(output)
 
 
-##### Issue checking #####
+##### Issue close #####
 
 @doc(tags=['Issue'], description="Check issue is closable or not.")
 @marshal_with(router_model.CheckIssueClosableResponse)
@@ -505,6 +511,24 @@ class CheckIssueClosable(Resource):
         output = check_issue_closable(issue_id)
         return util.success(output)
 
+class IssueSonsV2(MethodResource):
+    @doc(tags=['Issue'], description="Check issue is closable or not.")
+    @use_kwargs(router_model.IssueSonsSchema, location='query')
+    # @marshal_with(router_model.CheckIssueClosableResponse)
+    @jwt_required()
+    def get(self, project_id, **kwargs):
+        return util.success(get_all_sons(project_id, kwargs["fixed_version_ids"]))
+
+
+class ClosableAllV2(MethodResource):
+    @doc(tags=['Issue'], description="Close multi issues")
+    @use_kwargs(router_model.ClosableAllSchema)
+    @marshal_with(util.CommonResponse)
+    @jwt_required()
+    def delete(self, **kwargs):
+        return util.success(
+            find_head_and_close_issues([str(issue_id) for issue_id in kwargs["issue_ids"]])
+        )
 
 ##### Issue commit relationship ######
 

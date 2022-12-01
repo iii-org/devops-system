@@ -108,7 +108,12 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_timeout': 300,
     'pool_size': 20
 }
-app.config['MAX_CONTENT_LENGTH'] = 20 * 1000 * 1000
+
+'''
+To adjust file size, there are five different plan need to change,
+K8s, Ingress, UI-nginx, Redmine-setting, Flask-setting(the code below), DB(SystmeParameter)
+'''
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1000 * 1000
 
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
@@ -255,6 +260,10 @@ api.add_resource(gitlab.SyncGitCommitIssueRelationByPjName,
                  '/project/issues_commit_by_name',
                  )
 api.add_resource(pipeline.PipelineFile, '/project/<string:project_name>/pipeline_file')
+
+
+# App
+api.add_resource(project.AllPodsAndServicesUnderApp, '/project/<sint:project_id>/app/<app_name>')
 
 
 # Project son relation
@@ -512,7 +521,8 @@ api.add_resource(rancher.Catalogs, '/rancher/catalogs',
 api.add_resource(rancher.Catalogs_Refresh, '/rancher/catalogs_refresh')
 api.add_resource(rancher.RancherDeleteAPP, '/rancher/delete_app')
 api.add_resource(rancher.RancherCreateAPP, '/rancher/create_app')
-api.add_resource(rancher.RancherYaml, '/rancher/yaml')
+api.add_resource(rancher.RancherYaml, '/rancher/<sint:project_id>/yaml')
+api.add_resource(rancher.RancherAppnameByProject, '/rancher/<sint:project_id>/app')
 
 # Activity
 api.add_resource(activity.AllActivities, '/all_activities')

@@ -45,15 +45,24 @@ AlertServiceIDMapping = {
     "ad not alive": 1002,
     "SMTP not alive": 1101
 }
-ServicesNames = [
-    "Redmine",
-    "GitLab",
-    "Harbor",
-    "Kubernetes",
-    "Sonarqube",
-    "Rancher",
-    "Excalidraw"
-]
+
+
+def plugin_disable_or_not():
+    ServicesNames = [
+        "Redmine",
+        "GitLab",
+        "Harbor",
+        "Kubernetes",
+        "Sonarqube",
+        "Rancher",
+        "Excalidraw"
+    ]
+    plugin_software = PluginSoftware.query.all()
+    if plugin_software:
+        for row in plugin_software:
+            if row.name.title() in ServicesNames and row.disabled:
+                ServicesNames.remove(row.name.title())
+    return ServicesNames
 
 
 class Monitoring:
@@ -381,6 +390,7 @@ def service_alive_map(monitoring: Monitoring) -> dict[str, Callable[[], bool]]:
         """
         return False
 
+    ServicesNames = plugin_disable_or_not()
     return {
         service_name: getattr(monitoring, f"{service_name.lower()}_alive", fallback_function)
         for service_name in ServicesNames

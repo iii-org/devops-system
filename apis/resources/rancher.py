@@ -18,6 +18,9 @@ from resources import kubernetesClient
 from resources.logger import logger
 from flask_apispec import use_kwargs
 from urls import route_model
+import requests
+import model
+import pandas as pd
 
 
 def get_ci_last_test_result(relation):
@@ -142,9 +145,10 @@ class Rancher(object):
             params['branch'] = branch
         elif run is not None:
             params['run'] = run
-
+        #slow here
         response = self.__api_get(path, params=params)
         output_array = response.json()
+        #slow here
         return output_array
 
     def rc_get_pipeline_executions_action(self, ci_project_id, ci_pipeline_id, pipelines_exec_run,
@@ -368,11 +372,32 @@ class Rancher(object):
                   message='"disable_rancher_project_pipeline error, error message: {0}'.format(
                       rancher_output.text))
 
+    def rc_get_yaml(self, project_id):
+        project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
+        if project_relation:
+            pipeline_name = project_relation.ci_pipeline_id
+            token = self.__generate_token()
+            headers = {'Cookie': f'R_LOCALE=en-us; R_USERNAME=admin; R_PCS=light; CSRF=b88fa1f502; R_SESS={token}'}
+            result = requests.get(
+                f"https://{config.get('RANCHER_IP_PORT')}/v1/project.cattle.io.pipelines/{pipeline_name.split(':')[0]}/{pipeline_name.split(':')[1]}",
+                verify=False, headers=headers)
+            return result.json()
 
-    def rc_get_yaml(self, project_name, pipeline_name):
-        output = self.__api_get(f"/project/{project_name}/pipelines/{pipeline_name}")
-        return output.json()
-
+    def rc_put_yaml_run(self, project_id, total_run):
+        project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
+        if project_relation:
+            pipeline_name = project_relation.ci_pipeline_id
+            result = self.rc_get_yaml(project_id)
+            if int(result['status']['nextRun']) <= total_run:
+                result['status']['nextRun'] = total_run + 1
+            token = self.__generate_token()
+            headers = {'Cookie': f'R_LOCALE=en-us; R_USERNAME=admin; R_PCS=light; CSRF=b88fa1f502; R_SESS={token}'}
+            result = requests.put(
+                f"https://{config.get('RANCHER_IP_PORT')}/v1/project.cattle.io.pipelines/{pipeline_name.split(':')[0]}/{pipeline_name.split(':')[1]}",
+                verify=False, headers=headers, json=result)
+            # subprocess.run(['kubectl', 'apply', '-f', f"pipeline-{pipeline_name.split(':')[1]}.yaml", '-n',
+            #                 f"{pipeline_name.split(':')[0]}"])
+            return result.json()
 
     def rc_get_project_pipeline(self):
         self.rc_get_project_id()
@@ -666,6 +691,23 @@ def version_list(cat_id):
                     if k == "versionLinks":
                         version_dict.update({data["name"]: [version for version, url in v.items()]})
     return version_dict
+
+
+# def check_all_rancher_pipeline_run():
+#     rancher.rc_get_project_id()
+#     pipeline_list = rancher.rc_get_project_pipeline()
+#     for pipeline in pipeline_list:
+#         pipeline_name = pipeline['id']
+#         rancher.rc_put_yaml_run(pipeline_name)
+
+
+def get_all_appname_by_project(project_id):
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    apps = rancher.rc_get_apps_all()
+    df_app = pd.DataFrame(apps)
+    df_project_app = df_app[df_app['targetNamespace'] == project_name]
+    result_list = [value['name'] for key, value in df_project_app.fillna("").T.to_dict().items()]
+    return result_list
 # --------------------- Resources ---------------------
 class Catalogs(Resource):
     @jwt_required()
@@ -748,6 +790,10 @@ class RancherCreateAPP(Resource):
 
 
 class RancherYaml(Resource):
-    @use_kwargs(route_model.RancherGetYamlRes, location="json")
-    def get(self, **kwargs):
-        return util.success(rancher.rc_get_yaml(kwargs['project_name'], kwargs['pipeline_name']))
+    def get(self, project_id):
+        return util.success(rancher.rc_get_yaml(project_id))
+
+
+class RancherAppnameByProject(Resource):
+    def get(self, project_id):
+        return util.success(get_all_appname_by_project(project_id))

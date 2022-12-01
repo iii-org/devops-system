@@ -216,6 +216,15 @@ class SingleIssueDeleteResponse(CommonBasicResponse):
 class IssueIssueFamilySchema(Schema):
     with_point = fields.Str(doc='with_point', example=True)
 
+class ClosableAllSchema(Schema):
+    issue_ids = fields.List(fields.Int(), required=True)
+
+
+class IssueSonsSchema(Schema):
+    # Add a valiate
+    fixed_version_ids = fields.Str(example='15,18', required=True)
+
+
 #################################### Response ####################################
 
 class IssueFamilyResponse(CommonBasicResponse):
@@ -253,7 +262,6 @@ class RelationSchema(Schema):
     issue_to_ids = fields.List(fields.Int(), doc='issue_id', example=[1,2,3])
 
 
-##### Issue closable
 
 #################################### Response ####################################
 

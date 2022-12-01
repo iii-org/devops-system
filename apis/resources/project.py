@@ -51,6 +51,8 @@ from flask_apispec.views import MethodResource
 from resources import role
 from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
 import config
+import pandas as pd
+from .rancher import get_all_appname_by_project
 
 
 def get_pj_id_by_name(name):
@@ -563,6 +565,13 @@ def pm_update_project(project_id, args):
         else:
             args['parent_plan_project_id'] = get_plan_project_id(int(args.get('parent_id')))
 
+    # update sonarqube project key
+    if args.get('display'):
+        old_project_name = nexus.nx_get_project(id=project_id).display
+        new_project_name = args['display']
+        if old_project_name != new_project_name:
+            sonarqube.sq_update_project_key(old_project_name, new_project_name)
+
     # Update project template
     project = model.Project.query.filter_by(id=project_id).first()
     project_name = project.name
@@ -580,11 +589,11 @@ def pm_update_project(project_id, args):
     nexus.nx_update_project(project_id, args)
 
     # 如果有disable, 調整專案在gitlab archive狀態
-    disabled = args.get('disabled')
-    if disabled is not None:
+    if args.get('disabled'):
+        disabled = args['disabled']
         gitlab.gl_archive_project(
             plugin_relation.git_repository_id, disabled)
-        rancher.rc_del_app_with_prefix(f'{project_name}-')   
+        rancher.rc_del_app_with_prefix(f'{project_name}-')
 
     # 若有父專案, 加關聯進ProjectParentSonRelation, 須等redmine更新完再寫入
     if args.get('parent_plan_project_id') is not None:
@@ -1144,10 +1153,15 @@ def get_kubernetes_namespace_quota(project_id):
     project_quota = kubernetesClient.get_namespace_quota(project_name)
     deployments = kubernetesClient.list_namespace_deployments(project_name)
     ingresses = kubernetesClient.list_namespace_ingresses(project_name)
+    apps = rancher.rc_get_apps_all()
+    df_app = pd.DataFrame(apps)
+    df_project_app = df_app[df_app['targetNamespace'] == project_name]
     project_quota["quota"]["deployments"] = None
     project_quota["used"]["deployments"] = str(len(deployments))
     project_quota["quota"]["ingresses"] = None
     project_quota["used"]["ingresses"] = str(len(ingresses))
+    project_quota["quota"]["apps"] = None
+    project_quota["used"]["apps"] = str(len(df_project_app))
     if "secrets" not in project_quota["quota"]:
         secrets = kubernetesClient.list_namespace_secrets(project_name)
         project_quota["quota"]["secrets"] = None
@@ -1392,6 +1406,135 @@ def get_plugin_usage(project_id):
     return util.success(plugin_info)
 
 
+def delete_all_pods_and_services_by_app(project_id, app_name):
+    # delete app
+    rancher.rc_del_app(app_name)
+
+    # delete all pods by app_name
+    delete_list = app_name_find_pod_name(project_id, app_name)
+    if delete_list:
+        for pod_name in delete_list:
+            delete_kubernetes_namespace_pod(project_id, pod_name)
+
+    # delete all service by app_name
+    delete_list = app_name_find_service_name(project_id, app_name)
+    if delete_list:
+        for service_name in delete_list:
+            delete_kubernetes_namespace_service(project_id, service_name)
+
+    while True:
+        app_list = get_all_appname_by_project(project_id)
+        if app_name not in app_list:
+            break
+
+
+def app_name_find_service_name(project_id, app_name):
+    service_list = kubernetesClient.list_namespace_services(project_id)
+    # service_list = [{"name": "ui-create-case-allow-nothing-serv-svc", "is_iii": True},
+    #                 {"name": "ui-create-case-master-serv-svc", "is_iii": True}]
+    if service_list != []:
+        delete_list = []
+        for service in service_list:
+            service_app_name = '-'.join(service['name'].split('-')[0:-1])
+            if service_app_name == app_name:
+                delete_list.append(service['name'])
+        return delete_list
+
+
+def app_name_find_pod_name(project_id, app_name):
+    row = model.Project.query.filter_by(
+        id=project_id).first()
+    if row:
+        project_name = row.name
+        pods_list = kubernetesClient.list_namespace_pods_info(project_name)
+        # pods_list = [{
+        #         "name": "ui-create-case-allow-nothing-cmx-686-xzgk6",
+        #         "created_time": "2022-10-20 08:07:39+00:00",
+        #         "containers": [
+        #             {
+        #                 "name": "checkmarx-scan-46674d1-686",
+        #                 "image": "harbor-dev.iiidevops.org/dockerhub/iiiorg/checkmarx-runner:3.0.2",
+        #                 "restart": 0,
+        #                 "state": "terminated",
+        #                 "time": "2022-10-20 08:07:43+00:00"
+        #             }
+        #         ]
+        #     },
+        #     {
+        #         "name": "ui-create-case-master-pm-689-hn7ps",
+        #         "created_time": "2022-10-20 09:38:19+00:00",
+        #         "containers": [
+        #             {
+        #                 "name": "newman-runner-1037ecf-689",
+        #                 "image": "harbor-dev.iiidevops.org/dockerhub/iiiorg/newman-runner:4.0.5",
+        #                 "restart": 0,
+        #                 "state": "terminated",
+        #                 "time": "2022-10-20 09:38:24+00:00"
+        #             }
+        #         ]
+        #     },
+        #     {
+        #         "name": "ui-create-case-master-sdx-689-8dltk",
+        #         "created_time": "2022-10-20 09:38:36+00:00",
+        #         "containers": [
+        #             {
+        #                 "name": "test-sideex-1037ecf-689",
+        #                 "image": "harbor-dev.iiidevops.org/dockerhub/iiiorg/sideex-runner:1.2.1",
+        #                 "restart": 0,
+        #                 "state": "terminated",
+        #                 "time": "2022-10-20 09:38:38+00:00"
+        #             }
+        #         ]
+        #     },
+        #     {
+        #         "name": "ui-create-case-master-sq-689-fntrh",
+        #         "created_time": "2022-10-20 09:36:16+00:00",
+        #         "containers": [
+        #             {
+        #                 "name": "sonarqube-scan-1037ecf-689",
+        #                 "image": "iiiorg/sonarqube-runner:1.0.1",
+        #                 "restart": 0,
+        #                 "state": "terminated",
+        #                 "time": "2022-10-20 09:36:18+00:00"
+        #             }
+        #         ]
+        #     },
+        #     {
+        #         "name": "ui-create-case-master-zap-689-88kzn",
+        #         "created_time": "2022-10-20 09:38:01+00:00",
+        #         "containers": [
+        #             {
+        #                 "name": "test-zap-1037ecf-689",
+        #                 "image": "harbor-dev.iiidevops.org/dockerhub/iiiorg/zap-runner:1.0.2",
+        #                 "restart": 0,
+        #                 "state": "terminated",
+        #                 "time": "2022-10-20 09:38:50+00:00"
+        #             }
+        #         ]
+        #     },
+        #     {
+        #         "name": "ui-create-case-test-merge-cmx-688-dkzmg",
+        #         "created_time": "2022-10-20 08:07:57+00:00",
+        #         "containers": [
+        #             {
+        #                 "name": "checkmarx-scan-e9e85d8-688",
+        #                 "image": "harbor-dev.iiidevops.org/dockerhub/iiiorg/checkmarx-runner:3.0.2",
+        #                 "restart": 0,
+        #                 "state": "terminated",
+        #                 "time": "2022-10-20 08:08:02+00:00"
+        #             }
+        #         ]
+        #     }
+        # ]
+        if pods_list != []:
+            delete_list = []
+            for pod in pods_list:
+                pod_app_name = '-'.join(pod['name'].split('-')[0:-2])
+                if pod_app_name == app_name:
+                    delete_list.append(pod['name'])
+            return delete_list
+
+
 def git_repo_id_to_ci_pipe_id(repository_id):
     project_plugin_relation = model.ProjectPluginRelation.query.filter_by(
         git_repository_id=int(repository_id)).first()
@@ -1498,3 +1641,9 @@ class GitRepoIdToCiPipeId(Resource):
     @jwt_required()
     def get(self, repository_id):
         return git_repo_id_to_ci_pipe_id(repository_id)
+
+
+class AllPodsAndServicesUnderApp(Resource):
+    @jwt_required()
+    def delete(self, project_id, app_name):
+        return util.success(delete_all_pods_and_services_by_app(project_id, app_name))
