@@ -62,7 +62,7 @@ def plugin_disable_or_not():
         for row in plugin_software:
             if row.name.title() in ServicesNames and row.disabled:
                 ServicesNames.remove(row.name.title())
-        return ServicesNames
+    return ServicesNames
 
 
 class Monitoring:
