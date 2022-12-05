@@ -51,6 +51,10 @@
         "start_version": "v1.18.1",
         "end_version": "v1.23.9"
     },
+    "influxdb-dev":{
+        "start_version": "v1.1.0",
+        "end_version": "v1.23.9"
+    },
     "laravel-app-template":{
         "start_version": "v1.18.1",
         "end_version": "v1.23.9"
