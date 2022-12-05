@@ -22,6 +22,9 @@ class ExcalidrawPatchSchema(Schema):
     name = fields.Str()
     issue_ids = fields.Str(doc='issue_ids', example="1,2,3")
 
+class ExcalidrawFilePostSchema(Schema):
+    file_key = fields.Str(doc='file_key', example="PgStCvMNgpMv_Zk27zsnQQ", required=True)
+    room_key = fields.Str(doc='room_key', example="45665b05adfbac27b1d9", required=True)
 #################################### Response ####################################
 
 

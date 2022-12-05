@@ -17,3 +17,5 @@ def router(api, add_resource):
     add_resource(excalidraw_main.ExcalidrawsHistoryV2, "public")
     api.add_resource(excalidraw_main.ExcalidrawsVersionRestoreV2, '/v2/excalidraw/<int:excalidraw_history_id>/restore')
     add_resource(excalidraw_main.ExcalidrawsHistoryV2, "public")
+    api.add_resource(excalidraw_main.ExcalidrawsFilesV2, '/v2/excalidraw/file')
+    add_resource(excalidraw_main.ExcalidrawsFilesV2, "public")
