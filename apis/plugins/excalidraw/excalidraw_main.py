@@ -63,6 +63,14 @@ class CheckExcalidrawAliveV2(MethodResource):
         return util.success(excalidraw.check_excalidraw_alive())
 
 
+class ExcalidrawsFilesV2(MethodResource):
+    @doc(tags=['Excalidraw'], description="Put excalidraw Files info")
+    @use_kwargs(router_model.ExcalidrawFilePostSchema, location="json")
+    def post(self, **kwargs):
+        excalidraw.save_file_info(kwargs)
+        return util.success()
+
+
 class ExcalidrawsHistoryV2(MethodResource):
     @doc(tags=['Excalidraw'], description="Get excalidraw record by excalidraw_id.")
     @marshal_with(router_model.ExcalidrawHistoryGetRes)

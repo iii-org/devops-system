@@ -242,6 +242,51 @@ def row_to_dict(row):
     return ret
 
 
+def save_file_info(kwargs):
+    # database = "excalidraw"
+    # user = "postgres"
+    # password = "nFx8m16LDzKACWtp8CV6uG"
+    # host = "10.20.0.91"
+    # port = 30503
+    database = excalidraw_get_config("excalidraw-db-database")
+    user = excalidraw_get_config("excalidraw-db-account")
+    password = excalidraw_get_config("excalidraw-db-password")
+    host = excalidraw_get_config("excalidraw-db-host")
+    port = excalidraw_get_config("excalidraw-db-port")
+    conn = psycopg2.connect(
+        database=database,
+        user=user,
+        password=password,
+        host=host,
+        port=port
+    )
+    df_keyv = pd.read_sql_query("SELECT * FROM keyv", conn)
+    df_keyv['key'] = df_keyv.key.apply(lambda x: x.split(':')[1])
+
+    # file_key
+    update_dict = {
+        "file_key": kwargs['file_key']
+    }
+    db.session.query(Excalidraw).filter_by(room=kwargs['room_key']).update(update_dict)
+    db.session.commit()
+
+    # file_value
+    row = Excalidraw.query.filter_by(room=kwargs['room_key']).first()
+    value = ExcalidrawJson.query.filter_by(excalidraw_id=row.id).first()
+    file_value = df_keyv[df_keyv['key'] == kwargs['file_key']].iloc[0]['value']
+    value_dict = {
+        "excalidraw_id": row.id,
+        "file_value": json.loads(file_value)
+    }
+    if value:
+        db.session.query(ExcalidrawJson).filter_by(excalidraw_id=row.id).update(value_dict)
+        db.session.commit()
+    else:
+        row = ExcalidrawJson(**value_dict)
+        db.session.add(row)
+        db.session.commit()
+
+
 def get_excalidraw_history(excalidraw_id):
     rows = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).order_by(
         desc(ExcalidrawHistory.updated_at)).all()
@@ -264,8 +309,8 @@ def utf8len(s):
 def update_excalidraw_history(excalidraw_id):
     # database = "excalidraw"
     # user = "postgres"
-    # password = "lxVN59Wfi7ua745kEIQ93Afrb"
-    # host = "10.20.0.96"
+    # password = "nFx8m16LDzKACWtp8CV6uG"
+    # host = "10.20.0.91"
     # port = 30503
     database = excalidraw_get_config("excalidraw-db-database")
     user = excalidraw_get_config("excalidraw-db-account")
@@ -353,12 +398,15 @@ def excalidraw_version_restore(excalidraw_history_id, simple=False):
     excalidraw = Excalidraw.query.filter_by(id=excalidraw_id).first()
     project_id = excalidraw.project_id
     restore_key = excalidraw.room
+    file_key = excalidraw.file_key
+    excalidrawJson = ExcalidrawJson.query.filter_by(excalidraw_id=excalidraw_id).first()
+    file_value = excalidrawJson.file_value
     if project_id:
         role.require_project_owner(get_jwt_identity()['user_id'], project_id)
     # database = "excalidraw"
     # user = "postgres"
-    # password = "lxVN59Wfi7ua745kEIQ93Afrb"
-    # host = "10.20.0.96"
+    # password = "nFx8m16LDzKACWtp8CV6uG"
+    # host = "10.20.0.91"
     # port = 30503
     database = excalidraw_get_config("excalidraw-db-database")
     user = excalidraw_get_config("excalidraw-db-account")
@@ -373,6 +421,7 @@ def excalidraw_version_restore(excalidraw_history_id, simple=False):
         port=port
     )
     value = str(value).replace('\'', '\"').replace('None', 'null')
+    file_value = str(file_value).replace('\'', '\"').replace('None', 'null')
     try:
         cur = conn.cursor()
         cur.execute(
@@ -380,6 +429,13 @@ def excalidraw_version_restore(excalidraw_history_id, simple=False):
             UPDATE public.keyv
             SET value= '{value}'
             WHERE key like '%{restore_key}';
+            """
+        )
+        cur.execute(
+            f"""
+            UPDATE public.keyv
+            SET value= '{file_value}'
+            WHERE key like '%{file_key}';
             """
         )
         conn.commit()

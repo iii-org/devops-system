@@ -133,6 +133,8 @@ def analysis_release(release, info, hb_list_tags, image_need):
     ret = row_to_dict(release)
     ret['docker'] = []
     gitlab_project_url = info.get('gitlab_project_url')
+    tag_mapping, repo_mapping = {}, {}
+    
     if ret.get('branch') is not None and ret.get('commit') is not None:
         ret['git_url'] = f'{gitlab_project_url}/-/releases/{ret.get("tag_name")}'
 
@@ -145,15 +147,16 @@ def analysis_release(release, info, hb_list_tags, image_need):
                 tag_mapping.setdefault(release_repo_tag.tag, []).append(release_repo_tag.custom_path)
             if release_repo_tag.custom_path == info["project_name"]:
                 repo_mapping.setdefault(release_repo_tag.custom_path, []).append(release_repo_tag.tag)
-        # Generate field: "image_tags"
-        ret["image_tags"] = [{tag: data} for tag, data in tag_mapping.items()]
-        ret["docker"] = [{
-            "repo": repo,
-            "tags": tags,
-            "project": "" if ret["image_paths"] == [] else ret["image_paths"][0].split("/")[0],
-            "default": repo == ret["branch"]
-        } for repo, tags in repo_mapping.items()]
-        ret["harbor_external_base_url"] = config.get("HARBOR_EXTERNAL_BASE_URL").split("//")[-1]
+                
+    # Generate field: "image_tags"
+    ret["image_tags"] = [{tag: data} for tag, data in tag_mapping.items()]
+    ret["docker"] = [{
+        "repo": repo,
+        "tags": tags,
+        "project": "" if ret["image_paths"] == [] else ret["image_paths"][0].split("/")[0],
+        "default": repo == ret["branch"]
+    } for repo, tags in repo_mapping.items()]
+    ret["harbor_external_base_url"] = config.get("HARBOR_EXTERNAL_BASE_URL").split("//")[-1]
 
     if image_need and ret.get('docker') == []:
         ret = None
@@ -337,6 +340,13 @@ def create_release_image_tag(project_id, release_id, args):
                     raise apiError.DevOpsError(
                         500, f'{dest_tags.capitalize()} already exist in this Harbor repository.',
                         error=apiError.harbor_tag_already_exist(dest_tags, repo))
+
+        if not distinct_repos:
+            raise apiError.DevOpsError(
+                400, 
+                "Can not add tag on no image's repo",
+                error=apiError.no_image_error(project_name)
+            )
 
         # Must to update DB first, otherwise the value won't change.
         row_list = [
