@@ -341,6 +341,13 @@ def create_release_image_tag(project_id, release_id, args):
                         500, f'{dest_tags.capitalize()} already exist in this Harbor repository.',
                         error=apiError.harbor_tag_already_exist(dest_tags, repo))
 
+        if not distinct_repos:
+            raise apiError.DevOpsError(
+                400, 
+                "Can not add tag on no image's repo",
+                error=apiError.no_image_error(project_name)
+            )
+
         # Must to update DB first, otherwise the value won't change.
         row_list = [
             model.ReleaseRepoTag(

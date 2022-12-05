@@ -403,6 +403,13 @@ def harbor_tag_already_exist(tag, repo_name):
         {'tag': tag, 'repo_name': repo_name}
     )
 
+def no_image_error(repo_name):
+    return build(
+        8202,
+        f'Can not add tag on harbor repository: {repo_name} because it does not has image.',
+        {'repo_name': repo_name}
+    )
+
 
 def parent_issue_error():
     return build(8101, f"Parent issue setting error! Please confirm that the setting issue is not a sub-issue or related issue of this issue.")
