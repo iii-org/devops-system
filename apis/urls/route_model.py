@@ -233,7 +233,13 @@ class GetFlowTypeResponse(CommonBasicResponse):
     data = fields.List(fields.Nested(
        GetFlowTypeDataResponse, required=True))
 
-
+class DateTimeStatusGetRes(CommonBasicResponse):
+    data = fields.Dict(example={
+            "expire_num": 1,
+            "no_due_date_num": 36,
+            "normal_num": 0,
+            "total_num": 37
+        })
 ###### TraceOrder ######
 
 #################################### Schema ####################################

@@ -39,7 +39,7 @@ from flask_apispec.views import MethodResource
 from urls import route_model
 from resources.redis import check_issue_has_son, update_issue_relations, remove_issue_relation, remove_issue_relations, \
     add_issue_relation, update_pj_issue_calc, get_all_issue_relations
-from copy import deepcopy
+from datetime import date
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -1125,6 +1125,27 @@ def delete_issue(issue_id):
         else:
             raise e
     return "success"
+
+
+def get_issue_datetime_status(project_id):
+    kwargs = {}
+    df_issue = pd.DataFrame(
+        get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"]))
+    df_issue = df_issue[df_issue['is_closed'] == False]
+    df_issue_date = df_issue[['id', 'start_date', 'due_date']]
+    total_num = df_issue.shape[0]
+    no_due_date_num = df_issue_date[df_issue_date['due_date'].isnull()].shape[0]
+    df_has_due_date = df_issue_date[df_issue_date['due_date'].notnull()]
+    df_has_due_date['now'] = str(date.today())
+    expire_num = df_has_due_date[df_has_due_date['due_date'] < df_has_due_date['now']].shape[0]
+    normal_num = df_has_due_date[df_has_due_date['due_date'] > df_has_due_date['now']].shape[0]
+    output = {
+        'total_num': total_num,
+        'no_due_date_num': no_due_date_num,
+        'expire_num': expire_num,
+        'normal_num': normal_num
+    }
+    return output
 
 
 def get_issue_by_project(project_id, args):
@@ -3028,6 +3049,14 @@ class ExecuteIssueAlert(Resource):
                 {"condition": alert.condition, "days": alert.days})
 
         return util.success(execute_issue_alert(alert_mapping))
+
+
+class DatetimeStatusV2(MethodResource):
+    @doc(tags=['Issue'], description="get issue datetime status.")
+    @marshal_with(route_model.DateTimeStatusGetRes)
+    @jwt_required()
+    def get(self, project_id):
+        return util.success(get_issue_datetime_status(project_id))
 
 
 class IssueSocket(Namespace):
