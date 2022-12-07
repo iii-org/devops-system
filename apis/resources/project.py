@@ -565,13 +565,6 @@ def pm_update_project(project_id, args):
         else:
             args['parent_plan_project_id'] = get_plan_project_id(int(args.get('parent_id')))
 
-    # update sonarqube project key
-    if args.get('display'):
-        old_project_name = nexus.nx_get_project(id=project_id).display
-        new_project_name = args['display']
-        if old_project_name != new_project_name:
-            sonarqube.sq_update_project_key(old_project_name, new_project_name)
-
     # Update project template
     project = model.Project.query.filter_by(id=project_id).first()
     project_name = project.name

@@ -77,6 +77,7 @@ class IssueByProjectSchema(CommonIssueSchema):
 
 class IssuesProgressByProjectSchema(Schema):
     fixed_version_id = fields.Int(doc='fixed_version_id', example=-1)
+    due_date_status = fields.Str(doc='due_date_status', example="expire")
 
 #################################### Response ####################################
 

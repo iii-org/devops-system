@@ -1681,7 +1681,7 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
     }
     if progress:
         output = defaultdict(int)
-        calculate_issue_progress(filters, issue_status, output)
+        calculate_issue_progress(filters, issue_status, output, args)
     elif statistics:
         output_keys = ['assigned_to', 'priority', 'tracker', 'tags']
         # output_values 格式: {'xxxx': { "Active": 0, "Assigned": 0, "InProgress": 0 ..... }}
@@ -1689,22 +1689,70 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
             lambda: defaultdict(dict, {status: 0 for status in issue_status.values()})
         )
         output = {key: output_values.copy() for key in output_keys}
-        calculate_issue_statistics(filters, issue_status, output_keys, output)
+        calculate_issue_statistics(filters, issue_status, output_keys, output, args)
     return output
 
 
-def calculate_issue_progress(filters, issue_status, output):
+def calculate_issue_progress(filters, issue_status, output, args=None):
     redmine_issues = redmine_lib.redmine.issue.filter(**filters)
     for issue in redmine_issues:
+        if args.get('due_date_status'):
+            due_date = args['due_date_status']
+            df = pd.DataFrame(issue)
+            df_due_date = df[(df[0] == 'due_date')]
+            df_due_date['now'] = str(date.today())
+            bool_has_due_date = df_due_date[1].notnull().iloc[0]
+            bool_no_due_date = df_due_date[1].isnull().iloc[0]
+            if due_date == 'null':
+                if bool_has_due_date:
+                    continue
+            elif due_date == 'expire':
+                if bool_no_due_date:
+                    continue
+                else:
+                    df_check = df_due_date[1] > df_due_date['now']
+                    if df_check.iloc[0]:
+                        continue
+            elif due_date == 'normal':
+                if bool_no_due_date:
+                    continue
+                else:
+                    df_check = df_due_date[1] < df_due_date['now']
+                    if df_check.iloc[0]:
+                        continue
         if issue.status.id in issue_status:
             output[issue.status.name] += 1
         else:
             output['Unknown'] += 1
 
 
-def calculate_issue_statistics(filters, issue_status, output_keys, output):
+def calculate_issue_statistics(filters, issue_status, output_keys, output, args=None):
     redmine_issues = redmine_lib.redmine.issue.filter(**filters)
     for issue in redmine_issues:
+        if args.get('due_date_status'):
+            due_date = args['due_date_status']
+            df = pd.DataFrame(issue)
+            df_due_date = df[(df[0] == 'due_date')]
+            df_due_date['now'] = str(date.today())
+            bool_has_due_date = df_due_date[1].notnull().iloc[0]
+            bool_no_due_date = df_due_date[1].isnull().iloc[0]
+            if due_date == 'null':
+                if bool_has_due_date:
+                    continue
+            elif due_date == 'expire':
+                if bool_no_due_date:
+                    continue
+                else:
+                    df_check = df_due_date[1] > df_due_date['now']
+                    if df_check.iloc[0]:
+                        continue
+            elif due_date == 'normal':
+                if bool_no_due_date:
+                    continue
+                else:
+                    df_check = df_due_date[1] < df_due_date['now']
+                    if df_check.iloc[0]:
+                        continue
         issue_tag = model.IssueTag.query.get(issue.id)
         mappings = {
             'assigned_to': 'Unassigned',

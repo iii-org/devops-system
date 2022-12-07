@@ -257,6 +257,7 @@ class IssuesProgressByProject(Resource):
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int, location="args")
+        parser.add_argument('due_date_status', type=str, location="args")
         args = parser.parse_args()
         output = get_issue_progress_or_statistics_by_project(project_id,
                                                              args, progress=True)
@@ -269,7 +270,6 @@ class IssuesProgressByProject(Resource):
 class IssuesStatisticsByProjectV2(MethodResource):
     @jwt_required()
     def get(self, project_id, **kwargs):
-        print(kwargs)
         role.require_in_project(project_id)
         output = get_issue_progress_or_statistics_by_project(project_id,
                                                              kwargs, statistics=True)
@@ -282,6 +282,7 @@ class IssuesStatisticsByProject(Resource):
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
         parser.add_argument('fixed_version_id', type=int, location="args")
+        parser.add_argument('due_date_status', type=str, location="args")
         args = parser.parse_args()
         output = get_issue_progress_or_statistics_by_project(project_id,
                                                              args, statistics=True)
