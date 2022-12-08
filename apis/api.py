@@ -368,6 +368,8 @@ api.add_resource(issue.IssueTracker, '/issues_tracker')
 api.add_resource(issue.IssueTrackerV2, '/v2/issues_tracker')
 add_resource(issue.IssueTrackerV2, 'public')
 
+api.add_resource(issue.DatetimeStatusV2, '/v2/<sint:project_id>/datetime_status')
+add_resource(issue.DatetimeStatusV2, 'public')
 
 # Issue Field Display
 api.add_resource(issue_display_field.IssueFieldDisplay, '/issue_field_display')

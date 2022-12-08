@@ -39,7 +39,7 @@ from flask_apispec.views import MethodResource
 from urls import route_model
 from resources.redis import check_issue_has_son, update_issue_relations, remove_issue_relation, remove_issue_relations, \
     add_issue_relation, update_pj_issue_calc, get_all_issue_relations
-from copy import deepcopy
+from datetime import date
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {'1': '文字', '2': '英數字', '3': '英文字', '4': '數字'}
@@ -1127,6 +1127,27 @@ def delete_issue(issue_id):
     return "success"
 
 
+def get_issue_datetime_status(project_id):
+    kwargs = {}
+    df_issue = pd.DataFrame(
+        get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"]))
+    df_issue = df_issue[df_issue['is_closed'] == False]
+    df_issue_date = df_issue[['id', 'start_date', 'due_date']]
+    total_num = df_issue.shape[0]
+    no_due_date_num = df_issue_date[df_issue_date['due_date'].isnull()].shape[0]
+    df_has_due_date = df_issue_date[df_issue_date['due_date'].notnull()]
+    df_has_due_date['now'] = str(date.today())
+    expire_num = df_has_due_date[df_has_due_date['due_date'] < df_has_due_date['now']].shape[0]
+    normal_num = df_has_due_date[df_has_due_date['due_date'] > df_has_due_date['now']].shape[0]
+    output = {
+        'total_num': total_num,
+        'no_due_date_num': no_due_date_num,
+        'expire_num': expire_num,
+        'normal_num': normal_num
+    }
+    return output
+
+
 def get_issue_by_project(project_id, args):
     if util.is_dummy_project(project_id):
         return []
@@ -1660,7 +1681,7 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
     }
     if progress:
         output = defaultdict(int)
-        calculate_issue_progress(filters, issue_status, output)
+        calculate_issue_progress(filters, issue_status, output, args)
     elif statistics:
         output_keys = ['assigned_to', 'priority', 'tracker', 'tags']
         # output_values 格式: {'xxxx': { "Active": 0, "Assigned": 0, "InProgress": 0 ..... }}
@@ -1668,22 +1689,70 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
             lambda: defaultdict(dict, {status: 0 for status in issue_status.values()})
         )
         output = {key: output_values.copy() for key in output_keys}
-        calculate_issue_statistics(filters, issue_status, output_keys, output)
+        calculate_issue_statistics(filters, issue_status, output_keys, output, args)
     return output
 
 
-def calculate_issue_progress(filters, issue_status, output):
+def calculate_issue_progress(filters, issue_status, output, args=None):
     redmine_issues = redmine_lib.redmine.issue.filter(**filters)
     for issue in redmine_issues:
+        if args.get('due_date_status'):
+            due_date = args['due_date_status']
+            df = pd.DataFrame(issue)
+            df_due_date = df[(df[0] == 'due_date')]
+            df_due_date['now'] = str(date.today())
+            bool_has_due_date = df_due_date[1].notnull().iloc[0]
+            bool_no_due_date = df_due_date[1].isnull().iloc[0]
+            if due_date == 'null':
+                if bool_has_due_date:
+                    continue
+            elif due_date == 'expire':
+                if bool_no_due_date:
+                    continue
+                else:
+                    df_check = df_due_date[1] > df_due_date['now']
+                    if df_check.iloc[0]:
+                        continue
+            elif due_date == 'normal':
+                if bool_no_due_date:
+                    continue
+                else:
+                    df_check = df_due_date[1] < df_due_date['now']
+                    if df_check.iloc[0]:
+                        continue
         if issue.status.id in issue_status:
             output[issue.status.name] += 1
         else:
             output['Unknown'] += 1
 
 
-def calculate_issue_statistics(filters, issue_status, output_keys, output):
+def calculate_issue_statistics(filters, issue_status, output_keys, output, args=None):
     redmine_issues = redmine_lib.redmine.issue.filter(**filters)
     for issue in redmine_issues:
+        if args.get('due_date_status'):
+            due_date = args['due_date_status']
+            df = pd.DataFrame(issue)
+            df_due_date = df[(df[0] == 'due_date')]
+            df_due_date['now'] = str(date.today())
+            bool_has_due_date = df_due_date[1].notnull().iloc[0]
+            bool_no_due_date = df_due_date[1].isnull().iloc[0]
+            if due_date == 'null':
+                if bool_has_due_date:
+                    continue
+            elif due_date == 'expire':
+                if bool_no_due_date:
+                    continue
+                else:
+                    df_check = df_due_date[1] > df_due_date['now']
+                    if df_check.iloc[0]:
+                        continue
+            elif due_date == 'normal':
+                if bool_no_due_date:
+                    continue
+                else:
+                    df_check = df_due_date[1] < df_due_date['now']
+                    if df_check.iloc[0]:
+                        continue
         issue_tag = model.IssueTag.query.get(issue.id)
         mappings = {
             'assigned_to': 'Unassigned',
@@ -3028,6 +3097,14 @@ class ExecuteIssueAlert(Resource):
                 {"condition": alert.condition, "days": alert.days})
 
         return util.success(execute_issue_alert(alert_mapping))
+
+
+class DatetimeStatusV2(MethodResource):
+    @doc(tags=['Issue'], description="get issue datetime status.")
+    @marshal_with(route_model.DateTimeStatusGetRes)
+    @jwt_required()
+    def get(self, project_id):
+        return util.success(get_issue_datetime_status(project_id))
 
 
 class IssueSocket(Namespace):
