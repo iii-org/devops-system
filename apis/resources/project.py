@@ -619,7 +619,7 @@ def pm_update_project(project_id, args):
                     not row.User.login.startswith("project_bot") and \
                     row.ProjectUserRole.role_id != 7:
                 project_add_member(project_id, row.User.id)
-                
+
     # 檢查是否要變更 DISPLAY，若有要一起變更 SONARQUBE 的 PROJECT NAME
     if args.get('display') is not None:
         sonar_url = config.get("SONARQUBE_EXTERNAL_BASE_URL")
@@ -636,7 +636,7 @@ def pm_update_project(project_id, args):
         # 以上為 WINDOWS 環境的執行指令，以下為 LINUX 的執行執令
         sonar_rename = ("./sonar-scanner -D" + sonar_host + " -D" + sonar_login + " -D" + sonar_projectkey +
                         " -D" + sonar_projectname)
-        os.system(sonar_rename)
+        os.system("cd " + sonarqube.SONAR_SCAN_PATH + " && " + sonar_rename)
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
