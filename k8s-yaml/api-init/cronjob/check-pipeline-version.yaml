@@ -4,8 +4,8 @@ metadata:
   name: check-pipeline-version
 spec:
   concurrencyPolicy: Forbid
-  successfulJobsHistoryLimit: 1
-  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 0
   schedule: "0 0 * * *"
   jobTemplate:
     spec:

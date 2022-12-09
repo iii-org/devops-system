@@ -4,8 +4,8 @@ metadata:
   name: report-data
 spec:
   concurrencyPolicy: Forbid
-  successfulJobsHistoryLimit: 1
-  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 0
   schedule: "30 17 * * *"
   jobTemplate:
     spec:
