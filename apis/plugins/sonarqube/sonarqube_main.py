@@ -24,6 +24,9 @@ METRICS = ('alert_status,bugs,reliability_rating,vulnerabilities,security_hotspo
            ',security_rating,sqale_index,code_smells,sqale_rating,coverage'
            ',duplicated_blocks,duplicated_lines_density')
 PAGE_SIZE = 1000
+SONAR_SCAN_PATH='sonar-scanner4.7.0/bin'
+# ./sonar-scanner -Dsonar.host.url='{config.get("SONARQUBE_EXTERNAL_BASE_URL")}' -Dsonar.login='{config.get("SONARQUBE_ADMIN_TOKEN")}' -Dsonar.projectKey='projectkey' -Dsonar.projectName='projectnewname'
+
 
 
 def __api_request(method, path, headers=None, params=None, data=None):
