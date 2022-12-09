@@ -1698,11 +1698,7 @@ def calculate_issue_progress(filters, issue_status, output, args=None):
     for issue in redmine_issues:
         if args.get('due_date_status'):
             due_date = args['due_date_status']
-            df = pd.DataFrame(issue)
-            df_due_date = df[(df[0] == 'due_date')]
-            df_due_date['now'] = str(date.today())
-            bool_has_due_date = df_due_date[1].notnull().iloc[0]
-            bool_no_due_date = df_due_date[1].isnull().iloc[0]
+            df_due_date, bool_has_due_date, bool_no_due_date = has_or_no_due_date(issue)
             if due_date == 'null':
                 if bool_has_due_date:
                     continue
@@ -1726,16 +1722,21 @@ def calculate_issue_progress(filters, issue_status, output, args=None):
             output['Unknown'] += 1
 
 
+def has_or_no_due_date(issue):
+    df = pd.DataFrame(issue)
+    df_due_date = df[(df[0] == 'due_date')]
+    df_due_date['now'] = str(date.today())
+    bool_has_due_date = df_due_date[1].notnull().iloc[0]
+    bool_no_due_date = df_due_date[1].isnull().iloc[0]
+    return df_due_date, bool_has_due_date, bool_no_due_date
+
+
 def calculate_issue_statistics(filters, issue_status, output_keys, output, args=None):
     redmine_issues = redmine_lib.redmine.issue.filter(**filters)
     for issue in redmine_issues:
         if args.get('due_date_status'):
             due_date = args['due_date_status']
-            df = pd.DataFrame(issue)
-            df_due_date = df[(df[0] == 'due_date')]
-            df_due_date['now'] = str(date.today())
-            bool_has_due_date = df_due_date[1].notnull().iloc[0]
-            bool_no_due_date = df_due_date[1].isnull().iloc[0]
+            df_due_date, bool_has_due_date, bool_no_due_date = has_or_no_due_date(issue)
             if due_date == 'null':
                 if bool_has_due_date:
                     continue
