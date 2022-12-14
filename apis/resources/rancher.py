@@ -111,18 +111,21 @@ class Rancher(object):
                                   headers=headers, with_token=with_token)
 
     def __generate_token(self):
-        acc = "username"
-        pas = "password"
-        ran_am_key = 'RANCHER_ADMIN_ACCOUNT'
-        ran_am_pas = 'RANCHER_ADMIN_PASSWORD'
+        ran_am_key = "RANCHER_ADMIN_ACCOUNT"
+        ran_am_pas = "RANCHER_ADMIN_PASSWORD"
         body = {
-            acc: config.get(ran_am_key),
-            pas: config.get(ran_am_pas)
+            "username": config.get(ran_am_key),
+            "password": config.get(ran_am_pas),
         }
-        params = {'action': 'login'}
-        output = self.__api_post('-public/localProviders/local', params=params,
-                                 data=body, with_token=False, retried=True)
-        return output.json()['token']
+        params = {"action": "login"}
+        output = self.__api_post(
+            "-public/localProviders/local",
+            params=params,
+            data=body,
+            with_token=False,
+            retried=True,
+        )
+        return output.json()["token"]
 
     def rc_get_pipeline_execution(self, ci_project_id, ci_pipeline_id, execution_id):
         path = f'/projects/{ci_project_id}/pipelineExecutions/{execution_id}'
