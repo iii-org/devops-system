@@ -28,6 +28,27 @@ class GitlabSourceCodeSchema(Schema):
     source_code_num = fields.Int(doc='source_code_num', example=3352)
 
 
+class GitlabPostProjectBranchesSch(Schema):
+    branch = fields.Str(doc='branch', example="new branch name")
+    ref = fields.Str(doc='ref', example="branch name")
+
+
+class GitGetBranchCommitsSch(Schema):
+    branch = fields.Str(doc='branch', example='master', required=True)
+    filter = fields.Str(doc='filter', example='Administrator')
+
+
+
+class GitGetProjectIdFromURISch(Schema):
+    repository_url = fields.Str(doc='repository_url',
+                                example='http://gitlab-dev.iiidevops.org/root/testcreateproject.git', required=True)
+
+
+class GitGetProjectURLFromIdSch(Schema):
+    project_id = fields.Int(doc='project_id', example=1, required=True)
+    repository_id = fields.Int(doc='repository_id', example=30, required=True)
+
+
 class RancherCreateAppSchema(Schema):
     name = fields.Str(doc='name', example="daily-check1")
     namespace = fields.Str(doc='namespace', example="daily-check-0711")
@@ -44,6 +65,10 @@ class RancherCreateAppSchema(Schema):
                 "web.deployName": "daily-check-0711-master-serv",
                 "web.port": "5000"
                 })
+
+
+class GitGetMembersCommitsSch(Schema):
+    branch = fields.Str(doc='branch', example='master', required=True)
 
 
 class RouterSimpleSchema(Schema):
@@ -297,3 +322,220 @@ class TraceOrdersPostResponse(CommonBasicResponse):
 
 class GetTraceResultResponse(CommonBasicResponse):
     data = fields.Nested(GetTraceResultData)
+
+class GitlabGetProjectBranchesRes(CommonBasicResponse):
+    data = fields.Dict(example={
+        "branch_list": [
+            {
+                "name": "allow-nothing",
+                "last_commit_message": "UI 編輯 .rancher-pipeline.yaml 啟用 checkmarx.",
+                "last_commit_time": "2022-11-14T03:37:36.000+00:00",
+                "short_id": "6191154",
+                "id": "6191154fb259a711e3b2172ceb8eb6a230bbb515",
+                "commit_url": "http://gitlab-dev.iiidevops.org/root/ui-create-case/-/commit/6191154f"
+            },
+            {
+                "name": "master",
+                "last_commit_message": "UI 編輯 .rancher-pipeline.yaml 啟用 checkmarx.",
+                "last_commit_time": "2022-11-14T03:37:39.000+00:00",
+                "short_id": "7297500",
+                "id": "7297500ee16248e9d837e11046f80418a893ef7d",
+                "commit_url": "http://gitlab-dev.iiidevops.org/root/ui-create-case/-/commit/7297500e"
+            }
+        ]
+    })
+
+class GitlabPostProjectBranchesRes(CommonBasicResponse):
+    data = fields.Dict(example={
+        "name": "postman_test",
+        "commit": {
+            "id": "9f5bc8fcf41cba25be0e27b4aa0c0759119aeba5",
+            "short_id": "9f5bc8fc",
+            "created_at": "2020-10-21T07:25:18.000+00:00",
+            "parent_ids": [
+                "7c53e711f281a2d30323d452f6f559f15b69f464"
+            ],
+            "title": "add .rancher-pipeline.yml",
+            "message": "add .rancher-pipeline.yml",
+            "author_name": "admin",
+            "author_email": "admin@example.com",
+            "authored_date": "2020-10-21T07:25:18.000+00:00",
+            "committer_name": "Administrator",
+            "committer_email": "admin@example.com",
+            "committed_date": "2020-10-21T07:25:18.000+00:00",
+            "web_url": "http://10.50.1.53/root/newtest/-/commit/9f5bc8fcf41cba25be0e27b4aa0c0759119aeba5"
+        },
+        "merged": False,
+        "protected": False,
+        "developers_can_push": False,
+        "developers_can_merge": False,
+        "can_push": True,
+        "default": False
+    })
+
+
+class GitlabGetProjectBranchRes(CommonBasicResponse):
+    data = fields.Dict(example={
+        "name": "master",
+        "commit": {
+            "id": "7297500ee16248e9d837e11046f80418a893ef7d",
+            "short_id": "7297500e",
+            "created_at": "2022-11-14T03:37:39.000+00:00",
+            "parent_ids": [
+                "1037ecf258c27ca7a2583c5b458dbed2e53f8252"
+            ],
+            "title": "UI 編輯 .rancher-pipeline.yaml 啟用 checkmarx.",
+            "message": "UI 編輯 .rancher-pipeline.yaml 啟用 checkmarx.",
+            "author_name": "iiidevops",
+            "author_email": "system@iiidevops.org.tw",
+            "authored_date": "2022-11-14T03:37:39.000+00:00",
+            "committer_name": "Administrator",
+            "committer_email": "admin@example.com",
+            "committed_date": "2022-11-14T03:37:39.000+00:00",
+            "web_url": "http://gitlab-dev.iiidevops.org/root/ui-create-case/-/commit/7297500ee16248e9d837e11046f80418a893ef7d"
+        },
+        "merged": False,
+        "protected": True,
+        "developers_can_push": True,
+        "developers_can_merge": True,
+        "can_push": True,
+        "default": True
+    })
+
+
+class GitGetProjectRepositoriesRes(CommonBasicResponse):
+    data = fields.Dict(example={
+        "file_list": [
+            {
+                "id": "c2ec416b4b0031972b933ac8e39597d8318d84ae",
+                "name": ".rancher-pipeline.yml",
+                "type": "blob",
+                "path": ".rancher-pipeline.yml",
+                "mode": "100644"
+            },
+            {
+                "id": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+                "name": "file0721",
+                "type": "blob",
+                "path": "file0721",
+                "mode": "100644"
+            },
+            {
+                "id": "d5ca058c35040faa0ec459ffe82d21a6e0e3450b",
+                "name": "file0730",
+                "type": "blob",
+                "path": "file0730",
+                "mode": "100644"
+            }
+        ]
+    })
+
+
+class GitGetBranchCommitsRes(CommonBasicResponse):
+    data = fields.List(fields.Dict(example=
+        {
+            "id": "fb27d44348487405a2dfe475a627e2c351f5d4ca",
+            "short_id": "fb27d443",
+            "created_at": "2020-10-21T08:19:57.000+00:00",
+            "parent_ids": [
+                "0df211b34886fbf99d85f19b926aa8cc9dab2cd6"
+            ],
+            "title": "update file0721",
+            "message": "update file0721",
+            "author_name": "randy",
+            "author_email": "randy@iii.org.tw",
+            "authored_date": "2020-10-21T08:19:57.000+00:00",
+            "committer_name": "Administrator",
+            "committer_email": "admin@example.com",
+            "committed_date": "2020-10-21T08:19:57.000+00:00",
+            "web_url": "http://10.50.1.53/root/ro-test/-/commit/fb27d44348487405a2dfe475a627e2c351f5d4ca"
+        }
+    ))
+
+
+class GitGetMembersCommitsRes(CommonBasicResponse):
+    data = fields.List(fields.Dict(example=
+        {
+            "id": "0222c58ee5c9a321f540b85815a8161d21b0d2bc",
+            "short_id": "0222c58e",
+            "created_at": "2021-09-10T07:55:10.000+00:00",
+            "parent_ids": [
+                "43e6cab822a323654e841e6219d3bc13a312d800"
+            ],
+            "title": "Update .rancher-pipeline.yml",
+            "message": "Update .rancher-pipeline.yml",
+            "author_name": "李毅山(John)",
+            "author_email": "john19968010@gmail.com",
+            "authored_date": "2021-09-10T07:55:10.000+00:00",
+            "committer_name": "李毅山(John)",
+            "committer_email": "john19968010@gmail.com",
+            "committed_date": "2021-09-10T07:55:10.000+00:00",
+            "web_url": "http://gitlab-dev3.iiidevops.org/root/johntestspring/-/commit/0222c58ee5c9a321f540b85815a8161d21b0d2bc"
+        }))
+
+
+class GitGetRepositoriesOverviewRes(CommonBasicResponse):
+    data = fields.List(fields.Dict(example=
+        {
+            "id": "44c9589322513a7620dbe8e490b6c5f816e6efaa",
+            "title": "UI 編輯 .rancher-pipeline.yaml 停用 ad.",
+            "message": "UI 編輯 .rancher-pipeline.yaml 停用 ad.",
+            "author_name": "Administrator",
+            "committed_date": "2021-12-08T01:48:22.000+00:00",
+            "parent_ids": [
+                "e69d3beb38681f425fd86c43b43d21569e6be907"
+            ],
+            "branch_name": "test-merge",
+            "tags": []
+        }))
+
+
+class GitGetProjectIdRes(CommonBasicResponse):
+    data = fields.Int(example=1)
+
+
+class GitGetProjectIdFromURIRes(CommonBasicResponse):
+    data = fields.Dict(example={
+        "project_id": 166,
+        "repository_id": 461
+    })
+
+
+class GitGetProjectURLFromIdRes(CommonBasicResponse):
+    data = fields.Dict(example={
+        "http_url": "http://gitlab-dev.iiidevops.org/root/ui-create-case.git"
+    })
+
+
+class GitGetDomainStatusRes(CommonBasicResponse):
+    data = fields.Dict(example={
+        "status": True
+    })
+
+
+class GitGetSingleCommitRes(CommonBasicResponse):
+    data = fields.Dict(example={
+        "id": "477aa2afb38d563c5574eeea9180078ff8718ca1",
+        "short_id": "477aa2af",
+        "created_at": "2022-06-14T05:40:09.000+00:00",
+        "parent_ids": [
+            "fdb0e1c9453ef9973b9b7acec3970329b65c79b8"
+        ],
+        "title": "UI 編輯 .rancher-pipeline.yaml 停用 zap.",
+        "message": "UI 編輯 .rancher-pipeline.yaml 停用 zap.",
+        "author_name": "iiidevops",
+        "author_email": "system@iiidevops.org.tw",
+        "authored_date": "2022-06-14T05:40:09.000+00:00",
+        "committer_name": "Administrator",
+        "committer_email": "admin@example.com",
+        "committed_date": "2022-06-14T05:40:09.000+00:00",
+        "web_url": "http://gitlab-dev.iiidevops.org/root/ui-create-case/-/commit/477aa2afb38d563c5574eeea9180078ff8718ca1",
+        "stats": {
+            "additions": 1,
+            "deletions": 4,
+            "total": 5
+        },
+        "status": None,
+        "project_id": 30,
+        "last_pipeline": None
+    })

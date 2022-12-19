@@ -1079,6 +1079,22 @@ class GitProjectBranches(Resource):
         return util.success(gitlab.gl_create_branch(repository_id, args))
 
 
+class GitProjectBranchesV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get all branches in project")
+    @jwt_required()
+    @marshal_with(route_model.GitlabGetProjectBranchesRes)
+    def get(self, repository_id):
+        return util.success(
+            {'branch_list': gitlab.gl_get_branches(repository_id)})
+
+    @doc(tags=['Gitlab'], description="add branch for the project")
+    @jwt_required()
+    @use_kwargs(route_model.GitlabPostProjectBranchesSch, location="json")
+    @marshal_with(route_model.GitlabPostProjectBranchesRes)
+    def post(self, repository_id, **kwargs):
+        return util.success(gitlab.gl_create_branch(repository_id, kwargs))
+
+
 class GitProjectBranch(Resource):
     @jwt_required()
     def get(self, repository_id, branch_name):
@@ -1094,8 +1110,38 @@ class GitProjectBranch(Resource):
         return util.success()
 
 
+class GitProjectBranchV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get project branch info")
+    @jwt_required()
+    @marshal_with(route_model.GitlabGetProjectBranchRes)
+    def get(self, repository_id, branch_name):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        return util.success(gitlab.gl_get_branch(repository_id, branch_name))
+
+    @doc(tags=['Gitlab'], description="delete project branch")
+    @jwt_required()
+    @marshal_with(util.CommonResponse)
+    def delete(self, repository_id, branch_name):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        gitlab.gl_delete_branch(repository_id, branch_name)
+        return util.success()
+
+
 class GitProjectRepositories(Resource):
     @jwt_required()
+    def get(self, repository_id, branch_name):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        return util.success(
+            gitlab.gl_get_repository_tree(repository_id, branch_name))
+
+
+class GitProjectRepositoriesV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get branch file type")
+    @jwt_required()
+    @marshal_with(route_model.GitGetProjectRepositoriesRes)
     def get(self, repository_id, branch_name):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1194,6 +1240,18 @@ class GitProjectBranchCommits(Resource):
             gitlab.gl_get_commits_by_author(repository_id, args['branch'], args.get('filter')))
 
 
+class GitProjectBranchCommitsV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get commits of one branch")
+    @jwt_required()
+    @use_kwargs(route_model.GitGetBranchCommitsSch, location="query")
+    @marshal_with(route_model.GitGetBranchCommitsRes)
+    def get(self, repository_id, **kwargs):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        return util.success(
+            gitlab.gl_get_commits_by_author(repository_id, kwargs['branch'], kwargs.get('filter')))
+
+
 class GitProjectMembersCommits(Resource):
     @jwt_required()
     def get(self, repository_id):
@@ -1206,14 +1264,42 @@ class GitProjectMembersCommits(Resource):
             gitlab.gl_get_commits_by_members(repository_id, args['branch']))
 
 
+class GitProjectMembersCommitsV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get commits of the pj_members ")
+    @jwt_required()
+    @use_kwargs(route_model.GitGetMembersCommitsSch, location="query")
+    @marshal_with(route_model.GitGetMembersCommitsRes)
+    def get(self, repository_id, **kwargs):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        return util.success(
+            gitlab.gl_get_commits_by_members(repository_id, kwargs['branch']))
+
+
 class GitProjectNetwork(Resource):
     @jwt_required()
     def get(self, repository_id):
         return gitlab.gl_get_network(repository_id)
 
 
+class GitProjectNetworkV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get repositories overview")
+    @jwt_required()
+    @marshal_with(route_model.GitGetRepositoriesOverviewRes)
+    def get(self, repository_id):
+        return gitlab.gl_get_network(repository_id)
+
+
 class GitProjectId(Resource):
     @jwt_required()
+    def get(self, repository_id):
+        return GitLab.gl_get_nexus_project_id(repository_id)
+
+
+class GitProjectIdV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get project id")
+    @jwt_required()
+    @marshal_with(route_model.GitGetProjectIdRes)
     def get(self, repository_id):
         return GitLab.gl_get_nexus_project_id(repository_id)
 
@@ -1234,6 +1320,22 @@ class GitProjectIdFromURL(Resource):
                                     args['repository_url']))
 
 
+class GitProjectIdFromURLV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get project id form URI")
+    @use_kwargs(route_model.GitGetProjectIdFromURISch, location='query')
+    @jwt_required()
+    @marshal_with(route_model.GitGetProjectIdFromURIRes)
+    def get(self, **kwargs):
+        try:
+            return util.success(
+                GitLab.gl_get_project_id_from_url(kwargs['repository_url']))
+        except NoResultFound:
+            return util.respond(404,
+                                'No such repository found in database.',
+                                error=apiError.repository_id_not_found(
+                                    kwargs['repository_url']))
+
+
 class GitProjectURLFromId(Resource):
     @jwt_required()
     def get(self):
@@ -1244,6 +1346,24 @@ class GitProjectURLFromId(Resource):
         project_id = args['project_id']
         if project_id is None:
             repo_id = args['repository_id']
+            if repo_id is None:
+                return util.respond(
+                    400,
+                    'You must provide project_id or repository_id.',
+                    error=apiError.argument_error('project_id|repository_id'))
+            project_id = get_nexus_project_id(repo_id)
+        return util.success({'http_url': get_repo_url(project_id)})
+
+
+class GitProjectURLFromIdV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get project url form id")
+    @use_kwargs(route_model.GitGetProjectURLFromIdSch, location='query')
+    @jwt_required()
+    @marshal_with(route_model.GitGetProjectURLFromIdRes)
+    def get(self, **kwargs):
+        project_id = kwargs['project_id']
+        if project_id is None:
+            repo_id = kwargs['repository_id']
             if repo_id is None:
                 return util.respond(
                     400,
@@ -1345,8 +1465,24 @@ class GitlabDomainStatus(Resource):
         return util.success(gitlab_status_connection())
 
 
+class GitlabDomainStatusV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get domain status")
+    @jwt_required()
+    @marshal_with(route_model.GitGetDomainStatusRes)
+    def get(self):
+        return util.success(gitlab_status_connection())
+
+
 class GitlabSingleCommit(Resource):
     @jwt_required()
+    def get(self, repo_id, commit_id):
+        return util.success(gitlab.single_commit(repo_id, commit_id))
+
+
+class GitlabSingleCommitV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get single commit")
+    @jwt_required()
+    @marshal_with(route_model.GitGetSingleCommitRes)
     def get(self, repo_id, commit_id):
         return util.success(gitlab.single_commit(repo_id, commit_id))
 
