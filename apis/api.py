@@ -4,7 +4,7 @@ import threading
 import traceback
 from os.path import isfile
 from pathlib import Path
-import this
+import re
 
 import werkzeug
 from apispec import APISpec
@@ -175,9 +175,20 @@ class NexusVersion(Resource):
         row = model.NexusVersion.query.one()
         for k in keys:
             if args[k] is not None:
-                setattr(row, k, args[k])
+                setattr(row, k, self._check(args[k]))
         db.session.commit()
         return util.success()
+
+    @staticmethod
+    def _check(check: str) -> str:
+        error: apiError.DevOpsError = apiError.DevOpsError(400, "api_version is not valid")
+        # check regex only digit and dot
+        if re.match(r"^[Vv]?\d+(\.\d+)*$", check) is None:
+            # Check string is only 'develop'
+            if check.lower() != "develop":
+                raise error
+
+        return check
 
 
 def initialize(db_uri):
