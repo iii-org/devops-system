@@ -567,6 +567,13 @@ def history_pict_result(project_id):
     return result_list
 
 
+class SideexJsonfileVariable(Resource):
+    @use_kwargs(router_model.SideexGetVariableSch, location="json")
+    @jwt_required()
+    def post(self, project_id, **kwargs):
+        return util.success(get_setting_file(project_id, kwargs['filename']))
+
+
 class SideexJsonfileVariableV2(MethodResource):
     @doc(tags=['Sideex'], description="get pict setting")
     @jwt_required()
@@ -583,6 +590,14 @@ class SideexJsonfileVariableV2(MethodResource):
         return util.success(update_config_file(project_id, kwargs))
 
 
+class SideexGenerateJsonfile(Resource):
+    @use_kwargs(router_model.SideexGetVariableSch, location="json")
+    @jwt_required()
+    def post(self, project_id, **kwargs):
+        generate_json_file(project_id, kwargs['filename'])
+        return util.success()
+
+
 class SideexGenerateJsonfileV2(MethodResource):
     @doc(tags=['Sideex'], description="generate pict jsonfile")
     @jwt_required()
@@ -597,6 +612,13 @@ class SideexGenerateJsonfileV2(MethodResource):
     @marshal_with(util.CommonResponse)
     def delete(self, project_id):
         delete_json_configfile(project_id)
+        return util.success()
+
+
+class SideexDeleteAllfile(Resource):
+    @jwt_required()
+    def delete(self, project_id):
+        delete_project_all_config_file(project_id)
         return util.success()
 
 
@@ -633,6 +655,12 @@ class SideexReportV2(MethodResource):
         return util.success(sd_get_report(test_id))
 
 
+class GenerateResult(Resource):
+    @jwt_required()
+    def get(self, project_id):
+        return util.success(generate_result(project_id))
+
+
 @doc(tags=['Sideex'], description="generate pict result")
 class GenerateResultV2(MethodResource):
     @jwt_required()
@@ -641,12 +669,24 @@ class GenerateResultV2(MethodResource):
         return util.success(generate_result(project_id))
 
 
+class PictStatus(Resource):
+    @jwt_required()
+    def get(self, project_id):
+        return util.success(get_pict_status(project_id))
+
+
 @doc(tags=['Sideex'], description="get pict status")
 class PictStatusV2(MethodResource):
     @jwt_required()
     @marshal_with(router_model.SideexPictStatusRes)
     def get(self, project_id):
         return util.success(get_pict_status(project_id))
+
+
+class CheckResultFileExist(Resource):
+    @jwt_required()
+    def get(self, project_id):
+        return util.success(check_file_exist(project_id))
 
 
 @doc(tags=['Sideex'], description="check result_file exist.")
