@@ -395,8 +395,10 @@ def add_release_tag(project_id: int, release_id: int, args: dict[str, Any]):
                 project_name, _repos, target_label, digest, forced=forced
             )
 
-            gitlab.gl_create_tag(gitlab_repo.get_id(), target_label, release.commit)
-            gitlab_created = True
+            if gitlab_repo.commits.list():
+                # 如果有東西再去 GitLab 建立 tag
+                gitlab.gl_create_tag(gitlab_repo.get_id(), target_label, release.commit)
+                gitlab_created = True
 
             return util.success()
         except Exception as e:
