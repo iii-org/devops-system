@@ -11,7 +11,7 @@ from flask_restful import Resource, reqparse
 from redminelib import exceptions as redminelibError
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import Any
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound
 import re
 import os
 import config

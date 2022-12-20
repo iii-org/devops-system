@@ -8,7 +8,7 @@ from flask import send_file
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound
 
 import shutil
 import model
