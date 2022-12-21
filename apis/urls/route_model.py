@@ -212,6 +212,13 @@ class GetFlowTypeDataResponse(Schema):
     flow_type_id = fields.Int(required=True)
 
 
+class GitPostProjectTagSch(Schema):
+    tag_name = fields.Str(doc='tag_name', required=True, example='v1.1')
+    ref = fields.Str(doc='ref', required=True, example='master')
+    message = fields.Str(doc='message', example='add v1.1')
+    release_description = fields.Str(doc='release_description', example='This is a new tag')
+
+
 class IssueFilterByProjectDataResponse(BasicIsssueResponse):
     user_id = fields.Int(required=True)
     project_id = fields.Int(required=True)
@@ -538,4 +545,65 @@ class GitGetSingleCommitRes(CommonBasicResponse):
         "status": None,
         "project_id": 30,
         "last_pipeline": None
+    })
+
+
+class GitGetProjectTagRes(CommonBasicResponse):
+    data = fields.Dict(example={
+        "tag_list": [
+            {
+                "name": "V1.1",
+                "message": "",
+                "target": "113e530fb3ed5b9a608ba0ded97516d86da91d96",
+                "commit": {
+                    "id": "113e530fb3ed5b9a608ba0ded97516d86da91d96",
+                    "short_id": "113e530f",
+                    "created_at": "2021-12-20T11:48:07.000+08:00",
+                    "parent_ids": [
+                        "f6b60172212413c5969cee08ea3b81d92e36cffd"
+                    ],
+                    "title": "Test Case",
+                    "message": "Test Case\n",
+                    "author_name": "wyuchi99",
+                    "author_email": "wyuchi99@gmail.com",
+                    "authored_date": "2021-12-20T11:48:07.000+08:00",
+                    "committer_name": "wyuchi99",
+                    "committer_email": "wyuchi99@gmail.com",
+                    "committed_date": "2021-12-20T11:48:07.000+08:00",
+                    "web_url": "http://gitlab-dev.iiidevops.org/root/ui-create-case/-/commit/113e530fb3ed5b9a608ba0ded97516d86da91d96"
+                },
+                "release": {
+                    "tag_name": "V1.1",
+                    "description": None
+                },
+                "protected": False
+            }
+        ]
+    })
+
+
+class GitPostProjectTagRes(CommonBasicResponse):
+    data = fields.Dict(example={
+        "name": "v1.0.4",
+        "message": "add v1.0.4",
+        "target": "8a3f8685aaa96f068622c6ed9b1de5d3cf460a9a",
+        "commit": {
+            "id": "5f28953344b83cfcdc2a1bcd7d59e385e9c505b2",
+            "short_id": "5f289533",
+            "created_at": "2020-10-14T10:40:31.000+08:00",
+            "parent_ids": [
+                "be8a7f2b5cea109c0fbe1d6396e2dd823371b9d2"
+            ],
+            "title": "change path",
+            "message": "change path\n",
+            "author_name": "Romulus Urakagi Tsai",
+            "author_email": "urakagi@gmail.com",
+            "authored_date": "2020-10-14T10:40:31.000+08:00",
+            "committer_name": "Romulus Urakagi Tsai",
+            "committer_email": "urakagi@gmail.com",
+            "committed_date": "2020-10-14T10:40:31.000+08:00",
+            "web_url": "http://10.50.1.53/root/ro-test/-/commit/5f28953344b83cfcdc2a1bcd7d59e385e9c505b2"
+        },
+        "release": None,
+        "protected": False
     })

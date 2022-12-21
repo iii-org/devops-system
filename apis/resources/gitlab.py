@@ -1227,6 +1227,35 @@ class GitProjectTag(Resource):
         return util.success()
 
 
+class GitProjectTagV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get project tags")
+    @jwt_required()
+    @marshal_with(route_model.GitGetProjectTagRes)
+    def get(self, repository_id):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        res = gitlab.gl_get_tags(repository_id)
+        return util.success({'tag_list': res})
+
+    @doc(tags=['Gitlab'], description="add project tags")
+    @use_kwargs(route_model.GitPostProjectTagSch, location='form')
+    @jwt_required()
+    @marshal_with(route_model.GitPostProjectTagRes)
+    def post(self, repository_id, **kwargs):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        return util.success(gitlab.gl_create_tag(repository_id, kwargs))
+
+    @doc(tags=['Gitlab'], description="delete project tags")
+    @jwt_required()
+    @marshal_with(util.CommonResponse)
+    def delete(self, repository_id, tag_name):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        gitlab.gl_delete_tag(repository_id, tag_name)
+        return util.success()
+
+
 class GitProjectBranchCommits(Resource):
     @jwt_required()
     def get(self, repository_id):

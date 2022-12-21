@@ -322,6 +322,10 @@ api.add_resource(gitlab.GitProjectFile,
 api.add_resource(gitlab.GitProjectTag,
                  '/repositories/<repository_id>/tags/<tag_name>',
                  '/repositories/<repository_id>/tags')
+api.add_resource(gitlab.GitProjectTagV2,
+                 '/v2/repositories/<repository_id>/tags/<tag_name>',
+                 '/v2/repositories/<repository_id>/tags')
+add_resource(gitlab.GitProjectTagV2, 'public')
 api.add_resource(gitlab.GitProjectBranchCommits,
                  '/repositories/<repository_id>/commits')
 api.add_resource(gitlab.GitProjectBranchCommitsV2,

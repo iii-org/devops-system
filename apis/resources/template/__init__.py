@@ -13,7 +13,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 from gitlab import Gitlab
 from gitlab.exceptions import GitlabGetError
-
+import ast
 import config
 import nexus
 import resources.apiError as apiError
@@ -435,6 +435,8 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                                     "default_value"]
                                 # Replace by user input parameter.
                                 if arguments is not None and ans_key in arguments:
+                                    if type(arguments) is str:
+                                        arguments = ast.literal_eval(arguments)
                                     for arg_key, arg_value in arguments.items(
                                     ):
                                         if arg_key is not None and ans_key == arg_key:
