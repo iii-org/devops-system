@@ -52,3 +52,5 @@ class ActionType(Enum):
     ENABLE_PLUGIN = 16 # Required user_id
     DISABLE_PLUGIN = 17 # Required user_id
     DELETE_SIDEEX_JSONFILE = 18
+    DELETE_EXCALIDRAW = 19
+    RESTORE_EXCALIDRAW_HISTORY = 20
