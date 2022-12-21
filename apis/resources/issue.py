@@ -923,7 +923,7 @@ def get_all_sons_ids(main_issue_id):
 def get_all_sons(project_id, fix_version_ids):
     issue_list = []
     for fixed_version_id in fix_version_ids.split(","):
-        issue_list += [a_issue["id"] for a_issue in get_issue_list_by_project_helper(project_id, {"parent_id": "null", "fixed_version_id": fixed_version_id}, operator_id=get_jwt_identity()["user_id"])]
+        issue_list += [a_issue["id"] for a_issue in get_issue_list_by_project_helper(project_id, {"fixed_version_id": fixed_version_id}, operator_id=get_jwt_identity()["user_id"])]
 
     a_mapping, a_exist_issues_ids = {}, []
     for issue in issue_list:
