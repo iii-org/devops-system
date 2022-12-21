@@ -458,6 +458,7 @@ def delete_release_tag(project_id: int, release_id: int, args: dict[str, Any]):
         except apiError.DevOpsError as e:
             if e.status_code == 404 and e.error_value["details"]["service_name"] == "Harbor":
                 return util.success()
+            return util.respond(500, str(e))
 
         return util.success()
 
