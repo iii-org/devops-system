@@ -432,7 +432,6 @@ def delete_release_tag(project_id: int, release_id: int, args: dict[str, Any]):
 
     if release:
         target_label: str = args.get("tags")
-        updated_at: datetime = release.update_at
 
         if target_label == release.tag_name:
             return
@@ -451,38 +450,16 @@ def delete_release_tag(project_id: int, release_id: int, args: dict[str, Any]):
             0
         ]["digest"]
 
-        gitlab_success: bool = False
+        if gitlab.is_tag_exist(gitlab_repo.get_id(), target_label):
+            gitlab.delete_tag(gitlab_repo.get_id(), target_label)
+
         try:
-            release_image_tag_helper(
-                project_name, _repos, target_label, digest, delete=True
-            )
+            release_image_tag_helper(project_name, _repos, target_label, digest, delete=True)
+        except apiError.DevOpsError as e:
+            if e.status_code == 404 and e.error_value["details"]["service_name"] == "Harbor":
+                return util.success()
 
-            if gitlab.is_tag_exist(gitlab_repo.get_id(), target_label):
-                gitlab.delete_tag(gitlab_repo.get_id(), target_label)
-                gitlab_success = True
-
-            return util.success()
-        except Exception as e:
-            # Rollback
-            _r: list[model.ReleaseRepoTag] = []
-            for repo in _repos:
-                rollback_data: model.ReleaseRepoTag = model.ReleaseRepoTag()
-                rollback_data.release_id = release_id
-                rollback_data.tag = target_label
-                rollback_data.custom_path = repo
-                _r.append(rollback_data)
-
-            db.session.add_all(_r)
-
-            release.update_at = updated_at
-            db.session.commit()
-
-            release_image_tag_helper(project_name, _repos, target_label, digest)
-
-            if gitlab_success:
-                gitlab.create_tag(gitlab_repo.get_id(), target_label, release.commit)
-
-            return util.respond(500, str(e))
+        return util.success()
 
 
 def release_image_tag_helper(project_name, distinct_repos, dest_tags, digest, delete=False, forced=False):
