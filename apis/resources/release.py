@@ -175,20 +175,24 @@ def analysis_release(release, info, hb_list_tags, image_need):
     return ret, hb_list_tags
 
 
-def get_releases_by_project_id(project_id, args):
-    project = model.Project.query.filter_by(id=project_id).first()
-    releases = model.Release.query. \
-        filter(model.Release.project_id == project_id). \
-        order_by(desc(model.Release.update_at)).all()
-    output = []
-    info = {
-        'project_name': project.name,
-        'gitlab_project_url': f'{project.http_url[:-4]}',
+def get_releases_by_project_id(project_id: int, args: dict):
+    project: model.Project = model.Project.query.filter_by(id=project_id).first()
+    releases: list[Release] = (
+        model.Release.query.filter(model.Release.project_id == project_id)
+        .order_by(desc(model.Release.create_at))
+        .all()
+    )
+    output: list[dict] = []
+    info: dict[str, str] = {
+        "project_name": project.name,
+        "gitlab_project_url": f"{project.http_url[:-4]}",
     }
-    hb_list_tags = {}
+    _list_tags: dict = {}
     for release in releases:
         if releases is not None:
-            ret, hb_list_tags = analysis_release(release, info, hb_list_tags, args.get('image', False))
+            ret, _list_tags = analysis_release(
+                release, info, _list_tags, args.get("image", False)
+            )
             if ret is not None:
                 output.append(ret)
     return output
