@@ -397,7 +397,7 @@ def add_release_tag(project_id: int, release_id: int, args: dict[str, Any]):
 
             if gitlab_repo.commits.list():
                 # 如果有東西再去 GitLab 建立 tag
-                gitlab.gl_create_tag(gitlab_repo.get_id(), target_label, release.commit)
+                gitlab.create_tag(gitlab_repo.get_id(), target_label, release.commit)
                 gitlab_created = True
 
             return util.success()
@@ -414,7 +414,8 @@ def add_release_tag(project_id: int, release_id: int, args: dict[str, Any]):
             )
 
             if gitlab_created:
-                gitlab.gl_delete_tag(gitlab_repo.get_id(), target_label)
+                gitlab.delete_tag(gitlab_repo.get_id(), target_label)
+                gitlab.get_tags()
 
             return util.respond(500, str(e))
 
@@ -456,8 +457,8 @@ def delete_release_tag(project_id: int, release_id: int, args: dict[str, Any]):
                 project_name, _repos, target_label, digest, delete=True
             )
 
-            if gitlab.gl_get_tags(gitlab_repo.get_id(), search=target_label):
-                gitlab.gl_delete_tag(gitlab_repo.get_id(), target_label)
+            if gitlab.is_tag_exist(gitlab_repo.get_id(), target_label):
+                gitlab.delete_tag(gitlab_repo.get_id(), target_label)
                 gitlab_success = True
 
             return util.success()
@@ -479,7 +480,7 @@ def delete_release_tag(project_id: int, release_id: int, args: dict[str, Any]):
             release_image_tag_helper(project_name, _repos, target_label, digest)
 
             if gitlab_success:
-                gitlab.gl_create_tag(gitlab_repo.get_id(), target_label, release.commit)
+                gitlab.create_tag(gitlab_repo.get_id(), target_label, release.commit)
 
             return util.respond(500, str(e))
 
@@ -540,7 +541,7 @@ class Releases(Resource):
     def delete_gitlab_tag(self, release_name):
         try:
             if self.valid_info['errors']['gitlab'] != "":
-                gitlab.gl_delete_tag(
+                gitlab.delete_tag(
                     self.plugin_relation.git_repository_id, release_name)
         except NoResultFound:
             return util.respond(404, error_gitlab_not_found,
