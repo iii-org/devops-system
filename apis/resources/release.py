@@ -16,7 +16,7 @@ from model import db
 from resources import apiError, logger, role
 from resources.harbor import (
     hb_copy_artifact,
-    hb_copy_artifact_and_retage,
+    hb_copy_artifact_and_re_tag,
     hb_create_artifact_tag,
     hb_delete_artifact,
     hb_delete_artifact_tag,
@@ -467,14 +467,29 @@ def delete_release_tag(project_id: int, release_id: int, args: dict[str, Any]):
         return util.success()
 
 
-def release_image_tag_helper(project_name, distinct_repos, dest_tags, digest, delete=False, forced=False):
-    for distinct_repo in distinct_repos:
+def release_image_tag_helper(
+    project_name: str,
+    _repos: list[str],
+    target_label: str,
+    digest: str,
+    delete: bool = False,
+    forced: bool = False,
+):
+    for repo in _repos:
         if not delete:
-            if dest_tags not in [tag.get("name", "") for tag in hb_list_tags(project_name, distinct_repo, digest)]:
-                hb_create_artifact_tag(project_name, distinct_repo, digest, dest_tags, forced=forced)
+            if target_label not in [
+                tag.get("name", "")
+                for tag in hb_list_tags(project_name, repo, digest)
+            ]:
+                hb_create_artifact_tag(
+                    project_name, repo, digest, target_label, forced=forced
+                )
         else:
-            if dest_tags in [tag.get("name", "") for tag in hb_list_tags(project_name, distinct_repo, digest)]:
-                hb_delete_artifact_tag(project_name, distinct_repo, digest, dest_tags)
+            if target_label in [
+                tag.get("name", "")
+                for tag in hb_list_tags(project_name, repo, digest)
+            ]:
+                hb_delete_artifact_tag(project_name, repo, digest, target_label)
 
 
 class Releases(Resource):
@@ -679,9 +694,9 @@ class Releases(Resource):
                     image_path = [f"{self.project.name}/{args.get('extra_image_path')}"] + image_path
                     extra_image_path = args.get("extra_image_path").split(":")
                     extra_dest_repo, extra_dest_tag = extra_image_path[0], extra_image_path[1]
-                    hb_copy_artifact_and_retage(self.project.name, branch_name,
+                    hb_copy_artifact_and_re_tag(self.project.name, branch_name,
                                                 extra_dest_repo, args.get("commit"), extra_dest_tag, forced=forced)
-                hb_copy_artifact_and_retage(self.project.name, branch_name, branch_name,
+                hb_copy_artifact_and_re_tag(self.project.name, branch_name, branch_name,
                                             args.get("commit"), release_name, forced=forced)
                 create_harbor_release = True
 
@@ -714,7 +729,7 @@ class Releases(Resource):
                     removed_image_path = image.split("/")[-1].split(":")
                     removed_dest_repo, removed_dest_tag = removed_image_path[0], removed_image_path[1]
                     if removed_dest_repo != branch_name:
-                        hb_copy_artifact_and_retage(self.project.name, removed_dest_repo,
+                        hb_copy_artifact_and_re_tag(self.project.name, removed_dest_repo,
                                                     branch_name, removed_dest_tag, args.get("commit"))
                     else:
                         digest = hb_get_artifact(self.project.name, branch_name, removed_dest_tag)[0]["digest"]

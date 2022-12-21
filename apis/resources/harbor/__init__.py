@@ -1,4 +1,5 @@
 import re
+from typing import Any
 from urllib.parse import quote, quote_plus
 
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -316,10 +317,11 @@ def hb_list_artifacts(project_name, repository_name):
     return ret
 
 
-def hb_get_artifact(project_name, repository_name, tag_name):
-    artifact = __api_get(f'/projects/{project_name}/repositories'
-                         f'/{__encode(repository_name)}/artifacts/'
-                         f'{__encode(tag_name)}', params={'with_scan_overview': True}).json()
+def hb_get_artifact(project_name: str, repository_name: str, tag_name: str):
+    artifact: dict[str, Any] = __api_get(
+        f"/projects/{project_name}/repositories/{__encode(repository_name)}/artifacts/{__encode(tag_name)}",
+        params={"with_scan_overview": True},
+    ).json()
 
     return generate_artifacts_output(artifact)
 
@@ -353,42 +355,51 @@ def hb_copy_artifact(project_name, repository_name, from_image):
     return __api_post(url)
 
 
-def hb_copy_artifact_and_retage(project_name, from_repo_name, dest_repo_name, from_tag, dest_tag, forced=True):
+def hb_copy_artifact_and_re_tag(
+    project_name: str,
+    from_repo_name: str,
+    dest_repo_name: str,
+    from_tag: str,
+    dest_tag: str,
+    forced: bool = True,
+):
     # if from_repo:from_tag == dest_repo:dest_tag, then do nothing.
     if from_repo_name == dest_repo_name and from_tag == dest_tag:
         logger.info("from_repo:from_tag and dest_repo:dest_tag is same.")
-        print("from_repo:from_tag and dest_repo:dest_tag is same.")
         return
 
     # if from_repo:from_tag not found, then do nothing as well.
     try:
-        digest = hb_get_artifact(project_name, from_repo_name, from_tag)[0]["digest"]
-        print(digest)
+        digest: str = hb_get_artifact(project_name, from_repo_name, from_tag)[0][
+            "digest"
+        ]
     except Exception:
         logger.info(f"Can not find {from_repo_name}:{from_tag}")
-        print(f"Can not find {from_repo_name}:{from_tag}")
         return
 
-    # if dest_repo:dest_tag is exist, delete it.
+    # if dest_repo:dest_tag is exist, untag it, then re-tag.
     try:
-        dest_digest = hb_get_artifact(project_name, dest_repo_name, dest_tag)[0]["digest"]
-        print(dest_digest)
-        hb_delete_artifact(project_name, dest_repo_name, dest_digest)
+        dest_digest: str = hb_get_artifact(project_name, dest_repo_name, dest_tag)[0][
+            "digest"
+        ]
+        hb_delete_artifact_tag(
+            project_name, dest_repo_name, dest_digest, dest_tag, keep=True
+        )
         logger.info(f"Replace the old {dest_repo_name}:{dest_digest}")
-        print(f"Replace the old {dest_repo_name}:{dest_digest}")
     except Exception:
         pass
 
-    from_image = f'{project_name}/{from_repo_name}@{digest}'
+    from_image: str = f"{project_name}/{from_repo_name}@{digest}"
     hb_copy_artifact(project_name, dest_repo_name, from_image)
-    hb_create_artifact_tag(project_name, dest_repo_name, digest, dest_tag, forced=forced)
+    hb_create_artifact_tag(
+        project_name, dest_repo_name, digest, dest_tag, forced=forced
+    )
 
     # if from_repo != dest_repo, delete the dest_repo:from_tag's tag
     if from_repo_name != dest_repo_name:
         hb_delete_artifact_tag(project_name, dest_repo_name, digest, from_tag)
 
     logger.info(f"Copy from {from_repo_name}:{from_tag} to {dest_repo_name}:{dest_tag}")
-    print(f"Copy from {from_repo_name}:{from_tag} to {dest_repo_name}:{dest_tag}")
 
 
 def hb_get_repository_info(project_name, repository_name):
@@ -423,27 +434,51 @@ def hb_list_tags(project_name, repository_name, reference):
                      f'/artifacts/{reference}/tags').json()
 
 
-def hb_create_artifact_tag(project_name, repository_name, reference, tag_name, forced=False):
-    exist_tag_artifact = hb_get_artifacts_with_tag(project_name, repository_name, tag_name)
-    if exist_tag_artifact != []:
+def hb_create_artifact_tag(
+    project_name: str,
+    repository_name: str,
+    reference: str,
+    tag_name: str,
+    forced: bool = False,
+):
+    exist_tag_artifact: list = hb_get_artifacts_with_tag(
+        project_name, repository_name, tag_name
+    )
+    if exist_tag_artifact:
         if forced:
             hb_delete_artifact_tag(
-                project_name, repository_name, exist_tag_artifact[0]['digest'], tag_name, keep=True)
+                project_name,
+                repository_name,
+                exist_tag_artifact[0]["digest"],
+                tag_name,
+                keep=True,
+            )
         else:
             raise apiError.DevOpsError(
-                500, f'{tag_name.capitalize()} already exist in this Harbor repository.',
-                error=apiError.harbor_tag_already_exist(tag_name, repository_name))
+                500,
+                f"{tag_name.capitalize()} already exist in this Harbor repository.",
+                error=apiError.harbor_tag_already_exist(tag_name, repository_name),
+            )
 
-    return __api_post(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
-                      f'/artifacts/{reference}/tags', data={'name': tag_name})
+    return __api_post(
+        f"/projects/{project_name}/repositories/{__encode(repository_name)}/artifacts/{reference}/tags",
+        data={"name": tag_name},
+    )
 
 
-def hb_delete_artifact_tag(project_name, repository_name, reference, tag_name, keep=False):
-    tag_num = len(hb_list_tags(project_name, repository_name, reference))
-    can_remove_artifact = tag_num in [0, 1]
+def hb_delete_artifact_tag(
+    project_name: str,
+    repository_name: str,
+    reference: str,
+    tag_name: str,
+    keep: bool = False,
+):
+    tag_num: int = len(hb_list_tags(project_name, repository_name, reference))
+    can_remove_artifact: bool = tag_num in [0, 1]
     if tag_num > 0:
-        __api_delete(f'/projects/{project_name}/repositories/{__encode(repository_name)}'
-                    f'/artifacts/{reference}/tags/{tag_name}')
+        __api_delete(
+            f"/projects/{project_name}/repositories/{__encode(repository_name)}/artifacts/{reference}/tags/{tag_name}"
+        )
 
     if can_remove_artifact and not keep:
         hb_delete_artifact(project_name, repository_name, reference)
