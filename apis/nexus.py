@@ -2,7 +2,7 @@
 from datetime import datetime
 
 from flask_jwt_extended import get_jwt_identity
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound
 
 import model
 from resources import apiError

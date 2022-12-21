@@ -1,24 +1,35 @@
 import json
-from datetime import datetime, date, timedelta
-from urllib.parse import urlparse
+from datetime import date, datetime, timedelta
+from typing import Any
 
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
-from sqlalchemy.orm.exc import NoResultFound
-from resources.harbor import hb_list_artifacts_with_params, hb_copy_artifact_and_retage, hb_get_artifact, \
-    hb_delete_artifact_tag, hb_create_artifact_tag, hb_list_tags, hb_copy_artifact, hb_list_repositories, \
-    hb_list_tags, hb_delete_artifact, hb_list_artifacts, hb_get_artifacts_with_tag, hb_get_artifact_wtih_digrest
+from gitlab.v4 import objects
+from sqlalchemy import desc
+from sqlalchemy.exc import NoResultFound
 
 import config
 import model
 import nexus
 import util as util
 from model import db
-from sqlalchemy import desc
-from resources import apiError, role, logger
+from resources import apiError, logger, role
+from resources.harbor import (
+    hb_copy_artifact,
+    hb_copy_artifact_and_retage,
+    hb_create_artifact_tag,
+    hb_delete_artifact,
+    hb_delete_artifact_tag,
+    hb_get_artifact,
+    hb_get_artifact_wtih_digrest,
+    hb_get_artifacts_with_tag,
+    hb_list_artifacts_with_params,
+    hb_list_repositories,
+    hb_list_tags,
+)
 from .gitlab import gitlab, gl_release
 from .harbor import hb_release
-from .redmine import redmine, rm_release, get_redmine_obj
+from .redmine import get_redmine_obj, redmine, rm_release
 
 error_redmine_issues_closed = "Unable closed all issues"
 error_issue_not_all_closed = "Not All Issues are closed in Versions"
@@ -134,7 +145,7 @@ def analysis_release(release, info, hb_list_tags, image_need):
     ret['docker'] = []
     gitlab_project_url = info.get('gitlab_project_url')
     tag_mapping, repo_mapping = {}, {}
-    
+
     if ret.get('branch') is not None and ret.get('commit') is not None:
         ret['git_url'] = f'{gitlab_project_url}/-/releases/{ret.get("tag_name")}'
 
@@ -147,7 +158,7 @@ def analysis_release(release, info, hb_list_tags, image_need):
                 tag_mapping.setdefault(release_repo_tag.tag, []).append(release_repo_tag.custom_path)
             if release_repo_tag.custom_path == info["project_name"]:
                 repo_mapping.setdefault(release_repo_tag.custom_path, []).append(release_repo_tag.tag)
-                
+
     # Generate field: "image_tags"
     ret["image_tags"] = [{tag: data} for tag, data in tag_mapping.items()]
     ret["docker"] = [{
@@ -324,90 +335,152 @@ def delete_release_image_repo(project_id, release_id, args):
             return util.respond(500, str(e))
 
 
-def create_release_image_tag(project_id, release_id, args):
-    project_name = model.Project.query.filter_by(id=project_id).first().name
-    release = model.Release.query.filter_by(id=release_id).first()
-    if release is not None:
-        dest_tags = args["tags"]
-        forced = args.get("forced") or False
-        distinct_repos = get_distinct_repo(release.id, project_name)
-        before_update_at = release.update_at
+def check_tag_not_exist(
+    forced: bool, repos: list[str], project_name: str, target_label: str
+):
+    if not forced:
+        for repo in repos:
+            if hb_get_artifacts_with_tag(project_name, repo, target_label):
+                raise apiError.DevOpsError(
+                    500,
+                    f"{target_label} already exist in this Harbor repository.",
+                    error=apiError.harbor_tag_already_exist(target_label, repo),
+                )
 
-        # Check tag is not exist in target image_paths
-        if not forced:
-            for repo in distinct_repos:
-                if hb_get_artifacts_with_tag(project_name, repo, dest_tags) != []:
-                    raise apiError.DevOpsError(
-                        500, f'{dest_tags.capitalize()} already exist in this Harbor repository.',
-                        error=apiError.harbor_tag_already_exist(dest_tags, repo))
 
-        if not distinct_repos:
+def add_release_tag(project_id: int, release_id: int, args: dict[str, Any]):
+    project: model.Project = model.Project.query.filter_by(id=project_id).first()
+    project_name: str = project.name
+
+    release: model.Release = model.Release.query.filter_by(id=release_id).first()
+
+    gitlab_repo: objects.Project = gitlab.gl.projects.get(
+        nexus.nx_get_repository_id(project_id)
+    )
+
+    if release:
+        target_label: str = args.get("tags")
+        forced: bool = args.get("forced", False)
+        _repos: list[str] = get_distinct_repo(release.id, project_name)
+        updated_at: datetime = release.update_at
+
+        if not _repos:
             raise apiError.DevOpsError(
-                400, 
+                400,
                 "Can not add tag on no image's repo",
-                error=apiError.no_image_error(project_name)
+                error=apiError.no_image_error(project_name),
             )
 
-        # Must to update DB first, otherwise the value won't change.
-        row_list = [
-            model.ReleaseRepoTag(
-                release_id=release.id,
-                tag=dest_tags,
-                custom_path=distinct_repos[0])
-        ]
-        db.session.add_all(row_list)
-        release.update_at = str(datetime.now())
+        # Check tag is not exist in target image_paths
+        check_tag_not_exist(forced, _repos, project_name, target_label)
+
+        # Persist data
+        repo_tag: model.ReleaseRepoTag = model.ReleaseRepoTag()
+        repo_tag.release_id = release.id
+        repo_tag.tag = target_label
+        repo_tag.custom_path = _repos[0]
+        db.session.add(repo_tag)
+
+        release.update_at = datetime.now()
         db.session.commit()
 
-        # Then add tag on all image_path
-        digest = hb_get_artifact(project_name, project_name, release.tag_name)[0]["digest"]
+        digest: str = hb_get_artifact(project_name, project_name, release.tag_name)[0][
+            "digest"
+        ]
+
+        gitlab_created: bool = False
         try:
+            # Then add tag on all image_path
             release_image_tag_helper(
-                project_name, distinct_repos, dest_tags, digest, forced=forced)
+                project_name, _repos, target_label, digest, forced=forced
+            )
+
+            if gitlab_repo.commits.list():
+                # 如果有東西再去 GitLab 建立 tag
+                gitlab.gl_create_tag(gitlab_repo.get_id(), target_label, release.commit)
+                gitlab_created = True
+
             return util.success()
         except Exception as e:
-            model.ReleaseRepoTag.query.filter_by(release_id=release_id, tag=dest_tags).delete()
-            release.update_at = before_update_at
+            # Rollback
+            model.ReleaseRepoTag.query.filter_by(
+                release_id=release_id, tag=target_label
+            ).delete()
+            release.update_at = updated_at
             db.session.commit()
+
             release_image_tag_helper(
-                project_name, distinct_repos, dest_tags, digest, delete=True)
+                project_name, _repos, target_label, digest, delete=True
+            )
+
+            if gitlab_created:
+                gitlab.gl_delete_tag(gitlab_repo.get_id(), target_label)
+
             return util.respond(500, str(e))
 
 
-def delete_release_image_tag(project_id, release_id, args):
-    project_name = model.Project.query.filter_by(id=project_id).first().name
-    release = model.Release.query.filter_by(id=release_id).first()
-    if release is not None:
-        dest_tags = args["tags"]
-        before_update_at = release.update_at
-        if dest_tags == release.tag_name:
-            return
-        distinct_repos = get_distinct_repo(release.id, project_name)
+def delete_release_tag(project_id: int, release_id: int, args: dict[str, Any]):
+    project: model.Project = model.Project.query.filter_by(id=project_id).first()
+    project_name: str = project.name
 
-        # Must to update DB first, otherwise the value won't change.
-        model.ReleaseRepoTag.query.filter_by(release_id=release_id, tag=dest_tags).delete()
-        release.update_at = str(datetime.now())
+    gitlab_repo: objects.Project = gitlab.gl.projects.get(
+        nexus.nx_get_repository_id(project_id)
+    )
+
+    release: model.Release = model.Release.query.filter_by(id=release_id).first()
+
+    if release:
+        target_label: str = args.get("tags")
+        updated_at: datetime = release.update_at
+
+        if target_label == release.tag_name:
+            return
+
+        _repos: list[str] = get_distinct_repo(release.id, project_name)
+
+        # Persist data
+        model.ReleaseRepoTag.query.filter_by(
+            release_id=release_id, tag=target_label
+        ).delete()
+        release.update_at = datetime.now()
         db.session.commit()
 
         # Then add tag on all image_path
-        digest = hb_get_artifact(project_name, release.branch, release.tag_name)[0]["digest"]
+        digest: str = hb_get_artifact(project_name, release.branch, release.tag_name)[
+            0
+        ]["digest"]
+
+        gitlab_success: bool = False
         try:
             release_image_tag_helper(
-                project_name, distinct_repos, dest_tags, digest, delete=True)
+                project_name, _repos, target_label, digest, delete=True
+            )
+
+            if gitlab.gl_get_tags(gitlab_repo.get_id(), search=target_label):
+                gitlab.gl_delete_tag(gitlab_repo.get_id(), target_label)
+                gitlab_success = True
+
             return util.success()
         except Exception as e:
-            row_list = [
-                model.ReleaseRepoTag(
-                    release_id=release.id,
-                    tag=dest_tags,
-                    custom_path=repo
-                ) for repo in distinct_repos
-            ]
-            db.session.add_all(row_list)
-            release.update_at = before_update_at
+            # Rollback
+            _r: list[model.ReleaseRepoTag] = []
+            for repo in _repos:
+                rollback_data: model.ReleaseRepoTag = model.ReleaseRepoTag()
+                rollback_data.release_id = release_id
+                rollback_data.tag = target_label
+                rollback_data.custom_path = repo
+                _r.append(rollback_data)
+
+            db.session.add_all(_r)
+
+            release.update_at = updated_at
             db.session.commit()
-            release_image_tag_helper(
-                project_name, distinct_repos, dest_tags, digest)
+
+            release_image_tag_helper(project_name, _repos, target_label, digest)
+
+            if gitlab_success:
+                gitlab.gl_create_tag(gitlab_repo.get_id(), target_label, release.commit)
+
             return util.respond(500, str(e))
 
 

@@ -13,7 +13,7 @@ import util as util
 from model import db, TraceOrder, TraceResult
 import resources.apiError as apiError
 from resources.apiError import DevOpsError
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound
 from accessories import redmine_lib
 from resources.redmine import redmine
 from resources.quality import qu_get_testfile_by_testplan

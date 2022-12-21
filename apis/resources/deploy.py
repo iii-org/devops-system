@@ -9,7 +9,7 @@ import yaml
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse, inputs
 from kubernetes import client as k8s_client
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound
 from werkzeug.utils import secure_filename
 from urllib3.exceptions import MaxRetryError
 

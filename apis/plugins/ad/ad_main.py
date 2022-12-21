@@ -5,7 +5,7 @@ from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse, inputs
 import ldap3
 from ldap3 import Server, ServerPool, Connection, ALL_ATTRIBUTES, FIRST, Tls
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound
 import datetime
 import dateutil
 import pytz

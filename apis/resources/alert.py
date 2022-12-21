@@ -7,7 +7,7 @@ import util as util
 from model import db
 import resources.apiError as apiError
 from resources.apiError import DevOpsError
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound
 
 
 def check_alert_permission(role_id, owner_id, project_id):

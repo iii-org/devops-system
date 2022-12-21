@@ -7,7 +7,7 @@ from enum import Enum
 from pathlib import Path
 
 import ipaddress
-from typing import Any
+from typing import Any, Union
 
 import pytz
 import requests
@@ -274,12 +274,6 @@ class GitLab(object):
         output = self.__api_get(f'/projects/{repo_id}/repository/branches')
         return len(output.json())
 
-    def gl_get_tags(self, repo_id, params=None):
-        if params is None:
-            params = {}
-        return self.__api_get(f'/projects/{repo_id}/repository/tags',
-                              params).json()
-
     def gl_create_rancher_pipeline_yaml(self, repo_id, args, method):
         path = f'/projects/{repo_id}/repository/files/{args["file_path"]}'
         params = {}
@@ -445,17 +439,34 @@ class GitLab(object):
                 'commit_message': args['commit_message']
             })
 
-    def gl_create_tag(self, repo_id, args):
-        path = f'/projects/{repo_id}/repository/tags'
-        params = {}
-        keys = ['tag_name', 'ref', 'message', 'release_description']
-        for k in keys:
-            params[k] = args[k]
-        return self.__api_post(path, params=params).json()
+    def gl_get_tags(
+        self, repo_id: Union[int, str], order_by: str = None, sort: str = None, search: str = None
+    ):
+        params: dict[str, str] = {}
+        if order_by:
+            params["order_by"] = order_by
+        if sort:
+            params["sort"] = sort
+        if search:
+            params["search"] = search
 
-    def gl_delete_tag(self, repo_id, tag_name):
-        return self.__api_delete(
-            f'/projects/{repo_id}/repository/tags/{tag_name}')
+        return self.__api_get(f"/projects/{repo_id}/repository/tags", params).json()
+
+    def gl_create_tag(
+        self, repo_id: Union[int, str], tag_name: str, ref: str, message: str = None
+    ):
+        params: dict[str, str] = {}
+        if tag_name:
+            params["tag_name"] = tag_name
+        if ref:
+            params["ref"] = ref
+        if message:
+            params["message"] = message
+
+        return self.__api_post(f"/projects/{repo_id}/repository/tags", params=params).json()
+
+    def gl_delete_tag(self, repo_id: Union[int, str], tag_name: str):
+        return self.__api_delete(f"/projects/{repo_id}/repository/tags/{tag_name}")
 
     def gl_get_commits(self, project_id, branch, per_page=100, page=1, since=None):
         return self.__api_get(
@@ -1052,7 +1063,7 @@ class GitRelease:
             output = {'check': False,
                       "info": "Gitlab no exists commit", "errors": ""}
             return output
-        tags = gitlab.gl_get_tags(str(repository_id), {'search': tag_name})
+        tags = gitlab.gl_get_tags(str(repository_id), search=tag_name)
         for tag in tags:
             if tag["name"] == tag_name:
                 output['check'] = False
@@ -1212,12 +1223,20 @@ class GitProjectTag(Resource):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('tag_name', type=str, required=True)
-        parser.add_argument('ref', type=str, required=True)
-        parser.add_argument('message', type=str)
-        parser.add_argument('release_description', type=str)
+        parser.add_argument("tag_name", type=str, required=True)
+        parser.add_argument("ref", type=str, required=True)
+        parser.add_argument("message", type=str)
+        parser.add_argument("release_description", type=str)
+
         args = parser.parse_args()
-        return util.success(gitlab.gl_create_tag(repository_id, args))
+        return util.success(
+            gitlab.gl_create_tag(
+                repository_id,
+                args.get("tag_name", None),
+                args.get("ref", None),
+                args.get("message", None),
+            )
+        )
 
     @jwt_required()
     def delete(self, repository_id, tag_name):
