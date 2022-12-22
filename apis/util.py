@@ -404,7 +404,7 @@ class AWSEngine():
 
 def get_certain_date_from_now(days):
     return datetime.combine(
-        (datetime.now() - timedelta(days=days)), d_time(00, 00))
+        (datetime.utcnow() - timedelta(days=days)), d_time(00, 00))
 
 
 def get_few_months_ago_utc_datetime(month_number):

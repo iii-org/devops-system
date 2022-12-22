@@ -121,7 +121,7 @@ class CheckMarx(object):
             branch=args['branch'],
             commit_id=args['commit_id'],
             scan_final_status=None,
-            run_at=datetime.datetime.now())
+            run_at=datetime.datetime.utcnow())
         db.session.add(new)
         db.session.commit()
         return util.success()
@@ -169,7 +169,7 @@ class CheckMarx(object):
         status = resp.json().get('status')
         if status.get('id') == 2:
             row = Model.query.filter_by(report_id=report_id).one()
-            row.finished_at = datetime.datetime.now()
+            row.finished_at = datetime.datetime.utcnow()
             row.finished = True
             db.session.commit()
         return status.get('id'), status.get('value')

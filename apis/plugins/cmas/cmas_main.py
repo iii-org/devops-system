@@ -289,7 +289,7 @@ def remove_apk():
         for path in os.walk(super_path):
             apk_path = f"{path[0]}/app-debug.apk"
             if os.path.isfile(apk_path):
-                current_time = datetime.now()
+                current_time = datetime.utcnow()
                 apk_datetime = datetime.fromtimestamp(os.path.getctime(apk_path))
                 if (current_time - apk_datetime).total_seconds() > 60 * 60 * 24:
                     print(apk_path)

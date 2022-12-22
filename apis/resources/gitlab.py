@@ -663,14 +663,14 @@ class GitLab(object):
                     commit_number = total_commit_number - the_last_time_total_commit_number
                     if commit_number < 0:
                         commit_number = 0
-                now_time = datetime.now() + timedelta(hours=timezone_hours_number)
+                now_time = datetime.utcnow() + timedelta(hours=timezone_hours_number)
                 one_row_data = GitCommitNumberEachDays(
                     repo_id=pj.id,
                     repo_name=pj.name,
                     date=now_time.date(),
                     commit_number=commit_number,
                     total_commit_number=total_commit_number,
-                    created_at=str(datetime.now()))
+                    created_at=str(datetime.utcnow()))
                 db.session.add(one_row_data)
                 db.session.commit()
 

@@ -40,7 +40,7 @@ def round_off_float(num):
 
 
 def calculate_expired_days(last):
-    first_date = datetime.now().date()
+    first_date = datetime.utcnow().date()
     last_date = datetime.strptime(last, "%Y-%m-%d").date()
     expired_days = (last_date - first_date).days
     return expired_days
@@ -64,7 +64,7 @@ def get_expired_days(project):
 def check_overdue(last):
     if last is not None:
         last_date = datetime.strptime(last, "%Y-%m-%d")
-        if last_date < datetime.now():
+        if last_date < datetime.utcnow():
             return True
         else:
             return False

@@ -69,7 +69,7 @@ def wi_create_scan(args):
         project_name=args['project_name'],
         branch=args['branch'],
         commit_id=args['commit_id'],
-        run_at=datetime.now(),
+        run_at=datetime.utcnow(),
         finished=False
     )
     db.session.add(new)
@@ -215,10 +215,10 @@ class WIE:
             'password': secret.get('wi-password', None)
         })
         self.token = res.json().get('data').split(' ')[1]
-        self.token_made = datetime.now()
+        self.token_made = datetime.utcnow()
 
     def cookie_header(self):
-        if (datetime.now() - self.token_made) > timedelta(hours=12):
+        if (datetime.utcnow() - self.token_made) > timedelta(hours=12):
             self.login()
         return {'Cookie': f'WIESession={self.token}'}
 
