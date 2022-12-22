@@ -110,7 +110,7 @@ def limit_to_project(project_id):
         ActionType.ADD_MEMBER, ActionType.REMOVE_MEMBER, ActionType.DELETE_ISSUE, 
         ActionType.MODIFY_HOOK, ActionType.RECREATE_PROJECT, ActionType.ENABLE_ISSUE_CHECK,
         ActionType.DISABLE_ISSUE_CHECK, ActionType.ENABLE_PLUGIN, ActionType.DISABLE_PLUGIN,
-        ActionType.DELETE_SIDEEX_JSONFILE]
+        ActionType.DELETE_SIDEEX_JSONFILE, ActionType.DELETE_EXCALIDRAW, ActionType.RESTORE_EXCALIDRAW_HISTORY]
     ))
     query = query.filter(or_(
         model.Activity.object_id.like(f'%@{project_id}'),
@@ -168,6 +168,12 @@ class Activity(model.Activity):
             self.object_id = f'{get_jwt_identity()["user_id"]}@{args["project_id"]}'
             self.action_parts = f'The sideex records and setting files of project:{args["project_id"]} ' \
                                 f'was deleted by user:{get_jwt_identity()["user_id"]}!'
+        if self.action_type == ActionType.DELETE_EXCALIDRAW:
+            self.object_id = get_jwt_identity()["user_id"]
+            self.action_parts = f'Delete excalidraw: {args["excalidraw_id"]}'
+        if self.action_type == ActionType.RESTORE_EXCALIDRAW_HISTORY:
+            self.object_id = get_jwt_identity()["user_id"]
+            self.action_parts = f'Restore excalidraw history: {args["excalidraw_history_id"]}'
 
     def __get_issue_project_id(self, issue_id):
         row = model.ProjectPluginRelation.query.filter_by(

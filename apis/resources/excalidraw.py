@@ -16,6 +16,9 @@ import pandas as pd
 import json
 from datetime import datetime, date
 from sqlalchemy import desc
+from resources.activity import record_activity
+from enums.action_type import ActionType
+
 
 
 def excalidraw_get_config(key):
@@ -154,6 +157,7 @@ def get_excalidraw_by_issue_id(issue_id):
     return nexus_excalidraw(excalidraw_rows)
 
 
+@record_activity(ActionType.DELETE_EXCALIDRAW)
 def delete_excalidraw(excalidraw_id):
     excalidraw = Excalidraw.query.filter_by(id=excalidraw_id)
     if excalidraw.first() is not None:
@@ -388,6 +392,7 @@ def add_to_db(add_dict):
     db.session.commit()
 
 
+@record_activity(ActionType.RESTORE_EXCALIDRAW_HISTORY)
 def excalidraw_version_restore(excalidraw_history_id, simple=False):
     excalidraw_history = ExcalidrawHistory.query.filter_by(id=excalidraw_history_id).first()
     excalidraw_id = excalidraw_history.excalidraw_id
