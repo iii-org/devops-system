@@ -221,6 +221,7 @@ stages:
       include:
       - master
       - jonathan
+      - develop
 - name: Test--ZAP
   iiidevops: zap
   steps:
@@ -283,6 +284,7 @@ stages:
     branch:
       include:
       - master
+      - develop
 - name: Test--SideeX
   iiidevops: sideex
   steps:
