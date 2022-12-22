@@ -307,33 +307,52 @@ def create_release_image_repo(project_id, release_id, args):
                 return util.respond(500, str(e))
 
 
-def delete_release_image_repo(project_id, release_id, args):
-    project_name = model.Project.query.filter_by(id=project_id).first().name
-    release = model.Release.query.filter_by(id=release_id).first()
-    removed_repo_name = args["repo_name"]
-    if release is not None and removed_repo_name != release.branch:
-        before_update_at = release.update_at
+def delete_release_image_repo(project_id: int, release_id: int, args: dict):
+    project: model.Project = model.Project.query.filter_by(id=project_id).first()
+    release: model.Release = model.Release.query.filter_by(id=release_id).first()
+    target_repo: str = args.get("repo_name")
 
-        delete_tags = [release_repo_tag.tag
-                       for release_repo_tag in model.ReleaseRepoTag.query.filter_by(release_id=release_id, custom_path=removed_repo_name).all()]
+    if release is not None and target_repo != release.branch:
+        before_update_at: datetime = release.update_at
 
-        model.ReleaseRepoTag.query.filter_by(release_id=release_id, custom_path=removed_repo_name).delete()
-        release.update_at = str(datetime.now())
+        delete_tags: list[str] = [
+            release_repo_tag.tag
+            for release_repo_tag in model.ReleaseRepoTag.query.filter_by(
+                release_id=release_id, custom_path=target_repo
+            ).all()
+        ]
+
+        model.ReleaseRepoTag.query.filter_by(
+            release_id=release_id, custom_path=target_repo
+        ).delete()
+        release.update_at = datetime.now()
         db.session.commit()
 
-        digest = hb_get_artifact(project_name, release.branch, release.tag_name)[0]["digest"]
+        digest: str = hb_get_artifact(project.name, release.branch, release.tag_name)[
+            0
+        ]["digest"]
+
         try:
-            hb_delete_artifact(project_name, removed_repo_name, digest)
+            hb_delete_artifact(project.name, target_repo, digest)
             return util.success()
+
+        except apiError.DevOpsError as e:
+            if (
+                e.status_code == 404
+                and e.error_value["details"]["service_name"] == "Harbor"
+            ):
+                return util.success()
+            return util.respond(500, str(e))
+
         except Exception as e:
-            row_list = [
-                model.ReleaseRepoTag(
-                    release_id=release.id,
-                    tag=tag,
-                    custom_path=removed_repo_name
-                ) for tag in delete_tags
-            ]
-            db.session.add_all(row_list)
+            _r: list[model.ReleaseRepoTag] = []
+            for tag in delete_tags:
+                new_data: model.ReleaseRepoTag = model.ReleaseRepoTag()
+                new_data.release_id = release.id
+                new_data.tag = tag
+                new_data.custom_path = target_repo
+                _r.append(new_data)
+            db.session.add_all(_r)
             release.update_at = before_update_at
             db.session.commit()
             return util.respond(500, str(e))
