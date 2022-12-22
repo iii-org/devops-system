@@ -439,9 +439,27 @@ class GitLab(object):
                 'commit_message': args['commit_message']
             })
 
-    def gl_get_tags(
-        self, repo_id: Union[int, str], order_by: str = None, sort: str = None, search: str = None
+    def get_tags(
+        self,
+        repo_id: Union[int, str],
+        order_by: str = None,
+        sort: str = None,
+        search: str = None,
     ):
+        """
+        取得所有 tag 列表，或透過參數取得特定 tag 資訊
+        src: https://docs.gitlab.com/ee/api/tags.html#list-project-repository-tags
+
+        Args:
+            repo_id: The ID or URL-encoded path of the project owned by the authenticated user.
+            order_by: Return tags ordered by `name`, `updated`, or `version`. Default is `updated`.
+            sort: Return tags sorted in `asc` or `desc` order. Default is `desc`.
+            search: Return list of tags matching the search criteria. You can use `^term` and `term$` to find
+                tags that begin and end with term respectively. No other regular expressions are supported.
+
+        Returns:
+            list of tags
+        """
         params: dict[str, str] = {}
         if order_by:
             params["order_by"] = order_by
@@ -452,9 +470,42 @@ class GitLab(object):
 
         return self.__api_get(f"/projects/{repo_id}/repository/tags", params).json()
 
-    def gl_create_tag(
+    def is_tag_exist(self, repo_id: Union[int, str], pattern: str) -> bool:
+        """
+        檢查 tag 是否存在，並完全符合 pattern
+
+        Args:
+            repo_id: project id
+            pattern: tag name
+
+        Returns:
+            True if tag exist, otherwise False
+        """
+        _result: bool = False
+
+        for _tag in self.get_tags(repo_id, search=pattern):
+            if _tag.get("name", None) == pattern:
+                _result = True
+                break
+
+        return _result
+
+    def create_tag(
         self, repo_id: Union[int, str], tag_name: str, ref: str, message: str = None
     ):
+        """
+        替 GitLab commit 建立新 tag
+        src: https://docs.gitlab.com/ee/api/tags.html#create-a-new-tag
+
+        Args:
+            repo_id: The ID or URL-encoded path of the project owned by the authenticated user
+            tag_name: The name of a tag
+            ref: Create tag using commit SHA, another tag name, or branch name
+            message: Creates annotated tag
+
+        Returns:
+            tag info
+        """
         params: dict[str, str] = {}
         if tag_name:
             params["tag_name"] = tag_name
@@ -465,7 +516,18 @@ class GitLab(object):
 
         return self.__api_post(f"/projects/{repo_id}/repository/tags", params=params).json()
 
-    def gl_delete_tag(self, repo_id: Union[int, str], tag_name: str):
+    def delete_tag(self, repo_id: Union[int, str], tag_name: str):
+        """
+        刪除 GitLab tag
+        src: https://docs.gitlab.com/ee/api/tags.html#delete-a-tag
+
+        Args:
+            repo_id: The ID or URL-encoded path of the project owned by the authenticated user
+            tag_name: The name of a tag
+
+        Returns:
+            tag info
+        """
         return self.__api_delete(f"/projects/{repo_id}/repository/tags/{tag_name}")
 
     def gl_get_commits(self, project_id, branch, per_page=100, page=1, since=None):
@@ -524,7 +586,7 @@ class GitLab(object):
                 branch_commit_list.append(obj)
 
         # 整理tags
-        tags = gitlab.gl_get_tags(repo_id)
+        tags = gitlab.get_tags(repo_id)
         for tag in tags:
             for commit in branch_commit_list:
                 if commit["id"] == tag["commit"]["id"]:
@@ -1063,7 +1125,7 @@ class GitRelease:
             output = {'check': False,
                       "info": "Gitlab no exists commit", "errors": ""}
             return output
-        tags = gitlab.gl_get_tags(str(repository_id), search=tag_name)
+        tags = gitlab.get_tags(str(repository_id), search=tag_name)
         for tag in tags:
             if tag["name"] == tag_name:
                 output['check'] = False
@@ -1215,7 +1277,7 @@ class GitProjectTag(Resource):
     def get(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
-        res = gitlab.gl_get_tags(repository_id)
+        res = gitlab.get_tags(repository_id)
         return util.success({'tag_list': res})
 
     @jwt_required()
@@ -1230,7 +1292,7 @@ class GitProjectTag(Resource):
 
         args = parser.parse_args()
         return util.success(
-            gitlab.gl_create_tag(
+            gitlab.create_tag(
                 repository_id,
                 args.get("tag_name", None),
                 args.get("ref", None),
@@ -1242,7 +1304,7 @@ class GitProjectTag(Resource):
     def delete(self, repository_id, tag_name):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
-        gitlab.gl_delete_tag(repository_id, tag_name)
+        gitlab.delete_tag(repository_id, tag_name)
         return util.success()
 
 
@@ -1253,7 +1315,7 @@ class GitProjectTagV2(MethodResource):
     def get(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
-        res = gitlab.gl_get_tags(repository_id)
+        res = gitlab.get_tags(repository_id)
         return util.success({'tag_list': res})
 
     @doc(tags=['Gitlab'], description="add project tags")
@@ -1263,7 +1325,7 @@ class GitProjectTagV2(MethodResource):
     def post(self, repository_id, **kwargs):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
-        return util.success(gitlab.gl_create_tag(repository_id, kwargs))
+        return util.success(gitlab.create_tag(repository_id, kwargs))
 
     @doc(tags=['Gitlab'], description="delete project tags")
     @jwt_required()
@@ -1271,7 +1333,7 @@ class GitProjectTagV2(MethodResource):
     def delete(self, repository_id, tag_name):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
-        gitlab.gl_delete_tag(repository_id, tag_name)
+        gitlab.delete_tag(repository_id, tag_name)
         return util.success()
 
 

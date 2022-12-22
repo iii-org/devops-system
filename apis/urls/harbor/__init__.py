@@ -22,7 +22,7 @@ def harbor_url(api, add_resource):
                      '/harbor/replication/executions/<sint:execution_id>/tasks')
     api.add_resource(view.HarborReplicationExecutionTaskLog,
                      '/harbor/replication/executions/<sint:execution_id>/tasks/<sint:task_id>/log')
-    api.add_resource(view.HarborCopyImageRetage, '/harbor/handle_image')
+    api.add_resource(view.HarborCopyImageReTag, '/harbor/handle_image')
 
     api.add_resource(view.HarborScan, '/v2/harbor/<project_name>/scan')
     add_resource(view.HarborScan, "private")
