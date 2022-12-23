@@ -9,7 +9,7 @@ from model import (NotificationMessage, NotificationMessageRecipient, Project,
                    ProjectPluginRelation, UserPluginRelation, db)
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.sql import and_
-
+from datetime import datetime
 import resources.apiError as apiError
 import resources.kubernetesClient as kubernetesClient
 from resources.gitlab import gitlab
@@ -95,7 +95,7 @@ def system_git_commit_id():
             git_tag = f.read().splitlines()[0]
     if os.path.exists("git_date"):
         with open("git_date") as f:
-            git_date = f.read().splitlines()[0]
+            git_date = str(datetime.strptime(f.read().splitlines()[0]).isoformat())
     return {"git_commit_id": git_commit_id, "git_tag": git_tag, "git_date": git_date}
 
 
