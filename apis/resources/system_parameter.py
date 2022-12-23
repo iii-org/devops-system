@@ -83,30 +83,31 @@ def update_system_parameter(id, args):
 def get_github_verify_execute_status():
     ret = get_lock_status("execute_sync_templ")
 
-    sync_date = ret["sync_date"] if ret["sync_date"] is None else ret["sync_date"] + timedelta(hours=8)
-
     # Get log info
     output = get_github_verify_log()
     if output is None:
-        ret["sync_date"] = str(ret["sync_date"])
         return ret
 
     output_list = output.split("----------------------------------------")
 
     run_time = output_list[1].split("\n")[1]
     if run_time is not None:
-        run_time = datetime.strptime(run_time[:-4], '%a %d %b %Y %I:%M:%S %p')
-        delta = run_time - sync_date
+        run_time = datetime.strptime(run_time[:-4], "%a %d %b %Y %I:%M:%S %p")
+        delta = run_time - ret["sync_date"]
 
         # Check the log is previous run
         if delta.total_seconds() < 90:
             ret["status"] = {"first_stage": False, "second_stage": False}
 
             # Check the first stage is done
-            ret["status"]["first_stage"] = output_list[-2].replace("\n", "").endswith("SUCCESS")
+            ret["status"]["first_stage"] = (
+                output_list[-2].replace("\n", "").endswith("SUCCESS")
+            )
 
             # Check the second stage is done
-            ret["status"]["second_stage"] = output_list[-1].replace("\n", "").endswith("SUCCESS")
+            ret["status"]["second_stage"] = (
+                output_list[-1].replace("\n", "").endswith("SUCCESS")
+            )
 
     ret["sync_date"] = str(ret["sync_date"])
     return ret
