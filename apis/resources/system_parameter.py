@@ -23,17 +23,21 @@ def row_to_dict(row):
     return {key: getattr(row, key) for key in type(row).__table__.columns.keys()}
 
 
-def execute_modify_cron(args):
-    deployer_node_ip = config.get('DEPLOYER_NODE_IP')
-    if deployer_node_ip is None:
-        # get the k8s cluster the oldest node ip
-        deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
+def execute_modify_cron(command_args: str) -> str:
+    deployer_node_ip: str = config.get("DEPLOYER_NODE_IP")
 
-    cmd = f"perl /home/rkeuser/deploy-devops/bin/modify-cron.pl {args}"
+    if deployer_node_ip is None:
+        deployer_node_ip: str = kubernetesClient.get_the_oldest_node()[0]
+
+    cmd: str = f"perl /home/rkeuser/deploy-devops/bin/modify-cron.pl {command_args}"
+    output_str: str
+    error_str: str
     output_str, error_str = util.ssh_to_node_by_key(cmd, deployer_node_ip)
-    output_str = output_str.replace("\n", "")
-    if output_str.startswith("Error:"):
-        raise Exception(output_str)
+    output_str = output_str.strip()
+    error_str = error_str.strip()
+
+    if output_str.startswith("Error:") or error_str:
+        raise DevOpsError(500, output_str or error_str)
     return output_str
 
 
@@ -51,34 +55,44 @@ def get_system_parameter():
         row_to_dict(system_parameter) for system_parameter in SystemParameter.query.all()]
 
 
-def update_system_parameter(id, args):
-    system_parameter = SystemParameter.query.get(id)
-    system_param_name = system_parameter.name
-    value, active = args.get("value"), args.get("active")
-    id_mapping = {
+def update_system_parameter(id: int, args: dict) -> None:
+    system_parameter: SystemParameter = SystemParameter.query.get(id)
+    system_param_name: str = system_parameter.name
+
+    active: bool = args.get("active")
+    value: dict[str, str] = args.get("value")
+
+    id_mapping: dict = {
         "github_verify_info": {
             "execute_func": verify_github_info,
             "func_args": value,
             "cron_name": "sync_tmpl",
             "time": '"15 0 * * *"',
-            "cron_args":
-                f'{value.get("account")}:{value.get("token")}' if value is not None else f'{system_parameter.value["account"]}:{system_parameter.value["token"]}'
+            "cron_args": f"{value.get('account')}:{value.get('token')}"
+            if value is not None
+            else f"{system_parameter.value['account']}:{system_parameter.value['token']}",
         },
     }
+
     if system_param_name in id_mapping:
-        id_info = id_mapping[system_param_name]
+        id_info: dict = id_mapping[system_param_name]
+
         if value is not None:
             execute_pre_func(id_info.get("execute_func"), id_info.get("func_args"))
 
         if active is not None and not active:
-            args = f'{id_info["cron_name"]} off'
+            _args: str = f'{id_info["cron_name"]} off'
+
         else:
-            args = f'{id_info["cron_name"]} on {id_info["time"]} {id_info.get("cron_args", "")}'
-        execute_modify_cron(args)
+            _args: str = f'{id_info["cron_name"]} on {id_info["time"]} {id_info.get("cron_args", "")}'
+        execute_modify_cron(_args)
+
     if active is not None:
         system_parameter.active = active
+
     if value is not None:
         system_parameter.value = value
+
     db.session.commit()
 
 
@@ -333,14 +347,15 @@ class SystemParameters(Resource):
     @jwt_required()
     def put(self, param_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('value', type=str, location='json')
-        parser.add_argument('active', type=bool)
+        parser.add_argument("value", type=dict, location="json")
+        parser.add_argument("active", type=bool)
         args = parser.parse_args()
-        if args.get("value") is not None:
-            args["value"] = json.loads(args["value"].replace("\'", "\""))
-            if not args["value"].get("token", "").startswith("ghp_"):
-                raise apiError.DevOpsError(400, "Token should begin with 'ghp_'.",
-                                           error=apiError.github_token_error("Token"))
+        if args.get("value") is not None and not args["value"].get("token", "").startswith("ghp_"):
+            raise apiError.DevOpsError(
+                400,
+                "Token should begin with 'ghp_'.",
+                error=apiError.github_token_error("Token"),
+            )
         return util.success(update_system_parameter(param_id, args))
 
 

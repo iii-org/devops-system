@@ -5,6 +5,7 @@ from time import sleep
 from typing import Any, Callable
 
 from github import Github
+from github.GithubException import BadCredentialsException
 from sqlalchemy import desc
 
 import config
@@ -432,41 +433,55 @@ def create_monitoring_record(args):
     db.session.commit()
 
 
-def verify_github_info(value):
-    account = value["account"]
-    token = value["token"]
-    g = Github(login_or_token=token)
+def verify_github_info(value: dict[str, str]) -> None:
+    account: str = value["account"]
+    token: str = value["token"]
+    g: Github = Github(login_or_token=token)
     try:
-        login = g.get_user().login
-        not_alive_messages = get_unread_notification_message_list(title="GitHub token is unavailable")
-        if not_alive_messages is not None and len(not_alive_messages) > 0:
+        login: str = g.get_user().login
+        not_alive_messages: list = get_unread_notification_message_list(
+            title="GitHub token is unavailable"
+        )
+        if not_alive_messages:
             for not_alive_message in not_alive_messages:
                 close_notification_message(not_alive_message["id"])
             back_to_alive_title = "GitHub token is back to available."
-            create_notification_message({
-                "alert_level": 1,
-                "title": back_to_alive_title,
-                "message": back_to_alive_title,
-                "type_ids": [4],
-                "type_parameters": {"role_ids": [5]}
-            })
-    except:
+            create_notification_message(
+                {
+                    "alert_level": 1,
+                    "title": back_to_alive_title,
+                    "message": back_to_alive_title,
+                    "type_ids": [4],
+                    "type_parameters": {"role_ids": [5]},
+                }
+            )
+    except BadCredentialsException:
         raise apiError.DevOpsError(
             400,
-            'Token is invalid.',
-            apiError.error_with_alert_code("github", 20001, 'Token is invalid.', value))
+            "Token is invalid.",
+            apiError.error_with_alert_code("github", 20001, "Token is invalid.", value),
+        )
 
     if login != account:
         raise apiError.DevOpsError(
             400,
-            'Token is not belong to this account.',
-            apiError.error_with_alert_code("github", 20002, 'Token is not belong to this account.', value))
+            "Token is not belong to this account.",
+            apiError.error_with_alert_code(
+                "github", 20002, "Token is not belong to this account.", value
+            ),
+        )
 
-    if len([repo for repo in g.search_repositories(query='iiidevops in:name')]) == 0:
+    if len([repo for repo in g.search_repositories(query="iiidevops in:name")]) == 0:
         raise apiError.DevOpsError(
             400,
-            'Token is not belong to this project(iiidevops).',
-            apiError.error_with_alert_code("github", 20003, 'Token is not belong to this project(iiidevops).', value))
+            "Token is not belong to this project(iiidevops).",
+            apiError.error_with_alert_code(
+                "github",
+                20003,
+                "Token is not belong to this project(iiidevops).",
+                value,
+            ),
+        )
 
 
 def docker_image_pull_limit_alert():
