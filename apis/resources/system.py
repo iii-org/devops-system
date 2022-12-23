@@ -95,7 +95,7 @@ def system_git_commit_id():
             git_tag = f.read().splitlines()[0]
     if os.path.exists("git_date"):
         with open("git_date") as f:
-            git_date = datetime.strptime(f.read().splitlines()[0], '%Y-%m-%d %H:%M:%S %z')
+            git_date = str(datetime.strptime(f.read().splitlines()[0], '%Y-%m-%d %H:%M:%S %z'))
     return {"git_commit_id": git_commit_id, "git_tag": git_tag, "git_date": git_date}
 
 
