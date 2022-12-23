@@ -1,3 +1,5 @@
+from typing import Any, Optional, Union
+
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required
 import config
@@ -80,20 +82,27 @@ def update_system_parameter(id, args):
     db.session.commit()
 
 
-def get_github_verify_execute_status():
-    ret = get_lock_status("execute_sync_templ")
+def get_github_verify_execute_status() -> dict[str, Any]:
+    ret: dict[str, Union[str, bool, datetime, dict[str, bool]]] = get_lock_status("execute_sync_templ")
 
     # Get log info
-    output = get_github_verify_log()
-    if output is None:
+    get_log: Optional[str] = get_github_verify_log()
+
+    if get_log is None:
+        # Log not found
         return ret
 
-    output_list = output.split("----------------------------------------")
+    output_list: list[str] = get_log.split("----------------------------------------")
 
-    run_time = output_list[1].split("\n")[1]
+    try:
+        run_time: str = output_list[1].strip().split("\n")[0]
+    except IndexError:
+        # Log file is corrupted
+        return ret
+
     if run_time is not None:
-        run_time = datetime.strptime(run_time[:-4], "%a %d %b %Y %I:%M:%S %p")
-        delta = run_time - ret["sync_date"]
+        first_time: datetime = datetime.strptime(run_time[:-4], "%a %d %b %Y %I:%M:%S %p")
+        delta: timedelta = first_time - ret["sync_date"]
 
         # Check the log is previous run
         if delta.total_seconds() < 90:
@@ -101,46 +110,60 @@ def get_github_verify_execute_status():
 
             # Check the first stage is done
             ret["status"]["first_stage"] = (
-                output_list[-2].replace("\n", "").endswith("SUCCESS")
+                output_list[-2].strip().endswith("SUCCESS")
             )
 
             # Check the second stage is done
             ret["status"]["second_stage"] = (
-                output_list[-1].replace("\n", "").endswith("SUCCESS")
+                output_list[-1].strip().endswith("SUCCESS")
             )
 
-    ret["sync_date"] = str(ret["sync_date"])
     return ret
 
 
-def execute_sync_template_by_perl(cmd, name):
-    update_lock_status("execute_sync_templ", is_lock=True, sync_date=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
-    deployer_node_ip = config.get('DEPLOYER_NODE_IP')
+def execute_sync_template_by_perl(cmd: str, name: str) -> None:
+    update_lock_status(
+        "execute_sync_templ",
+        is_lock=True,
+        sync_date=datetime.utcnow(),
+    )
+
+    deployer_node_ip: Optional[str] = config.get("DEPLOYER_NODE_IP")
     if deployer_node_ip is None:
-        # get the k8s cluster the oldest node ip
-        deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
+        deployer_node_ip: str = kubernetesClient.get_the_oldest_node()[0]
 
-    value = SystemParameter.query.filter_by(name=name).first().value
-    args = f'{value["account"]}:{value["token"]}'
-    cmd = f"perl {cmd} {args} > /iiidevopsNFS/api-logs/sync-github-templ-api.log 2>&1"
-    util.ssh_to_node_by_key(cmd, deployer_node_ip)
-    update_lock_status("execute_sync_templ", is_lock=False, sync_date=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
+    value: dict = SystemParameter.query.filter_by(name=name).first().value
+    command: str = (
+        f"perl {cmd} {value['account']}:{value['token']}"
+        f" > /iiidevopsNFS/api-logs/sync-github-templ-api.log 2>&1"
+    )
+
+    util.ssh_to_node_by_key(command, deployer_node_ip)
+    update_lock_status(
+        "execute_sync_templ",
+        is_lock=False,
+        sync_date=datetime.utcnow(),
+    )
 
 
-def ex_system_parameter(name):
+def ex_system_parameter(name: str) -> None:
     if name == "github_verify_info":
-
-        thread = threading.Thread(target=execute_sync_template_by_perl, args=(
-            "/home/rkeuser/deploy-devops/bin/sync-github-templ.pl", "github_verify_info", ))
+        thread = threading.Thread(
+            target=execute_sync_template_by_perl,
+            args=(
+                "/home/rkeuser/deploy-devops/bin/sync-github-templ.pl",
+                "github_verify_info",
+            ),
+        )
         thread.start()
 
 
-def get_github_verify_log():
-    file_path = "logs/sync-github-templ-api.log"
+def get_github_verify_log() -> Optional[str]:
+    file_path: str = "logs/sync-github-templ-api.log"
     if not os.path.isfile(file_path):
         return None
     with open(file_path, "r") as f:
-        output = f.read()
+        output: str = f.read()
     return output
 
 
@@ -324,7 +347,11 @@ class SystemParameters(Resource):
 class ParameterGithubVerifyExecuteStatus(Resource):
     @jwt_required()
     def get(self):
-        return util.success(get_github_verify_execute_status())
+        ret: dict[
+            str, Union[str, bool, datetime, dict[str, bool]]
+        ] = get_github_verify_execute_status()
+        ret["sync_date"] = ret["sync_date"].isoformat()
+        return util.success(ret)
 
 
 class SyncTemplateWebsocketLog(Namespace):
