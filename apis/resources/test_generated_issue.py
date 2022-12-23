@@ -170,7 +170,7 @@ def tgi_create_issue(args, software_name, file_name, branch, commit_id, result_t
 
 
 def _cst_now_string():
-    return (datetime.utcnow().replace(tzinfo=tz.tzutc()).astimezone(
+    return (datetime.utcnow().isoformat().replace(tzinfo=tz.tzutc()).astimezone(
         tz.gettz('Asia/Taipei'))).strftime("%Y-%m-%d %H:%M:%S")
 
 

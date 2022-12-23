@@ -2010,14 +2010,14 @@ def get_parameters_by_param_id(parameters_id):
 def del_parameters_by_param_id(parameters_id):
     row = model.Parameters.query.filter_by(id=parameters_id).one()
     row.disabled = True
-    row.update_at = datetime.utcnow()
+    row.update_at = datetime.utcnow().isoformat()
     db.session.commit()
     return row_to_dict(row)
 
 
 def modify_parameters_by_param_id(parameters_id, args):
     row = model.Parameters.query.filter_by(id=parameters_id).one()
-    row.update_at = datetime.utcnow()
+    row.update_at = datetime.utcnow().isoformat()
     row.parameter_type_id = args['parameter_type_id']
     row.name = args['name']
     row.description = args['description']
@@ -2044,8 +2044,8 @@ def post_parameters_by_issue_id(issue_id, args):
         description=args['description'],
         limitation=args['limitation'],
         length=args['length'],
-        create_at=datetime.utcnow(),
-        update_at=datetime.utcnow()
+        create_at=datetime.utcnow().isoformat(),
+        update_at=datetime.utcnow().isoformat()
     )
     db.session.add(new)
     db.session.commit()
@@ -2089,7 +2089,7 @@ def get_flow_by_flow_id(flow_id):
 def disabled_flow_by_flow_id(flow_id):
     f = model.Flows.query.filter_by(id=flow_id).one()
     f.disabled = True
-    f.update_at = datetime.utcnow()
+    f.update_at = datetime.utcnow().isoformat()
     db.session.commit()
     return {'last_modified': f.update_at}
 
@@ -2100,7 +2100,7 @@ def modify_flow_by_flow_id(flow_id, args):
     f.name = args['name'],
     f.description = args['description'],
     f.serial_id = args['serial_id'],
-    f.update_at = datetime.utcnow()
+    f.update_at = datetime.utcnow().isoformat()
     db.session.commit()
     return {'last_modified': f.update_at}
 
@@ -2133,8 +2133,8 @@ def post_flow_by_requirement_id(issue_id, requirement_id, args):
         name=args['name'],
         description=args['description'],
         serial_id=serial_number,
-        create_at=datetime.utcnow(),
-        update_at=datetime.utcnow())
+        create_at=datetime.utcnow().isoformat(),
+        update_at=datetime.utcnow().isoformat())
     db.session.add(new)
     db.session.commit()
     return {'flow_id': new.id}
@@ -2165,14 +2165,14 @@ def get_requirement_by_rqmt_id(requirement_id):
 def del_requirement_by_rqmt_id(requirement_id):
     r = model.Requirements.query.filter_by(id=requirement_id).first()
     r.disabled = True
-    r.update_at = datetime.utcnow()
+    r.update_at = datetime.utcnow().isoformat()
     db.session.commit()
     return row_to_dict(r)
 
 
 def modify_requirement_by_rqmt_id(requirement_id, args):
     r = model.Requirements.query.filter_by(id=requirement_id).first()
-    r.update_at = datetime.utcnow()
+    r.update_at = datetime.utcnow().isoformat()
     r.flow_info = _deal_with_json(args['flow_info'])
     db.session.commit()
     return row_to_dict(r)
@@ -2191,8 +2191,8 @@ def post_requirement_by_issue_id(issue_id, args):
     new = model.Requirements(
         project_id=args['project_id'],
         issue_id=issue_id,
-        create_at=datetime.utcnow(),
-        update_at=datetime.utcnow())
+        create_at=datetime.utcnow().isoformat(),
+        update_at=datetime.utcnow().isoformat())
     db.session.add(new)
     db.session.commit()
     return {'requirement_id': new.id}
@@ -2429,7 +2429,7 @@ class DownloadIssueAsExcel():
             self.__update_lock_download_issues(is_lock=False, sync_date=None)
 
     def __now_time(self):
-        return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S")
 
     def __append_main_issue(self):
         print(self.args)

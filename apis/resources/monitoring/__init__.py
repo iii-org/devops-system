@@ -405,7 +405,7 @@ def generate_alive_response(name: str) -> dict[str, Any]:
         "name": name,
         "status": mapping[name](),
         "message": monitoring.error_message,
-        "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+        "datetime": datetime.utcnow().isoformat().strftime(DATETIMEFORMAT),
     }
 
 
@@ -427,7 +427,7 @@ def create_monitoring_record(args):
         server=args["server"],
         message=args["message"],
         detail=args.get("detail", {}),
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow().isoformat()
     )
     db.session.add(row)
     db.session.commit()
@@ -502,7 +502,7 @@ def docker_image_pull_limit_alert():
             "status": False,
             "remain_limit": 0,
             "message": "Can not get all nodes' pull limit info.",
-            "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+            "datetime": datetime.utcnow().isoformat().strftime(DATETIMEFORMAT),
         }
     error_nodes_message = []
     for node_info in nodes_info:
@@ -518,7 +518,7 @@ def docker_image_pull_limit_alert():
         "error_title": "Harbor pull limit exceed",
         "status": error_nodes_message == [],
         "message": "\n".join(error_nodes_message),
-        "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+        "datetime": datetime.utcnow().isoformat().strftime(DATETIMEFORMAT),
     }
 
 
@@ -537,7 +537,7 @@ def harbor_nfs_storage_remain_limit():
             "used": None,
             "avail": None,
             "message": "Can not get all nodes' nft storage.",
-            "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+            "datetime": datetime.utcnow().isoformat().strftime(DATETIMEFORMAT),
         }
     error_nodes_message = []
     for node_storage_info in nodes_storage_info:
@@ -555,7 +555,7 @@ def harbor_nfs_storage_remain_limit():
         "error_title": "Harbor NFS out of storage",
         "status": error_nodes_message == [],
         "message": "\n".join(error_nodes_message),
-        "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+        "datetime": datetime.utcnow().isoformat().strftime(DATETIMEFORMAT),
     }
 
 
@@ -627,7 +627,7 @@ def rancher_pod_restart_times_outoflimits():
     if not condition.active or condition.active is None:
         raise apiError.DevOpsError(404, "k8s_pod_restart_times_limit.active is null or false in system_parameter table.")
     limit_times = condition.value["limit_times"]
-    last_hour = datetime.utcnow() - timedelta(hours=1)
+    last_hour = datetime.utcnow().isoformat() - timedelta(hours=1)
     limit_hour = last_hour.strftime("%Y-%m-%d %H:00:00")
     data_collections = ServerDataCollection.query.filter_by(
         type_id=1).filter(ServerDataCollection.collect_at >= limit_hour)

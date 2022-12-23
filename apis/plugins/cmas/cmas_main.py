@@ -81,7 +81,7 @@ class CMAS(object):
 
                 self.task.scan_final_status = "SUCCESS"
                 self.task.finished = True
-                self.task.finished_at = datetime.datetime.utcnow()
+                self.task.finished_at = datetime.datetime.utcnow().isoformat()
                 self.task.filenames = {"pdf": pdf_file, "json": json_file}
                 self.task.stats = self.__pharse_state_info()
                 db.session.commit()
@@ -250,7 +250,7 @@ def create_task(args, repository_id):
         repo_id=repository_id,
         branch=args['branch'],
         commit_id=args['commit_id'],
-        run_at=datetime.datetime.utcnow(),
+        run_at=datetime.datetime.utcnow().isoformat(),
         scan_final_status=None,
         finished=False,
         a_mode=args['a_mode'],
@@ -289,7 +289,7 @@ def remove_apk():
         for path in os.walk(super_path):
             apk_path = f"{path[0]}/app-debug.apk"
             if os.path.isfile(apk_path):
-                current_time = datetime.utcnow()
+                current_time = datetime.utcnow().isoformat()
                 apk_datetime = datetime.fromtimestamp(os.path.getctime(apk_path))
                 if (current_time - apk_datetime).total_seconds() > 60 * 60 * 24:
                     print(apk_path)

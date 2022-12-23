@@ -321,7 +321,7 @@ def update_user(user_id, args, from_ad=False):
         if from_ad:
             user.update_at = args['update_at']
         else:
-            user.update_at = util.date_to_str(datetime.datetime.utcnow())
+            user.update_at = util.date_to_str(datetime.datetime.utcnow().isoformat())
 
         if user.from_ad and not from_ad:
             return util.respond(400, 'Error when updating Message',
@@ -710,7 +710,7 @@ def change_user_status(user_id, args):
         disabled = True
     try:
         user = model.User.query.filter_by(id=user_id).one()
-        user.update_at = datetime.datetime.utcnow()
+        user.update_at = datetime.datetime.utcnow().isoformat()
         user.disabled = disabled
         db.session.commit()
         return util.success()
@@ -905,7 +905,7 @@ def create_user(args):
             title=title,
             department=department,
             password=h.hexdigest(),
-            create_at=datetime.datetime.utcnow(),
+            create_at=datetime.datetime.utcnow().isoformat(),
             disabled=disabled,
             from_ad=('from_ad' in args) and (args['from_ad'])
         )
@@ -1066,7 +1066,7 @@ def user_sa_config(user_id):
 def save_last_login(user):
 
     if user is not None:
-        user.last_login = datetime.datetime.utcnow()
+        user.last_login = datetime.datetime.utcnow().isoformat()
         db.session.commit()
 
 

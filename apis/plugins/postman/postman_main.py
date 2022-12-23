@@ -119,7 +119,7 @@ def pm_create_scan(args):
         branch=args['branch'],
         commit_id=args['commit_id'],
         logs=args.get("logs", ""),
-        run_at=datetime.utcnow()
+        run_at=datetime.utcnow().isoformat()
     )
     db.session.add(new)
     db.session.commit()

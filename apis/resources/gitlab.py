@@ -692,7 +692,7 @@ class GitLab(object):
         if show_commit_rows is not None:
             for x in range(12, 169, 12):
                 out_list = []
-                days_ago = (datetime.utcnow() - timedelta(days=x)).isoformat()
+                days_ago = (datetime.utcnow().isoformat() - timedelta(days=x)).isoformat()
                 pjs = self.__get_projects_by_repo_or_by_user(git_repository_id, user_id)
                 out_list = self.__get_projects_commit(pjs, out_list, branch_name, days_ago)
                 if len(out_list) > show_commit_rows - 1:
@@ -701,7 +701,7 @@ class GitLab(object):
         else:
             if the_last_hours is None:
                 the_last_hours = 24
-            days_ago = (datetime.utcnow() -
+            days_ago = (datetime.utcnow().isoformat() -
                         timedelta(hours=the_last_hours)).isoformat()
             pjs = self.__get_projects_by_repo_or_by_user(git_repository_id, user_id)
             out_list = self.__get_projects_commit(pjs, out_list, branch_name, days_ago)
@@ -725,14 +725,14 @@ class GitLab(object):
                     commit_number = total_commit_number - the_last_time_total_commit_number
                     if commit_number < 0:
                         commit_number = 0
-                now_time = datetime.utcnow() + timedelta(hours=timezone_hours_number)
+                now_time = datetime.utcnow().isoformat() + timedelta(hours=timezone_hours_number)
                 one_row_data = GitCommitNumberEachDays(
                     repo_id=pj.id,
                     repo_name=pj.name,
                     date=now_time.date(),
                     commit_number=commit_number,
                     total_commit_number=total_commit_number,
-                    created_at=str(datetime.utcnow()))
+                    created_at=str(datetime.utcnow().isoformat()))
                 db.session.add(one_row_data)
                 db.session.commit()
 
@@ -833,7 +833,7 @@ class GitLab(object):
 
         # Initialize varialbe
         base_path = "logs/git_commit_history"
-        datetime_now = datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT)
+        datetime_now = datetime.utcnow().isoformat().strftime(GITLAB_DATETIME_FORMAT)
         date = datetime_now[:10]
         keep_days = git_commit_history.value["keep_days"]
 
@@ -930,7 +930,6 @@ def get_commit_issues_relation(project_id, issue_id, limit):
     commit_issues_relations = model.IssueCommitRelation.query.filter(model.IssueCommitRelation.project_id.in_(tuple(relation_project_list))). \
         filter(model.IssueCommitRelation.issue_ids.contains([int(issue_id)])).order_by(
             desc(model.IssueCommitRelation.commit_time)).limit(limit).all()
-
     return [{
         "commit_id": commit_issues_relation.commit_id,
         "pj_name": model.Project.query.get(commit_issues_relation.project_id).name,
@@ -938,7 +937,7 @@ def get_commit_issues_relation(project_id, issue_id, limit):
         "author_name": commit_issues_relation.author_name,
         "commit_message": commit_issues_relation.commit_message,
         "commit_title": commit_issues_relation.commit_title,
-        "commit_time": str(commit_issues_relation.commit_time),
+        "commit_time": str(commit_issues_relation.commit_time.isoformat()),
         "branch": commit_issues_relation.branch,
         "web_url": commit_issues_relation.web_url if account_is_gitlab_project_memeber(commit_issues_relation.project_id, account) else None,
         "created_at": str(commit_issues_relation.created_at),
@@ -996,8 +995,8 @@ def sync_commit_issues_relation(project_id):
                         commit_time=datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"),
                         web_url=commit["web_url"],
                         branch=br.name,
-                        created_at=datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT),
-                        updated_at=datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT),
+                        created_at=datetime.utcnow().isoformat().strftime(GITLAB_DATETIME_FORMAT),
+                        updated_at=datetime.utcnow().isoformat().strftime(GITLAB_DATETIME_FORMAT),
                     )
                     model.db.session.add(new)
                     model.db.session.commit()
@@ -1607,7 +1606,7 @@ class GitlabSourceCodeV2(MethodResource):
         ).first()
         update_dict = {"branch": kwargs["branch_name"], "commit_id": kwargs["commit_id"], "project_id": project_query.id,
                        "source_code_num": kwargs["source_code_num"],
-                       "updated_at": datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT)}
+                       "updated_at": datetime.utcnow().isoformat().strftime(GITLAB_DATETIME_FORMAT)}
         result = get_source_code_info(kwargs["repo_name"], kwargs["branch_name"])
         if result:
             try:

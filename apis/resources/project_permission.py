@@ -148,8 +148,8 @@ def create_project_issue_check(project_id):
             project_id=project_id,
             enable=True,
             need_fatherissue_trackers=NeedFatherissueTrackers,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.utcnow().isoformat(),
+            updated_at=datetime.utcnow().isoformat(),
         )
         db.session.add(row)
     else:
