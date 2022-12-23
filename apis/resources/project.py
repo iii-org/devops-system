@@ -131,7 +131,7 @@ def  get_project_list(user_id, role="simple", args={}, disable=None, sync=False)
             except (ResourceNotFoundError , ForbiddenError):
                 # When Redmin project was missing
                 sync_project.lock_project(nexus_project.name, "Redmine")
-                rm_project = {"updated_on": datetime.utcnow().isoformat(), "id": -1}
+                rm_project = {"updated_on": datetime.utcnow(), "id": -1}
             nexus_project = nexus_project.fill_pm_extra_fields(rm_project, user_name, sync)
         if extra_data:
             nexus_project = nexus_project.fill_extra_fields()
@@ -400,7 +400,7 @@ def create_project(user_id, args):
             disabled=args['disabled'],
             start_date=args['start_date'],
             due_date=args['due_date'],
-            create_at=str(datetime.utcnow().isoformat()),
+            create_at=str(datetime.utcnow()),
             owner_id=owner_id,
             creator_id=user_id,
             base_example=template_pj_path,
@@ -430,7 +430,7 @@ def create_project(user_id, args):
             new_father_son_relation = model.ProjectParentSonRelation(
                 parent_id=args.get('parent_id'),
                 son_id=project_id,
-                created_at=datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S")
+                created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             )
             db.session.add(new_father_son_relation)
             db.session.commit()
@@ -596,14 +596,14 @@ def pm_update_project(project_id, args):
                 new_father_son_relation = model.ProjectParentSonRelation(
                     parent_id=int(args.get('parent_id')),
                     son_id=project_id,
-                    created_at=datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S")
+                    created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                 )
                 db.session.add(new_father_son_relation)
         else:
             if args.get('parent_plan_project_id') != "":
                 project_relation = project_relation.first()
                 project_relation.parent_id = int(args.get('parent_id'))
-                project_relation.created_at = datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S")
+                project_relation.created_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             else:
                 project_relation.delete()
         db.session.commit()
@@ -1255,7 +1255,7 @@ def put_kubernetes_namespace_deployment(project_id, name):
         project_name, name)
     if deployment_info.spec.template.metadata.annotations is not None:
         deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(
-            datetime.utcnow().isoformat())
+            datetime.utcnow())
     project_deployment = kubernetesClient.update_namespace_deployment(
         project_name, name, deployment_info)
     return util.success(project_deployment.metadata.name)

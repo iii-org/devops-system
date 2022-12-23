@@ -404,15 +404,15 @@ class AWSEngine():
 
 def get_certain_date_from_now(days):
     return datetime.combine(
-        (datetime.utcnow().isoformat() - timedelta(days=days)), d_time(00, 00))
+        (datetime.utcnow() - timedelta(days=days)), d_time(00, 00))
 
 
 def get_few_months_ago_utc_datetime(month_number):
-    x_months_ago_date_time = datetime.utcnow().isoformat()
+    x_months_ago_date_time = datetime.utcnow()
     if month_number//12 >= 1:
-        x_months_ago_date_time = x_months_ago_date_time.replace(year=datetime.utcnow().isoformat().date().year-month_number//12)
+        x_months_ago_date_time = x_months_ago_date_time.replace(year=datetime.utcnow().date().year-month_number//12)
     if month_number % 12 != 0:
-        x_months_ago_date_time = x_months_ago_date_time.replace(month=datetime.utcnow().isoformat().date().month-month_number % 12)
+        x_months_ago_date_time = x_months_ago_date_time.replace(month=datetime.utcnow().date().month-month_number % 12)
     return x_months_ago_date_time
 
 class obj:

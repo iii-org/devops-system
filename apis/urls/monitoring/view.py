@@ -232,7 +232,7 @@ class K8sAlive(Resource):
 class CollectPodRestartTimeV2(MethodResource):
     @doc(tags=['Monitoring'], description="Collect K8s pods' restart time.")
     def post(self):
-        collect_at = datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:00:00")
+        collect_at = datetime.utcnow().strftime("%Y-%m-%d %H:00:00")
         for pj in Project.query.all():
             project_pods = list_namespace_pods_info(pj.name)
             if project_pods == []:
@@ -247,7 +247,7 @@ class CollectPodRestartTimeV2(MethodResource):
                             "containers_name": container["name"],
                         },
                         value={"value": container["restart"]},
-                        create_at=datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S"),
+                        create_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                         collect_at=collect_at
                     )
                     db.session.add(row)
@@ -255,14 +255,14 @@ class CollectPodRestartTimeV2(MethodResource):
 
     @doc(tags=['Monitoring'], description="Delete out of time limit pods.")
     def delete(self):
-        expired_date = datetime.utcnow().isoformat() - timedelta(days=30)
+        expired_date = datetime.utcnow() - timedelta(days=30)
         ServerDataCollection.query.filter_by(type_id=1).filter(ServerDataCollection.create_at <= expired_date).delete()
         db.session.commit()
 
 
 class CollectPodRestartTime(Resource):
     def post(self):
-        collect_at = datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:00:00")
+        collect_at = datetime.utcnow().strftime("%Y-%m-%d %H:00:00")
         for pj in Project.query.all():
             project_pods = list_namespace_pods_info(pj.name)
             if project_pods == []:
@@ -277,14 +277,14 @@ class CollectPodRestartTime(Resource):
                             "containers_name": container["name"],
                         },
                         value={"value": container["restart"]},
-                        create_at=datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S"),
+                        create_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                         collect_at=collect_at
                     )
                     db.session.add(row)
                     db.session.commit()
 
     def delete(self):
-        expired_date = datetime.utcnow().isoformat() - timedelta(days=30)
+        expired_date = datetime.utcnow() - timedelta(days=30)
         ServerDataCollection.query.filter_by(type_id=1).filter(ServerDataCollection.create_at <= expired_date).delete()
         db.session.commit()
 

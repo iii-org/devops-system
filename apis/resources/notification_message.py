@@ -212,8 +212,8 @@ def create_notification_message(args, user_id=None):
         message_parameter=args.get("message_parameter"),
         message=args['message'],
         creator_id=user_id,
-        created_at=datetime.utcnow().isoformat(),
-        updated_at=datetime.utcnow().isoformat(),
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
         close=False
     )
     db.session.add(row)
@@ -256,7 +256,7 @@ def create_notification_message_reply_slip(user_id, args):
         row = NotificationMessageReply(
             message_id=message_id,
             user_id=user_id,
-            created_at=datetime.utcnow().isoformat(),
+            created_at=datetime.utcnow(),
         )
         row_list.append(row)
     db.session.add_all(row_list)

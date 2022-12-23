@@ -1037,11 +1037,11 @@ def update_deployment_image_tag(namespace, deployment_name, new_image_tag):
     parts[-1] = new_image_tag
     if deployment.spec.template.metadata.annotations is None:
         deployment.spec.template.metadata.annotations = {
-            'iiidevops_redeploy_at': str(datetime.utcnow().isoformat())
+            'iiidevops_redeploy_at': str(datetime.utcnow())
         }
     else:
         deployment.spec.template.metadata.annotations[
-            "iiidevops_redeploy_at"] = str(datetime.utcnow().isoformat())
+            "iiidevops_redeploy_at"] = str(datetime.utcnow())
     deployment.spec.template.spec.containers[0].image = ':'.join(parts)
     update_namespace_deployment(namespace, deployment_name, deployment)
 
@@ -1328,7 +1328,7 @@ def update_dev_environment_by_branch(namespace, branch_name):
             if is_iii and branch_name == deployment.spec.template.metadata.annotations[
                     iii_template['branch']]:
                 deployment.spec.template.metadata.annotations[
-                    "iiidevops_redeploy_at"] = str(datetime.utcnow().isoformat())
+                    "iiidevops_redeploy_at"] = str(datetime.utcnow())
                 update_namespace_deployment(namespace,
                                             deployment.metadata.name,
                                             deployment)
@@ -1344,7 +1344,7 @@ def redeploy_deployment(namespace, deployment_name):
         if deploy.spec.template.metadata.annotations is None:
             deploy.spec.template.metadata.annotations = {}
         deploy.spec.template.metadata.annotations[
-            f"{deployment_name}_redeploy_at"] = str(datetime.utcnow().isoformat())
+            f"{deployment_name}_redeploy_at"] = str(datetime.utcnow())
         update_namespace_deployment(namespace, deployment_name, deploy)
     except apiError.DevOpsError as e:
         if e.status_code != 404:

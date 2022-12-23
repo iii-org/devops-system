@@ -581,16 +581,16 @@ class Rancher(object):
         self.__check_app_deleted(delete_app_list)
 
     def __check_app_deleted(self, delete_app_list):
-        now_time = datetime.utcnow().isoformat() + timedelta(minutes=1)
+        now_time = datetime.utcnow() + timedelta(minutes=1)
         for name in delete_app_list:
             data = self.rc_get_app_by_name(name)
             while data != []:
-                if now_time <= datetime.utcnow().isoformat():
+                if now_time <= datetime.utcnow():
                     raise TimeoutError("end in time.")
                 data = self.rc_get_app_by_name(name)
 
     def rc_count_each_pj_piplines_by_days(self):
-        day_start = datetime.combine((datetime.utcnow().isoformat() - timedelta(days=1)), d_time(00, 00))
+        day_start = datetime.combine((datetime.utcnow() - timedelta(days=1)), d_time(00, 00))
         project_plugin_relations = ProjectPluginRelation.query.with_entities(
             ProjectPluginRelation.project_id, ProjectPluginRelation.ci_project_id,
             ProjectPluginRelation.ci_pipeline_id
@@ -609,7 +609,7 @@ class Rancher(object):
                 project_id=project_plugin_relation.project_id,
                 date=day_start.date(),
                 pipline_number=pipline_number,
-                created_at=str(datetime.utcnow().isoformat())
+                created_at=str(datetime.utcnow())
             )
             db.session.add(one_raw_data)
             db.session.commit()

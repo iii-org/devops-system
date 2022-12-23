@@ -286,7 +286,7 @@ def hb_list_artifacts_with_params_helper(project_name, repository_name, args, pu
     page = args.get("page", 1)
     params = {'with_scan_overview': True, 'with_tag': True, "page": page, "page_size": page_size}
     if push_time is not None:
-        now_time = datetime.utcnow().isoformat().strftime("%Y-%m-%dT%H:%M:%S")
+        now_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
         params["q"] = f'push_time=[{push_time}~{now_time}]'
     artifacts = __api_get(f'/projects/{project_name}/repositories'
                           f'/{__encode(repository_name)}/artifacts',

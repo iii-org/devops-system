@@ -79,7 +79,7 @@ def update_template(id, name, description):
     row.template_repository_id = new_template_project.id
     row.template_repository_name = pipe_json_temp_name
     row.creator_id = get_jwt_identity()['user_id']
-    row.updated_at = datetime.utcnow().isoformat()
+    row.updated_at = datetime.utcnow()
     row.from_project_name = nx_get_project(id=row.from_project_id).display
     db.session.commit()
 
@@ -129,7 +129,7 @@ def create_template_from_project(from_project_id, name, description):
     tm = TemplateProject(template_repository_id=template_project.id, template_repository_name=pipe_json_temp_name,
                          from_project_id=from_project_id, from_project_name=nx_get_project(id=from_project_id).display,
                          creator_id=get_jwt_identity()["user_id"],
-                         created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
+                         created_at=datetime.utcnow(), updated_at=datetime.utcnow())
     db.session.add(tm)
     db.session.commit()
     return {"id": tm.id}

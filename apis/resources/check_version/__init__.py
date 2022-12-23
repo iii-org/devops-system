@@ -45,7 +45,7 @@ def update_project_pipeline_version(pj_id, version=None, status=None, message=No
         row.status = status
     if message is not None:
         row.message = message
-    row.updated_at = datetime.utcnow().isoformat()
+    row.updated_at = datetime.utcnow()
     db.session.commit()
 
 

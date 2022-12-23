@@ -98,8 +98,8 @@ def create_release(project_id, args, versions, issues, branch_name, release_name
         tag_name=release_name,
         note=args.get('note'),
         creator_id=user_id,
-        create_at=str(datetime.utcnow().isoformat()),
-        update_at=str(datetime.utcnow().isoformat()),
+        create_at=str(datetime.utcnow()),
+        update_at=str(datetime.utcnow()),
         image_paths=image_path
     )
     db.session.add(new)
@@ -278,7 +278,7 @@ def create_release_image_repo(project_id, release_id, args):
         before_update_at = release.update_at
         repo_list = [hb_repo["name"].split("/")[-1] for hb_repo in hb_list_repositories(project_name)]
         if model.ReleaseRepoTag.query.filter_by(release_id=release.id, tag=dest_tag, custom_path=dest_repo).first() is None:
-            release.update_at = str(datetime.utcnow().isoformat())
+            release.update_at = str(datetime.utcnow())
             new = model.ReleaseRepoTag(
                 release_id=release.id, tag=dest_tag, custom_path=dest_repo
             )
@@ -325,7 +325,7 @@ def delete_release_image_repo(project_id: int, release_id: int, args: dict):
         model.ReleaseRepoTag.query.filter_by(
             release_id=release_id, custom_path=target_repo
         ).delete()
-        release.update_at = datetime.utcnow().isoformat()
+        release.update_at = datetime.utcnow()
         db.session.commit()
 
         digest: str = hb_get_artifact(project.name, release.branch, release.tag_name)[
@@ -404,7 +404,7 @@ def add_release_tag(project_id: int, release_id: int, args: dict[str, Any]):
         repo_tag.custom_path = _repos[0]
         db.session.add(repo_tag)
 
-        release.update_at = datetime.utcnow().isoformat()
+        release.update_at = datetime.utcnow()
         db.session.commit()
 
         digest: str = hb_get_artifact(project_name, project_name, release.tag_name)[0][
@@ -465,7 +465,7 @@ def delete_release_tag(project_id: int, release_id: int, args: dict[str, Any]):
         model.ReleaseRepoTag.query.filter_by(
             release_id=release_id, tag=target_label
         ).delete()
-        release.update_at = datetime.utcnow().isoformat()
+        release.update_at = datetime.utcnow()
         db.session.commit()
 
         # Then add tag on all image_path

@@ -49,7 +49,7 @@ def sd_start_test(args):
         status='Scanning',
         result=None,
         report=None,
-        run_at=datetime.utcnow().isoformat()
+        run_at=datetime.utcnow()
     )
     model.db.session.add(new)
     model.db.session.commit()
@@ -63,7 +63,7 @@ def sd_finish_test(args):
     row.status = 'Finished'
     row.result = args['result']
     row.report = args['report']
-    row.finished_at = datetime.utcnow().isoformat()
+    row.finished_at = datetime.utcnow()
     model.db.session.add(row)
     model.db.session.commit()
     tgi_feed_sideex(row)
@@ -112,7 +112,7 @@ def sd_get_latest_test(project_id):
 def process_row(row, project_id):
     # 12 hour timeout
     if row.status == 'Scanning' and \
-        datetime.utcnow().isoformat() - row.run_at > timedelta(hours=1):
+        datetime.utcnow() - row.run_at > timedelta(hours=1):
         row.status = 'Failed'
         model.db.session.commit()
     r = json.loads(str(row))

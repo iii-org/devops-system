@@ -115,7 +115,7 @@ def sync_project_relation():
     hours = int(model.SystemParameter.query.filter_by(name="sync_redmine_project_relation").one().value["hours"])
     if hours == 0:
         return
-    default_sync_date = datetime.utcnow().isoformat()
+    default_sync_date = datetime.utcnow()
     current_hour = default_sync_date.hour
     project_relations = model.ProjectParentSonRelation.query.limit(1).all()
     if current_hour % hours != 0:

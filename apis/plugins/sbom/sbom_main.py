@@ -72,7 +72,7 @@ def get_sboms(project_id):
 def create_sbom(kwargs):
     kwargs.update({
         "project_id": get_pj_id_by_name(kwargs.pop("project_name"))["id"],
-        "created_at": datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S"),
+        "created_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
         "scan_status": "Running"
     })
     row = Sbom(**kwargs)
@@ -89,7 +89,7 @@ def update_sboms(sbom_id, kwargs):
 def parse_sbom_file(sbom_id):
     # Decompress tar
     update_dict = {"finished": True, "scan_status": "Fail",
-        "finished_at": datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S")}
+        "finished_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
 
     sbom = Sbom.query.filter_by(id=sbom_id).first()
     commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
@@ -105,7 +105,7 @@ def parse_sbom_file(sbom_id):
         if os.path.isfile(f"./{file_path}/sbom.tar") and md5 == get_tar_md5(file_path):
             decompress_tarfile(f"{file_path}/sbom.tar", f"{file_path}/")
             update_dict = {"finished": True, "scan_status": "Success",
-                        "finished_at": datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S")}
+                        "finished_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
             update_dict.update(package_num(file_path))
             update_dict.update(scan_overview(file_path, sbom_id))
         else:

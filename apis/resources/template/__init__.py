@@ -63,7 +63,7 @@ def __tm_get_tag_info(pj, tag_name):
         if tag_name is None:
             # Get the last tag
             for tag in tags:
-                seconds = (datetime.utcnow().isoformat() - dateutil.parser.parse(
+                seconds = (datetime.utcnow() - dateutil.parser.parse(
                     tag.commit["committed_date"]).replace(tzinfo=None)
                 ).total_seconds()
                 if seconds < tag_info_dict["commit_time"]:
@@ -246,7 +246,7 @@ def handle_template_cache(pj, group_name, pip_set_json, tag_list):
                                   'display': pip_set_json["name"],
                                   'description': pip_set_json["description"],
                                   'version': tag_list,
-                                  'update_at': datetime.utcnow().isoformat(),
+                                  'update_at': datetime.utcnow(),
                                   'group_name': TEMPLATE_GROUP_DICT.get(group_name)}, default=str)}
 
 
@@ -256,7 +256,7 @@ def update_redis_template_cache(pj, group_name, pip_set_json, tag_list):
                                   'display': pip_set_json["name"],
                                   'description': pip_set_json["description"],
                                   'version': tag_list,
-                                  'update_at': datetime.utcnow().isoformat(),
+                                  'update_at': datetime.utcnow(),
                                   'group_name': TEMPLATE_GROUP_DICT.get(group_name)})
 
 

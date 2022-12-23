@@ -198,7 +198,7 @@ def create_user(ad_user, login_password):
             'update_at': ad_user.get('whenChanged'),
             'from_ad': True,
             'force': True,
-            'last_login': datetime.datetime.utcnow().isoformat()
+            'last_login': datetime.datetime.utcnow()
         }
         res = user_function.create_user(args)
     return res

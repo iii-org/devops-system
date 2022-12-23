@@ -28,7 +28,7 @@ def zap_start_scan(args):
         status='Scanning',
         result=None,
         full_log=None,
-        run_at=datetime.utcnow().isoformat()
+        run_at=datetime.utcnow()
     )
     model.db.session.add(new)
     model.db.session.commit()
@@ -42,7 +42,7 @@ def zap_finish_scan(args):
     row.status = 'Finished'
     row.result = args['result']
     row.full_log = args['full_log']
-    row.finished_at = datetime.utcnow().isoformat()
+    row.finished_at = datetime.utcnow()
     model.db.session.add(row)
     model.db.session.commit()
 
@@ -90,7 +90,7 @@ def zap_get_latest_full_log(project_name):
 def process_row(row, project_id):
     # 12 hour timeout
     if row.status == 'Scanning' and \
-        datetime.utcnow().isoformat() - row.run_at > timedelta(hours=12):
+        datetime.utcnow() - row.run_at > timedelta(hours=12):
         row.status = 'Failed'
         model.db.session.commit()
     r = json.loads(str(row))

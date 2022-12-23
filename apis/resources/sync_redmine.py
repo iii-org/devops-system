@@ -40,7 +40,7 @@ def round_off_float(num):
 
 
 def calculate_expired_days(last):
-    first_date = datetime.utcnow().isoformat().date()
+    first_date = datetime.utcnow().date()
     last_date = datetime.strptime(last, "%Y-%m-%d").date()
     expired_days = (last_date - first_date).days
     return expired_days
@@ -64,7 +64,7 @@ def get_expired_days(project):
 def check_overdue(last):
     if last is not None:
         last_date = datetime.strptime(last, "%Y-%m-%d")
-        if last_date < datetime.utcnow().isoformat():
+        if last_date < datetime.utcnow():
             return True
         else:
             return False
@@ -202,7 +202,7 @@ def insert_all_issues(project_id, sync_date):
 
 
 def get_sync_date():
-    default_sync_date = datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S")
+    default_sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     response = model.RedmineProject.query.order_by(
         model.RedmineProject.sync_date.desc()).distinct().first()
     if response:
@@ -313,7 +313,7 @@ def init_data_first_time():
     Use for the first time to sync redmine(Alembic migratation)
     '''
     clear_all_tables()
-    sync_date = datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S")
+    sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     need_to_track_issue = sync_redmine(sync_date)
     if need_to_track_issue:
         for project_id in need_to_track_issue:
@@ -323,7 +323,7 @@ def init_data_first_time():
 def init_data(now=False):
     try:
         clear_all_tables()
-        sync_date = datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S")
+        sync_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         if now:
             update_lock_redmine(is_lock=True, sync_date=sync_date)
         else:
@@ -526,7 +526,7 @@ class SyncRedmine(Resource):
 class SyncRedmineNow(Resource):
     def get(self):
         lock_redmine = Lock.query.filter_by(name="sync_redmine").first()
-        current_datetime = datetime.utcnow().isoformat()
+        current_datetime = datetime.utcnow()
         caculate_time = current_datetime - lock_redmine.sync_date
 
         if lock_redmine.is_lock and caculate_time.total_seconds() < 15 * 60:

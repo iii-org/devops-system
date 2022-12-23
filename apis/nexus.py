@@ -114,7 +114,7 @@ def nx_update_project(project_id, args):
         if not hasattr(project, key):
             continue
         setattr(project, key, args[key])
-    project.update_at = str(datetime.utcnow().isoformat())
+    project.update_at = str(datetime.utcnow())
     model.db.session.commit()
 
 

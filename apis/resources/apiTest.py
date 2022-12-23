@@ -50,7 +50,7 @@ def del_test_case_by_tc_id(testcase_id):
     t = model.TestCases.query.filter_by(id=testcase_id).filter(
         model.TestCases.disabled.isnot(True)).one()
     t.disabled = True
-    t.update_at = datetime.datetime.utcnow().isoformat()
+    t.update_at = datetime.datetime.utcnow()
     db.session.commit()
     output = {'id': t.id, 'update_at': util.date_to_str(t.update_at)}
     return output
@@ -62,7 +62,7 @@ def modify_test_case_by_tc_id(testcase_id, args):
     t.name = args['name']
     t.description = args['description']
     t.type_id = args['type_id']
-    t.update_at = datetime.datetime.utcnow().isoformat()
+    t.update_at = datetime.datetime.utcnow()
     db.session.commit()
     output = {'id': t.id, 'update_at': util.date_to_str(t.update_at)}
     return output
@@ -104,8 +104,8 @@ def create_test_case(args):
         name=args['name'],
         description=args['description'],
         type_id=args['type_id'],
-        create_at=datetime.datetime.utcnow().isoformat(),
-        update_at=datetime.datetime.utcnow().isoformat(),
+        create_at=datetime.datetime.utcnow(),
+        update_at=datetime.datetime.utcnow(),
         disabled=False
     )
     db.session.add(new)
@@ -121,8 +121,8 @@ def post_test_case_by_issue_id(issue_id, args):
         name=args['name'],
         description=args['description'],
         type_id=args['type_id'],
-        create_at=datetime.datetime.utcnow().isoformat(),
-        update_at=datetime.datetime.utcnow().isoformat(),
+        create_at=datetime.datetime.utcnow(),
+        update_at=datetime.datetime.utcnow(),
         disabled=False
     )
     db.session.add(new)
@@ -138,8 +138,8 @@ def post_test_case_by_project_id(project_id, args):
         name=args['name'],
         description=args['description'],
         type_id=args['type_id'],
-        create_at=datetime.datetime.utcnow().isoformat(),
-        update_at=datetime.datetime.utcnow().isoformat(),
+        create_at=datetime.datetime.utcnow(),
+        update_at=datetime.datetime.utcnow(),
         disabled=False
     )
     db.session.add(new)
@@ -179,7 +179,7 @@ def get_test_item_by_ti_id(testitem_id):
 def del_test_item_by_ti_id(testitem_id):
     row = model.TestItems.query.filter_by(id=testitem_id).one()
     row.disabled = True
-    row.update_at = datetime.datetime.utcnow().isoformat()
+    row.update_at = datetime.datetime.utcnow()
     db.session.commit()
     output = {'id': row.id, 'update_at': util.date_to_str(row.update_at)}
     return output
@@ -189,7 +189,7 @@ def modify_test_item_by_ti_id(testitem_id, args):
     t = model.TestItems.query.filter_by(id=testitem_id).one()
     t.name = args['name']
     t.is_passed = args['is_passed']
-    t.update_at = datetime.datetime.utcnow().isoformat()
+    t.update_at = datetime.datetime.utcnow()
     db.session.commit()
     return {'id': t.id, 'update_at': util.date_to_str(t.update_at)}
 
@@ -211,8 +211,8 @@ def post_testitem_by_tc_id(testcase_id, args):
         issue_id=args['issue_id'],
         name=args['name'],
         is_passed=args['is_passed'],
-        create_at=datetime.datetime.utcnow().isoformat(),
-        update_at=datetime.datetime.utcnow().isoformat(),
+        create_at=datetime.datetime.utcnow(),
+        update_at=datetime.datetime.utcnow(),
         disabled=False
     )
     db.session.add(new)
@@ -282,7 +282,7 @@ def del_test_value_by_tv_id(value_id):
     row = model.TestValues.query.filter_by(id=value_id).filter(
         model.TestValues.disabled.isnot(True)).one()
     row.disabled = True
-    row.update_at = datetime.datetime.utcnow().isoformat()
+    row.update_at = datetime.datetime.utcnow()
     db.session.commit()
     return {'id': row.id, 'update_at': util.date_to_str(row.update_at)}
 
@@ -293,7 +293,7 @@ def modify_test_value(value_id, args):
     v.value = args['value'],
     v.type_id = args['type_id'],
     v.location_id = args['location_id'],
-    v.update_at = datetime.datetime.utcnow().isoformat()
+    v.update_at = datetime.datetime.utcnow()
     db.session.commit()
     return {'id': v.id, 'update_at': util.date_to_str(v.update_at)}
 
@@ -319,8 +319,8 @@ def post_test_value_by_ti_id(item_id, args):
         issue_id=args['issue_id'],
         project_id=args['project_id'],
         disabled=False,
-        create_at=datetime.datetime.utcnow().isoformat(),
-        update_at=datetime.datetime.utcnow().isoformat(),
+        create_at=datetime.datetime.utcnow(),
+        update_at=datetime.datetime.utcnow(),
     )
     db.session.add(new)
     db.session.commit()
