@@ -418,7 +418,7 @@ class TraceList:
         try:
             current_num = 0
             self.update_trace_result(
-                current_num=0, execute_time=datetime.utcnow().isoformat(), finish_time=None, exception=None)
+                current_num=0, execute_time=datetime.utcnow().isoformat().isoformat(), finish_time=None, exception=None)
 
             self.generate_head_mapping()
             current_num += 1
@@ -432,7 +432,7 @@ class TraceList:
             self.generate_final_mapping()
             current_num += 1
             self.update_trace_result(current_num=current_num, results=self.result,
-                                     finish_time=datetime.utcnow().isoformat())
+                                     finish_time=datetime.utcnow().isoformat().isoformat())
         except Exception as e:
             self.update_trace_result(exception=str(e))
         finally:

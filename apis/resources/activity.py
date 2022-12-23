@@ -34,7 +34,7 @@ def record_activity(action_type):
                 operator_id=identity['user_id'],
                 action_type=action_type,
                 operator_name=identity['user_account'],
-                act_at=datetime.utcnow()
+                act_at=datetime.utcnow().isoformat()
             )
             itargs = kwargs.copy()
             for i, key in enumerate(inspect.getfullargspec(fn).args):

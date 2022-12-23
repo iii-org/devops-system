@@ -305,7 +305,7 @@ def update_plugin_config(plugin_name, args):
 
     # Putting here to avoid not commit session error
     db_row.parameter = json.dumps(db_arguments)
-    db_row.update_at = datetime.utcnow()
+    db_row.update_at = datetime.utcnow().isoformat()
     model.db.session.commit()
     if args.get('disabled') is not None:
         if bool(args['disabled']):
@@ -338,8 +338,8 @@ def insert_plugin_row(plugin_name, args):
     new = model.PluginSoftware(
         name=plugin_name,
         disabled=args.get('disabled', False),
-        create_at=datetime.utcnow(),
-        update_at=datetime.utcnow(),
+        create_at=datetime.utcnow().isoformat(),
+        update_at=datetime.utcnow().isoformat(),
         parameter='{}'
     )
     model.db.session.add(new)

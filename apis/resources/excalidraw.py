@@ -66,7 +66,7 @@ def create_excalidraw(args):
     operator_id = get_jwt_identity()['user_id']
     project_id, issue_ids, name = args["project_id"], args.get("issue_ids"), args["name"]
     has_issue_ids = issue_ids is not None
-    datetime_now = datetime.utcnow()
+    datetime_now = datetime.utcnow().isoformat()
     require_in_project(project_id=project_id)
 
     # In case it has duplicate room in db
@@ -212,7 +212,7 @@ def update_excalidraw(excalidraw_id, name=None, issue_ids=None):
         issue_ids = [excalidraw_issue.issue_id
             for excalidraw_issue in excalidraw_issues]
 
-    excalidraw.updated_at = datetime.utcnow()
+    excalidraw.updated_at = datetime.utcnow().isoformat()
     db.session.commit()
 
     return {
@@ -332,7 +332,7 @@ def update_excalidraw_history(excalidraw_id):
     result_list = [row_to_dict(row)for row in rows]
     df_excalidraw = pd.DataFrame(result_list)
     df_merge = pd.merge(df_keyv, df_excalidraw, left_on='key', right_on='room')
-    df_merge['updated_at'] = datetime.utcnow()
+    df_merge['updated_at'] = datetime.utcnow().isoformat()
     df_merge['user_id'] = get_jwt_identity()["user_id"]
     df_export = df_merge[['id', 'user_id', 'updated_at', 'value']]
     df_export.rename(columns={"id": "excalidraw_id"}, inplace=True)
@@ -385,7 +385,7 @@ def add_new_record_to_history(excalidraw_history_id):
 
 
 def add_to_db(add_dict):
-    add_dict['updated_at'] = datetime.utcnow()
+    add_dict['updated_at'] = datetime.utcnow().isoformat()
     add_dict['user_id'] = get_jwt_identity()["user_id"]
     row = ExcalidrawHistory(**add_dict)
     db.session.add(row)

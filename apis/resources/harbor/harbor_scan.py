@@ -25,7 +25,7 @@ def create_harbor_scan(project_name, branch, commit_id):
                 stage_when = pipeline_yaml_OO.RancherPipelineWhen(pipe_dict.get("when").get("branch"))
                 if branch in stage_when.branch.include:
                     scan = HarborScan(project_id=row.id, branch=branch, commit=commit_id,
-                                      created_at=datetime.utcnow(), finished=False)
+                                      created_at=datetime.utcnow().isoformat(), finished=False)
                     db.session.add(scan)
                     db.session.commit()
 
@@ -103,9 +103,9 @@ def harbor_scan_list(project_id, kwargs):
                     scan_report_dict |= scan_report_dict.pop("summary")
                     scan_report_dict |= scan_report_dict.pop("summary")
                 if scan_report_dict.get('complete_percent') == 100:
-                    row.finished_at = datetime.utcnow()
+                    row.finished_at = datetime.utcnow().isoformat()
                     row.finished = True
-                row.updated_at = datetime.utcnow()
+                row.updated_at = datetime.utcnow().isoformat()
                 row.scan_overview = scan_report_dict
                 db.session.commit()
         if row.scan_overview is not None:

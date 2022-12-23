@@ -31,8 +31,8 @@ def insert_into_ui_route_table(ui_route_dict, parent_name, old_brother_name):
                               parent=parent_id,
                               old_brother=old_brother_id,
                               ui_route=new_ui_route,
-                              created_at=datetime.utcnow(),
-                              updated_at=datetime.utcnow())
+                              created_at=datetime.utcnow().isoformat(),
+                              updated_at=datetime.utcnow().isoformat())
         db.session.add(new_row)
         db.session.commit()
     if 'children' in ui_route_dict:
@@ -94,27 +94,27 @@ def create_ui_route_object(name, role, ui_route_json, parent_name, old_brother_n
     if old_brother_id == 0:
         # insert into the first
         new = UIRouteData(name=name, role=role, parent=parent_id, old_brother=0, ui_route=ui_route_json,
-                          created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+                          created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
         db.session.add(new)
         db.session.commit()
         if origin_ui_route:
             origin_ui_route.old_brother = new.id
-            origin_ui_route.updated_at = datetime.utcnow()
+            origin_ui_route.updated_at = datetime.utcnow().isoformat()
             db.session.commit()
     elif origin_ui_route is None:
         # insert into the last
         new = UIRouteData(name=name, role=role, parent=parent_id, old_brother=old_brother_id, ui_route=ui_route_json,
-                          created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+                          created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
         db.session.add(new)
         db.session.commit()
     else:
         # insert into the middle
         new = UIRouteData(name=name, role=role, parent=parent_id, old_brother=old_brother_id, ui_route=ui_route_json,
-                          created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+                          created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
         db.session.add(new)
         db.session.commit()
         origin_ui_route.old_brother = new.id
-        origin_ui_route.updated_at = datetime.utcnow()
+        origin_ui_route.updated_at = datetime.utcnow().isoformat()
         db.session.commit()
 
 
@@ -151,7 +151,7 @@ def put_ui_route_object(name, role, ui_route_json, parent_name=None, old_brother
     else:
         route_row = UIRouteData.query.filter_by(role=role, name=name).first()
         route_row.ui_route = ui_route_json
-        route_row.updated_at = datetime.utcnow()
+        route_row.updated_at = datetime.utcnow().isoformat()
         db.session.commit()
 
 
@@ -172,7 +172,7 @@ def delete_ui_route_object(name, role):
         # on the first
         if young_brother:
             young_brother.old_brother = 0
-            young_brother.updated_at = datetime.utcnow()
+            young_brother.updated_at = datetime.utcnow().isoformat()
             db.session.commit()
     elif young_brother is None:
         # on the last
@@ -180,7 +180,7 @@ def delete_ui_route_object(name, role):
     else:
         # insert into the middle
         young_brother.old_brother = old_brother_id
-        young_brother.updated_at = datetime.utcnow()
+        young_brother.updated_at = datetime.utcnow().isoformat()
         db.session.commit()
 
 

@@ -195,7 +195,7 @@ def get_certain_pj_issue_calc(pj_id):
             "overdue_count": 0,
             "total_count": 0,
             "project_status": "not_started",
-            "updated_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            "updated_time": datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S")
         }
     return json.loads(cal_info)
 
@@ -216,7 +216,7 @@ def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):
     else:
         pj_issue_calc["project_status"] = "in_progress"
 
-    pj_issue_calc["updated_time"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    pj_issue_calc["updated_time"] = datetime.utcnow().isoformat().strftime("%Y-%m-%d %H:%M:%S")
     return redis_op.dict_set_certain(PROJECT_ISSUE_CALCULATE_KEY, pj_id, json.dumps(pj_issue_calc))
 
 

@@ -192,7 +192,7 @@ def save_clusters(args, server_name):
 
 def create_cluster(args, server_name, user_id):
     k8s_json = save_clusters(args, server_name)
-    now = str(datetime.utcnow())
+    now = str(datetime.utcnow().isoformat())
     new = model.Cluster(
         name=server_name,
         disabled=args.get('disabled', False),
@@ -222,7 +222,7 @@ def update_cluster(cluster_id, args):
         cluster.cluster_host = k8s_json['clusters'][0]['cluster']['server'],
         cluster.cluster_user = k8s_json['users'][0]['name']
     cluster.name = server_name
-    cluster.update_at = str(datetime.utcnow())
+    cluster.update_at = str(datetime.utcnow().isoformat())
     db.session.commit()
     return cluster.id
 
@@ -1195,7 +1195,7 @@ def check_k8s_deployment(app, deployed=True):
 
 def reset_restart_number(app):
     app.restart_number = 1
-    app.restarted_at = str(datetime.utcnow())
+    app.restarted_at = str(datetime.utcnow().isoformat())
     return app
 
 
@@ -1204,7 +1204,7 @@ def check_application_restart(app):
         app = reset_restart_number(app)
     else:
         app.restart_number = app.restart_number + 1
-    app.restarted_at = str(datetime.utcnow())
+    app.restarted_at = str(datetime.utcnow().isoformat())
     db.session.commit()
 
 
@@ -1454,7 +1454,7 @@ def create_application(args):
     deploy_namespace = DeployNamespace(args.get('namespace'))
     deploy_k8s_client.create_namespace(args.get('namespace'),
                                        deploy_namespace.namespace_body())
-    now = str(datetime.utcnow())
+    now = str(datetime.utcnow().isoformat())
     new = model.Application(
         name=args.get('name'),
         disabled=False,
@@ -1511,7 +1511,7 @@ def update_application(application_id, args):
     app.status_id = disable_application(args.get('disabled'), app)
     app.harbor_info = json.dumps(db_harbor_info)
     app.k8s_yaml = json.dumps(db_k8s_yaml)
-    app.updated_at = (datetime.utcnow())
+    app.updated_at = (datetime.utcnow().isoformat())
     db.session.commit()
     return app.id
 
@@ -1565,7 +1565,7 @@ def patch_application(application_id, args):
     app.status = _APPLICATION_STATUS.get(app.status_id,
                                          _DEFAULT__APPLICATION_STATUS)
     app.restart_number = 1
-    app.updated_at = (datetime.utcnow())
+    app.updated_at = (datetime.utcnow().isoformat())
     db.session.commit()
     return application_id
 
@@ -1574,7 +1574,7 @@ def redeploy_application(application_id):
     app = model.Application.query.filter_by(id=application_id).first()
     app.status_id = 11
     app.restart_number = 1
-    app.restarted_at = str(datetime.utcnow())
+    app.restarted_at = str(datetime.utcnow().isoformat())
     app.status = _APPLICATION_STATUS.get(1, _DEFAULT__APPLICATION_STATUS)
     db.session.commit()
     return app.id
