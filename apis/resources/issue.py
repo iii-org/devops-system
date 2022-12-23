@@ -3,6 +3,7 @@ import json
 from collections import defaultdict
 from datetime import datetime, date, timedelta
 from distutils.util import strtobool
+from typing import Optional
 
 import pandas as pd
 from flask_socketio import Namespace, emit, join_room, leave_room
@@ -2394,9 +2395,12 @@ def put_custom_issue_filter(custom_filter_id, project_id, args):
 
 
 def pj_download_file_is_exist(project_id):
-    file_exist = os.path.isfile(f"./logs/project_excel_file/{project_id}.xlsx")
-    create_at = get_lock_status("download_pj_issues")["sync_date"] if file_exist else None
-    return {"file_exist": file_exist, "create_at": str(create_at)}
+    file_exist: bool = os.path.isfile(f"./logs/project_excel_file/{project_id}.xlsx")
+    create_at: Optional[datetime] = get_lock_status("download_pj_issues").get("sync_date", None)
+    return {
+        "file_exist": file_exist,
+        "create_at": create_at.isoformat() if file_exist and create_at else None,
+    }
 
 
 class DownloadIssueAsExcel():

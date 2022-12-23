@@ -78,6 +78,7 @@ stages:
       include:
       - master
       - develop
+      - jonathan
 - name: Build--Build and push docker image
   iiidevops: deployed-environments
   steps:
@@ -98,6 +99,7 @@ stages:
       include:
       - master
       - develop
+      - jonathan
 - name: Build--Scan docker image
   iiidevops: deployed-environments
   steps:
@@ -114,6 +116,7 @@ stages:
       include:
       - master
       - develop
+      - jonathan
 - name: Build--Copy Image
   iiidevops: deployed-environments
   steps:
@@ -146,6 +149,7 @@ stages:
       include:
       - master
       - develop
+      - jonathan
 - name: Deploy--Web
   iiidevops: deployed-environments
   steps:
@@ -171,6 +175,7 @@ stages:
       include:
       - master
       - develop
+      - jonathan
 - name: Deploy--Wait Web deployment
   iiidevops: deployed-environments
   steps:
@@ -194,6 +199,7 @@ stages:
       include:
       - master
       - develop
+      - jonathan
 - name: Test--Anchore SBOM
   iiidevops: anchore
   steps:
@@ -214,6 +220,7 @@ stages:
     branch:
       include:
       - master
+      - jonathan
       - develop
 - name: Test--ZAP
   iiidevops: zap
@@ -276,8 +283,8 @@ stages:
   when:
     branch:
       include:
-      - develop
       - master
+      - develop
 - name: Test--SideeX
   iiidevops: sideex
   steps:

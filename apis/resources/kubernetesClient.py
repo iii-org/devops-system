@@ -596,8 +596,8 @@ def list_service_all_namespaces():
     return list_services
 
 
-def get_the_oldest_node():
-    the_oldest_node = ['', datetime.now(timezone.utc)]
+def get_the_oldest_node() -> list[str, datetime]:
+    the_oldest_node: list[str, datetime] = ["", datetime.now(timezone.utc)]
     for node in ApiK8sClient().list_node().items:
         if node.metadata.creation_timestamp < the_oldest_node[1]:
             for address in node.status.addresses:

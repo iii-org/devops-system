@@ -20,7 +20,7 @@ DEFAULT_FORMAT = {
 }
 
 # Latest version
-LATEST_VERSION = 3
+LATEST_VERSION = 4
 
 
 def get_project_pipeline_version(pj_id):
@@ -75,7 +75,6 @@ def get_default_file_path(pj):
     return file_path
 
 
-
 def update_pipeline():
     project_repo_names = check_project_list_file_exist().get("white_list", [])
     if project_repo_names == []:
@@ -85,7 +84,6 @@ def update_pipeline():
     else:
         pj_ids = list(map(lambda x: get_pj_id_by_name(x)["id"], project_repo_names))
         pj_id_version_mapping = {pj_id: get_project_pipeline_version(pj_id)["version"] for pj_id in pj_ids}
-
     for pj_id, pj_pipe_version in pj_id_version_mapping.items():
         update_pipeline_execute(pj_id, pj_pipe_version)
 
@@ -118,7 +116,15 @@ def update_pipieline_file(pj_id, version):
 
     update_project_pipeline_version(pj_id, status="Running")
 
-    pj = gl.projects.get(gl_pj_id)
+    try:
+        pj = gl.projects.get(gl_pj_id)
+    except Exception as e:
+        error_msg = f"Gitlab project id: {gl_pj_id} has exception message ({str(e)})"
+        logger.logger.exception(error_msg)
+
+        update_project_pipeline_version(pj_id, message=error_msg, status="Failure")
+        return
+
     if pj.empty_repo:
         logger.logger.info(f"{gl_pj_id} is empty project.")
         return 
@@ -154,9 +160,8 @@ def update_pipieline_file(pj_id, version):
                 iii_stage = runner_version_mapping.get(pipe_stage.get("iiidevops"))
                 if iii_stage is not None:
                     pipe_stage_app_config = pipe_stage_step.get("applyAppConfig")
-
                     if pipe_stage_app_config is not None and pipe_stage_app_config["version"] != iii_stage["version"]:
-                        pipe_stage_app_config["answers"] = iii_stage["answer"] | pipe_stage_app_config.get("answers", {})
+                        pipe_stage_app_config["answers"] = iii_stage.get("answers", {}) | pipe_stage_app_config.get("answers", {})
                         pipe_stage_app_config["version"] = iii_stage["version"]
                         change = True
 
