@@ -154,14 +154,14 @@ def execute_sync_template_by_perl(cmd: str, name: str) -> None:
     _err: str
     _out, _err = util.ssh_to_node_by_key(command, deployer_node_ip)
 
-    if _err:
-        raise DevOpsError(500, _out or _err)
-
     update_lock_status(
         "execute_sync_templ",
         is_lock=False,
         sync_date=datetime.utcnow(),
     )
+
+    if _err:
+        raise DevOpsError(500, _out or _err)
 
 
 def ex_system_parameter(name: str) -> None:
