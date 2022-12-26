@@ -40,8 +40,8 @@ def ssh_to_node_by_key(command, node_ip) -> tuple[str, str]:
     client.connect(hostname=node_ip, port=22, username="rkeuser", pkey=pkey)
 
     stdin, stdout, stderr = client.exec_command(command)
-    output_str: str = stdout.read().decode()
-    error_str: str = stderr.read().decode()
+    output_str: str = stdout.read().decode().strip()
+    error_str: str = stderr.read().decode().strip()
     client.close()
     return output_str, error_str
 

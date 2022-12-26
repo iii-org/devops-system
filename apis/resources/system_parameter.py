@@ -33,8 +33,6 @@ def execute_modify_cron(command_args: str) -> str:
     output_str: str
     error_str: str
     output_str, error_str = util.ssh_to_node_by_key(cmd, deployer_node_ip)
-    output_str = output_str.strip()
-    error_str = error_str.strip()
 
     if output_str.startswith("Error:") or error_str:
         raise DevOpsError(500, output_str or error_str)
@@ -152,7 +150,13 @@ def execute_sync_template_by_perl(cmd: str, name: str) -> None:
         f" > /iiidevopsNFS/api-logs/sync-github-templ-api.log 2>&1"
     )
 
-    util.ssh_to_node_by_key(command, deployer_node_ip)
+    _out: str
+    _err: str
+    _out, _err = util.ssh_to_node_by_key(command, deployer_node_ip)
+
+    if _err:
+        raise DevOpsError(500, _out or _err)
+
     update_lock_status(
         "execute_sync_templ",
         is_lock=False,
@@ -162,7 +166,7 @@ def execute_sync_template_by_perl(cmd: str, name: str) -> None:
 
 def ex_system_parameter(name: str) -> None:
     if name == "github_verify_info":
-        thread = threading.Thread(
+        thread: threading.Thread = threading.Thread(
             target=execute_sync_template_by_perl,
             args=(
                 "/home/rkeuser/deploy-devops/bin/sync-github-templ.pl",
@@ -340,7 +344,7 @@ class SystemParameters(Resource):
     @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
+        parser.add_argument("name", type=str)
         args = parser.parse_args()
         return util.success(ex_system_parameter(args["name"]))
 
