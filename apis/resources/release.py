@@ -249,7 +249,7 @@ def get_release_image_list(project_id, args):
 
 def handle_gitlab_datetime(create_time):
     datetime_obj = datetime.strptime(create_time, "%Y-%m-%dT%H:%M:%S.%f%z") - timedelta(hours=8)
-    return datetime_obj.strftime("%Y-%m-%dT%H:%M:%S")
+    return datetime_obj.isoformat()
 
 
 def get_distinct_repo(release_id, project_name):

@@ -6,6 +6,7 @@ import redis
 
 import config
 from resources import logger
+import ast
 
 ISSUE_FAMILIES_KEY = 'issue_families'
 PROJECT_ISSUE_CALCULATE_KEY = 'project_issue_calculation'
@@ -189,15 +190,17 @@ def add_issue_relation(parent_issue_id, son_issue_id):
 # Project issue calculate Cache
 def get_certain_pj_issue_calc(pj_id):
     cal_info = redis_op.dict_get_certain(PROJECT_ISSUE_CALCULATE_KEY, pj_id)
+    cal_info_dict = ast.literal_eval(cal_info)
+    cal_info_dict['updated_time'] = datetime.strptime(cal_info_dict['updated_time'], "%Y-%m-%d %H:%M:%S").isoformat()
     if cal_info is None:
         return {
             "closed_count": 0,
             "overdue_count": 0,
             "total_count": 0,
             "project_status": "not_started",
-            "updated_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            "updated_time": datetime.utcnow().isoformat()
         }
-    return json.loads(cal_info)
+    return cal_info_dict
 
 
 def update_pj_issue_calcs(project_issue_calculation):
@@ -216,7 +219,6 @@ def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):
     else:
         pj_issue_calc["project_status"] = "in_progress"
 
-    pj_issue_calc["updated_time"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     return redis_op.dict_set_certain(PROJECT_ISSUE_CALCULATE_KEY, pj_id, json.dumps(pj_issue_calc))
 
 

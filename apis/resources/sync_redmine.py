@@ -491,7 +491,7 @@ def get_postman_passing_rate(detail, own_project):
                 'fail': fail,
                 'success': success,
                 'run_at':
-                    last_test_results.run_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    last_test_results.run_at.isoformat(),
                 'count': test_results_count,
                 'sync_date': response.sync_date.strftime("%Y-%m-%d")
             }

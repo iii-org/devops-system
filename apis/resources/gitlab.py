@@ -177,10 +177,7 @@ class GitLab(object):
                                   headers=headers)
 
     def __gl_timezone_to_utc(self, gl_datetime_str):
-        return datetime.strftime(
-            datetime.strptime(gl_datetime_str,
-                              '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(pytz.utc),
-            '%Y-%m-%dT%H:%M:%S%z')
+        return datetime.strptime(gl_datetime_str, '%Y-%m-%dT%H:%M:%S.%f%z').isoformat()
 
     def gl_get_all_project(self):
         return self.gl.projects.list(all=True)
@@ -1056,7 +1053,7 @@ def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
         ret["commit_short_id"] = commit["id"][:7]
         ret["author_name"] = commit["author_name"]
         ret["commit_title"] = commit["title"]
-        ret["commit_time"] = str(datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"))
+        ret["commit_time"] = datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z").isoformat()
         ret["gitlab_url"] = commit["web_url"] if show_url else None
 
         ret_list.append(ret)
