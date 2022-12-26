@@ -681,6 +681,10 @@ api.add_resource(routine_job.DoJobByMonth, '/routine_job/by_month')
 api.add_resource(routine_job.DoJobByDay, '/routine_job/by_day')
 
 
+@app.before_request
+def pre_check_block_ip_account():
+    print("test cors")
+
 
 @app.route('/user/login', methods=["POST"])
 def login():
