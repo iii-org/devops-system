@@ -938,7 +938,7 @@ def get_commit_issues_relation(project_id, issue_id, limit):
         "author_name": commit_issues_relation.author_name,
         "commit_message": commit_issues_relation.commit_message,
         "commit_title": commit_issues_relation.commit_title,
-        "commit_time": str(commit_issues_relation.commit_time),
+        "commit_time": str(commit_issues_relation.commit_time.isoformat()),
         "branch": commit_issues_relation.branch,
         "web_url": commit_issues_relation.web_url if account_is_gitlab_project_memeber(commit_issues_relation.project_id, account) else None,
         "created_at": str(commit_issues_relation.created_at),
