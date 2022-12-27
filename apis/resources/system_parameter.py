@@ -1,3 +1,5 @@
+from typing import Any, Optional, Union
+
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required
 import config
@@ -21,17 +23,19 @@ def row_to_dict(row):
     return {key: getattr(row, key) for key in type(row).__table__.columns.keys()}
 
 
-def execute_modify_cron(args):
-    deployer_node_ip = config.get('DEPLOYER_NODE_IP')
-    if deployer_node_ip is None:
-        # get the k8s cluster the oldest node ip
-        deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
+def execute_modify_cron(command_args: str) -> str:
+    deployer_node_ip: str = config.get("DEPLOYER_NODE_IP")
 
-    cmd = f"perl /home/rkeuser/deploy-devops/bin/modify-cron.pl {args}"
+    if deployer_node_ip is None:
+        deployer_node_ip: str = kubernetesClient.get_the_oldest_node()[0]
+
+    cmd: str = f"perl /home/rkeuser/deploy-devops/bin/modify-cron.pl {command_args}"
+    output_str: str
+    error_str: str
     output_str, error_str = util.ssh_to_node_by_key(cmd, deployer_node_ip)
-    output_str = output_str.replace("\n", "")
-    if output_str.startswith("Error:"):
-        raise Exception(output_str)
+
+    if output_str.startswith("Error:") or error_str:
+        raise DevOpsError(500, output_str or error_str)
     return output_str
 
 
@@ -49,97 +53,135 @@ def get_system_parameter():
         row_to_dict(system_parameter) for system_parameter in SystemParameter.query.all()]
 
 
-def update_system_parameter(id, args):
-    system_parameter = SystemParameter.query.get(id)
-    system_param_name = system_parameter.name
-    value, active = args.get("value"), args.get("active")
-    id_mapping = {
+def update_system_parameter(id: int, args: dict) -> None:
+    system_parameter: SystemParameter = SystemParameter.query.get(id)
+    system_param_name: str = system_parameter.name
+
+    active: bool = args.get("active")
+    value: dict[str, str] = args.get("value")
+
+    id_mapping: dict = {
         "github_verify_info": {
             "execute_func": verify_github_info,
             "func_args": value,
             "cron_name": "sync_tmpl",
             "time": '"15 0 * * *"',
-            "cron_args":
-                f'{value.get("account")}:{value.get("token")}' if value is not None else f'{system_parameter.value["account"]}:{system_parameter.value["token"]}'
+            "cron_args": f"{value.get('account')}:{value.get('token')}"
+            if value is not None
+            else f"{system_parameter.value['account']}:{system_parameter.value['token']}",
         },
     }
+
     if system_param_name in id_mapping:
-        id_info = id_mapping[system_param_name]
+        id_info: dict = id_mapping[system_param_name]
+
         if value is not None:
             execute_pre_func(id_info.get("execute_func"), id_info.get("func_args"))
 
         if active is not None and not active:
-            args = f'{id_info["cron_name"]} off'
+            _args: str = f'{id_info["cron_name"]} off'
+
         else:
-            args = f'{id_info["cron_name"]} on {id_info["time"]} {id_info.get("cron_args", "")}'
-        execute_modify_cron(args)
+            _args: str = f'{id_info["cron_name"]} on {id_info["time"]} {id_info.get("cron_args", "")}'
+        execute_modify_cron(_args)
+
     if active is not None:
         system_parameter.active = active
+
     if value is not None:
         system_parameter.value = value
+
     db.session.commit()
 
 
-def get_github_verify_execute_status():
-    ret = get_lock_status("execute_sync_templ")
-
-    sync_date = ret["sync_date"] if ret["sync_date"] is None else ret["sync_date"] + timedelta(hours=8)
+def get_github_verify_execute_status() -> dict[str, Any]:
+    ret: dict[str, Union[str, bool, datetime, dict[str, bool]]] = get_lock_status("execute_sync_templ")
 
     # Get log info
-    output = get_github_verify_log()
-    if output is None:
-        ret["sync_date"] = str(ret["sync_date"])
+    get_log: Optional[str] = get_github_verify_log()
+
+    if get_log is None:
+        # Log not found
         return ret
 
-    output_list = output.split("----------------------------------------")
+    output_list: list[str] = get_log.split("----------------------------------------")
 
-    run_time = output_list[1].split("\n")[1]
+    try:
+        run_time: str = output_list[1].strip().split("\n")[0]
+    except IndexError:
+        # Log file is corrupted
+        return ret
+
     if run_time is not None:
-        run_time = datetime.strptime(run_time[:-4], '%a %d %b %Y %I:%M:%S %p')
-        delta = run_time - sync_date
+        first_time: datetime = datetime.strptime(run_time[:-4], "%a %d %b %Y %I:%M:%S %p")
+        delta: timedelta = first_time - ret["sync_date"]
 
         # Check the log is previous run
         if delta.total_seconds() < 90:
             ret["status"] = {"first_stage": False, "second_stage": False}
 
             # Check the first stage is done
-            ret["status"]["first_stage"] = output_list[-2].replace("\n", "").endswith("SUCCESS")
+            ret["status"]["first_stage"] = (
+                output_list[-2].strip().endswith("SUCCESS")
+            )
 
             # Check the second stage is done
-            ret["status"]["second_stage"] = output_list[-1].replace("\n", "").endswith("SUCCESS")
+            ret["status"]["second_stage"] = (
+                output_list[-1].strip().endswith("SUCCESS")
+            )
 
-    ret["sync_date"] = str(ret["sync_date"])
     return ret
 
 
-def execute_sync_template_by_perl(cmd, name):
-    update_lock_status("execute_sync_templ", is_lock=True, sync_date=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
-    deployer_node_ip = config.get('DEPLOYER_NODE_IP')
+def execute_sync_template_by_perl(cmd: str, name: str) -> None:
+    update_lock_status(
+        "execute_sync_templ",
+        is_lock=True,
+        sync_date=datetime.utcnow(),
+    )
+
+    deployer_node_ip: Optional[str] = config.get("DEPLOYER_NODE_IP")
     if deployer_node_ip is None:
-        # get the k8s cluster the oldest node ip
-        deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
+        deployer_node_ip: str = kubernetesClient.get_the_oldest_node()[0]
 
-    value = SystemParameter.query.filter_by(name=name).first().value
-    args = f'{value["account"]}:{value["token"]}'
-    cmd = f"perl {cmd} {args} > /iiidevopsNFS/api-logs/sync-github-templ-api.log 2>&1"
-    util.ssh_to_node_by_key(cmd, deployer_node_ip)
-    update_lock_status("execute_sync_templ", is_lock=False, sync_date=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
+    value: dict = SystemParameter.query.filter_by(name=name).first().value
+    command: str = (
+        f"perl {cmd} {value['account']}:{value['token']}"
+        f" > /iiidevopsNFS/api-logs/sync-github-templ-api.log 2>&1"
+    )
+
+    _out: str
+    _err: str
+    _out, _err = util.ssh_to_node_by_key(command, deployer_node_ip)
+
+    update_lock_status(
+        "execute_sync_templ",
+        is_lock=False,
+        sync_date=datetime.utcnow(),
+    )
+
+    if _err:
+        raise DevOpsError(500, _out or _err)
 
 
-def ex_system_parameter(name):
+def ex_system_parameter(name: str) -> None:
     if name == "github_verify_info":
-
-        thread = threading.Thread(target=execute_sync_template_by_perl, args=(
-            "/home/rkeuser/deploy-devops/bin/sync-github-templ.pl", "github_verify_info", ))
+        thread: threading.Thread = threading.Thread(
+            target=execute_sync_template_by_perl,
+            args=(
+                "/home/rkeuser/deploy-devops/bin/sync-github-templ.pl",
+                "github_verify_info",
+            ),
+        )
         thread.start()
 
 
-def get_github_verify_log():
-    file_path = "logs/sync-github-templ-api.log"
+def get_github_verify_log() -> Optional[str]:
+    file_path: str = "logs/sync-github-templ-api.log"
     if not os.path.isfile(file_path):
         return None
     with open(file_path, "r") as f:
-        output = f.read()
+        output: str = f.read()
     return output
 
 
@@ -302,28 +344,33 @@ class SystemParameters(Resource):
     @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str)
+        parser.add_argument("name", type=str)
         args = parser.parse_args()
         return util.success(ex_system_parameter(args["name"]))
 
     @jwt_required()
     def put(self, param_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('value', type=str, location='json')
-        parser.add_argument('active', type=bool)
+        parser.add_argument("value", type=dict, location="json")
+        parser.add_argument("active", type=bool)
         args = parser.parse_args()
-        if args.get("value") is not None:
-            args["value"] = json.loads(args["value"].replace("\'", "\""))
-            if not args["value"].get("token", "").startswith("ghp_"):
-                raise apiError.DevOpsError(400, "Token should begin with 'ghp_'.",
-                                           error=apiError.github_token_error("Token"))
+        if args.get("value") is not None and not args["value"].get("token", "").startswith("ghp_"):
+            raise apiError.DevOpsError(
+                400,
+                "Token should begin with 'ghp_'.",
+                error=apiError.github_token_error("Token"),
+            )
         return util.success(update_system_parameter(param_id, args))
 
 
 class ParameterGithubVerifyExecuteStatus(Resource):
     @jwt_required()
     def get(self):
-        return util.success(get_github_verify_execute_status())
+        ret: dict[
+            str, Union[str, bool, datetime, dict[str, bool]]
+        ] = get_github_verify_execute_status()
+        ret["sync_date"] = ret["sync_date"].isoformat()
+        return util.success(ret)
 
 
 class SyncTemplateWebsocketLog(Namespace):

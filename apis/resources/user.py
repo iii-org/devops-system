@@ -9,7 +9,7 @@ from flask_jwt_extended import (
     create_access_token, JWTManager, get_jwt_identity)
 from sqlalchemy import inspect, or_
 from sqlalchemy.orm import joinedload
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound
 
 import model
 import resources.apiError as apiError

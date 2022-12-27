@@ -18,7 +18,7 @@ from resources.project_permission import get_project_issue_check, create_project
     delete_project_issue_check
 from resources.resource_storage import get_project_resource_storage_level, update_project_resource_storage_level
 
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound
 from model import CustomIssueFilter
 from resources import role
 from . import router_model
@@ -1609,14 +1609,14 @@ class ReleaseTagV2(MethodResource):
     @marshal_with(util.CommonResponse)
     @jwt_required()
     def post(self, project_id, release_id, **kwargs):
-        return release.create_release_image_tag(project_id, release_id, kwargs)
+        return release.add_release_tag(project_id, release_id, kwargs)
 
     @doc(tags=['Release'], description="Delete tag on release by release_id.")
     @use_kwargs(router_model.ReleaseTagSchema, location="query")
     @marshal_with(util.CommonResponse)
     @jwt_required()
     def delete(self, project_id, release_id, **kwargs):
-        return release.delete_release_image_tag(project_id, release_id, kwargs)
+        return release.delete_release_tag(project_id, release_id, kwargs)
 
 
 class ReleaseRepoV2(MethodResource):

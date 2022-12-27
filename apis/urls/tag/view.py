@@ -11,7 +11,7 @@ import model
 import util as util
 from model import db
 from resources import role
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound
 
 error_tag_name_is_exists = "Tag Name was Created"
 

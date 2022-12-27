@@ -9,8 +9,8 @@ Flask-JWT-Extended==4.4.1
 Flask-RESTful==0.3.9
 Flask-SocketIO==5.2.0
 Flask-SQLAlchemy==2.5.1
-gunicorn==20.1.0
-eventlet==0.30.2
+https://github.com/benoitc/gunicorn/archive/refs/heads/master.zip#egg=gunicorn==20.1.0
+eventlet==0.31.0
 itsdangerous==2.1.2
 Jinja2==3.1.2
 kubernetes==19.15.0

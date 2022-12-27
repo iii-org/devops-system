@@ -40,7 +40,7 @@ def round_off_float(num):
 
 
 def calculate_expired_days(last):
-    first_date = datetime.now().date()
+    first_date = datetime.utcnow().date()
     last_date = datetime.strptime(last, "%Y-%m-%d").date()
     expired_days = (last_date - first_date).days
     return expired_days
@@ -64,7 +64,7 @@ def get_expired_days(project):
 def check_overdue(last):
     if last is not None:
         last_date = datetime.strptime(last, "%Y-%m-%d")
-        if last_date < datetime.now():
+        if last_date < datetime.utcnow():
             return True
         else:
             return False
@@ -491,7 +491,7 @@ def get_postman_passing_rate(detail, own_project):
                 'fail': fail,
                 'success': success,
                 'run_at':
-                    last_test_results.run_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    last_test_results.run_at.isoformat(),
                 'count': test_results_count,
                 'sync_date': response.sync_date.strftime("%Y-%m-%d")
             }

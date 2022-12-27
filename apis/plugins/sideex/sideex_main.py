@@ -1,11 +1,9 @@
 import json
 from datetime import datetime, timedelta
-
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from gitlab.v4 import objects
 from sqlalchemy import desc
-
 import model
 import nexus
 import util
@@ -18,7 +16,6 @@ import re
 import numpy as np
 from nexus import nx_get_project_plugin_relation
 from . import router_model
-from flask_apispec import use_kwargs
 import yaml
 from pathlib import Path
 import resources.apiError as apiError
@@ -31,6 +28,8 @@ from enums.action_type import ActionType
 from resources import gitlab
 from resources.rancher import rancher
 from datetime import date
+from flask_apispec import marshal_with, doc, use_kwargs
+from flask_apispec.views import MethodResource
 
 
 def sd_start_test(args):
@@ -50,7 +49,7 @@ def sd_start_test(args):
         status='Scanning',
         result=None,
         report=None,
-        run_at=datetime.now()
+        run_at=datetime.utcnow()
     )
     model.db.session.add(new)
     model.db.session.commit()
@@ -64,7 +63,7 @@ def sd_finish_test(args):
     row.status = 'Finished'
     row.result = args['result']
     row.report = args['report']
-    row.finished_at = datetime.now()
+    row.finished_at = datetime.utcnow()
     model.db.session.add(row)
     model.db.session.commit()
     tgi_feed_sideex(row)
@@ -113,7 +112,7 @@ def sd_get_latest_test(project_id):
 def process_row(row, project_id):
     # 12 hour timeout
     if row.status == 'Scanning' and \
-        datetime.now() - row.run_at > timedelta(hours=1):
+        datetime.utcnow() - row.run_at > timedelta(hours=1):
         row.status = 'Failed'
         model.db.session.commit()
     r = json.loads(str(row))
@@ -157,6 +156,34 @@ class Sideex(Resource):
         return util.success(sd_get_tests(project_id))
 
 
+class SideexV2(MethodResource):
+    @doc(tags=['Sideex'], description="generate test_id.")
+    @jwt_required()
+    @use_kwargs(router_model.SideexPostSch, location="json")
+    @marshal_with(router_model.SideexPostRes)
+    def post(self, **kwargs):
+        role.require_in_project(project_name=kwargs['project_name'])
+        return util.success({'test_id': sd_start_test(kwargs)})
+
+    @doc(tags=['Sideex'], description="update sideex testing result")
+    @jwt_required()
+    @use_kwargs(router_model.SideexPutSch, location="json")
+    @marshal_with(util.CommonResponse)
+    def put(self, **kwargs):
+        test_id = kwargs['test_id']
+        project_name = model.Sideex.query.filter_by(id=test_id).one().project_name
+        role.require_in_project(project_name=project_name)
+        sd_finish_test(kwargs)
+        return util.success()
+
+    @doc(tags=['Sideex'], description="update sideex testing result")
+    @jwt_required()
+    @marshal_with(router_model.SideexGetTestResultRes)
+    def get(self, project_id):
+        role.require_in_project(project_id=project_id)
+        return util.success(sd_get_tests(project_id))
+    
+    
 def load_file_from_gitlab(repository_id, path):
     f = gitlab.gitlab.gl_get_file_from_lib(repository_id, path)
     decode_dict = yaml.safe_load(f.decode())
@@ -541,25 +568,48 @@ def history_pict_result(project_id):
 
 
 class SideexJsonfileVariable(Resource):
+    @use_kwargs(router_model.SideexGetVariableSch, location="json")
     @jwt_required()
-    @use_kwargs(router_model.SideexGetVariableRes, location="json")
     def post(self, project_id, **kwargs):
         return util.success(get_setting_file(project_id, kwargs['filename']))
 
+
+class SideexJsonfileVariableV2(MethodResource):
+    @doc(tags=['Sideex'], description="get pict setting")
     @jwt_required()
-    @use_kwargs(router_model.SideexPutVariableRes, location="json")
+    @use_kwargs(router_model.SideexGetVariableSch, location="json")
+    @marshal_with(router_model.SideexGetVariableRes)
+    def post(self, project_id, **kwargs):
+        return util.success(get_setting_file(project_id, kwargs['filename']))
+
+    @doc(tags=['Sideex'], description="update pict setting")
+    @jwt_required()
+    @use_kwargs(router_model.SideexPutVariableSch, location="json")
+    @marshal_with(util.CommonResponse)
     def put(self, project_id, **kwargs):
         return util.success(update_config_file(project_id, kwargs))
 
 
 class SideexGenerateJsonfile(Resource):
+    @use_kwargs(router_model.SideexGetVariableSch, location="json")
     @jwt_required()
-    @use_kwargs(router_model.SideexGetVariableRes, location="json")
     def post(self, project_id, **kwargs):
         generate_json_file(project_id, kwargs['filename'])
         return util.success()
 
+
+class SideexGenerateJsonfileV2(MethodResource):
+    @doc(tags=['Sideex'], description="generate pict jsonfile")
     @jwt_required()
+    @use_kwargs(router_model.SideexGetVariableSch, location="json")
+    @marshal_with(util.CommonResponse)
+    def post(self, project_id, **kwargs):
+        generate_json_file(project_id, kwargs['filename'])
+        return util.success()
+
+    @doc(tags=['Sideex'], description="delete pict jsonfile by operate user")
+    @jwt_required()
+    @marshal_with(util.CommonResponse)
     def delete(self, project_id):
         delete_json_configfile(project_id)
         return util.success()
@@ -567,6 +617,15 @@ class SideexGenerateJsonfile(Resource):
 
 class SideexDeleteAllfile(Resource):
     @jwt_required()
+    def delete(self, project_id):
+        delete_project_all_config_file(project_id)
+        return util.success()
+
+
+@doc(tags=['Sideex'], description="delete pict all jsonfile")
+class SideexDeleteAllfileV2(MethodResource):
+    @jwt_required()
+    @marshal_with(util.CommonResponse)
     def delete(self, project_id):
         delete_project_all_config_file(project_id)
         return util.success()
@@ -586,8 +645,26 @@ class SideexReport(Resource):
         return util.success(sd_get_report(test_id))
 
 
+@doc(tags=['Sideex'], description="get sideex report")
+class SideexReportV2(MethodResource):
+    @jwt_required()
+    @marshal_with(router_model.SideexGetReportRes)
+    def get(self, test_id):
+        project_name = model.Sideex.query.filter_by(id=test_id).one().project_name
+        role.require_in_project(project_name=project_name)
+        return util.success(sd_get_report(test_id))
+
+
 class GenerateResult(Resource):
     @jwt_required()
+    def get(self, project_id):
+        return util.success(generate_result(project_id))
+
+
+@doc(tags=['Sideex'], description="generate pict result")
+class GenerateResultV2(MethodResource):
+    @jwt_required()
+    @marshal_with(router_model.SideexGenerateResultRes)
     def get(self, project_id):
         return util.success(generate_result(project_id))
 
@@ -598,7 +675,23 @@ class PictStatus(Resource):
         return util.success(get_pict_status(project_id))
 
 
+@doc(tags=['Sideex'], description="get pict status")
+class PictStatusV2(MethodResource):
+    @jwt_required()
+    @marshal_with(router_model.SideexPictStatusRes)
+    def get(self, project_id):
+        return util.success(get_pict_status(project_id))
+
+
 class CheckResultFileExist(Resource):
+    @jwt_required()
+    def get(self, project_id):
+        return util.success(check_file_exist(project_id))
+
+
+@doc(tags=['Sideex'], description="check result_file exist.")
+class CheckResultFileExistV2(MethodResource):
+    @marshal_with(router_model.SideexCheckResultFileRes)
     @jwt_required()
     def get(self, project_id):
         return util.success(check_file_exist(project_id))

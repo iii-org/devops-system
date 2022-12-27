@@ -6,6 +6,7 @@ import redis
 
 import config
 from resources import logger
+import ast
 
 ISSUE_FAMILIES_KEY = 'issue_families'
 PROJECT_ISSUE_CALCULATE_KEY = 'project_issue_calculation'
@@ -195,9 +196,13 @@ def get_certain_pj_issue_calc(pj_id):
             "overdue_count": 0,
             "total_count": 0,
             "project_status": "not_started",
-            "updated_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            "updated_time": datetime.utcnow().isoformat()
         }
-    return json.loads(cal_info)
+    cal_info_dict = json.loads(cal_info)
+    if 'T' not in cal_info_dict['updated_time']:
+        cal_info_dict['updated_time'] = datetime.strptime(cal_info_dict['updated_time'], "%Y-%m-%d %H:%M:%S").isoformat() if \
+            cal_info_dict['updated_time'] not in ["", None] else datetime.utcnow().isoformat()
+    return cal_info_dict
 
 
 def update_pj_issue_calcs(project_issue_calculation):
@@ -216,7 +221,6 @@ def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):
     else:
         pj_issue_calc["project_status"] = "in_progress"
 
-    pj_issue_calc["updated_time"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     return redis_op.dict_set_certain(PROJECT_ISSUE_CALCULATE_KEY, pj_id, json.dumps(pj_issue_calc))
 
 

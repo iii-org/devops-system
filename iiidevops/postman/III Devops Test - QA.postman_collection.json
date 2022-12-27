@@ -97,7 +97,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"{{am_create_qa_username}}\",\n    \"email\": \"qausername@yahoo.com.tw\",\n    \"password\": \"{{am_create_qa_password}}\",\n    \"login\": \"{{am_create_qa_login}}\",\n    \"role_id\": 7\n}",
+							"raw": "{\n    \"name\": \"{{am_create_qa_username}}\",\n    \"email\": \"{{am_create_qa_email}}\",\n    \"password\": \"{{am_create_qa_password}}\",\n    \"login\": \"{{am_create_qa_login}}\",\n    \"role_id\": 7\n}",
 							"options": {
 								"raw": {
 									"language": "json"

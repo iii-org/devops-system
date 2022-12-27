@@ -108,7 +108,7 @@ def get_project_issue_calculation(user_id, project_ids=[]):
     return ret
 
 
-def  get_project_list(user_id, role="simple", args={}, disable=None, sync=False):  
+def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
     limit = args.get("limit")
     offset = args.get("offset")
     extra_data = args.get("test_result", "false") == "true"
@@ -131,7 +131,7 @@ def  get_project_list(user_id, role="simple", args={}, disable=None, sync=False)
             except (ResourceNotFoundError , ForbiddenError):
                 # When Redmin project was missing
                 sync_project.lock_project(nexus_project.name, "Redmine")
-                rm_project = {"updated_on": datetime.utcnow(), "id": -1}
+                rm_project = {"updated_on": datetime.utcnow().isoformat(), "id": -1}
             nexus_project = nexus_project.fill_pm_extra_fields(rm_project, user_name, sync)
         if extra_data:
             nexus_project = nexus_project.fill_extra_fields()
@@ -619,6 +619,24 @@ def pm_update_project(project_id, args):
                     not row.User.login.startswith("project_bot") and \
                     row.ProjectUserRole.role_id != 7:
                 project_add_member(project_id, row.User.id)
+
+    # 檢查是否要變更 DISPLAY，若有要一起變更 SONARQUBE 的 PROJECT NAME
+    if args.get('display') is not None:
+        sonar_url = config.get("SONARQUBE_EXTERNAL_BASE_URL")
+        sonar_token = config.get("SONARQUBE_ADMIN_TOKEN")
+        project_key = project_name
+        project_name = args.get('display')
+        sonar_host = 'sonar.host.url="' + sonar_url + '"'
+        sonar_login = 'sonar.login="' + sonar_token + '"'
+        sonar_projectkey = 'sonar.projectKey="' + project_key + '"'
+        sonar_projectname = 'sonar.projectName="' + project_name + '"'
+        # sonar_rename = (".\\sonar-scanner -D " + sonar_host + " -D " + sonar_login + " -D " + sonar_projectkey +
+        #                 " -D " + sonar_projectname)
+        # os.system("cd .\\sonar-scanner\\bin &&" + sonar_rename)
+        # 以上為 WINDOWS 環境的執行指令，以下為 LINUX 的執行執令
+        sonar_rename = ("./sonar-scanner -D" + sonar_host + " -D" + sonar_login + " -D" + sonar_projectkey +
+                        " -D" + sonar_projectname)
+        os.system("cd " + sonarqube.SONAR_SCAN_PATH + " && " + sonar_rename)
 
 
 @record_activity(ActionType.UPDATE_PROJECT)

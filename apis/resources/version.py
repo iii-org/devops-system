@@ -1,6 +1,6 @@
 from flask_jwt_extended import jwt_required
 from flask_restful import reqparse, Resource
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound
 
 import resources.apiError as apiError
 import resources.project as project

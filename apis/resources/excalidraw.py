@@ -16,6 +16,9 @@ import pandas as pd
 import json
 from datetime import datetime, date
 from sqlalchemy import desc
+from resources.activity import record_activity
+from enums.action_type import ActionType
+
 
 
 def excalidraw_get_config(key):
@@ -154,6 +157,7 @@ def get_excalidraw_by_issue_id(issue_id):
     return nexus_excalidraw(excalidraw_rows)
 
 
+@record_activity(ActionType.DELETE_EXCALIDRAW)
 def delete_excalidraw(excalidraw_id):
     excalidraw = Excalidraw.query.filter_by(id=excalidraw_id)
     if excalidraw.first() is not None:
@@ -243,23 +247,7 @@ def row_to_dict(row):
 
 
 def save_file_info(kwargs):
-    # database = "excalidraw"
-    # user = "postgres"
-    # password = "nFx8m16LDzKACWtp8CV6uG"
-    # host = "10.20.0.91"
-    # port = 30503
-    database = excalidraw_get_config("excalidraw-db-database")
-    user = excalidraw_get_config("excalidraw-db-account")
-    password = excalidraw_get_config("excalidraw-db-password")
-    host = excalidraw_get_config("excalidraw-db-host")
-    port = excalidraw_get_config("excalidraw-db-port")
-    conn = psycopg2.connect(
-        database=database,
-        user=user,
-        password=password,
-        host=host,
-        port=port
-    )
+    conn = load_excalidraw_key_value()
     df_keyv = pd.read_sql_query("SELECT * FROM keyv", conn)
     df_keyv['key'] = df_keyv.key.apply(lambda x: x.split(':')[1])
 
@@ -278,8 +266,11 @@ def save_file_info(kwargs):
         for old_record in old_record_list:
             db.session.delete(old_record)
         db.session.commit()
+    # 一個白板（room_key)對上多個檔案,也可以是單一檔案
     file_key_list = kwargs['file_key'].split(',')
+    # 抓取相對應的file_key & file_value整理成字典形式
     file_value_dict = {file_key: df_keyv[df_keyv['key'] == file_key].iloc[0]['value'] for file_key in file_key_list}
+    # 將多組的file_key & file_value依次存入ExcalidrawJson表中
     for key, value in file_value_dict.items():
         value_dict = {
             "excalidraw_id": excalidraw_id,
@@ -289,6 +280,27 @@ def save_file_info(kwargs):
         row = ExcalidrawJson(**value_dict)
         db.session.add(row)
     db.session.commit()
+
+
+def load_excalidraw_key_value():
+    # database = "excalidraw"
+    # user = "postgres"
+    # password = "nFx8m16LDzKACWtp8CV6uG"
+    # host = "10.20.0.91"
+    # port = 30503
+    database = excalidraw_get_config("excalidraw-db-database")
+    user = excalidraw_get_config("excalidraw-db-account")
+    password = excalidraw_get_config("excalidraw-db-password")
+    host = excalidraw_get_config("excalidraw-db-host")
+    port = excalidraw_get_config("excalidraw-db-port")
+    conn = psycopg2.connect(
+        database=database,
+        user=user,
+        password=password,
+        host=host,
+        port=port
+    )
+    return conn
 
 
 def get_excalidraw_history(excalidraw_id):
@@ -311,24 +323,10 @@ def utf8len(s):
 
 
 def update_excalidraw_history(excalidraw_id):
-    # database = "excalidraw"
-    # user = "postgres"
-    # password = "nFx8m16LDzKACWtp8CV6uG"
-    # host = "10.20.0.91"
-    # port = 30503
-    database = excalidraw_get_config("excalidraw-db-database")
-    user = excalidraw_get_config("excalidraw-db-account")
-    password = excalidraw_get_config("excalidraw-db-password")
-    host = excalidraw_get_config("excalidraw-db-host")
-    port = excalidraw_get_config("excalidraw-db-port")
-    conn = psycopg2.connect(
-        database=database,
-        user=user,
-        password=password,
-        host=host,
-        port=port
-    )
+    conn = load_excalidraw_key_value()
+    # 從原生excalidraw表中取得key, value
     df_keyv = pd.read_sql_query("SELECT * FROM keyv", conn)
+    # 將room與file字符去除，只取key的值的部分
     df_keyv['key'] = df_keyv.key.apply(lambda x: x.split(':')[1])
     rows = Excalidraw.query.all()
     result_list = [row_to_dict(row)for row in rows]
@@ -349,8 +347,10 @@ def update_excalidraw_history(excalidraw_id):
         for k, v in value.items():
             if type(v) == str:
                 v = json.loads(v)
+                # 只存有變動以及檔案大小不為48k的資料
                 if v['value'] not in rows_value_list and utf8len(v['value']) != 48:
                     change = True
+                # 如果遇到原生資料表中檔案為48k的資料則直接進行restore
                 elif utf8len(v['value']) == 48:
                     row = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).order_by(desc(ExcalidrawHistory.updated_at)).first()
                     if row:
@@ -392,9 +392,11 @@ def add_to_db(add_dict):
     db.session.commit()
 
 
+@record_activity(ActionType.RESTORE_EXCALIDRAW_HISTORY)
 def excalidraw_version_restore(excalidraw_history_id, simple=False):
     excalidraw_history = ExcalidrawHistory.query.filter_by(id=excalidraw_history_id).first()
     excalidraw_id = excalidraw_history.excalidraw_id
+    # 帶simple的回朔直接進行回朔，非simple則會在restore之後將該筆資料在history中再存入最新的一筆。
     if not simple:
         update_excalidraw_history(excalidraw_id)
         add_new_record_to_history(excalidraw_history_id)
@@ -402,28 +404,14 @@ def excalidraw_version_restore(excalidraw_history_id, simple=False):
     excalidraw = Excalidraw.query.filter_by(id=excalidraw_id).first()
     project_id = excalidraw.project_id
     restore_key = excalidraw.room
+    # 需要是project的擁有者才能進行版本回復
     if project_id:
         role.require_project_owner(get_jwt_identity()['user_id'], project_id)
-    # database = "excalidraw"
-    # user = "postgres"
-    # password = "nFx8m16LDzKACWtp8CV6uG"
-    # host = "10.20.0.91"
-    # port = 30503
-    database = excalidraw_get_config("excalidraw-db-database")
-    user = excalidraw_get_config("excalidraw-db-account")
-    password = excalidraw_get_config("excalidraw-db-password")
-    host = excalidraw_get_config("excalidraw-db-host")
-    port = excalidraw_get_config("excalidraw-db-port")
-    conn = psycopg2.connect(
-        database=database,
-        user=user,
-        password=password,
-        host=host,
-        port=port
-    )
+    conn = load_excalidraw_key_value()
     value = str(value).replace('\'', '\"').replace('None', 'null')
     rows = ExcalidrawJson.query.filter_by(excalidraw_id=excalidraw_id).all()
     try:
+        # 進行room_key的回復
         cur = conn.cursor()
         cur.execute(
             f"""
@@ -432,6 +420,7 @@ def excalidraw_version_restore(excalidraw_history_id, simple=False):
             WHERE key like '%{restore_key}';
             """
         )
+        # 進行多筆file_key的回復，也可以是單一筆回復
         if rows:
             for row in rows:
                 file_value = str(row.file_value).replace('\'', '\"').replace('None', 'null')
@@ -444,7 +433,6 @@ def excalidraw_version_restore(excalidraw_history_id, simple=False):
                 )
         conn.commit()
     except Exception as e:
-        print(str(e))
         logger.logger.info(f"Excalidraw restore by key:{restore_key},value:{value} not success. Error:{e}")
     finally:
         conn.close()
@@ -452,20 +440,8 @@ def excalidraw_version_restore(excalidraw_history_id, simple=False):
 
 def sync_excalidraw_db():
     # prod
-    database = excalidraw_get_config("excalidraw-db-database") 
-    user = excalidraw_get_config("excalidraw-db-account") 
-    password = excalidraw_get_config("excalidraw-db-password") 
-    host = excalidraw_get_config("excalidraw-db-host") 
-    port = excalidraw_get_config("excalidraw-db-port")
+    conn = load_excalidraw_key_value()
     excalidraw_keys = ",".join([f"'ROOMS:{excalidraw.room}'" for excalidraw in Excalidraw.query.all()])
-    
-    conn = psycopg2.connect(
-        database=database,
-        user=user,
-        password=password,
-        host=host,
-        port=port
-    )
     try:
         cur = conn.cursor()
         cur.execute(

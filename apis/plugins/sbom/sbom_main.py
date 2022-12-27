@@ -179,7 +179,7 @@ def remove_parsing_data():
                     dirname_num -= 1
             
 
-def risk_detail(file_path=None):
+def risk_detail(file_path=None, kwargs=None):
     if os.path.isfile(f'{file_path}/grype.json'):
         with open(f'{file_path}/grype.json') as json_data:
             data = json.load(json_data)
@@ -219,12 +219,27 @@ def risk_detail(file_path=None):
         df_merge = pd.merge(df[['name', 'licenses', 'type', 'version']], df_result, how="left", on='name')
         df_merge = df_merge[['name', 'id', 'severity', 'licenses', 'type', 'version', 'versions', 'dataSource', 'description']]
         sorted_list = ['Critical', 'High', 'Medium', 'Low', 'Negligible', 'Unknown']
+        dec_sorted_list = ['Unknown', 'Negligible', 'Low', 'Medium', 'High', 'Critical']
         df_sorted = pd.DataFrame()
         # 將輸出整理為指定排序
-        for i in sorted_list:
-            df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.notnull())])
-            df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.isnull())])
-        df_sorted = df_sorted.append(df_merge[df_merge.severity.isnull()])
+        if kwargs.get('sort'):
+            if kwargs['sort'] == "severity" and kwargs['ascending'] == True:
+                df_sorted = df_sorted.append(df_merge[df_merge.severity.isnull()])
+                for i in dec_sorted_list:
+                    df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.notnull())])
+                    df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.isnull())])
+            elif kwargs['sort'] == "severity" and kwargs['ascending'] == False:
+                for i in sorted_list:
+                    df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.notnull())])
+                    df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.isnull())])
+                df_sorted = df_sorted.append(df_merge[df_merge.severity.isnull()])
+            else:
+                df_sorted = df_merge.sort_values(by=kwargs['sort'], ascending=kwargs['ascending'])
+        else:
+            for i in sorted_list:
+                df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.notnull())])
+                df_sorted = df_sorted.append(df_merge[(df_merge.severity == i) & (df_merge.versions.isnull())])
+            df_sorted = df_sorted.append(df_merge[df_merge.severity.isnull()])
         return df_sorted
     else:
         raise apiError.DevOpsError(404, f'{file_path}/sbom.syft.json not exist')
@@ -266,7 +281,7 @@ class SbomGetV2(MethodResource):
 
 
 @doc(tags=['Sbom'], description="Get risk detail")
-@use_kwargs(router_model.SbomListResponse, location="query")
+@use_kwargs(router_model.SbomDetailResponse, location="query")
 @marshal_with(router_model.SbomGetRiskDetailRes)
 class SbomRiskDetailV2(MethodResource):
     @jwt_required()
@@ -278,7 +293,7 @@ class SbomRiskDetailV2(MethodResource):
         output_dict = {}
         if os.path.isfile(f"./devops-data/project-data/{project_name}/pipeline/{folder_name}/grype.json"):
             file_path = f"devops-data/project-data/{project_name}/pipeline/{folder_name}"
-            out_list, page_dict = util.df_pagination(risk_detail(file_path), kwargs.get("per_page"), kwargs.get("page"))
+            out_list, page_dict = util.df_pagination(risk_detail(file_path, kwargs), kwargs.get("per_page"), kwargs.get("page"))
             output_dict.update({"detail_list": out_list, "page": page_dict})
             return util.success(json.loads(json.dumps(
                 output_dict)))

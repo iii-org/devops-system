@@ -7,7 +7,7 @@ from enum import Enum
 from pathlib import Path
 
 import ipaddress
-from typing import Any
+from typing import Any, Union
 
 import pytz
 import requests
@@ -177,10 +177,7 @@ class GitLab(object):
                                   headers=headers)
 
     def __gl_timezone_to_utc(self, gl_datetime_str):
-        return datetime.strftime(
-            datetime.strptime(gl_datetime_str,
-                              '%Y-%m-%dT%H:%M:%S.%f%z').astimezone(pytz.utc),
-            '%Y-%m-%dT%H:%M:%S%z')
+        return datetime.strptime(gl_datetime_str, '%Y-%m-%dT%H:%M:%S.%f%z').isoformat()
 
     def gl_get_all_project(self):
         return self.gl.projects.list(all=True)
@@ -273,12 +270,6 @@ class GitLab(object):
     def gl_count_branches(self, repo_id):
         output = self.__api_get(f'/projects/{repo_id}/repository/branches')
         return len(output.json())
-
-    def gl_get_tags(self, repo_id, params=None):
-        if params is None:
-            params = {}
-        return self.__api_get(f'/projects/{repo_id}/repository/tags',
-                              params).json()
 
     def gl_create_rancher_pipeline_yaml(self, repo_id, args, method):
         path = f'/projects/{repo_id}/repository/files/{args["file_path"]}'
@@ -445,17 +436,96 @@ class GitLab(object):
                 'commit_message': args['commit_message']
             })
 
-    def gl_create_tag(self, repo_id, args):
-        path = f'/projects/{repo_id}/repository/tags'
-        params = {}
-        keys = ['tag_name', 'ref', 'message', 'release_description']
-        for k in keys:
-            params[k] = args[k]
-        return self.__api_post(path, params=params).json()
+    def get_tags(
+        self,
+        repo_id: Union[int, str],
+        order_by: str = None,
+        sort: str = None,
+        search: str = None,
+    ):
+        """
+        取得所有 tag 列表，或透過參數取得特定 tag 資訊
+        src: https://docs.gitlab.com/ee/api/tags.html#list-project-repository-tags
 
-    def gl_delete_tag(self, repo_id, tag_name):
-        return self.__api_delete(
-            f'/projects/{repo_id}/repository/tags/{tag_name}')
+        Args:
+            repo_id: The ID or URL-encoded path of the project owned by the authenticated user.
+            order_by: Return tags ordered by `name`, `updated`, or `version`. Default is `updated`.
+            sort: Return tags sorted in `asc` or `desc` order. Default is `desc`.
+            search: Return list of tags matching the search criteria. You can use `^term` and `term$` to find
+                tags that begin and end with term respectively. No other regular expressions are supported.
+
+        Returns:
+            list of tags
+        """
+        params: dict[str, str] = {}
+        if order_by:
+            params["order_by"] = order_by
+        if sort:
+            params["sort"] = sort
+        if search:
+            params["search"] = search
+
+        return self.__api_get(f"/projects/{repo_id}/repository/tags", params).json()
+
+    def is_tag_exist(self, repo_id: Union[int, str], pattern: str) -> bool:
+        """
+        檢查 tag 是否存在，並完全符合 pattern
+
+        Args:
+            repo_id: project id
+            pattern: tag name
+
+        Returns:
+            True if tag exist, otherwise False
+        """
+        _result: bool = False
+
+        for _tag in self.get_tags(repo_id, search=pattern):
+            if _tag.get("name", None) == pattern:
+                _result = True
+                break
+
+        return _result
+
+    def create_tag(
+        self, repo_id: Union[int, str], tag_name: str, ref: str, message: str = None
+    ):
+        """
+        替 GitLab commit 建立新 tag
+        src: https://docs.gitlab.com/ee/api/tags.html#create-a-new-tag
+
+        Args:
+            repo_id: The ID or URL-encoded path of the project owned by the authenticated user
+            tag_name: The name of a tag
+            ref: Create tag using commit SHA, another tag name, or branch name
+            message: Creates annotated tag
+
+        Returns:
+            tag info
+        """
+        params: dict[str, str] = {}
+        if tag_name:
+            params["tag_name"] = tag_name
+        if ref:
+            params["ref"] = ref
+        if message:
+            params["message"] = message
+
+        return self.__api_post(f"/projects/{repo_id}/repository/tags", params=params).json()
+
+    def delete_tag(self, repo_id: Union[int, str], tag_name: str):
+        """
+        刪除 GitLab tag
+        src: https://docs.gitlab.com/ee/api/tags.html#delete-a-tag
+
+        Args:
+            repo_id: The ID or URL-encoded path of the project owned by the authenticated user
+            tag_name: The name of a tag
+
+        Returns:
+            tag info
+        """
+        return self.__api_delete(f"/projects/{repo_id}/repository/tags/{tag_name}")
 
     def gl_get_commits(self, project_id, branch, per_page=100, page=1, since=None):
         return self.__api_get(
@@ -513,7 +583,7 @@ class GitLab(object):
                 branch_commit_list.append(obj)
 
         # 整理tags
-        tags = gitlab.gl_get_tags(repo_id)
+        tags = gitlab.get_tags(repo_id)
         for tag in tags:
             for commit in branch_commit_list:
                 if commit["id"] == tag["commit"]["id"]:
@@ -652,14 +722,14 @@ class GitLab(object):
                     commit_number = total_commit_number - the_last_time_total_commit_number
                     if commit_number < 0:
                         commit_number = 0
-                now_time = datetime.now() + timedelta(hours=timezone_hours_number)
+                now_time = datetime.utcnow() + timedelta(hours=timezone_hours_number)
                 one_row_data = GitCommitNumberEachDays(
                     repo_id=pj.id,
                     repo_name=pj.name,
                     date=now_time.date(),
                     commit_number=commit_number,
                     total_commit_number=total_commit_number,
-                    created_at=str(datetime.now()))
+                    created_at=str(datetime.utcnow()))
                 db.session.add(one_row_data)
                 db.session.commit()
 
@@ -865,7 +935,7 @@ def get_commit_issues_relation(project_id, issue_id, limit):
         "author_name": commit_issues_relation.author_name,
         "commit_message": commit_issues_relation.commit_message,
         "commit_title": commit_issues_relation.commit_title,
-        "commit_time": str(commit_issues_relation.commit_time),
+        "commit_time": str(commit_issues_relation.commit_time.isoformat()),
         "branch": commit_issues_relation.branch,
         "web_url": commit_issues_relation.web_url if account_is_gitlab_project_memeber(commit_issues_relation.project_id, account) else None,
         "created_at": str(commit_issues_relation.created_at),
@@ -983,7 +1053,7 @@ def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
         ret["commit_short_id"] = commit["id"][:7]
         ret["author_name"] = commit["author_name"]
         ret["commit_title"] = commit["title"]
-        ret["commit_time"] = str(datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"))
+        ret["commit_time"] = datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z").isoformat()
         ret["gitlab_url"] = commit["web_url"] if show_url else None
 
         ret_list.append(ret)
@@ -1052,7 +1122,7 @@ class GitRelease:
             output = {'check': False,
                       "info": "Gitlab no exists commit", "errors": ""}
             return output
-        tags = gitlab.gl_get_tags(str(repository_id), {'search': tag_name})
+        tags = gitlab.get_tags(str(repository_id), search=tag_name)
         for tag in tags:
             if tag["name"] == tag_name:
                 output['check'] = False
@@ -1079,6 +1149,22 @@ class GitProjectBranches(Resource):
         return util.success(gitlab.gl_create_branch(repository_id, args))
 
 
+class GitProjectBranchesV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get all branches in project")
+    @jwt_required()
+    @marshal_with(route_model.GitlabGetProjectBranchesRes)
+    def get(self, repository_id):
+        return util.success(
+            {'branch_list': gitlab.gl_get_branches(repository_id)})
+
+    @doc(tags=['Gitlab'], description="add branch for the project")
+    @jwt_required()
+    @use_kwargs(route_model.GitlabPostProjectBranchesSch, location="json")
+    @marshal_with(route_model.GitlabPostProjectBranchesRes)
+    def post(self, repository_id, **kwargs):
+        return util.success(gitlab.gl_create_branch(repository_id, kwargs))
+
+
 class GitProjectBranch(Resource):
     @jwt_required()
     def get(self, repository_id, branch_name):
@@ -1094,8 +1180,38 @@ class GitProjectBranch(Resource):
         return util.success()
 
 
+class GitProjectBranchV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get project branch info")
+    @jwt_required()
+    @marshal_with(route_model.GitlabGetProjectBranchRes)
+    def get(self, repository_id, branch_name):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        return util.success(gitlab.gl_get_branch(repository_id, branch_name))
+
+    @doc(tags=['Gitlab'], description="delete project branch")
+    @jwt_required()
+    @marshal_with(util.CommonResponse)
+    def delete(self, repository_id, branch_name):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        gitlab.gl_delete_branch(repository_id, branch_name)
+        return util.success()
+
+
 class GitProjectRepositories(Resource):
     @jwt_required()
+    def get(self, repository_id, branch_name):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        return util.success(
+            gitlab.gl_get_repository_tree(repository_id, branch_name))
+
+
+class GitProjectRepositoriesV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get branch file type")
+    @jwt_required()
+    @marshal_with(route_model.GitGetProjectRepositoriesRes)
     def get(self, repository_id, branch_name):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1158,7 +1274,7 @@ class GitProjectTag(Resource):
     def get(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
-        res = gitlab.gl_get_tags(repository_id)
+        res = gitlab.get_tags(repository_id)
         return util.success({'tag_list': res})
 
     @jwt_required()
@@ -1166,18 +1282,55 @@ class GitProjectTag(Resource):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('tag_name', type=str, required=True)
-        parser.add_argument('ref', type=str, required=True)
-        parser.add_argument('message', type=str)
-        parser.add_argument('release_description', type=str)
+        parser.add_argument("tag_name", type=str, required=True)
+        parser.add_argument("ref", type=str, required=True)
+        parser.add_argument("message", type=str)
+        parser.add_argument("release_description", type=str)
+
         args = parser.parse_args()
-        return util.success(gitlab.gl_create_tag(repository_id, args))
+        return util.success(
+            gitlab.create_tag(
+                repository_id,
+                args.get("tag_name", None),
+                args.get("ref", None),
+                args.get("message", None),
+            )
+        )
 
     @jwt_required()
     def delete(self, repository_id, tag_name):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
-        gitlab.gl_delete_tag(repository_id, tag_name)
+        gitlab.delete_tag(repository_id, tag_name)
+        return util.success()
+
+
+class GitProjectTagV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get project tags")
+    @jwt_required()
+    @marshal_with(route_model.GitGetProjectTagRes)
+    def get(self, repository_id):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        res = gitlab.get_tags(repository_id)
+        return util.success({'tag_list': res})
+
+    @doc(tags=['Gitlab'], description="add project tags")
+    @use_kwargs(route_model.GitPostProjectTagSch, location='form')
+    @jwt_required()
+    @marshal_with(route_model.GitPostProjectTagRes)
+    def post(self, repository_id, **kwargs):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        return util.success(gitlab.create_tag(repository_id, kwargs))
+
+    @doc(tags=['Gitlab'], description="delete project tags")
+    @jwt_required()
+    @marshal_with(util.CommonResponse)
+    def delete(self, repository_id, tag_name):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        gitlab.delete_tag(repository_id, tag_name)
         return util.success()
 
 
@@ -1194,6 +1347,18 @@ class GitProjectBranchCommits(Resource):
             gitlab.gl_get_commits_by_author(repository_id, args['branch'], args.get('filter')))
 
 
+class GitProjectBranchCommitsV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get commits of one branch")
+    @jwt_required()
+    @use_kwargs(route_model.GitGetBranchCommitsSch, location="query")
+    @marshal_with(route_model.GitGetBranchCommitsRes)
+    def get(self, repository_id, **kwargs):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        return util.success(
+            gitlab.gl_get_commits_by_author(repository_id, kwargs['branch'], kwargs.get('filter')))
+
+
 class GitProjectMembersCommits(Resource):
     @jwt_required()
     def get(self, repository_id):
@@ -1206,14 +1371,42 @@ class GitProjectMembersCommits(Resource):
             gitlab.gl_get_commits_by_members(repository_id, args['branch']))
 
 
+class GitProjectMembersCommitsV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get commits of the pj_members ")
+    @jwt_required()
+    @use_kwargs(route_model.GitGetMembersCommitsSch, location="query")
+    @marshal_with(route_model.GitGetMembersCommitsRes)
+    def get(self, repository_id, **kwargs):
+        project_id = get_nexus_project_id(repository_id)
+        role.require_in_project(project_id)
+        return util.success(
+            gitlab.gl_get_commits_by_members(repository_id, kwargs['branch']))
+
+
 class GitProjectNetwork(Resource):
     @jwt_required()
     def get(self, repository_id):
         return gitlab.gl_get_network(repository_id)
 
 
+class GitProjectNetworkV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get repositories overview")
+    @jwt_required()
+    @marshal_with(route_model.GitGetRepositoriesOverviewRes)
+    def get(self, repository_id):
+        return gitlab.gl_get_network(repository_id)
+
+
 class GitProjectId(Resource):
     @jwt_required()
+    def get(self, repository_id):
+        return GitLab.gl_get_nexus_project_id(repository_id)
+
+
+class GitProjectIdV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get project id")
+    @jwt_required()
+    @marshal_with(route_model.GitGetProjectIdRes)
     def get(self, repository_id):
         return GitLab.gl_get_nexus_project_id(repository_id)
 
@@ -1234,6 +1427,22 @@ class GitProjectIdFromURL(Resource):
                                     args['repository_url']))
 
 
+class GitProjectIdFromURLV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get project id form URI")
+    @use_kwargs(route_model.GitGetProjectIdFromURISch, location='query')
+    @jwt_required()
+    @marshal_with(route_model.GitGetProjectIdFromURIRes)
+    def get(self, **kwargs):
+        try:
+            return util.success(
+                GitLab.gl_get_project_id_from_url(kwargs['repository_url']))
+        except NoResultFound:
+            return util.respond(404,
+                                'No such repository found in database.',
+                                error=apiError.repository_id_not_found(
+                                    kwargs['repository_url']))
+
+
 class GitProjectURLFromId(Resource):
     @jwt_required()
     def get(self):
@@ -1244,6 +1453,24 @@ class GitProjectURLFromId(Resource):
         project_id = args['project_id']
         if project_id is None:
             repo_id = args['repository_id']
+            if repo_id is None:
+                return util.respond(
+                    400,
+                    'You must provide project_id or repository_id.',
+                    error=apiError.argument_error('project_id|repository_id'))
+            project_id = get_nexus_project_id(repo_id)
+        return util.success({'http_url': get_repo_url(project_id)})
+
+
+class GitProjectURLFromIdV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get project url form id")
+    @use_kwargs(route_model.GitGetProjectURLFromIdSch, location='query')
+    @jwt_required()
+    @marshal_with(route_model.GitGetProjectURLFromIdRes)
+    def get(self, **kwargs):
+        project_id = kwargs['project_id']
+        if project_id is None:
+            repo_id = kwargs['repository_id']
             if repo_id is None:
                 return util.respond(
                     400,
@@ -1345,8 +1572,24 @@ class GitlabDomainStatus(Resource):
         return util.success(gitlab_status_connection())
 
 
+class GitlabDomainStatusV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get domain status")
+    @jwt_required()
+    @marshal_with(route_model.GitGetDomainStatusRes)
+    def get(self):
+        return util.success(gitlab_status_connection())
+
+
 class GitlabSingleCommit(Resource):
     @jwt_required()
+    def get(self, repo_id, commit_id):
+        return util.success(gitlab.single_commit(repo_id, commit_id))
+
+
+class GitlabSingleCommitV2(MethodResource):
+    @doc(tags=['Gitlab'], description="get single commit")
+    @jwt_required()
+    @marshal_with(route_model.GitGetSingleCommitRes)
     def get(self, repo_id, commit_id):
         return util.success(gitlab.single_commit(repo_id, commit_id))
 

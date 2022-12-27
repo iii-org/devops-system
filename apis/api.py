@@ -4,7 +4,7 @@ import threading
 import traceback
 from os.path import isfile
 from pathlib import Path
-import this
+import re
 
 import werkzeug
 from apispec import APISpec
@@ -175,9 +175,20 @@ class NexusVersion(Resource):
         row = model.NexusVersion.query.one()
         for k in keys:
             if args[k] is not None:
-                setattr(row, k, args[k])
+                setattr(row, k, self._check(args[k]))
         db.session.commit()
         return util.success()
+
+    @staticmethod
+    def _check(check: str) -> str:
+        error: apiError.DevOpsError = apiError.DevOpsError(400, "api_version is not valid")
+        # check regex only digit and dot
+        if re.match(r"^[Vv]?\d+(\.\d+)*$", check) is None:
+            # Check string is only 'develop'
+            if check.lower() != "develop":
+                raise error
+
+        return check
 
 
 def initialize(db_uri):
@@ -292,28 +303,60 @@ api.add_resource(template.ProjectPipelineDefaultBranch,
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches,
                  '/repositories/<repository_id>/branches')
+api.add_resource(gitlab.GitProjectBranchesV2,
+                 '/v2/repositories/<repository_id>/branches')
+add_resource(gitlab.GitProjectBranchesV2, 'public')
 api.add_resource(gitlab.GitProjectBranch,
                  '/repositories/<repository_id>/branch/<branch_name>')
+api.add_resource(gitlab.GitProjectBranchV2,
+                 '/v2/repositories/<repository_id>/branch/<branch_name>')
+add_resource(gitlab.GitProjectBranchV2, 'public')
 api.add_resource(gitlab.GitProjectRepositories,
                  '/repositories/<repository_id>/branch/<branch_name>/tree')
+api.add_resource(gitlab.GitProjectRepositoriesV2,
+                 '/v2/repositories/<repository_id>/branch/<branch_name>/tree')
+add_resource(gitlab.GitProjectRepositoriesV2, 'public')
 api.add_resource(gitlab.GitProjectFile,
                  '/repositories/<repository_id>/branch/files',
                  '/repositories/<repository_id>/branch/<branch_name>/files/<file_path>')
 api.add_resource(gitlab.GitProjectTag,
                  '/repositories/<repository_id>/tags/<tag_name>',
                  '/repositories/<repository_id>/tags')
+api.add_resource(gitlab.GitProjectTagV2,
+                 '/v2/repositories/<repository_id>/tags/<tag_name>',
+                 '/v2/repositories/<repository_id>/tags')
+add_resource(gitlab.GitProjectTagV2, 'public')
 api.add_resource(gitlab.GitProjectBranchCommits,
                  '/repositories/<repository_id>/commits')
+api.add_resource(gitlab.GitProjectBranchCommitsV2,
+                 '/v2/repositories/<repository_id>/commits')
+add_resource(gitlab.GitProjectBranchCommitsV2, 'public')
 api.add_resource(gitlab.GitProjectMembersCommits,
                  '/repositories/<repository_id>/members_commits')
+api.add_resource(gitlab.GitProjectMembersCommitsV2,
+                 '/v2/repositories/<repository_id>/members_commits')
+add_resource(gitlab.GitProjectMembersCommitsV2, 'public')
 api.add_resource(gitlab.GitProjectNetwork,
                  '/repositories/<repository_id>/overview')
+api.add_resource(gitlab.GitProjectNetworkV2,
+                 '/v2/repositories/<repository_id>/overview')
+add_resource(gitlab.GitProjectNetworkV2, 'public')
 api.add_resource(gitlab.GitProjectId, '/repositories/<repository_id>/id')
+api.add_resource(gitlab.GitProjectIdV2, '/v2/repositories/<repository_id>/id')
+add_resource(gitlab.GitProjectIdV2, 'public')
 api.add_resource(gitlab.GitProjectIdFromURL, '/repositories/id')
+api.add_resource(gitlab.GitProjectIdFromURLV2, '/v2/repositories/id')
+add_resource(gitlab.GitProjectIdFromURLV2, 'public')
 api.add_resource(gitlab.GitProjectURLFromId, '/repositories/url')
+api.add_resource(gitlab.GitProjectURLFromIdV2, '/v2/repositories/url')
+add_resource(gitlab.GitProjectURLFromIdV2, 'public')
 api.add_resource(gitlab.GitlabDomainConnection, '/repositories/is_ip', '/repositories/connection')
 api.add_resource(gitlab.GitlabDomainStatus, '/repositories/connection/status')
+api.add_resource(gitlab.GitlabDomainStatusV2, '/v2/repositories/connection/status')
+add_resource(gitlab.GitlabDomainStatusV2, 'public')
 api.add_resource(gitlab.GitlabSingleCommit, '/repositories/<repo_id>/<commit_id>')
+api.add_resource(gitlab.GitlabSingleCommitV2, '/v2/repositories/<repo_id>/<commit_id>')
+add_resource(gitlab.GitlabSingleCommitV2, 'public')
 api.add_resource(gitlab.GitlabSourceCodeV2, '/repositories/pipline')
 add_resource(gitlab.GitlabSourceCodeV2, 'public')
 
@@ -637,6 +680,10 @@ notification_message_url(api, add_resource, socketio)
 api.add_resource(routine_job.DoJobByMonth, '/routine_job/by_month')
 api.add_resource(routine_job.DoJobByDay, '/routine_job/by_day')
 
+
+@app.before_request
+def pre_check_block_ip_account():
+    print("test cors")
 
 
 @app.route('/user/login', methods=["POST"])

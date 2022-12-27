@@ -13,7 +13,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 from gitlab import Gitlab
 from gitlab.exceptions import GitlabGetError
-
+import ast
 import config
 import nexus
 import resources.apiError as apiError
@@ -63,7 +63,7 @@ def __tm_get_tag_info(pj, tag_name):
         if tag_name is None:
             # Get the last tag
             for tag in tags:
-                seconds = (datetime.now() - dateutil.parser.parse(
+                seconds = (datetime.utcnow() - dateutil.parser.parse(
                     tag.commit["committed_date"]).replace(tzinfo=None)
                 ).total_seconds()
                 if seconds < tag_info_dict["commit_time"]:
@@ -246,7 +246,7 @@ def handle_template_cache(pj, group_name, pip_set_json, tag_list):
                                   'display': pip_set_json["name"],
                                   'description': pip_set_json["description"],
                                   'version': tag_list,
-                                  'update_at': datetime.now(),
+                                  'update_at': datetime.utcnow().isoformat(),
                                   'group_name': TEMPLATE_GROUP_DICT.get(group_name)}, default=str)}
 
 
@@ -256,7 +256,7 @@ def update_redis_template_cache(pj, group_name, pip_set_json, tag_list):
                                   'display': pip_set_json["name"],
                                   'description': pip_set_json["description"],
                                   'version': tag_list,
-                                  'update_at': datetime.now(),
+                                  'update_at': datetime.utcnow(),
                                   'group_name': TEMPLATE_GROUP_DICT.get(group_name)})
 
 
@@ -435,6 +435,8 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id,
                                                     "default_value"]
                                 # Replace by user input parameter.
                                 if arguments is not None and ans_key in arguments:
+                                    if type(arguments) is str:
+                                        arguments = ast.literal_eval(arguments)
                                     for arg_key, arg_value in arguments.items(
                                     ):
                                         if arg_key is not None and ans_key == arg_key:

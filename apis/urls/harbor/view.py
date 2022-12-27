@@ -5,7 +5,7 @@ from flask_apispec.views import MethodResource
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from resources import role
-from resources.harbor import (hb_copy_artifact_and_retage,
+from resources.harbor import (hb_copy_artifact_and_re_tag,
                               hb_create_registries,
                               hb_create_replication_policy,
                               hb_delete_artifact_tag, hb_delete_registries,
@@ -246,20 +246,26 @@ class HarborReplicationExecutionTaskLog(Resource):
         return util.success({'logs': output.text.splitlines()})
 
 
-class HarborCopyImageRetage(Resource):
+class HarborCopyImageReTag(Resource):
     @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('project_name', type=str, required=True, location="form")
-        parser.add_argument('from_repo_name', type=str, required=True, location="form")
-        parser.add_argument('dest_repo_name', type=str, required=True, location="form")
-        parser.add_argument('from_tag', type=str, required=True, location="form")
-        parser.add_argument('dest_tag', type=str, required=True, location="form")
+        parser.add_argument("project_name", type=str, required=True, location="form")
+        parser.add_argument("from_repo_name", type=str, required=True, location="form")
+        parser.add_argument("dest_repo_name", type=str, required=True, location="form")
+        parser.add_argument("from_tag", type=str, required=True, location="form")
+        parser.add_argument("dest_tag", type=str, required=True, location="form")
         args = parser.parse_args()
 
         return util.success(
-            hb_copy_artifact_and_retage(
-                args["project_name"], args["from_repo_name"], args["dest_repo_name"], args["from_tag"], args["dest_tag"]))
+            hb_copy_artifact_and_re_tag(
+                args["project_name"],
+                args["from_repo_name"],
+                args["dest_repo_name"],
+                args["from_tag"],
+                args["dest_tag"],
+            )
+        )
 
 
 @doc(tags=['Harbor Scan'], description='Create a harbor image scan record when pipeline execute')
