@@ -108,7 +108,7 @@ def get_project_issue_calculation(user_id, project_ids=[]):
     return ret
 
 
-def  get_project_list(user_id, role="simple", args={}, disable=None, sync=False):  
+def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
     limit = args.get("limit")
     offset = args.get("offset")
     extra_data = args.get("test_result", "false") == "true"
@@ -131,7 +131,7 @@ def  get_project_list(user_id, role="simple", args={}, disable=None, sync=False)
             except (ResourceNotFoundError , ForbiddenError):
                 # When Redmin project was missing
                 sync_project.lock_project(nexus_project.name, "Redmine")
-                rm_project = {"updated_on": datetime.utcnow(), "id": -1}
+                rm_project = {"updated_on": datetime.utcnow().isoformat(), "id": -1}
             nexus_project = nexus_project.fill_pm_extra_fields(rm_project, user_name, sync)
         if extra_data:
             nexus_project = nexus_project.fill_extra_fields()

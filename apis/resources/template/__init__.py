@@ -246,7 +246,7 @@ def handle_template_cache(pj, group_name, pip_set_json, tag_list):
                                   'display': pip_set_json["name"],
                                   'description': pip_set_json["description"],
                                   'version': tag_list,
-                                  'update_at': datetime.utcnow(),
+                                  'update_at': datetime.utcnow().isoformat(),
                                   'group_name': TEMPLATE_GROUP_DICT.get(group_name)}, default=str)}
 
 

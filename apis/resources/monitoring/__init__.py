@@ -405,7 +405,7 @@ def generate_alive_response(name: str) -> dict[str, Any]:
         "name": name,
         "status": mapping[name](),
         "message": monitoring.error_message,
-        "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+        "datetime": datetime.utcnow().isoformat(),
     }
 
 
@@ -502,7 +502,7 @@ def docker_image_pull_limit_alert():
             "status": False,
             "remain_limit": 0,
             "message": "Can not get all nodes' pull limit info.",
-            "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+            "datetime": datetime.utcnow().isoformat(),
         }
     error_nodes_message = []
     for node_info in nodes_info:
@@ -518,7 +518,7 @@ def docker_image_pull_limit_alert():
         "error_title": "Harbor pull limit exceed",
         "status": error_nodes_message == [],
         "message": "\n".join(error_nodes_message),
-        "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+        "datetime": datetime.utcnow().isoformat(),
     }
 
 
@@ -537,7 +537,7 @@ def harbor_nfs_storage_remain_limit():
             "used": None,
             "avail": None,
             "message": "Can not get all nodes' nft storage.",
-            "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+            "datetime": datetime.utcnow().isoformat(),
         }
     error_nodes_message = []
     for node_storage_info in nodes_storage_info:
@@ -555,7 +555,7 @@ def harbor_nfs_storage_remain_limit():
         "error_title": "Harbor NFS out of storage",
         "status": error_nodes_message == [],
         "message": "\n".join(error_nodes_message),
-        "datetime": datetime.utcnow().strftime(DATETIMEFORMAT),
+        "datetime": datetime.utcnow().isoformat(),
     }
 
 

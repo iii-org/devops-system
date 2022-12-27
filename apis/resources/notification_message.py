@@ -97,6 +97,13 @@ def combine_message_and_recipient(rows):
                     out_dict[row[0].id]["read"] = True
                 else:
                     out_dict[row[0].id]["read"] = False
+            if row[0].created_at:
+                convert_datetime = out_dict[row[0].id]["created_at"].split('.')[0]
+                out_dict[row[0].id]["created_at"] = datetime.strptime(convert_datetime, "%Y-%m-%d %H:%M:%S").isoformat()
+            if row[0].updated_at:
+                convert_datetime = out_dict[row[0].id]["updated_at"].split('.')[0]
+                out_dict[row[0].id]["updated_at"] = datetime.strptime(convert_datetime,
+                                                                          "%Y-%m-%d %H:%M:%S").isoformat()
     return list(out_dict.values())
 
 
@@ -191,6 +198,7 @@ def get_notification_message_list(args, admin=False):
     out = combine_message_and_recipient(rows)
     if admin:
         out = count_must_receiver_number(out)
+    # print(out)
     out, page_dict = util.list_pagination(out, args['limit'], args['offset'])
     out_dict = {'notification_message_list': out}
 
