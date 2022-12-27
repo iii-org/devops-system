@@ -190,10 +190,6 @@ def add_issue_relation(parent_issue_id, son_issue_id):
 # Project issue calculate Cache
 def get_certain_pj_issue_calc(pj_id):
     cal_info = redis_op.dict_get_certain(PROJECT_ISSUE_CALCULATE_KEY, pj_id)
-    cal_info_dict = json.loads(cal_info)
-    if 'T' not in cal_info_dict['updated_time']:
-        cal_info_dict['updated_time'] = datetime.strptime(cal_info_dict['updated_time'], "%Y-%m-%d %H:%M:%S").isoformat() if \
-            cal_info_dict['updated_time'] not in ["", None] else datetime.utcnow().isoformat()
     if cal_info is None:
         return {
             "closed_count": 0,
@@ -202,6 +198,10 @@ def get_certain_pj_issue_calc(pj_id):
             "project_status": "not_started",
             "updated_time": datetime.utcnow().isoformat()
         }
+    cal_info_dict = json.loads(cal_info)
+    if 'T' not in cal_info_dict['updated_time']:
+        cal_info_dict['updated_time'] = datetime.strptime(cal_info_dict['updated_time'], "%Y-%m-%d %H:%M:%S").isoformat() if \
+            cal_info_dict['updated_time'] not in ["", None] else datetime.utcnow().isoformat()
     return cal_info_dict
 
 
