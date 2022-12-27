@@ -47,11 +47,16 @@ def extra_func(pipe_stages, change):
     from copy import deepcopy
     pipe_stages_copy = deepcopy(pipe_stages)
 
+    add_anchore: bool = True
+    env_index: int = None
     for pipe_stage in pipe_stages_copy:
-        if pipe_stage.get("iiidevops") == "deployed-environments":
-            index = pipe_stages.index(pipe_stage)
-            if pipe_stages[index + 1].get("iiidevops") != "deployed-environments":
-                pipe_stages.insert(index + 1, SCAN_DOCKER_IMAGE[0])
-                change = True
-                break
+        if pipe_stage.get("iiidevops") == "anchore":
+            add_anchore = False
+            break
+        elif pipe_stage.get("iiidevops") == "deployed-environments":
+            env_index = pipe_stages.index(pipe_stage)
+    if add_anchore and env_index:
+        pipe_stages.insert(env_index + 1, SCAN_DOCKER_IMAGE[0])
+        change = True
+
     return pipe_stages, change
