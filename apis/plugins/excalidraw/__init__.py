@@ -19,5 +19,5 @@ def router(api, add_resource):
     add_resource(excalidraw_main.ExcalidrawsHistoryV2, "public")
     api.add_resource(excalidraw_main.ExcalidrawsFilesV2, '/v2/excalidraw/file')
     add_resource(excalidraw_main.ExcalidrawsFilesV2, "public")
-    api.add_resource(excalidraw_main.GetExcalidrawIDV2, '/v2/excalidraw/id')
+    api.add_resource(excalidraw_main.GetExcalidrawIDV2, '/v2/excalidraw/<string:room_key>')
     add_resource(excalidraw_main.GetExcalidrawIDV2, "public")
