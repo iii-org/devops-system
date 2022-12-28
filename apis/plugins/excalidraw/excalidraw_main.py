@@ -94,3 +94,12 @@ class ExcalidrawsVersionRestoreV2(MethodResource):
     @jwt_required()
     def put(self, excalidraw_history_id):
         return util.success(excalidraw.excalidraw_version_restore(excalidraw_history_id))
+
+
+class GetExcalidrawIDV2(MethodResource):
+    @doc(tags=['Excalidraw'], description="get excalidraw id.")
+    @use_kwargs(router_model.ExcalidrawGetIDSch, location='json')
+    @marshal_with(router_model.ExcalidrawGetIDRes)
+    @jwt_required()
+    def get(self, **kwargs):
+        return util.success(excalidraw.get_excalidraw_id(kwargs['room_key']))

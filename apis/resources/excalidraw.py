@@ -384,6 +384,11 @@ def add_new_record_to_history(excalidraw_history_id):
         add_to_db(add_dict)
 
 
+def get_excalidraw_id(room_key):
+    row = Excalidraw.query.filter_by(room=room_key).first()
+    return {"excalidraw_id": row.id}
+
+
 def add_to_db(add_dict):
     add_dict['updated_at'] = datetime.utcnow()
     add_dict['user_id'] = get_jwt_identity()["user_id"]
