@@ -82,6 +82,7 @@ class ExcalidrawsHistoryV2(MethodResource):
 
     @doc(tags=['Excalidraw'], description="update one user excalidraw record.")
     @marshal_with(util.CommonResponse)
+    @jwt_required()
     def post(self, excalidraw_id):
         excalidraw.update_excalidraw_history(excalidraw_id)
         return util.success()
