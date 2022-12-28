@@ -82,7 +82,6 @@ class ExcalidrawsHistoryV2(MethodResource):
 
     @doc(tags=['Excalidraw'], description="update one user excalidraw record.")
     @marshal_with(util.CommonResponse)
-    @jwt_required()
     def post(self, excalidraw_id):
         excalidraw.update_excalidraw_history(excalidraw_id)
         return util.success()
@@ -99,6 +98,5 @@ class ExcalidrawsVersionRestoreV2(MethodResource):
 class GetExcalidrawIDV2(MethodResource):
     @doc(tags=['Excalidraw'], description="get excalidraw id.")
     @marshal_with(router_model.ExcalidrawGetIDRes)
-    @jwt_required()
     def get(self, room_key):
         return util.success(excalidraw.get_excalidraw_id(room_key))
