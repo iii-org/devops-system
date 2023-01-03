@@ -123,6 +123,9 @@ class CheckMarx(object):
             scan_final_status=None,
             run_at=datetime.datetime.utcnow())
         db.session.add(new)
+        update_row = Model.query.filter_by(repo_id=args['repo_id']).filter(Model.report_id != -1).order_by(
+            Model.scan_id).first()
+        update_row.report_id = -1
         db.session.commit()
         return util.success()
 
@@ -266,21 +269,7 @@ class CheckMarx(object):
     def list_scans(project_id):
         rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(
             desc(Model.scan_id)).all()
-        ret = []
-        if rows:
-            df = pd.DataFrame([CheckMarx.to_json(row, project_id) for row in rows])
-            df.sort_values(by="run_at", ascending=False, inplace=True)
-            df_five_download = df[0:5]
-            update_list = list(df.drop(list(df_five_download.index)).scan_id)
-            # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
-            for i in update_list:
-                Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).filter_by(scan_id=i).update({"report_id": -1})
-            db.session.commit()
-            updated_rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(
-                desc(Model.run_at)).all()
-            ret = [CheckMarx.to_json(row, project_id) for row in updated_rows]
-            # df = df_five_download.append(df[df["report_id"] == -1].sort_values(by="run_at", ascending=False))
-            # ret = [value for key, value in df.T.to_dict().items()]
+        ret = [CheckMarx.to_json(row, project_id) for row in rows]
         return ret
 
     @staticmethod
@@ -484,12 +473,17 @@ class CronjobScan(Resource):
             rows = Model.query.filter_by(repo_id=id).order_by(desc(Model.scan_id)).all()
             if rows:
                 df = pd.DataFrame([row_to_dict(row) for row in rows])
-                df.sort_values(by="run_at", ascending=False, inplace=True)
+                df.sort_values(by="scan_id", ascending=False, inplace=True)
                 df_five_download = df[0:5]
                 # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
-                for i in list(df_five_download.scan_id):
+                # for i in list(df_five_download.scan_id):
+                #     Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update(
+                #         {"scan_final_status": None})
+                update_list = list(df.drop(list(df_five_download.index)).scan_id)
+                # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
+                for i in update_list:
                     Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update(
-                        {"scan_final_status": None})
+                        {"report_id": -1})
                 db.session.commit()
         return util.success()
 
