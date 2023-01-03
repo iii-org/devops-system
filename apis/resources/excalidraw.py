@@ -287,16 +287,11 @@ def save_file_info(kwargs):
 
 
 def load_excalidraw_key_value():
-    database = "excalidraw"
-    user = "postgres"
-    password = "nFx8m16LDzKACWtp8CV6uG"
-    host = "10.20.0.91"
-    port = 30503
-    # database = excalidraw_get_config("excalidraw-db-database")
-    # user = excalidraw_get_config("excalidraw-db-account")
-    # password = excalidraw_get_config("excalidraw-db-password")
-    # host = excalidraw_get_config("excalidraw-db-host")
-    # port = excalidraw_get_config("excalidraw-db-port")
+    database = excalidraw_get_config("excalidraw-db-database")
+    user = excalidraw_get_config("excalidraw-db-account")
+    password = excalidraw_get_config("excalidraw-db-password")
+    host = excalidraw_get_config("excalidraw-db-host")
+    port = excalidraw_get_config("excalidraw-db-port")
     conn = psycopg2.connect(
         database=database,
         user=user,
