@@ -9,8 +9,8 @@ from resources.router import update_plugin_hidden
 
 # Each time you add a migration, add a version code here.
 
-VERSIONS = ['1.22.0.1', '1.22.0.2', '1.22.0.3', '1.22.0.4', '1.22.0.5', '1.23.0.1', '1.23.0.2', '1.24.0.1']
-ONLY_UPDATE_DB_MODELS = ['1.22.0.1', '1.22.0.2', '1.22.0.3', '1.23.0.2', '1.24.0.1']
+VERSIONS = ['1.22.0.1', '1.22.0.2', '1.22.0.3', '1.22.0.4', '1.22.0.5', '1.23.0.1', '1.23.0.2', '1.24.0.1', '1.24.0.2']
+ONLY_UPDATE_DB_MODELS = ['1.22.0.1', '1.22.0.2', '1.22.0.3', '1.23.0.2', '1.24.0.1', '1.24.0.2']
 
 
 def upgrade(version):

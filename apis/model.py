@@ -1124,6 +1124,7 @@ class UpdatePasswordError(db.Model):
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
     server = Column(String, nullable=False)
     password = Column(String, nullable=False)
+    created_at = Column(DateTime)
 
 
 class Pict(db.Model):
