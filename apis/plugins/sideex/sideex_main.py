@@ -573,6 +573,11 @@ class SideexJsonfileVariable(Resource):
     def post(self, project_id, **kwargs):
         return util.success(get_setting_file(project_id, kwargs['filename']))
 
+    @use_kwargs(router_model.SideexPutVariableSch, location="json")
+    @jwt_required()
+    def put(self, project_id, **kwargs):
+        return util.success(update_config_file(project_id, kwargs))
+
 
 class SideexJsonfileVariableV2(MethodResource):
     @doc(tags=['Sideex'], description="get pict setting")
@@ -595,6 +600,11 @@ class SideexGenerateJsonfile(Resource):
     @jwt_required()
     def post(self, project_id, **kwargs):
         generate_json_file(project_id, kwargs['filename'])
+        return util.success()
+
+    @jwt_required()
+    def delete(self, project_id):
+        delete_json_configfile(project_id)
         return util.success()
 
 
