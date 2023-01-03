@@ -20,6 +20,10 @@ from resources.activity import record_activity
 from enums.action_type import ActionType
 
 
+EXCALIDRAW_EMPTY_VALUE_LENGHT = 75
+
+
+
 
 def excalidraw_get_config(key):
     args = get_plugin_config("excalidraw")["arguments"]
@@ -283,16 +287,16 @@ def save_file_info(kwargs):
 
 
 def load_excalidraw_key_value():
-    # database = "excalidraw"
-    # user = "postgres"
-    # password = "nFx8m16LDzKACWtp8CV6uG"
-    # host = "10.20.0.91"
-    # port = 30503
-    database = excalidraw_get_config("excalidraw-db-database")
-    user = excalidraw_get_config("excalidraw-db-account")
-    password = excalidraw_get_config("excalidraw-db-password")
-    host = excalidraw_get_config("excalidraw-db-host")
-    port = excalidraw_get_config("excalidraw-db-port")
+    database = "excalidraw"
+    user = "postgres"
+    password = "nFx8m16LDzKACWtp8CV6uG"
+    host = "10.20.0.91"
+    port = 30503
+    # database = excalidraw_get_config("excalidraw-db-database")
+    # user = excalidraw_get_config("excalidraw-db-account")
+    # password = excalidraw_get_config("excalidraw-db-password")
+    # host = excalidraw_get_config("excalidraw-db-host")
+    # port = excalidraw_get_config("excalidraw-db-port")
     conn = psycopg2.connect(
         database=database,
         user=user,
@@ -315,132 +319,165 @@ def get_excalidraw_history(excalidraw_id):
             result_dict['size'] = utf8len(row.value['value'])/1000
             result_dict.pop('user_id')
             result_list.append(result_dict)
-        return result_list
+    return result_list
 
 
 def utf8len(s):
     return len(s.encode('utf-8'))
 
 
-def update_excalidraw_history(excalidraw_id):
+def get_excalidraw_from_excaildraw_db(key: str) -> list[dict[str, str]]:
     conn = load_excalidraw_key_value()
-    # 從原生excalidraw表中取得key, value
-    df_keyv = pd.read_sql_query("SELECT * FROM keyv", conn)
-    # 將room與file字符去除，只取key的值的部分
-    df_keyv['key'] = df_keyv.key.apply(lambda x: x.split(':')[1])
-    rows = Excalidraw.query.all()
-    result_list = [row_to_dict(row)for row in rows]
-    df_excalidraw = pd.DataFrame(result_list)
-    df_merge = pd.merge(df_keyv, df_excalidraw, left_on='key', right_on='room')
-    df_merge['updated_at'] = datetime.utcnow()
-    df_merge['user_id'] = get_jwt_identity()["user_id"]
-    df_export = df_merge[['id', 'user_id', 'updated_at', 'value']]
-    df_export.rename(columns={"id": "excalidraw_id"}, inplace=True)
-    df_export = df_export[df_export.excalidraw_id == excalidraw_id]
-    result_dict = {}
-    change = False
-    rows = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).order_by(
-            desc(ExcalidrawHistory.updated_at)).all()
-    df_record = df_export[df_export['excalidraw_id'] == excalidraw_id]
-    rows_value_list = [row_to_dict(row)['value']['value'] for row in rows]
-    for index, value in df_record.fillna("").T.to_dict().items():
-        for k, v in value.items():
-            if type(v) == str:
-                v = json.loads(v)
-                # 只存有變動以及檔案大小不為48k的資料
-                if v['value'] not in rows_value_list and utf8len(v['value']) != 48:
-                    change = True
-                # 如果遇到原生資料表中檔案為48k的資料則直接進行restore
-                elif utf8len(v['value']) == 48:
-                    row = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).order_by(desc(ExcalidrawHistory.updated_at)).first()
-                    if row:
-                        excalidraw_history_id = row.id
-                        excalidraw_version_restore(excalidraw_history_id, True)
-            result_dict.update({k: v})
-    if change:
-        if int(len(rows)) < 5:
-            row = ExcalidrawHistory(**result_dict)
-            db.session.add(row)
-            db.session.commit()
-        else:
-            oldest_time = row_to_dict(rows[-1])["updated_at"]
-            ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).filter_by(updated_at=oldest_time).update(result_dict)
-            db.session.commit()
-
-
-def add_new_record_to_history(excalidraw_history_id):
-    excalidraw_history = ExcalidrawHistory.query.filter_by(id=excalidraw_history_id).first()
-    add_dict = row_to_dict(excalidraw_history)
-    excalidraw_id = excalidraw_history.excalidraw_id
-    del add_dict['id']
-    rows = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).order_by(
-        desc(ExcalidrawHistory.updated_at)).all()
-    if int(len(rows)) < 5:
-        add_to_db(add_dict)
-    else:
-        oldest_time = row_to_dict(rows[-1])["updated_at"]
-        oldest_row = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).filter_by(updated_at=oldest_time).first()
-        db.session.delete(oldest_row)
-        add_to_db(add_dict)
-
-
-def get_excalidraw_id(room_key):
-    row = Excalidraw.query.filter_by(room=room_key).first()
-    return {"excalidraw_id": row.id}
-
-
-def add_to_db(add_dict):
-    add_dict['updated_at'] = datetime.utcnow()
-    add_dict['user_id'] = get_jwt_identity()["user_id"]
-    row = ExcalidrawHistory(**add_dict)
-    db.session.add(row)
-    db.session.commit()
-
-
-@record_activity(ActionType.RESTORE_EXCALIDRAW_HISTORY)
-def excalidraw_version_restore(excalidraw_history_id, simple=False):
-    excalidraw_history = ExcalidrawHistory.query.filter_by(id=excalidraw_history_id).first()
-    excalidraw_id = excalidraw_history.excalidraw_id
-    # 帶simple的回朔直接進行回朔，非simple則會在restore之後將該筆資料在history中再存入最新的一筆。
-    if not simple:
-        update_excalidraw_history(excalidraw_id)
-        add_new_record_to_history(excalidraw_history_id)
-    value = excalidraw_history.value
-    excalidraw = Excalidraw.query.filter_by(id=excalidraw_id).first()
-    project_id = excalidraw.project_id
-    restore_key = excalidraw.room
-    # 需要是project的擁有者才能進行版本回復
-    if project_id:
-        role.require_project_owner(get_jwt_identity()['user_id'], project_id)
-    conn = load_excalidraw_key_value()
-    value = str(value).replace('\'', '\"').replace('None', 'null')
-    rows = ExcalidrawJson.query.filter_by(excalidraw_id=excalidraw_id).all()
     try:
-        # 進行room_key的回復
         cur = conn.cursor()
         cur.execute(
             f"""
-            UPDATE public.keyv
-            SET value= '{value}'
-            WHERE key like '%{restore_key}';
+            SELECT * FROM public.keyv
+            WHERE key LIKE '%{key}%';
             """
         )
-        # 進行多筆file_key的回復，也可以是單一筆回復
-        if rows:
-            for row in rows:
-                file_value = str(row.file_value).replace('\'', '\"').replace('None', 'null')
-                cur.execute(
-                    f"""
-                    UPDATE public.keyv
-                    SET value= '{file_value}'
-                    WHERE key like '%{row.name}';
-                    """
-                )
-        conn.commit()
+        datas = cur.fetchall()
     except Exception as e:
-        logger.logger.info(f"Excalidraw restore by key:{restore_key},value:{value} not success. Error:{e}")
+        logger.logger.exception(f"Error{str(e)}")
+        datas = []
     finally:
         conn.close()
+    return datas
+
+
+def insert_excalidraw_in_excalidraw_db(key: str, value: str) -> bool:
+    conn = load_excalidraw_key_value()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"""
+            INSERT INTO public.keyv (key, value)
+            VALUES ('{key}', '{value}');
+            """
+        )
+        conn.commit()
+        ret = True
+    except Exception as e:
+        logger.logger.exception(f"Error{str(e)}")
+        ret = False
+    finally:
+        conn.close()
+        return ret
+
+
+def update_excalidraw_in_excalidraw_db(key: str, value: str) -> bool:
+    conn = load_excalidraw_key_value()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"""
+                UPDATE public.keyv
+                SET value= '{value}'
+                WHERE key = '{key}';
+            """
+        )
+        conn.commit()
+        ret = True
+    except Exception as e:
+        logger.logger.exception(f"Error{str(e)}")
+        ret = False
+    finally:
+        conn.close()
+        return ret
+
+
+def restore_excalidraw_db(element: str, key: str, value: str, force_update: bool = False) -> None:
+    '''
+    element: ROOMS / FILES
+    '''
+    excalid_datas = get_excalidraw_from_excaildraw_db(key)
+    if not excalid_datas:
+        ret = insert_excalidraw_in_excalidraw_db(f"{element}:{key}", value)
+        if not ret:
+            raise DevOpsError(400, f'Error occurs during operating excalidraw db.',
+                                        error=apiError.excalidraw_operation_error("Insert error"))
+        return 
+    
+    _, excal_value = excalid_datas[0]
+    if utf8len(excal_value) == EXCALIDRAW_EMPTY_VALUE_LENGHT or force_update:
+        ret = update_excalidraw_in_excalidraw_db(f"{element}:{key}", value)
+        if not ret:
+            raise DevOpsError(400, f'Error occurs during operating excalidraw db.',
+                                        error=apiError.excalidraw_operation_error("Update error"))
+
+
+def get_excalidraw_history_join_row(excalidraw_id: int, excalidraw_history_id: int = None) -> \
+    tuple[Excalidraw, ExcalidrawHistory]:
+    row = db.session.query(Excalidraw, ExcalidrawHistory).join(
+        ExcalidrawHistory, Excalidraw.id==ExcalidrawHistory.excalidraw_id).filter(
+            Excalidraw.id==excalidraw_id)
+    if excalidraw_history_id is not None:
+        row = row.filter(ExcalidrawHistory.id==excalidraw_history_id)
+
+    excalidraw_row, excalidraw_history_row = row.order_by(desc(ExcalidrawHistory.updated_at))[0]
+    return excalidraw_row, excalidraw_history_row
+
+
+def update_excalidraw_history(excalidraw_id: int, excalidraw_history_id: int = None):
+    '''
+    If excalidraw_history_id is None, only updating excalidraw db when its value is empty.
+    '''
+    excalidraw_row, excalidraw_history_row = get_excalidraw_history_join_row(excalidraw_id, excalidraw_history_id)
+    key, value = excalidraw_row.room, json.dumps(excalidraw_history_row.value)
+    restore_excalidraw_db("ROOMS", key, value, excalidraw_history_id is not None)
+
+
+def check_excalidraw_history(excalidraw_id: int):
+    excalidraw_row, excalidraw_history_row = get_excalidraw_history_join_row(excalidraw_id)
+    key, value = excalidraw_row.room, json.dumps(excalidraw_history_row.value)
+    _, excal_value = get_excalidraw_from_excaildraw_db(key)[0]
+
+    if value != excal_value:
+        add_dict = {
+            "excalidraw_id": excalidraw_id,
+            "value": json.loads(excal_value)
+        }
+        add_new_record_to_history(excalidraw_id, add_dict=add_dict)
+
+
+
+def add_new_record_to_history(excalidraw_id, excalidraw_history_id=None, add_dict=None):
+    def add_to_db(add_dict):
+        add_dict['updated_at'] = datetime.utcnow()
+        add_dict['user_id'] = get_jwt_identity()["user_id"]
+        row = ExcalidrawHistory(**add_dict)
+        db.session.add(row)
+        db.session.commit()
+
+    if add_dict is None:
+        excalidraw_history = ExcalidrawHistory.query.filter_by(id=excalidraw_history_id).first()
+        add_dict = row_to_dict(excalidraw_history)
+        del add_dict['id']
+
+    rows = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).order_by(
+        desc(ExcalidrawHistory.updated_at)).all()
+    if int(len(rows)) >= 5:
+        oldest_time = row_to_dict(rows[-1])["updated_at"]
+        oldest_row = ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).filter_by(updated_at=oldest_time).first()
+        db.session.delete(oldest_row)
+    add_to_db(add_dict)
+
+
+
+@record_activity(ActionType.RESTORE_EXCALIDRAW_HISTORY)
+def excalidraw_version_restore(excalidraw_history_id):
+    excalidraw_history = ExcalidrawHistory.query.filter_by(id=excalidraw_history_id).first()
+    excalidraw_id, value = excalidraw_history.excalidraw_id, json.dumps(excalidraw_history.value)
+    project_id, key = excalidraw_history.excalidraw.project.id, excalidraw_history.excalidraw.room
+    
+    role.require_project_owner(get_jwt_identity()['user_id'], project_id)
+
+    update_excalidraw_history(excalidraw_id, excalidraw_history_id)
+    add_new_record_to_history(excalidraw_id, excalidraw_history_id=excalidraw_history_id)
+
+    for row in ExcalidrawJson.query.filter_by(excalidraw_id=excalidraw_id).all():
+        key, value = row.name, json.dumps(row.value)
+        restore_excalidraw_db('FILES', key, value)
 
 
 def sync_excalidraw_db():

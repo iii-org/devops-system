@@ -92,12 +92,6 @@ class Project(db.Model):
         User.id, ondelete='SET NULL'), nullable=True)
     creator_id = Column(Integer, ForeignKey(
         User.id, ondelete='SET NULL'), nullable=True)
-    starred_by = relationship(
-        User, secondary='starred_project', backref='starred_project')
-    plugin_relation = relationship('ProjectPluginRelation', uselist=False)
-    user_role = relationship('ProjectUserRole', back_populates='project')
-    alert = Column(Boolean, default=False)
-    trace_order = relationship('TraceOrder', backref='project')
     is_lock = Column(Boolean, default=False)
     lock_reason = Column(String)
     base_example = Column(String)
@@ -105,6 +99,14 @@ class Project(db.Model):
     uuid = Column(String)
     is_inheritance_member = Column(Boolean, default=False)
     is_empty_project = Column(Boolean, server_default='false')
+    starred_by = relationship(
+        User, secondary='starred_project', backref='starred_project')
+    plugin_relation = relationship('ProjectPluginRelation', uselist=False)
+    user_role = relationship('ProjectUserRole', back_populates='project')
+    alert = Column(Boolean, default=False)
+    trace_order = relationship('TraceOrder', backref='project')
+    excalidraws = relationship('Excalidraw', back_populates='project')
+
 
     def __repr__(self):
         fields = {}
@@ -1029,6 +1031,8 @@ class Excalidraw(db.Model):
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     file_key = Column(String)
+    project = relationship('Project', back_populates='excalidraws')
+    excalidraw_histories = relationship('ExcalidrawHistory', back_populates='excalidraw')
 
 
 class ExcalidrawJson(db.Model):
@@ -1050,7 +1054,7 @@ class ExcalidrawHistory(db.Model):
     user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
     updated_at = Column(DateTime)
     value = Column(JSON)
-
+    excalidraw = relationship('Excalidraw', back_populates='excalidraw_histories')
 
 class ProjectResourceStoragelevel(db.Model):
     '''

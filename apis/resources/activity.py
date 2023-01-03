@@ -172,7 +172,9 @@ class Activity(model.Activity):
             self.object_id = get_jwt_identity()["user_id"]
             self.action_parts = f'Delete excalidraw: {args["excalidraw_id"]}'
         if self.action_type == ActionType.RESTORE_EXCALIDRAW_HISTORY:
-            self.object_id = get_jwt_identity()["user_id"]
+            excalidraw_id = args["excalidraw_history_id"]
+            project_id = model.ExcalidrawHistory.query.get(excalidraw_id).excalidraw.project.id
+            self.object_id = f'{get_jwt_identity()["user_id"]}@{project_id}'
             self.action_parts = f'Restore excalidraw history: {args["excalidraw_history_id"]}'
 
     def __get_issue_project_id(self, issue_id):
