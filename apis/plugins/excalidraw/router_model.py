@@ -25,6 +25,7 @@ class ExcalidrawPatchSchema(Schema):
 class ExcalidrawFilePostSchema(Schema):
     file_key = fields.Str(doc='file_key', example="PgStCvMNgpMv_Zk27zsnQQ", required=True)
     room_key = fields.Str(doc='room_key', example="45665b05adfbac27b1d9", required=True)
+
 #################################### Response ####################################
 
 
@@ -96,3 +97,7 @@ class ExcalidrawHistoryGetRes(CommonBasicResponse):
             }
         }
     ), required=True)
+
+
+class ExcalidrawGetIDRes(CommonBasicResponse):
+    data = fields.Dict(example={"excalidraw": 3})

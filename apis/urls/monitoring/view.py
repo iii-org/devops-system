@@ -15,7 +15,7 @@ from resources import logger
 from resources import role
 from resources.kubernetesClient import list_namespace_pods_info
 from resources.monitoring import Monitoring, row_to_dict, verify_github_info, docker_image_pull_limit_alert, \
-    harbor_nfs_storage_remain_limit, server_alive, plugin_disable_or_not
+    k8s_storage_remain_limit, server_alive, plugin_disable_or_not
 from resources.rancher import rancher
 from resources.rancher import remove_extra_executions
 from resources.redis import get_server_alive, update_server_alive
@@ -140,7 +140,7 @@ class HarborProxy(Resource):
 class HarborStorageV2(MethodResource):
     @jwt_required()
     def get(self):
-        alive = harbor_nfs_storage_remain_limit()
+        alive = k8s_storage_remain_limit()
         update_server_alive(str(alive["status"]))
         return alive
 
@@ -148,7 +148,7 @@ class HarborStorageV2(MethodResource):
 class HarborStorage(Resource):
     @jwt_required()
     def get(self):
-        alive = harbor_nfs_storage_remain_limit()
+        alive = k8s_storage_remain_limit()
         update_server_alive(str(alive["status"]))
         return alive
 

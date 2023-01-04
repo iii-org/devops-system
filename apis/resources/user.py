@@ -219,7 +219,6 @@ def login(args):
             db_info['connect'] = True
             db_info, user, project_user_role = check_db_login(
                 user, login_password, db_info)
-
         # Login By AD
         if ad_info['is_pass'] is True:
             status, token = ldap_api.login_by_ad(
@@ -342,6 +341,7 @@ def update_user_role(user_id, role_id):
 
 def update_external_passwords(user_id, new_pwd, old_pwd):
     DEFAULT_AD_PASSWORD = f'IIIdevops{random.randrange(10000, 99999)}'
+    login_account = model.User.query.filter_by(id=user_id).first().login
     try:
         user_login = nx_get_user(id=user_id).login
         user_relation = nx_get_user_plugin_relation(user_id=user_id)
@@ -355,112 +355,111 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
             logger.info(a)
             redmine.rm_update_password(redmine_user_id, DEFAULT_AD_PASSWORD)
             reset_dict.update({"redmine": "DEFAULT_AD_PASSWORD"})
-            args2 = {
-                "alert_level": 1,
-                "title": "redmine password recreate automation",
-                "message": f"password:{DEFAULT_AD_PASSWORD}",
-                "type_ids": [3],
-                "type_parameters": {"user_ids": [user_id]}
-            }
-            create_notification_message(args2, user_id=user_id)
+            arg = generate_arg(DEFAULT_AD_PASSWORD, user_id, 'redmine')
+            create_notification_message(arg, user_id=user_id)
             # update db
             row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="redmine").first()
             encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
             if row:
-                update = {"user_id": user_id, "server": "redmine", "password": encode_password.decode('UTF-8')}
+                update = {"user_id": user_id, "server": "redmine", "password": encode_password.decode('UTF-8'),
+                          "created_at": datetime.datetime.utcnow()}
                 db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="redmine").update(update)
                 db.session.commit()
             else:
                 insert = model.UpdatePasswordError(
-                    user_id=user_id, server="redmine", password=encode_password.decode('UTF-8')
+                    user_id=user_id, server="redmine", password=encode_password.decode('UTF-8'),
+                    created_at=datetime.datetime.utcnow()
                 )
                 db.session.add(insert)
                 db.session.commit()
         gitlab_user_id = user_relation.repository_user_id
+        logger.info(f"account:{login_account} update redmine finish.")
         b = gitlab.gl_update_password(gitlab_user_id, new_pwd)
         if int(b.status_code / 100) != 2:
             logger.info(b)
             gitlab.gl_update_password(gitlab_user_id, DEFAULT_AD_PASSWORD)
             reset_dict.update({"gitlab": "DEFAULT_AD_PASSWORD"})
-            args2 = {
-                "alert_level": 1,
-                "title": "gitlab password recreate automation",
-                "message": f"password:{DEFAULT_AD_PASSWORD}",
-                "type_ids": [3],
-                "type_parameters": {"user_ids": [user_id]}
-            }
-            create_notification_message(args2, user_id=user_id)
+            arg = generate_arg(DEFAULT_AD_PASSWORD, user_id, 'gitlab')
+            create_notification_message(arg, user_id=user_id)
             # update db
             row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="gitlab").first()
             encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
             if row:
-                update = {"user_id": user_id, "server": "gitlab", "password": encode_password.decode('UTF-8')}
+                update = {"user_id": user_id, "server": "gitlab", "password": encode_password.decode('UTF-8'),
+                          "created_at": datetime.datetime.utcnow()}
                 db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="gitlab").update(update)
                 db.session.commit()
             else:
                 insert = model.UpdatePasswordError(
-                    user_id=user_id, server="gitlab", password=encode_password.decode('UTF-8')
+                    user_id=user_id, server="gitlab", password=encode_password.decode('UTF-8'),
+                    created_at=datetime.datetime.utcnow()
                 )
                 db.session.add(insert)
                 db.session.commit()
+        logger.info(f"account:{login_account} update gitlab finish.")
         harbor_user_id = user_relation.harbor_user_id
         c = harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
         if int(c.status_code / 100) != 2:
             logger.info(c)
             harbor.hb_update_user_password(harbor_user_id, DEFAULT_AD_PASSWORD, old_pwd)
             reset_dict.update({"harbor": "DEFAULT_AD_PASSWORD"})
-            args2 = {
-                "alert_level": 1,
-                "title": "harbor password recreate automation",
-                "message": f"password:{DEFAULT_AD_PASSWORD}",
-                "type_ids": [3],
-                "type_parameters": {"user_ids": [user_id]}
-            }
-            create_notification_message(args2, user_id=user_id)
+            arg = generate_arg(DEFAULT_AD_PASSWORD, user_id, 'harbor')
+            create_notification_message(arg, user_id=user_id)
             # update db
             row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="harbor").first()
             encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
             if row:
-                update = {"user_id": user_id, "server": "harbor", "password": encode_password.decode('UTF-8')}
+                update = {"user_id": user_id, "server": "harbor", "password": encode_password.decode('UTF-8'),
+                          "created_at": datetime.datetime.utcnow()}
                 db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="harbor").update(update)
                 db.session.commit()
             else:
                 insert = model.UpdatePasswordError(
-                    user_id=user_id, server="harbor", password=encode_password.decode('UTF-8')
+                    user_id=user_id, server="harbor", password=encode_password.decode('UTF-8'),
+                    created_at=datetime.datetime.utcnow()
                 )
                 db.session.add(insert)
                 db.session.commit()
+        logger.info(f"account:{login_account} update harbor finish.")
         d = sonarqube.sq_update_password(user_login, new_pwd)
         if int(d.status_code / 100) != 2:
             logger.info(d)
             sonarqube.sq_update_password(user_login, DEFAULT_AD_PASSWORD)
             reset_dict.update({"sonarqube": "DEFAULT_AD_PASSWORD"})
-            args2 = {
-                "alert_level": 1,
-                "title": "sonarqube password recreate automation",
-                "message": f"password:{DEFAULT_AD_PASSWORD}",
-                "type_ids": [3],
-                "type_parameters": {"user_ids": [user_id]}
-            }
-            create_notification_message(args2, user_id=user_id)
+            arg = generate_arg(DEFAULT_AD_PASSWORD, user_id, 'sonarqube')
+            create_notification_message(arg, user_id=user_id)
             # update db
             row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="sonarqube").first()
             encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
             if row:
-                update = {"user_id": user_id, "server": "sonarqube", "password": encode_password.decode('UTF-8')}
+                update = {"user_id": user_id, "server": "sonarqube", "password": encode_password.decode('UTF-8'),
+                          "created_at": datetime.datetime.utcnow()}
                 db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="sonarqube").update(
                     update)
                 db.session.commit()
             else:
                 insert = model.UpdatePasswordError(
-                    user_id=user_id, server="sonarqube", password=encode_password.decode('UTF-8')
+                    user_id=user_id, server="sonarqube", password=encode_password.decode('UTF-8'),
+                    created_at=datetime.datetime.utcnow()
                 )
                 db.session.add(insert)
                 db.session.commit()
+        logger.info(f"account:{login_account} update sonarqube finish.")
         return reset_dict
     except Exception as e:
-        logger.info(e)
+        logger.exception(f"user:{user_id} update failed, reason: {e}.")
         return e
+
+
+def generate_arg(DEFAULT_AD_PASSWORD, user_id, server):
+    args = {
+        "alert_level": 1,
+        "title": f"{server} password recreate automation",
+        "message": f"password:{DEFAULT_AD_PASSWORD}",
+        "type_ids": [3],
+        "type_parameters": {"user_ids": [user_id]}
+    }
+    return args
 
 
 def is_json(string):
@@ -537,7 +536,7 @@ def checker(kwargs):
             else:
                 valid_dict.update({"continuouslly_check": False})
                 msg = "exist only 3 continuouslly letter"
-    if len(kwargs.get('new_pwd')) > 8:
+    if len(kwargs.get('new_pwd')) >= 8:
         valid_dict.update({"nine_word_check": True})
     else:
         valid_dict.update({"nine_word_check": False})

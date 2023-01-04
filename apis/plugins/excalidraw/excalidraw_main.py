@@ -80,11 +80,19 @@ class ExcalidrawsHistoryV2(MethodResource):
         return util.success(excalidraw.get_excalidraw_history(excalidraw_id))
 
 
-    @doc(tags=['Excalidraw'], description="update one user excalidraw record.")
+    @doc(tags=['Excalidraw'], description="Automatic sync excalidraw. (Get in)")
     @marshal_with(util.CommonResponse)
     @jwt_required()
     def post(self, excalidraw_id):
         excalidraw.update_excalidraw_history(excalidraw_id)
+        return util.success()
+
+
+    @doc(tags=['Excalidraw'], description="Compare excalidraw and store in db. (Get out)")
+    @marshal_with(util.CommonResponse)
+    @jwt_required()
+    def patch(self, excalidraw_id):
+        excalidraw.check_excalidraw_history(excalidraw_id)
         return util.success()
 
 
@@ -94,3 +102,12 @@ class ExcalidrawsVersionRestoreV2(MethodResource):
     @jwt_required()
     def put(self, excalidraw_history_id):
         return util.success(excalidraw.excalidraw_version_restore(excalidraw_history_id))
+
+
+class GetExcalidrawIDV2(MethodResource):
+    @doc(tags=['Excalidraw'], description="get excalidraw id.")
+    @marshal_with(router_model.ExcalidrawGetIDRes)
+    def get(self, room_key):
+        from model import Excalidraw
+        row = Excalidraw.query.filter_by(room=room_key).first()
+        return util.success({"excalidraw_id": row.id})
