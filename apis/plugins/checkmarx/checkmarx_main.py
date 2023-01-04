@@ -124,7 +124,7 @@ class CheckMarx(object):
             run_at=datetime.datetime.utcnow())
         db.session.add(new)
         update_row = Model.query.filter_by(repo_id=args['repo_id']).filter(Model.report_id != -1).order_by(
-            Model.scan_id).first()
+            Model.run_at).first()
         update_row.report_id = -1
         db.session.commit()
         return util.success()
@@ -268,7 +268,7 @@ class CheckMarx(object):
     @staticmethod
     def list_scans(project_id):
         rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(
-            desc(Model.scan_id)).all()
+            desc(Model.run_at)).all()
         ret = [CheckMarx.to_json(row, project_id) for row in rows]
         return ret
 
@@ -473,7 +473,7 @@ class CronjobScan(Resource):
             rows = Model.query.filter_by(repo_id=id).order_by(desc(Model.scan_id)).all()
             if rows:
                 df = pd.DataFrame([row_to_dict(row) for row in rows])
-                df.sort_values(by="scan_id", ascending=False, inplace=True)
+                df.sort_values(by="run_at", ascending=False, inplace=True)
                 df_five_download = df[0:5]
                 # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
                 # for i in list(df_five_download.scan_id):
