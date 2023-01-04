@@ -1,7 +1,7 @@
 import os
 import config
 import model
-from model import db, UIRouteData, PluginSoftware, SystemParameter, model
+from model import db, UIRouteData, PluginSoftware, SystemParameter
 from resources.logger import logger
 from migrate.upgrade_function.ui_route_upgrade import ui_route_first_version
 from migrate.upgrade_function import v1_22_upgrade
