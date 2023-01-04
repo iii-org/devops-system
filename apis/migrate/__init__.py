@@ -1,7 +1,7 @@
 import os
 import config
 import model
-from model import db, UIRouteData, PluginSoftware, SystemParameter
+from model import db, UIRouteData, PluginSoftware, SystemParameter, model
 from resources.logger import logger
 from migrate.upgrade_function.ui_route_upgrade import ui_route_first_version
 from migrate.upgrade_function import v1_22_upgrade
@@ -9,7 +9,7 @@ from resources.router import update_plugin_hidden
 
 # Each time you add a migration, add a version code here.
 
-VERSIONS = ['1.22.0.1', '1.22.0.2', '1.22.0.3', '1.22.0.4', '1.22.0.5', '1.23.0.1', '1.23.0.2', '1.24.0.1', '1.24.0.2']
+VERSIONS = ['1.22.0.1', '1.22.0.2', '1.22.0.3', '1.22.0.4', '1.22.0.5', '1.23.0.1', '1.23.0.2', '1.24.0.1', '1.24.0.2', '1.25.0.1']
 ONLY_UPDATE_DB_MODELS = ['1.22.0.1', '1.22.0.2', '1.22.0.3', '1.23.0.2', '1.24.0.1', '1.24.0.2']
 
 
@@ -34,7 +34,9 @@ def upgrade(version):
             db.session.commit()
     elif version == '1.23.0.1':
         recreate_ui_route()
-
+    elif version == '1.25.0.1':
+        model.NotificationMessage.query.filter_by(alert_service_id=303, close=False).delete()
+        db.session.commit()
 
 def recreate_ui_route():
     UIRouteData.query.delete()

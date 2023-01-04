@@ -36,8 +36,8 @@ AlertServiceIDMapping = {
     "Gitlab projects are exceeded its storage limit": 202,
     "Harbor not alive": 301,
     "Harbor pull limit exceed": 302,
-    "Harbor NFS out of storage": 303,
     "K8s not alive": 401,
+    "Kubernetes node has insufficient storage": 402,
     "Sonarqube not alive": 501,
     "Rancher not alive": 601,
     "Rancher AppRevision counts out of limit": 602,
@@ -207,7 +207,7 @@ class Monitoring:
 
     def send_server_back_notification(self, title):
         recover_message_mapping = {
-            "Harbor NFS out of storage": "All nodes' nfs folder used percentage back to health level.",
+            "Kubernetes node has insufficient storage": "All nodes' storage used percentage back to health level.",
             "Harbor pull limit exceed": "All nodes' pull remain rate back to health level.",
             "Gitlab projects are exceeded its storage limit": "All projects' storage are in health level."
         }
@@ -259,7 +259,7 @@ class Monitoring:
         harbor_alive = True
 
         # offline env doesn't need to check pull limit
-        check_elements = [harbor_nfs_storage_remain_limit]
+        check_elements = []
         if (config.get("deploy_env") or "online") == "online":
             check_elements.append(docker_image_pull_limit_alert)
         for check_element in check_elements:
@@ -276,11 +276,20 @@ class Monitoring:
                 self.detail = {}
         return harbor_alive
 
+    # K8s
     def kubernetes_alive(self):
         self.server = "K8s"
         self.alert_service_id = 401
-        return self.__check_server_alive(
+        k8s_alive = self.__check_server_alive(
             list_namespace_services, K8s_client().get_api_resources, self.__get_project_name())
+        if not k8s_alive:
+            return k8s_alive
+        
+        for check_element in [k8s_storage_remain_limit]:
+            if not self.__check_server_element_alive(check_element):
+                k8s_alive = False
+        return k8s_alive
+
 
     def sonarqube_alive(self):
         self.server = "Sonarqube"
@@ -522,7 +531,7 @@ def docker_image_pull_limit_alert():
     }
 
 
-def harbor_nfs_storage_remain_limit():
+def k8s_storage_remain_limit():
     output_str, _ = util.ssh_to_node_by_key(
         'perl deploy-devops/bin/get-cluster-df.pl', config.get("DEPLOYER_NODE_IP"))
     nodes_storage_info = max(output_str.split('\n'))
@@ -530,29 +539,29 @@ def harbor_nfs_storage_remain_limit():
         nodes_storage_info = json.loads(nodes_storage_info)
     except:
         return {
-            "name": "Harbor nfs folder storage remain.",
-            "error_title": "Harbor NFS out of storage",
+            "name": "Kubernetes node storage remain.",
+            "error_title": "Kubernetes node has insufficient storage",
             "status": False,
             "total_size": None,
             "used": None,
             "avail": None,
-            "message": "Can not get all nodes' nft storage.",
+            "message": "Can not get all nodes' storage.",
             "datetime": datetime.utcnow().isoformat(),
         }
     error_nodes_message = []
     for node_storage_info in nodes_storage_info:
         usage = node_storage_info.get("Usage")
         if usage is None:
-            error_nodes_message.append(f"Can not get node {node_storage_info.get('node')} nfs usage.")
+            error_nodes_message.append(f"Can not get node {node_storage_info.get('node')} storage usage.")
         elif usage == "":
             continue
         elif int(usage.replace("%", "")) > 75:
             error_nodes_message.append(
-                f"Node {node_storage_info.get('node')} nfs Folder Used percentage({usage}) exceeded 75%!")
+                f"Node {node_storage_info.get('node')} storage used percentage({usage}) exceeded 75%!")
 
     return {
-        "name": "Harbor nfs folder storage remain.",
-        "error_title": "Harbor NFS out of storage",
+        "name": "Kubernetes node storage remain.",
+        "error_title": "Kubernetes node has insufficient storage",
         "status": error_nodes_message == [],
         "message": "\n".join(error_nodes_message),
         "datetime": datetime.utcnow().isoformat(),
