@@ -12,15 +12,21 @@ def build(err_code, message, details=None):
 
 
 def error_3rd_party_api(service_name, response):
+    msg = None
+    service_name_error_msg_mapping = {
+        "Rancher": "message"
+    }
     if type(response) is str:
         resp_value = response
     else:
         try:
             resp_value = response.json()
+            error_key = service_name_error_msg_mapping.get(service_name, "")
+            msg = resp_value.get(error_key, "")
         except Exception:
-            resp_value = response.text
+            msg = resp_value = response.text
             
-    message = resp_value or f'{service_name} responds error.'
+    message = msg or f'{service_name} responds error.'
     return build(8001, message,
                  {'service_name': service_name, 'response': resp_value})
 

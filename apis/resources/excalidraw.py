@@ -403,7 +403,7 @@ def restore_excalidraw_db(element: str, key: str, value: str, force_update: bool
 
 def get_excalidraw_history_join_row(excalidraw_id: int, excalidraw_history_id: int = None) -> \
     tuple[Excalidraw, ExcalidrawHistory]:
-    row = db.session.query(Excalidraw, ExcalidrawHistory).join(
+    row = db.session.query(Excalidraw, ExcalidrawHistory).outerjoin(
         ExcalidrawHistory, Excalidraw.id==ExcalidrawHistory.excalidraw_id).filter(
             Excalidraw.id==excalidraw_id)
     if excalidraw_history_id is not None:
@@ -418,19 +418,33 @@ def update_excalidraw_history(excalidraw_id: int, excalidraw_history_id: int = N
     If excalidraw_history_id is None, only updating excalidraw db when its value is empty.
     '''
     excalidraw_row, excalidraw_history_row = get_excalidraw_history_join_row(excalidraw_id, excalidraw_history_id)
+    if excalidraw_row is None:
+        logger.logger.exception(f"Excalidraw id {excalidraw_id} not found")
+        return
+    if excalidraw_history_row is None:
+        logger.logger.info(f"No history in {excalidraw_id}")
+        return
+     
     key, value = excalidraw_row.room, json.dumps(excalidraw_history_row.value)
     restore_excalidraw_db("ROOMS", key, value, excalidraw_history_id is not None)
 
 
 def check_excalidraw_history(excalidraw_id: int):
     excalidraw_row, excalidraw_history_row = get_excalidraw_history_join_row(excalidraw_id)
-    key, value = excalidraw_row.room, json.dumps(excalidraw_history_row.value)
-    _, excal_value = get_excalidraw_from_excaildraw_db(key)[0]
+    if excalidraw_row is None:
+        logger.logger.exception(f"Excalidraw id {excalidraw_id} not found")
+        return
+    if excalidraw_history_row is None:
+        key, value = excalidraw_row.room, None
+    else:
+        key, value = excalidraw_row.room, excalidraw_history_row.value
 
-    if value != excal_value:
+    _, excal_value = get_excalidraw_from_excaildraw_db(key)[0]
+    excal_value_dict = json.loads(excal_value)
+    if value != excal_value_dict and utf8len(excal_value) > EXCALIDRAW_EMPTY_VALUE_LENGHT:
         add_dict = {
             "excalidraw_id": excalidraw_id,
-            "value": json.loads(excal_value)
+            "value": excal_value_dict
         }
         add_new_record_to_history(excalidraw_id, add_dict=add_dict)
 
