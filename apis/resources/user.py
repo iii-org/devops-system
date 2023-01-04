@@ -219,7 +219,7 @@ def login(args):
             db_info['connect'] = True
             db_info, user, project_user_role = check_db_login(
                 user, login_password, db_info)
-
+        update_external_passwords(user.id, args['password'], args['password'])
         # Login By AD
         if ad_info['is_pass'] is True:
             status, token = ldap_api.login_by_ad(
@@ -367,12 +367,14 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
             row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="redmine").first()
             encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
             if row:
-                update = {"user_id": user_id, "server": "redmine", "password": encode_password.decode('UTF-8')}
+                update = {"user_id": user_id, "server": "redmine", "password": encode_password.decode('UTF-8'),
+                          "created_at": datetime.datetime.utcnow()}
                 db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="redmine").update(update)
                 db.session.commit()
             else:
                 insert = model.UpdatePasswordError(
-                    user_id=user_id, server="redmine", password=encode_password.decode('UTF-8')
+                    user_id=user_id, server="redmine", password=encode_password.decode('UTF-8'),
+                    created_at=datetime.datetime.utcnow()
                 )
                 db.session.add(insert)
                 db.session.commit()
@@ -394,42 +396,49 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
             row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="gitlab").first()
             encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
             if row:
-                update = {"user_id": user_id, "server": "gitlab", "password": encode_password.decode('UTF-8')}
+                update = {"user_id": user_id, "server": "gitlab", "password": encode_password.decode('UTF-8'),
+                          "created_at": datetime.datetime.utcnow()}
                 db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="gitlab").update(update)
                 db.session.commit()
             else:
                 insert = model.UpdatePasswordError(
-                    user_id=user_id, server="gitlab", password=encode_password.decode('UTF-8')
+                    user_id=user_id, server="gitlab", password=encode_password.decode('UTF-8'),
+                    created_at=datetime.datetime.utcnow()
                 )
                 db.session.add(insert)
                 db.session.commit()
         harbor_user_id = user_relation.harbor_user_id
-        c = harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
-        if int(c.status_code / 100) != 2:
-            logger.info(c)
-            harbor.hb_update_user_password(harbor_user_id, DEFAULT_AD_PASSWORD, old_pwd)
-            reset_dict.update({"harbor": "DEFAULT_AD_PASSWORD"})
-            args2 = {
-                "alert_level": 1,
-                "title": "harbor password recreate automation",
-                "message": f"password:{DEFAULT_AD_PASSWORD}",
-                "type_ids": [3],
-                "type_parameters": {"user_ids": [user_id]}
-            }
-            create_notification_message(args2, user_id=user_id)
-            # update db
-            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="harbor").first()
-            encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
-            if row:
-                update = {"user_id": user_id, "server": "harbor", "password": encode_password.decode('UTF-8')}
-                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="harbor").update(update)
-                db.session.commit()
-            else:
-                insert = model.UpdatePasswordError(
-                    user_id=user_id, server="harbor", password=encode_password.decode('UTF-8')
-                )
-                db.session.add(insert)
-                db.session.commit()
+        kwargs = {"new_pwd": new_pwd}
+        valid, msg = checker(kwargs)
+        if not valid:
+            c = harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
+            if int(c.status_code / 100) != 2:
+                logger.info(c)
+                harbor.hb_update_user_password(harbor_user_id, DEFAULT_AD_PASSWORD, old_pwd)
+                reset_dict.update({"harbor": "DEFAULT_AD_PASSWORD"})
+                args2 = {
+                    "alert_level": 1,
+                    "title": "harbor password recreate automation",
+                    "message": f"password:{DEFAULT_AD_PASSWORD}",
+                    "type_ids": [3],
+                    "type_parameters": {"user_ids": [user_id]}
+                }
+                create_notification_message(args2, user_id=user_id)
+                # update db
+                row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="harbor").first()
+                encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
+                if row:
+                    update = {"user_id": user_id, "server": "harbor", "password": encode_password.decode('UTF-8'),
+                              "created_at": datetime.datetime.utcnow()}
+                    db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="harbor").update(update)
+                    db.session.commit()
+                else:
+                    insert = model.UpdatePasswordError(
+                        user_id=user_id, server="harbor", password=encode_password.decode('UTF-8'),
+                        created_at=datetime.datetime.utcnow()
+                    )
+                    db.session.add(insert)
+                    db.session.commit()
         d = sonarqube.sq_update_password(user_login, new_pwd)
         if int(d.status_code / 100) != 2:
             logger.info(d)
@@ -447,13 +456,15 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
             row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="sonarqube").first()
             encode_password = base64.b64encode(f'{DEFAULT_AD_PASSWORD}'.encode('UTF-8'))
             if row:
-                update = {"user_id": user_id, "server": "sonarqube", "password": encode_password.decode('UTF-8')}
+                update = {"user_id": user_id, "server": "sonarqube", "password": encode_password.decode('UTF-8'),
+                          "created_at": datetime.datetime.utcnow()}
                 db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="sonarqube").update(
                     update)
                 db.session.commit()
             else:
                 insert = model.UpdatePasswordError(
-                    user_id=user_id, server="sonarqube", password=encode_password.decode('UTF-8')
+                    user_id=user_id, server="sonarqube", password=encode_password.decode('UTF-8'),
+                    created_at=datetime.datetime.utcnow()
                 )
                 db.session.add(insert)
                 db.session.commit()
@@ -537,7 +548,7 @@ def checker(kwargs):
             else:
                 valid_dict.update({"continuouslly_check": False})
                 msg = "exist only 3 continuouslly letter"
-    if len(kwargs.get('new_pwd')) > 8:
+    if len(kwargs.get('new_pwd')) >= 8:
         valid_dict.update({"nine_word_check": True})
     else:
         valid_dict.update({"nine_word_check": False})
