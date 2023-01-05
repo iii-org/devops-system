@@ -208,7 +208,7 @@ def get_gitlab_file_todict(project_id, filename):
 def get_sideex_json_variable(project_id, filename):
     data = get_gitlab_file_todict(project_id, filename)
     if data:
-        varibale_list = re.findall('\${.*?\}',json.dumps(data))
+        varibale_list = re.findall('\${.*?\}',json.dumps(data, ensure_ascii=False))
         unique_list = np.unique(varibale_list).tolist()
         if '${target_origin}' in unique_list:
             unique_list.remove('${target_origin}')
