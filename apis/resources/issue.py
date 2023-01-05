@@ -937,7 +937,7 @@ def get_all_sons(project_id: int, fix_version_ids: str) -> list[dict[str, Any]]:
     all_issues_mapping = {str(all_issue["id"]): all_issue for all_issue in all_issues}
     all_issues_ids = list(all_issues_mapping.keys())
 
-    # Get missing head issues(Issue's head in another fixed versions)
+    # Get missing head issues(Issue's head in other fixed versions)
     redis_mapping = get_all_issue_relations()
     for f_id, s_ids in redis_mapping.items():
         if f_id not in all_issues_ids:
@@ -949,6 +949,12 @@ def get_all_sons(project_id: int, fix_version_ids: str) -> list[dict[str, Any]]:
         a_mapping.update(mapping)
         a_exist_issues_ids += exist_issues_ids
 
+    # Get missing issue mapping info(son issue in other fixed versions)
+    missing_issues = list(set(a_exist_issues_ids) - set(all_issues_ids))
+    if missing_issues:
+        all_issues = get_issue_list_by_project_helper(project_id, {"issue_id": ",".join(missing_issues)}, operator_id=get_jwt_identity()["user_id"])
+        all_issues_mapping.update({str(all_issue["id"]): all_issue for all_issue in all_issues})
+    
     return add_issue_info(a_mapping, all_issues_mapping)
 
 
