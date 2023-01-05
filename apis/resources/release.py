@@ -819,9 +819,9 @@ class ReleaseFile:
             for line in lines:
                 if line[0] == '#':
                     continue
-                key, value = line[1:].split('=', 1)
+                key, value = line.split('=', 1)
                 items.append({
-                    'key': key,
+                    'key': key.strip(" "),
                     'value': value,
                     'type': 'configmap'
                 })
