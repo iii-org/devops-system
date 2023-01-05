@@ -898,7 +898,10 @@ def find_head_and_close_issues(issue_ids: list[int]):
         update_pj_issue_calc(pj_id, closed_count=1)
 
 
-def get_all_sons_ids(main_issue_id):
+def get_all_sons_ids(main_issue_id: str) -> tuple[dict[str, Any], list[str]]:
+    '''
+    get all main_issue_id's son from redis cache
+    '''
     redis_mapping = get_all_issue_relations()
     mapping = {}
     exist_issues_ids = []
@@ -921,21 +924,32 @@ def get_all_sons_ids(main_issue_id):
     return mapping, exist_issues_ids
 
 
-def get_all_sons(project_id, fix_version_ids):
-    issue_list = []
+def get_all_sons(project_id: int, fix_version_ids: str) -> list[dict[str, Any]]:
+    '''
+    Get all project's issues families from certain fix_version_ids
+    '''
+
+    head_issue_list = []
     for fixed_version_id in fix_version_ids.split(","):
-        issue_list += [a_issue["id"] for a_issue in get_issue_list_by_project_helper(project_id, {"fixed_version_id": fixed_version_id}, operator_id=get_jwt_identity()["user_id"])]
+        head_issue_list += [str(a_issue["id"]) for a_issue in get_issue_list_by_project_helper(project_id, {"parent_id": "null", "fixed_version_id": fixed_version_id}, operator_id=get_jwt_identity()["user_id"])]
+
+    all_issues = get_issue_list_by_project_helper(project_id, {"fixed_version_id": fixed_version_id}, operator_id=get_jwt_identity()["user_id"])
+    all_issues_mapping = {str(all_issue["id"]): all_issue for all_issue in all_issues}
+    all_issues_ids = list(all_issues_mapping.keys())
+
+    # Get missing head issues(Issue's head in another fixed versions)
+    redis_mapping = get_all_issue_relations()
+    for f_id, s_ids in redis_mapping.items():
+        if f_id not in all_issues_ids:
+            head_issue_list += [s_id for s_id in s_ids.split(",") if s_id not in head_issue_list and s_id in all_issues_ids]
 
     a_mapping, a_exist_issues_ids = {}, []
-    for issue in issue_list:
+    for issue in head_issue_list:
         mapping, exist_issues_ids = get_all_sons_ids(issue)
         a_mapping.update(mapping)
         a_exist_issues_ids += exist_issues_ids
 
-    all_issues = get_issue_list_by_project_helper(project_id, {"issue_id": ",".join(a_exist_issues_ids)}, operator_id=get_jwt_identity()["user_id"])
-    id_info_mapping = {str(all_issue["id"]): all_issue for all_issue in all_issues}
-    return add_issue_info(a_mapping, id_info_mapping)
-
+    return add_issue_info(a_mapping, all_issues_mapping)
 
 
 def add_issue_info_helper(id, son_ids, issud_id_info_mapping):
