@@ -662,7 +662,8 @@ def delete_project(project_id):
         not_alive_server = [
             server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive]
         servers = ", ".join(not_alive_server)
-        raise apiError.DevOpsError(500, f"{servers} not alive")
+        raise apiError.DevOpsError(500, f"{servers} not alive",
+                                   error=apiError.plugin_server_not_alive(servers))
 
     for project_id in delete_id_list:
         delete_project_helper(project_id)
