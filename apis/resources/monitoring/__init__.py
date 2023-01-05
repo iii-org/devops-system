@@ -277,12 +277,12 @@ class Monitoring:
         return harbor_alive
 
     # K8s
-    def kubernetes_alive(self):
+    def kubernetes_alive(self, is_project=False):
         self.server = "K8s"
         self.alert_service_id = 401
         k8s_alive = self.__check_server_alive(
             list_namespace_services, K8s_client().get_api_resources, self.__get_project_name())
-        if not k8s_alive:
+        if not k8s_alive or is_project:
             return k8s_alive
         
         for check_element in [k8s_storage_remain_limit]:
@@ -298,12 +298,12 @@ class Monitoring:
             sq_get_current_measures, check_url_alive, self.__get_project_name(),
             url=config.get('SONARQUBE_INTERNAL_BASE_URL'))
 
-    def rancher_alive(self):
+    def rancher_alive(self, is_project=False):
         self.server = "Rancher"
         self.alert_service_id = 601
         rancher_alive = self.__check_server_alive(
             rancher.rc_get_pipeline_info, rancher.rc_get_project_pipeline, self.ci_pj_id, self.ci_pipeline_id)
-        if not rancher_alive:
+        if not rancher_alive or is_project:
             return rancher_alive
 
         for check_element in [rancher_projects_limit_num, rancher_pod_restart_times_outoflimits]:
@@ -372,9 +372,9 @@ class Monitoring:
                 "Redmine": self.redmine_alive(),
                 "GitLab": self.gitlab_alive(is_project),
                 "Harbor": self.harbor_alive(is_project),
-                "K8s": self.kubernetes_alive(),
+                "K8s": self.kubernetes_alive(is_project),
                 "Sonarqube": self.sonarqube_alive(),
-                "Rancher": self.rancher_alive(),
+                "Rancher": self.rancher_alive(is_project),
             },
             "all_alive": self.all_alive
         }
