@@ -12,3 +12,4 @@ pj_edit_pipe_yaml
 .vscode
 deploy-config
 devops-data
+apis/sync.ffs_db
