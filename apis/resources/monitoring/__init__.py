@@ -632,42 +632,73 @@ def rancher_projects_limit_num():
 
 
 def rancher_pod_restart_times_outoflimits():
+    # 獲取restart上限值
     condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
     if not condition.active or condition.active is None:
         raise apiError.DevOpsError(404, "k8s_pod_restart_times_limit.active is null or false in system_parameter table.")
     limit_times = condition.value["limit_times"]
+    # 獲取過去一小時內重啟次數資料
     last_hour = datetime.utcnow() - timedelta(hours=1)
     limit_hour = last_hour.strftime("%Y-%m-%d %H:00:00")
     data_collections = ServerDataCollection.query.filter_by(
         type_id=1).filter(ServerDataCollection.collect_at >= limit_hour)
-    mapping = {}
+    # 進行監控並回傳結果
     if data_collections:
         for data_collection in data_collections:
             detail = data_collection.detail
             restart_times = data_collection.value["value"]
-            mapping.setdefault(
-                f'{data_collection.project_id}=={detail["pod_name"]}=={detail["containers_name"]}', []).append(
-                restart_times)
-    project_rows = db.session.query(Project, ProjectPluginRelation).join(
-        ProjectPluginRelation, Project.id == ProjectPluginRelation.project_id)
-    invalid_project_id_mapping = {}
-    if mapping != {}:
-        for detail, times in mapping.items():
-            details = detail.split("==")
-            total_restart_times = max(times) - min(times)
-            if len(times) >= 2 and total_restart_times > limit_times:
-                for project_row in project_rows:
-                    project_obj, repo_id = project_row.Project, project_row.ProjectPluginRelation.git_repository_id
-                    invalid_project_id_mapping[
-                        project_obj.id] = f"Project: {project_obj.name} Restart times of pod({details[1]}) belong in container({details[2]}) has surpassed 20 times({total_restart_times}) in 1 hour."
-                message = "\n".join(invalid_project_id_mapping.values())
-                return {
-                    "status": False,
-                    "message": message,
-                    "error_title": "Rancher pod restart times out of limits",
-                    # "invalid_project_id_mapping": invalid_project_id_mapping
-                }
+            if restart_times > limit_times:
+                row = Project.query.filter_by(id=data_collection.project_id).first()
+                if row:
+                    project_name = row.name
+                    return {
+                        "status": False,
+                        "message": f"Project: {project_name} Restart times of pod({detail['pod_name']}) belong in container("
+                                   f"{detail['containers_name']}) has surpassed 20 times({restart_times}) in 1 hour.",
+                        "error_title": "Rancher pod restart times out of limits",
+                    }
     return {
         "error_title": "Rancher pod restart times out of limits",
         "status": True,
     }
+
+# def rancher_pod_restart_times_outoflimits():
+#     condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
+#     if not condition.active or condition.active is None:
+#         raise apiError.DevOpsError(404, "k8s_pod_restart_times_limit.active is null or false in system_parameter table.")
+#     limit_times = condition.value["limit_times"]
+#     last_hour = datetime.utcnow() - timedelta(hours=1)
+#     limit_hour = last_hour.strftime("%Y-%m-%d %H:00:00")
+#     data_collections = ServerDataCollection.query.filter_by(
+#         type_id=1).filter(ServerDataCollection.collect_at >= limit_hour)
+#     mapping = {}
+#     if data_collections:
+#         for data_collection in data_collections:
+#             detail = data_collection.detail
+#             restart_times = data_collection.value["value"]
+#             mapping.setdefault(
+#                 f'{data_collection.project_id}=={detail["pod_name"]}=={detail["containers_name"]}', []).append(
+#                 restart_times)
+#     project_rows = db.session.query(Project, ProjectPluginRelation).join(
+#         ProjectPluginRelation, Project.id == ProjectPluginRelation.project_id)
+#     invalid_project_id_mapping = {}
+#     if mapping != {}:
+#         for detail, times in mapping.items():
+#             details = detail.split("==")
+#             total_restart_times = max(times) - min(times)
+#             if len(times) >= 2 and total_restart_times > limit_times:
+#                 for project_row in project_rows:
+#                     project_obj, repo_id = project_row.Project, project_row.ProjectPluginRelation.git_repository_id
+#                     invalid_project_id_mapping[
+#                         project_obj.id] = f"Project: {project_obj.name} Restart times of pod({details[1]}) belong in container({details[2]}) has surpassed 20 times({total_restart_times}) in 1 hour."
+#                 message = "\n".join(invalid_project_id_mapping.values())
+#                 return {
+#                     "status": False,
+#                     "message": message,
+#                     "error_title": "Rancher pod restart times out of limits",
+#                     # "invalid_project_id_mapping": invalid_project_id_mapping
+#                 }
+#     return {
+#         "error_title": "Rancher pod restart times out of limits",
+#         "status": True,
+#     }
