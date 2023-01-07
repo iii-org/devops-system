@@ -9,7 +9,7 @@ class DoJobByMonth(Resource):
     @jwt_required()
     def post(self):
         Thread(target=notification_message.clear_has_expired_notifications_message,
-               args=("notification_message_period_of_validity", "months",)).start()
+               args=("notification_message_period_of_validity", 1, "months",)).start()
         return util.success()
 
 

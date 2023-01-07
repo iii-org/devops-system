@@ -407,13 +407,15 @@ def get_certain_date_from_now(days):
         (datetime.utcnow() - timedelta(days=days)), d_time(00, 00))
 
 
-def get_few_months_ago_utc_datetime(month_number):
-    x_months_ago_date_time = datetime.utcnow()
-    if month_number//12 >= 1:
-        x_months_ago_date_time = x_months_ago_date_time.replace(year=datetime.utcnow().date().year-month_number//12)
-    if month_number % 12 != 0:
-        x_months_ago_date_time = x_months_ago_date_time.replace(month=datetime.utcnow().date().month-month_number % 12)
-    return x_months_ago_date_time
+def get_few_months_ago_utc_datetime(units, value_key):
+    if value_key == "months":
+        units = units * 30
+    elif value_key == "years":
+        units = units * 365
+    save_time = datetime.utcnow() - timedelta(days=units)
+    save_time = save_time.strftime("%Y-%m-%d %H:00:00")
+    return save_time
+
 
 class obj:
     def __init__(self, dict1):

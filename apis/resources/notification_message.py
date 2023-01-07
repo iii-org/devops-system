@@ -69,10 +69,11 @@ def check_message_exist(message_key, alert_level):
         return False
 
 
-def clear_has_expired_notifications_message(name, value_key):
-    month_number = int(SystemParameter.query.filter_by(name=name).one().value[value_key])
+def clear_has_expired_notifications_message(name, units, value_key):
+    db.session.query(SystemParameter).filter_by(name=name).update({"value": {value_key: units}})
+    db.session.commit()
 
-    NotificationMessage.query.filter(util.get_few_months_ago_utc_datetime(month_number)
+    NotificationMessage.query.filter(util.get_few_months_ago_utc_datetime(units, value_key)
                                      > NotificationMessage.created_at).delete()
     db.session.commit()
 
