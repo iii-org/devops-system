@@ -13,7 +13,9 @@ import config
 import resources.apiError as apiError
 import util as util
 from nexus import nx_get_project_plugin_relation
-from model import RancherPiplineNumberEachDays, ProjectPluginRelation, db, Project, SystemParameter
+from model import RancherPiplineNumberEachDays, ProjectPluginRelation, db, Project, SystemParameter, \
+    PipelineExecution
+from sqlalchemy import desc
 from resources import kubernetesClient
 from resources.logger import logger
 from flask_apispec import use_kwargs
@@ -717,6 +719,77 @@ def get_all_appname_by_project(project_id):
     df_project_app = df_app[df_app['targetNamespace'] == project_name]
     result_list = [value['name'] for key, value in df_project_app.fillna("").T.to_dict().items()]
     return result_list
+
+
+def create_pipeline_execution(gl_pj_id: int, delete_branches: list[str] = [], commit_id: str = ""):
+    pj_plugin_relation = ProjectPluginRelation.query.filter_by(git_repository_id=gl_pj_id).first()
+    row = PipelineExecution(
+        commit_id=commit_id, # length: 8 
+        project_id=pj_plugin_relation.project_id,
+        # run_branches=run_branches,
+        delete_branches=delete_branches
+    )
+    db.session.add(row)
+    db.session.commit()
+
+
+def remove_pipeline_execution(pj_id: int, create_time: datetime = None) -> None:
+    pipe_executions = PipelineExecution.query.filter_by(project_id=pj_id)
+    if create_time is not None:
+        pipe_executions = pipe_executions.filter(PipelineExecution.created_at<=create_time)
+
+    pipe_executions.delete()
+    db.session.commit()
+
+
+def check_pipeline_need_remove(repo_name: str, branch: str, commit_id: str = "") -> None:
+    '''
+    Check current pipeline run needs to delete or not.
+    '''
+    def record_log(msg):
+        logger.info(msg)
+        print(msg)
+        return 
+
+    logger.info(f"Start checking pipeline execution, pj_name:{repo_name}, branch:{branch}")
+    row_tuple = db.session.query(PipelineExecution, Project, ProjectPluginRelation).join(
+        PipelineExecution).join(ProjectPluginRelation).filter(
+        Project.id==PipelineExecution.project_id,
+        Project.id==ProjectPluginRelation.project_id,
+        Project.name==repo_name
+    ).order_by(desc(PipelineExecution.created_at)).first()
+
+    if row_tuple is None:
+        record_log("Project pipeline execution not found.")
+
+    pipeline_execution, _, pj_plugin_relation = row_tuple
+
+    if pipeline_execution is None:
+        record_log("Pipeline execution not found.")
+
+    create_time, delete_branches = pipeline_execution.created_at, pipeline_execution.delete_branches
+    
+    if branch not in delete_branches:
+        record_log(f"Do not need to delete branch: {branch}.")
+
+    pj_id, ci_project_id, ci_pipeline_id = pj_plugin_relation.project_id, pj_plugin_relation.ci_project_id, pj_plugin_relation.ci_pipeline_id
+    pipeline_outputs = rancher.rc_get_pipeline_executions(
+            ci_project_id, ci_pipeline_id,
+            limit=1, branch=branch)
+
+    if not pipeline_outputs["data"]:
+        record_log(f"Empty pipeline branch:{branch}.")
+    
+    pipeline_info = pipeline_outputs["data"][0]
+    run_num = pipeline_info["run"]
+    rancher.rc_delete_pipeline_executions_run(
+        ci_project_id, ci_pipeline_id, run_num)
+    remove_pipeline_execution(pj_id, create_time=create_time)
+    time.sleep(0.5)
+
+    record_log(f"Remove {branch}'s pipeline execution.")
+    
+
 # --------------------- Resources ---------------------
 class Catalogs(Resource):
     @jwt_required()

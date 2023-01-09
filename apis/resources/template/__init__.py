@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from resources.rancher import create_pipeline_execution
 import dateutil.parser
 import yaml
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -671,6 +672,8 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
         if not run or default or (run and default_branch not in need_running_branches):
             next_run = pipeline.get_pipeline_next_run(repository_id)
             print(f"next_run: {next_run}")
+            # create_pipeline_execution(repository_id, delete_branches=[default_branch])
+
         f.content = yaml.dump(default_pipe_json, sort_keys=False)
         f.save(
             branch=default_branch,
@@ -705,8 +708,10 @@ def sync_branch(user_account, repository_id, pipe_yaml_file_name, br_name, updat
     pipe_json = updated_pipe_json
     if had_update_branche:
         if not_run:
+            # create_pipeline_execution(repository_id, delete_branches=[br_name])
             next_run = pipeline.get_pipeline_next_run(repository_id)
             print(f"next_run: {next_run}")
+
         f.content = yaml.dump(pipe_json, sort_keys=False)
         f.save(
             branch=br_name,

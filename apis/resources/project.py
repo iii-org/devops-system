@@ -149,7 +149,7 @@ def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
     return ret
 
 
-def get_project_rows_by_user(user_id, disable: Optional, args={}):
+def get_project_rows_by_user(user_id, disable, args={}):
     search: str = args.get("search")
     accsearch: str = args.get("accsearch")
     is_empty_project: bool = args.get("is_empty_project")
