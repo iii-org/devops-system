@@ -1285,7 +1285,7 @@ def list_dev_environment_by_branch(namespace, git_url):
                             container_status_info[container.name],
                             'service_port_mapping':
                             map_service_to_container(container.ports,
-                                                     namespace_services_info)
+                                                     namespace_services_info, namespace)
                         }
                     else:
                         container_info[container.name] = {
@@ -1478,13 +1478,13 @@ def check_match_selector(selectors, pod_label):
             raise e
 
 
-def map_service_to_container(container_ports, services):
+def map_service_to_container(container_ports, services, namespace):
     try:
         mapping_info = []
         for container_port in container_ports:
             port_info = analysis_container_port(container_port)
             port_info['services'] = check_service_map_container(
-                port_info, services)
+                port_info, services, namespace)
             mapping_info.append(port_info)
         return mapping_info
     except apiError.DevOpsError as e:
@@ -1492,12 +1492,13 @@ def map_service_to_container(container_ports, services):
             raise e
 
 
-def check_service_map_container(container_port, services):
+def check_service_map_container(container_port, services, namespace):
     try:
         services_info = []
         for service in services:
             if service['port_name'] == container_port['name'] or \
                     service['target_port'] == container_port['container_port']:
+                service['internal_url'] = [f"{service['name']}.{namespace}.svc.cluster.local"]
                 services_info.append(service)
         return services_info
     except apiError.DevOpsError as e:
