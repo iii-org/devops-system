@@ -721,13 +721,13 @@ def get_all_appname_by_project(project_id):
     return result_list
 
 
-def create_pipeline_execution(gl_pj_id: int, delete_branches: list[str] = [], commit_id: str = ""):
+def create_pipeline_execution(gl_pj_id: int, branch: str, commit_id: str = ""):
     pj_plugin_relation = ProjectPluginRelation.query.filter_by(git_repository_id=gl_pj_id).first()
     row = PipelineExecution(
         commit_id=commit_id, # length: 8 
         project_id=pj_plugin_relation.project_id,
         # run_branches=run_branches,
-        delete_branches=delete_branches
+        del_branch=branch
     )
     db.session.add(row)
     db.session.commit()
@@ -767,9 +767,9 @@ def check_pipeline_need_remove(repo_name: str, branch: str, commit_id: str = "")
     if pipeline_execution is None:
         record_log("Pipeline execution not found.")
 
-    create_time, delete_branches = pipeline_execution.created_at, pipeline_execution.delete_branches
+    create_time, del_branch = pipeline_execution.created_at, pipeline_execution.del_branch
     
-    if branch not in delete_branches:
+    if branch != del_branch:
         record_log(f"Do not need to delete branch: {branch}.")
 
     pj_id, ci_project_id, ci_pipeline_id = pj_plugin_relation.project_id, pj_plugin_relation.ci_project_id, pj_plugin_relation.ci_pipeline_id
