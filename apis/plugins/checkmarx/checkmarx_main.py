@@ -123,10 +123,15 @@ class CheckMarx(object):
             scan_final_status=None,
             run_at=datetime.datetime.utcnow())
         db.session.add(new)
-        update_row = Model.query.filter_by(repo_id=args['repo_id']).filter(Model.report_id != -1).order_by(
-            Model.run_at).first()
-        update_row.report_id = -1
         db.session.commit()
+        record = Model.query.filter_by(repo_id=args['repo_id']).filter(Model.report_id != -1).order_by(
+            Model.run_at).all()
+        if len(record) >= 5:
+            update_row = Model.query.filter_by(repo_id=args['repo_id']).filter(Model.report_id != -1).order_by(
+                Model.run_at).first()
+            if update_row:
+                update_row.report_id = -1
+                db.session.commit()
         return util.success()
 
     # Need to write into db if see a final scan status
