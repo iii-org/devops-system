@@ -1,8 +1,8 @@
 """add_table_PipelineExecution
 
-Revision ID: 3150679cd670
+Revision ID: c32d432b88c4
 Revises: a8860027a552
-Create Date: 2023-01-07 17:28:19.347025
+Create Date: 2023-01-09 10:26:33.374554
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '3150679cd670'
+revision = 'c32d432b88c4'
 down_revision = 'a8860027a552'
 branch_labels = None
 depends_on = None
@@ -21,9 +21,10 @@ def upgrade():
     op.create_table('pipeline_execution',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('project_id', sa.Integer(), nullable=True),
-    sa.Column('branch', sa.String(), nullable=True),
+    sa.Column('delete_branches', postgresql.ARRAY(sa.String()), nullable=True),
     sa.Column('commit_id', sa.String(), nullable=True),
     sa.Column('run_branches', postgresql.ARRAY(sa.String()), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )

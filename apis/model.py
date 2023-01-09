@@ -1140,6 +1140,7 @@ class Pict(db.Model):
 class PipelineExecution(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
-    branch = Column(String)
+    delete_branches = Column(postgresql.ARRAY(String), default=[])
     commit_id = Column(String)
-    run_branches = Column(postgresql.ARRAY(String))
+    run_branches = Column(postgresql.ARRAY(String), default=[])
+    created_at = Column(DateTime)
