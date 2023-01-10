@@ -11,6 +11,7 @@ import json
 from resources.project import get_pj_id_by_name
 import importlib
 from datetime import datetime
+from resources.rancher import create_pipeline_execution
 
 
 # Black and white project list default format
@@ -177,6 +178,7 @@ def update_pipieline_file(pj_id, version):
 
             if change:
                 next_run = pipeline.get_pipeline_next_run(gl_pj_id)
+                create_pipeline_execution(gl_pj_id, branch, next_run)
                 pipe_dict["stages"] = pipe_stages
                 f.content = yaml.dump(pipe_dict, sort_keys=False)
                 f.save(
