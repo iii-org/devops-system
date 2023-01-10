@@ -65,9 +65,9 @@ class CheckExcalidrawAliveV2(MethodResource):
 
 class ExcalidrawsFilesV2(MethodResource):
     @doc(tags=['Excalidraw'], description="Put excalidraw Files info")
+    @use_kwargs(router_model.ExcalidrawFilePostSchema, location="json")
     @marshal_with(util.CommonResponse)
     @handle_plugin("excalidraw")
-    @use_kwargs(router_model.ExcalidrawFilePostSchema, location="json")
     def post(self, **kwargs):
         excalidraw.save_file_info(kwargs)
         return util.success()
