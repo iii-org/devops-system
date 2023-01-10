@@ -369,7 +369,8 @@ class ParameterGithubVerifyExecuteStatus(Resource):
         ret: dict[
             str, Union[str, bool, datetime, dict[str, bool]]
         ] = get_github_verify_execute_status()
-        ret["sync_date"] = ret["sync_date"].isoformat()
+        if ret.get("sync_date"):
+            ret["sync_date"] = ret["sync_date"].isoformat()
         return util.success(ret)
 
 
