@@ -1143,3 +1143,4 @@ class PipelineExecution(db.Model):
     del_branch = Column(String)
     commit_id = Column(String)
     created_at = Column(DateTime)
+    run_num = Column(Integer)
