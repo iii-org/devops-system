@@ -59,6 +59,8 @@ from urls.system_parameter import sync_system_parameter_url
 from urls.tag import tag_url
 from urls.template import template_url
 from urls.user import user_url
+from urls.rancher import rancher_url
+
 
 app = Flask(__name__)
 for key in ['JWT_SECRET_KEY',
@@ -672,6 +674,8 @@ api.add_resource(system_parameter.ParameterGithubVerifyExecuteStatus, '/system_p
 # Status of Sync
 lock_url(api, add_resource)
 
+# rancher
+rancher_url(api, add_resource)
 
 # message
 notification_message_url(api, add_resource, socketio)
