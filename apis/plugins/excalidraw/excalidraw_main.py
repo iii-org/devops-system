@@ -66,6 +66,7 @@ class CheckExcalidrawAliveV2(MethodResource):
 class ExcalidrawsFilesV2(MethodResource):
     @doc(tags=['Excalidraw'], description="Put excalidraw Files info")
     @marshal_with(util.CommonResponse)
+    @handle_plugin("excalidraw")
     @use_kwargs(router_model.ExcalidrawFilePostSchema, location="json")
     def post(self, **kwargs):
         excalidraw.save_file_info(kwargs)
@@ -75,6 +76,7 @@ class ExcalidrawsFilesV2(MethodResource):
 class ExcalidrawsHistoryV2(MethodResource):
     @doc(tags=['Excalidraw'], description="Get excalidraw record by excalidraw_id.")
     @marshal_with(router_model.ExcalidrawHistoryGetRes)
+    @handle_plugin("excalidraw")
     @jwt_required()
     def get(self, excalidraw_id):
         return util.success(excalidraw.get_excalidraw_history(excalidraw_id))
@@ -82,6 +84,7 @@ class ExcalidrawsHistoryV2(MethodResource):
 
     @doc(tags=['Excalidraw'], description="Automatic sync excalidraw. (Get in)")
     @marshal_with(util.CommonResponse)
+    @handle_plugin("excalidraw")
     @jwt_required()
     def post(self, excalidraw_id):
         excalidraw.update_excalidraw_history(excalidraw_id)
@@ -90,6 +93,7 @@ class ExcalidrawsHistoryV2(MethodResource):
 
     @doc(tags=['Excalidraw'], description="Compare excalidraw and store in db. (Get out)")
     @marshal_with(util.CommonResponse)
+    @handle_plugin("excalidraw")
     @jwt_required()
     def patch(self, excalidraw_id):
         excalidraw.check_excalidraw_history(excalidraw_id)
@@ -99,6 +103,7 @@ class ExcalidrawsHistoryV2(MethodResource):
 class ExcalidrawsVersionRestoreV2(MethodResource):
     @doc(tags=['Excalidraw'], description="restore excalidraw value by user assigned.")
     @marshal_with(util.CommonResponse)
+    @handle_plugin("excalidraw")
     @jwt_required()
     def put(self, excalidraw_history_id):
         return util.success(excalidraw.excalidraw_version_restore(excalidraw_history_id))
@@ -107,6 +112,7 @@ class ExcalidrawsVersionRestoreV2(MethodResource):
 class GetExcalidrawIDV2(MethodResource):
     @doc(tags=['Excalidraw'], description="get excalidraw id.")
     @marshal_with(router_model.ExcalidrawGetIDRes)
+    @handle_plugin("excalidraw")
     def get(self, room_key):
         from model import Excalidraw
         row = Excalidraw.query.filter_by(room=room_key).first()
