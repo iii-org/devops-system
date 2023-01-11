@@ -77,17 +77,12 @@ class Rancher(object):
         with_token=True,
         retried=False,
     ):
-        url = (
-            f'https://{config.get("RANCHER_IP_PORT")}'
-            f'/{config.get("RANCHER_API_VERSION")}{path}'
-        )
+        url = f'https://{config.get("RANCHER_IP_PORT")}' f'/{config.get("RANCHER_API_VERSION")}{path}'
         if headers is None:
             headers = {"Content-Type": "application/json"}
         final_headers = self.__auth_headers(headers, with_token)
 
-        response = util.api_request(
-            method, url, headers=final_headers, params=params, data=data
-        )
+        response = util.api_request(method, url, headers=final_headers, params=params, data=data)
         if response.status_code == 401 and not retried:
             self.token = self.__generate_token()
             return self.__api_request(
@@ -117,13 +112,9 @@ class Rancher(object):
         return ret
 
     def __api_get(self, path, params=None, headers=None, with_token=True):
-        return self.__api_request(
-            "GET", path=path, params=params, headers=headers, with_token=with_token
-        )
+        return self.__api_request("GET", path=path, params=params, headers=headers, with_token=with_token)
 
-    def __api_post(
-        self, path, params=None, headers=None, data=None, with_token=True, retried=False
-    ):
+    def __api_post(self, path, params=None, headers=None, data=None, with_token=True, retried=False):
         return self.__api_request(
             "POST",
             path=path,
@@ -134,9 +125,7 @@ class Rancher(object):
             retried=retried,
         )
 
-    def __api_put(
-        self, path, params=None, headers=None, data=None, with_token=True, retried=False
-    ):
+    def __api_put(self, path, params=None, headers=None, data=None, with_token=True, retried=False):
         return self.__api_request(
             "PUT",
             path=path,
@@ -148,9 +137,7 @@ class Rancher(object):
         )
 
     def __api_delete(self, path, params=None, headers=None, with_token=True):
-        return self.__api_request(
-            "DELETE", path=path, params=params, headers=headers, with_token=with_token
-        )
+        return self.__api_request("DELETE", path=path, params=params, headers=headers, with_token=with_token)
 
     def __generate_token(self):
         ran_am_key = "RANCHER_ADMIN_ACCOUNT"
@@ -205,9 +192,7 @@ class Rancher(object):
         # slow here
         return output_array
 
-    def rc_get_pipeline_executions_action(
-        self, ci_project_id, ci_pipeline_id, pipelines_exec_run, action
-    ):
+    def rc_get_pipeline_executions_action(self, ci_project_id, ci_pipeline_id, pipelines_exec_run, action):
         path = "/project/{0}/pipelineExecutions/{1}-{2}".format(
             ci_project_id, ci_pipeline_id, pipelines_exec_run
         )
@@ -217,9 +202,7 @@ class Rancher(object):
         response = self.__api_post(path, params=params, data="")
         return response
 
-    def rc_delete_pipeline_executions_run(
-        self, ci_project_id, ci_pipeline_id, pipelines_exec_run
-    ):
+    def rc_delete_pipeline_executions_run(self, ci_project_id, ci_pipeline_id, pipelines_exec_run):
         path = "/project/{0}/pipelineExecutions/{1}-{2}".format(
             ci_project_id, ci_pipeline_id, pipelines_exec_run
         )
@@ -271,10 +254,7 @@ class Rancher(object):
         self.token = self.__generate_token()
         headersandtoken = "Authorization: Bearer {0}".format(self.token)
         self.rc_get_project_id()
-        url = (
-            "wss://{0}/{1}/project/{2}/pipelineExecutions/"
-            "{3}-{4}/log?stage={5}&step={6}"
-        ).format(
+        url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/" "{3}-{4}/log?stage={5}&step={6}").format(
             config.get("RANCHER_IP_PORT"),
             config.get("RANCHER_API_VERSION"),
             self.project_id,
@@ -325,9 +305,7 @@ class Rancher(object):
                 ws.close()
             disconnect()
 
-    def rc_get_pipeline_executions_logs(
-        self, ci_project_id, ci_pipeline_id, pipelines_exec_run
-    ):
+    def rc_get_pipeline_executions_logs(self, ci_project_id, ci_pipeline_id, pipelines_exec_run):
         output_dict = []
         self.token = self.__generate_token()
         headersandtoken = "Authorization: Bearer {0}".format(self.token)
@@ -339,8 +317,7 @@ class Rancher(object):
             tmp_step_message = []
             for step_index, step in enumerate(stage["steps"]):
                 url = (
-                    "wss://{0}/{1}/project/{2}/pipelineExecutions/"
-                    "{3}-{4}/log?stage={5}&step={6}"
+                    "wss://{0}/{1}/project/{2}/pipelineExecutions/" "{3}-{4}/log?stage={5}&step={6}"
                 ).format(
                     config.get("RANCHER_IP_PORT"),
                     config.get("RANCHER_API_VERSION"),
@@ -364,9 +341,7 @@ class Rancher(object):
                 # logger.info("Received :'%s'" % result)
                 step_detail = output_execution["stages"][index]["steps"][step_index]
                 if "state" in step_detail:
-                    tmp_step_message.append(
-                        {"state": step_detail["state"], "message": result}
-                    )
+                    tmp_step_message.append({"state": step_detail["state"], "message": result})
                 else:
                     tmp_step_message.append({"state": None, "message": result})
             stage_state = output_execution["stages"][index]
@@ -379,9 +354,7 @@ class Rancher(object):
                     }
                 )
             else:
-                output_dict.append(
-                    {"name": stage["name"], "state": None, "steps": tmp_step_message}
-                )
+                output_dict.append({"name": stage["name"], "state": None, "steps": tmp_step_message})
         return output_dict[1:], output_execution["executionState"]
 
     def rc_get_cluster_id(self):
@@ -395,9 +368,7 @@ class Rancher(object):
     def rc_get_project_id(self):
         self.rc_get_cluster_id()
         if self.project_id is None:
-            rancher_output = self.__api_get(
-                "/clusters/{0}/projects".format(self.cluster_id)
-            )
+            rancher_output = self.__api_get("/clusters/{0}/projects".format(self.cluster_id))
             output_array = rancher_output.json()["data"]
             for output in output_array:
                 if output["name"] == "Default":
@@ -415,40 +386,26 @@ class Rancher(object):
         pipeline_list = self.rc_get_project_pipeline()
         for pipeline in pipeline_list:
             if pipeline["repositoryUrl"] == repository_url:
-                logger.info(
-                    "repository_url {0} rancher pipeline already enable".format(
-                        repository_url
-                    )
-                )
+                logger.info("repository_url {0} rancher pipeline already enable".format(repository_url))
                 abort(
                     400,
-                    message="rancher pipeline already enable this repository {0}".format(
-                        repository_url
-                    ),
+                    message="rancher pipeline already enable this repository {0}".format(repository_url),
                 )
         user_id = self.rc_get_admin_user_id()
         parameter = {
             "type": "pipeline",
-            "sourceCodeCredentialId": "{0}:{1}-gitlab-root".format(
-                user_id, self.project_id.split(":")[1]
-            ),
+            "sourceCodeCredentialId": "{0}:{1}-gitlab-root".format(user_id, self.project_id.split(":")[1]),
             "repositoryUrl": repository_url,
             "triggerWebhookPr": False,
             "triggerWebhookPush": True,
             "triggerWebhookTag": False,
         }
-        output = self.__api_post(
-            "/projects/{0}/pipelines".format(self.project_id), data=parameter
-        )
-        logger.debug(
-            "enable_rancher_project_pipeline output: {0}".format(output.json())
-        )
+        output = self.__api_post("/projects/{0}/pipelines".format(self.project_id), data=parameter)
+        logger.debug("enable_rancher_project_pipeline output: {0}".format(output.json()))
         return output.json()["id"]
 
     def rc_disable_project_pipeline(self, project_id, pipeline_id):
-        rancher_output = self.__api_delete(
-            "/projects/{0}/pipelines/{1}".format(project_id, pipeline_id)
-        )
+        rancher_output = self.__api_delete("/projects/{0}/pipelines/{1}".format(project_id, pipeline_id))
         status_code = rancher_output.status_code
         if status_code == 200:
             logger.info("disable_rancher_project_pipeline successful !")
@@ -456,9 +413,7 @@ class Rancher(object):
             logger.info("project does not exist, don't need to delete.")
         else:
             logger.info(
-                "disable_rancher_project_pipeline error, error message: {0}".format(
-                    rancher_output.text
-                )
+                "disable_rancher_project_pipeline error, error message: {0}".format(rancher_output.text)
             )
             abort(
                 400,
@@ -525,19 +480,10 @@ class Rancher(object):
         return output.json()["data"]
 
     def rc_add_secrets_to_all_namespaces(self, secret_name, content):
-        if (
-            kubernetesClient.read_namespace_secret(
-                kubernetesClient.DEFAULT_NAMESPACE, secret_name
-            )
-            is None
-        ):
-            self.rc_add_secrets_into_rc_all(
-                {"name": secret_name, "type": "secret", "data": content}
-            )
+        if kubernetesClient.read_namespace_secret(kubernetesClient.DEFAULT_NAMESPACE, secret_name) is None:
+            self.rc_add_secrets_into_rc_all({"name": secret_name, "type": "secret", "data": content})
         else:
-            self.rc_put_secrets_into_rc_all(
-                secret_name, {"type": "secret", "data": content}
-            )
+            self.rc_put_secrets_into_rc_all(secret_name, {"type": "secret", "data": content})
 
     def rc_add_secrets_into_rc_all(self, args):
         self.rc_get_project_id()
@@ -571,9 +517,7 @@ class Rancher(object):
 
     def rc_add_registry_into_rc_all(self, args):
         self.rc_get_project_id()
-        registry = {
-            args["url"]: {"username": args["username"], "password": args["password"]}
-        }
+        registry = {args["url"]: {"username": args["username"], "password": args["password"]}}
         body = {
             "type": "dockerCredential",
             "registries": registry,
@@ -638,12 +582,8 @@ class Rancher(object):
         body = {
             "name": kwargs["name"],
             "namespace": kwargs["namespace"],
-            "appRevisionId": kwargs["appRevisionId"]
-            if kwargs.get("appRevisionId")
-            else None,
-            "targetNamespace": kwargs["targetNamespace"]
-            if kwargs.get("targetNamespace")
-            else None,
+            "appRevisionId": kwargs["appRevisionId"] if kwargs.get("appRevisionId") else None,
+            "targetNamespace": kwargs["targetNamespace"] if kwargs.get("targetNamespace") else None,
             "externalId": kwargs["externalId"] if kwargs.get("externalId") else None,
             "answers": kwargs["answers"] if kwargs.get("answers") else None,
         }
@@ -662,12 +602,11 @@ class Rancher(object):
 
     def rc_del_app_with_prefix(self, prefix):
         all_apps = self.rc_get_apps_all()
-        delete_app_list = [
-            app["name"] for app in all_apps if app["name"].startswith(prefix)
-        ]
+        delete_app_list = [app["name"] for app in all_apps if app["name"].startswith(prefix)]
         for name in delete_app_list:
             self.rc_del_app(name)
         self.__check_app_deleted(delete_app_list)
+        return delete_app_list
 
     def __check_app_deleted(self, delete_app_list):
         now_time = datetime.utcnow() + timedelta(minutes=1)
@@ -679,9 +618,7 @@ class Rancher(object):
                 data = self.rc_get_app_by_name(name)
 
     def rc_count_each_pj_piplines_by_days(self):
-        day_start = datetime.combine(
-            (datetime.utcnow() - timedelta(days=1)), d_time(00, 00)
-        )
+        day_start = datetime.combine((datetime.utcnow() - timedelta(days=1)), d_time(00, 00))
         project_plugin_relations = ProjectPluginRelation.query.with_entities(
             ProjectPluginRelation.project_id,
             ProjectPluginRelation.ci_project_id,
@@ -714,9 +651,7 @@ rancher = Rancher()
 
 def remove_pj_executions(pj_id):
     relation = nx_get_project_plugin_relation(nexus_project_id=pj_id)
-    pj_executions = rancher.rc_get_pipeline_executions(
-        relation.ci_project_id, relation.ci_pipeline_id
-    )
+    pj_executions = rancher.rc_get_pipeline_executions(relation.ci_project_id, relation.ci_pipeline_id)
     for data in pj_executions["data"]:
         try:
             rancher.rc_delete_pipeline_executions_run(
@@ -732,21 +667,15 @@ def remove_executions():
     ci_project_id = None
     ci_pipeline_id = []
     for relation in ProjectPluginRelation.query.all():
-        ci_project_id = (
-            relation.ci_project_id if ci_project_id is None else ci_project_id
-        )
+        ci_project_id = relation.ci_project_id if ci_project_id is None else ci_project_id
         ci_pipeline_id.append(relation.ci_pipeline_id)
 
     pj_executions = rancher.rc_get_pipeline_executions(ci_project_id, None)
     for data in pj_executions["data"]:
         if data["pipelineId"] not in ci_pipeline_id:
             try:
-                rancher.rc_delete_pipeline_executions_run(
-                    ci_project_id, data["pipelineId"], data["run"]
-                )
-                logger.info(
-                    f'{ci_project_id}/{data["pipelineId"]}-{data["run"]} has been removed.'
-                )
+                rancher.rc_delete_pipeline_executions_run(ci_project_id, data["pipelineId"], data["run"])
+                logger.info(f'{ci_project_id}/{data["pipelineId"]}-{data["run"]} has been removed.')
             except Exception as e:
                 logger.exception(str(e))
 
@@ -754,16 +683,12 @@ def remove_executions():
 def remove_extra_executions():
     logger.info("Start to remove pipline_executions which out of limit.")
 
-    condition = SystemParameter.query.filter_by(
-        name="k8s_pipline_executions_remain_limit"
-    ).one()
+    condition = SystemParameter.query.filter_by(name="k8s_pipline_executions_remain_limit").one()
     if not condition.active or condition.active is None:
         return
     limit_pods = int(condition.value["limit_pods"])
     for relation in ProjectPluginRelation.query.all():
-        pj_executions = rancher.rc_get_pipeline_executions(
-            relation.ci_project_id, relation.ci_pipeline_id
-        )
+        pj_executions = rancher.rc_get_pipeline_executions(relation.ci_project_id, relation.ci_pipeline_id)
         if len(pj_executions["data"]) > limit_pods:
             for data in pj_executions["data"][limit_pods::]:
                 try:
@@ -782,9 +707,7 @@ def turn_tags_off():
     data = {"triggerWebhookTag": False}
     for relation in ProjectPluginRelation.query.all():
         try:
-            rancher.rc_update_project_pipline(
-                relation.ci_project_id, relation.ci_pipeline_id, data
-            )
+            rancher.rc_update_project_pipline(relation.ci_project_id, relation.ci_pipeline_id, data)
         except Exception as e:
             logger.exception(str(e))
     logger.info("Finish turn tags off.")
@@ -798,9 +721,7 @@ def version_list(cat_id):
             for data in value:
                 for k, v in data.items():
                     if k == "versionLinks":
-                        version_dict.update(
-                            {data["name"]: [version for version, url in v.items()]}
-                        )
+                        version_dict.update({data["name"]: [version for version, url in v.items()]})
     return version_dict
 
 
@@ -817,24 +738,18 @@ def get_all_appname_by_project(project_id):
     apps = rancher.rc_get_apps_all()
     df_app = pd.DataFrame(apps)
     df_project_app = df_app[df_app["targetNamespace"] == project_name]
-    result_list = [
-        value["name"] for key, value in df_project_app.fillna("").T.to_dict().items()
-    ]
+    result_list = [value["name"] for key, value in df_project_app.fillna("").T.to_dict().items()]
     return result_list
 
 
-def create_pipeline_execution(
-    gl_pj_id: int, branch: str, run_num: int, commit_id: str = ""
-):
-    pj_plugin_relation = ProjectPluginRelation.query.filter_by(
-        git_repository_id=gl_pj_id
-    ).first()
+def create_pipeline_execution(gl_pj_id: int, branch: str, run_num: int, commit_id: str = ""):
+    pj_plugin_relation = ProjectPluginRelation.query.filter_by(git_repository_id=gl_pj_id).first()
     row = PipelineExecution(
         commit_id=commit_id,  # length: 8
         project_id=pj_plugin_relation.project_id,
         run_num=run_num,
         del_branch=branch,
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
     )
     db.session.add(row)
     db.session.commit()
@@ -843,17 +758,13 @@ def create_pipeline_execution(
 def remove_pipeline_execution(pj_id: int, create_time: datetime = None) -> None:
     pipe_executions = PipelineExecution.query.filter_by(project_id=pj_id)
     if create_time is not None:
-        pipe_executions = pipe_executions.filter(
-            PipelineExecution.created_at <= create_time
-        )
+        pipe_executions = pipe_executions.filter(PipelineExecution.created_at <= create_time)
 
     pipe_executions.delete()
     db.session.commit()
 
 
-def check_pipeline_need_remove(
-    repo_name: str, branch: str, commit_id: str = ""
-) -> None:
+def check_pipeline_need_remove(repo_name: str, branch: str, commit_id: str = "") -> None:
     """
     Check current pipeline run needs to delete or not.
     """
@@ -862,9 +773,7 @@ def check_pipeline_need_remove(
         logger.info(msg)
         print(msg)
 
-    logger.info(
-        f"Start checking pipeline execution, pj_name:{repo_name}, branch:{branch}"
-    )
+    logger.info(f"Start checking pipeline execution, pj_name:{repo_name}, branch:{branch}")
     row_tuple = (
         db.session.query(PipelineExecution, Project, ProjectPluginRelation)
         .join(PipelineExecution)
@@ -873,7 +782,7 @@ def check_pipeline_need_remove(
             Project.id == PipelineExecution.project_id,
             Project.id == ProjectPluginRelation.project_id,
             Project.name == repo_name,
-            PipelineExecution.del_branch==branch
+            PipelineExecution.del_branch == branch,
         )
         .order_by(desc(PipelineExecution.created_at))
         .first()
@@ -917,7 +826,7 @@ def check_pipeline_need_remove(
     elif run_num < del_run_num:
         record_log(f"Incorrent run num, expected: {del_run_num}, actual: {run_num}")
         return
-    
+
     rancher.rc_delete_pipeline_executions_run(ci_project_id, ci_pipeline_id, run_num)
     remove_pipeline_execution(pj_id, create_time=create_time)
     time.sleep(0.5)
@@ -990,14 +899,18 @@ class RancherDeleteAPP(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("project_name", type=str, required=True, location="form")
         parser.add_argument("branch_name", type=str, required=True, location="form")
+        parser.add_argument("debug", type=bool, location="form")
         args = parser.parse_args()
         prefix = f'{args["project_name"]}-{args["branch_name"]}'
-        rancher.rc_del_app_with_prefix(prefix)
+        delete_apps = rancher.rc_del_app_with_prefix(prefix)
 
         from resources.pipeline import delete_rest_pipelines
 
         delete_rest_pipelines(args["project_name"], args["branch_name"])
-        return util.success()
+        if args.get("debug") is None:
+            return util.success()
+        else:
+            return util.success({"delete_apps": delete_apps})
 
 
 class RancherCreateAPP(Resource):
