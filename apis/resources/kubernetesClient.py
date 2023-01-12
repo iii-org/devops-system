@@ -506,6 +506,44 @@ class ApiK8sClient:
     def get_api_client(self):
         return self.api_k8s_client
 
+    # Persistent Volume Claim
+
+    def read_namespace_pvc(self, name: str, namespace: str):
+        try:
+            self.core_v1.read_namespaced_persistent_volume_claim(name, namespace)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
+    def create_namespace_pvc(self, namespace: str, body):
+        try:
+            return self.core_v1.create_namespaced_persistent_volume_claim(namespace, body)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
+    def patch_namespace_pvc(self, name: str, namespace: str, body: object):
+        try:
+            return self.core_v1.patch_namespaced_persistent_volume_claim(name, namespace, body)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
+    def delete_namespace_pvc(self, name: str, namespace: str):
+        try:
+            self.core_v1.list_namespaced_persistent_volume_claim(namespace)
+            return self.core_v1.delete_namespaced_persistent_volume_claim(name, namespace)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
+    def list_namespace_pvc(self, namespace: str):
+        try:
+            return self.core_v1.list_namespaced_persistent_volume_claim(namespace)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
 
 MAX_RETRY_APPLY_CRONJOB = 30
 

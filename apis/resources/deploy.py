@@ -467,6 +467,15 @@ def create_default_k8s_data(db_project, db_release, args):
                 items.append(item)
         if len(items) > 0:
             k8s_data['environments'] = items
+    volumes = args.get('volumes', None)
+    if volumes is not None:
+        items = []
+        for vol in volumes:
+            item = remove_object_key_by_value(vol)
+            if item is not None:
+                items.append(item)
+        if len(items) > 0:
+            k8s_data['volumes'] = items
     return k8s_data
 
 
@@ -644,6 +653,26 @@ def create_configmap_object(configmap_name, configmap_dict):
     return body
 
 
+def create_pvc_object(pvc_dict):
+    body: list = []
+    pvc_list: list = []
+    if isinstance(pvc_dict, list):
+        pvc_list = pvc_dict
+    else:
+        pvc_list.append(pvc_dict)
+
+    for pvc in pvc_list:
+        body.append(k8s_client.V1PersistentVolumeClaim(
+            api_version="v1",
+            kind="PersistentVolumeClaim",
+            metadata=k8s_client.V1ObjectMeta(name=pvc.get("pvc_name")),
+            spec=k8s_client.V1PersistentVolumeClaimSpec(storage_class_name="deploy-local-sc",
+                                                        access_modes=["ReadWriteMany"],
+                                                        resources=k8s_client.V1ResourceRequirements(
+                                                            requests={"storage": "5Gi"}))))
+    return body
+
+
 def create_service_port(network):
     if network.get('expose_port') is not None:
         service_port = k8s_client.V1ServicePort(
@@ -687,17 +716,27 @@ def create_deployment_object(app_name,
                              registry_secret_name,
                              resource=None,
                              image=None,
-                             env=None):
+                             env=None,
+                             volume_devices=[]):
     # Configured Pod template container
     default_image_policy = 'Always'
     if image is not None and image.get('policy', None) is not None:
         default_image_policy = image.get('policy', None)
+    vm_list: list = []
+    v_list: list = []
+    for vd in volume_devices:
+        vm_list.append(k8s_client.V1VolumeMount(mount_path=vd.get("device_path"), name=vd.get("pvc_name")))
+        v_list.append(k8s_client.V1Volume(name=vd.get("pvc_name"),
+                                          persistent_volume_claim=k8s_client.V1PersistentVolumeClaimVolumeSource(
+                                              claim_name=vd.get("pvc_name"))))
     container = k8s_client.V1Container(
         name=app_name,
         image=image_uri,
         ports=[k8s_client.V1ContainerPort(container_port=port)],
         resources=init_resource_requirements(resource),
-        image_pull_policy=default_image_policy)
+        image_pull_policy=default_image_policy,
+        volume_mounts=vm_list
+    )
     if env is not None:
         env_list = [
             k8s_client.V1EnvVar(name=key, value=value) for 
@@ -709,9 +748,10 @@ def create_deployment_object(app_name,
         metadata=k8s_client.V1ObjectMeta(labels={"app": app_name}),
         spec=k8s_client.V1PodSpec(
             containers=[container],
-            image_pull_secrets=[
-                k8s_client.V1LocalObjectReference(name=registry_secret_name)
-            ]))
+            image_pull_secrets=[k8s_client.V1LocalObjectReference(name=registry_secret_name)],
+            volumes=v_list
+        )
+    )
     num_replicas = 1
     if resource is not None and resource.get('replicas', None) is not None:
         num_replicas = resource.get('replicas', None)
@@ -882,6 +922,23 @@ class DeployK8sClient:
         return k8s_resource_exist(
             name, self.client.list_namespaced_config_map(namespace))
 
+    def execute_namespace_pvc(self, namespace, body_list):
+        pvc_list: list = []
+        for body in body_list:
+            if not self.check_namespace_pvc(body.metadata.name, namespace):
+                pvc_list.append(self.client.create_namespace_pvc(namespace, body))
+            else:
+                pvc_list.append(self.client.read_namespace_pvc(body.metadata.name, namespace))
+        return pvc_list
+
+    def delete_namespace_pvc(self, name, namespace):
+        if self.check_namespace_pvc(name, namespace):
+            return self.client.delete_namespace_pvc(name, namespace)
+
+    def check_namespace_pvc(self, name, namespace):
+        return k8s_resource_exist(
+            name, self.client.list_namespace_pvc(namespace))
+
 
 class DeployNamespace:
     def __init__(self, namespace):
@@ -910,6 +967,42 @@ class DeployConfigMap:
     def configmap_body(self):
         return create_configmap_object(self.configmap_name,
                                        self.configmap_dict)
+
+
+class DeployPVC:
+    def __init__(self, app, project):
+        self.app = app
+        self.project = project
+        self.pvc_name = None
+        self.device_path = None
+        self.pvc_dict = None
+        self.set_pvc_data()
+
+    def get_pvc_info(self):
+        list_len: int = min(len(self.pvc_name), len(self.device_path))
+        info: list = []
+        for i in range(list_len):
+            info.append({"pvc_name": self.pvc_name[i], "device_path": self.device_path[i]})
+        return info
+
+    def set_pvc_data(self):
+        self.pvc_dict = json.loads(self.app.k8s_yaml).get('volumes', None)
+        pvc_list = []
+        if isinstance(self.pvc_dict, list):
+            pvc_list = self.pvc_dict
+        else:
+            pvc_list.append(self.pvc_dict)
+        self.pvc_name = []
+        self.device_path = []
+        for i in range(len(pvc_list)):
+            if pvc_list[i].get("pvc_name", None) is None:
+                self.pvc_name.append(self.project.name + "-pvc-" + str(i))
+            else:
+                self.pvc_name.append(pvc_list[i].get("pvc_name"))
+            self.device_path.append(pvc_list[i].get("device_path"))
+
+    def pvc_body(self):
+        return create_pvc_object(self.pvc_dict)
 
 
 class DeploySecret:
@@ -1039,7 +1132,9 @@ class DeployDeployment:
             self.name, self.deployment_name, self.harbor_info.get('image_uri'),
             self.service_info.get('container_port'),
             self.registry_secret_info.get('registry_secret_name'),
-            self.k8s_info.get('resources'), self.k8s_info.get('image'), self.get_env())
+            self.k8s_info.get('resources'), self.k8s_info.get('image'), self.get_env(),
+            json.loads(self.app.k8s_yaml).get('volumes', [])
+        )
 
 
 class K8sDeployment:
@@ -1050,10 +1145,13 @@ class K8sDeployment:
         self.registry = model.Registries.query.filter_by(
             registries_id=app.registry_id).first()
         self.k8s_client = DeployK8sClient(self.cluster.name)
+        self.k8s_info = json.loads(app.k8s_yaml)
+        self.volumes = self.k8s_info.get("volumes")
         self.namespace = None
         self.registry_secret = None
         self.service = None
         self.ingress = None
+        self.pvc = None
         self.deployment = None
         self.configmap = None
         self.secret = None
@@ -1088,6 +1186,15 @@ class K8sDeployment:
                                                   self.app.namespace,
                                                   self.service.service_body())
         self.deployment_info['service'] = self.service.get_service_info()
+
+    def check_pvc(self):
+        if self.pvc is None:
+            self.pvc = DeployPVC(self.app, self.project)
+
+    def execute_pvc(self):
+        self.check_pvc()
+        self.k8s_client.execute_namespace_pvc(self.app.namespace, self.pvc.pvc_body())
+        self.deployment_info['volumes'] = self.pvc.get_pvc_info()
 
     def check_ingress(self):
         if self.ingress is None:
@@ -1151,6 +1258,8 @@ def execute_k8s_deployment(app):
     k8s_deployment.execute_registry_secret()
     k8s_deployment.execute_service()
     k8s_info = json.loads(app.k8s_yaml)
+    if k8s_info.get('volumes', None) is not None:
+        k8s_deployment.execute_pvc()
     if k8s_info.get('network').get('domain', None) is not None:
         k8s_deployment.execute_ingress()
     if k8s_info.get('environments', None) is not None:
@@ -1379,6 +1488,7 @@ def get_application_information(application, need_update=True, cluster_info=None
     output['resources'] = k8s_yaml.get('resources')
     output['network'] = k8s_yaml.get('network')
     output['environments'] = k8s_yaml.get('environments')
+    output['volumes'] = k8s_yaml.get('volumes')
     return output
 
 
@@ -1688,6 +1798,7 @@ class Applications(Resource):
             parser.add_argument('network', type=dict)
             parser.add_argument('image', type=dict)
             parser.add_argument('environments', type=dict, action='append')
+            parser.add_argument('volumes', type=dict, action='append')
             parser.add_argument('disabled', type=inputs.boolean)
             args = parser.parse_args()
             output = create_application(args)
