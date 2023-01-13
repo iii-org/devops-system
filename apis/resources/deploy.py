@@ -1856,6 +1856,7 @@ class Application(Resource):
             parser.add_argument('network', type=dict)
             parser.add_argument('image', type=dict)
             parser.add_argument('environments', type=dict, action='append')
+            parser.add_argument('volumes', type=dict, action='append')
             parser.add_argument('disabled', type=inputs.boolean)
             args = parser.parse_args()
             output = update_application(application_id, args)
