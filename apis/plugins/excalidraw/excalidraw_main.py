@@ -6,6 +6,7 @@ from . import router_model
 import util
 from resources import excalidraw
 from plugins import handle_plugin
+from resources import apiError
 
 
 class ExcalidrawsV2(MethodResource):
@@ -116,4 +117,6 @@ class GetExcalidrawIDV2(MethodResource):
     def get(self, room_key):
         from model import Excalidraw
         row = Excalidraw.query.filter_by(room=room_key).first()
+        if not row:
+            raise apiError.DevOpsError(404, "room_key not exist")
         return util.success({"excalidraw_id": row.id})
