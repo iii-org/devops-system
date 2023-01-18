@@ -1467,13 +1467,15 @@ def get_application_information(application, need_update=True, cluster_info=None
         "created_time": None,
         "containers": None
     }
-    if k8s_yaml.get('deploy_finish') and app.status_id == 5:
-        try:
-            deployment_info, url = get_deployment_info(
-                cluster_info[cluster_id], k8s_yaml)
-        except MaxRetryError as ex:
-            logger.info(f'No Route To Host {cluster_id}!')
-            logger.error(ex)
+    # 20230118 將下段程式分離，獨立成一個 API
+    # if k8s_yaml.get('deploy_finish') and app.status_id == 5:
+    #     try:
+    #         deployment_info, url = get_deployment_info(
+    #             cluster_info[cluster_id], k8s_yaml)
+    #     except MaxRetryError as ex:
+    #         logger.info(f'No Route To Host {cluster_id}!')
+    #         logger.error(ex)
+    # 20230118 將上段程式分離，獨立成一個 API
     output['deployment'] = deployment_info
     output['public_endpoint'] = url
     output['cluster'] = {}
@@ -1927,3 +1929,49 @@ class Cronjob(Resource):
             return util.respond(404,
                                 _ERROR_UPDATE_DEPLOY_APPLICATION,
                                 error=apiError.update_deploy_application_failed())
+
+
+# 20230118 新增下列程式，以解決因遠端機器不存在造成TIMEOUT使得無法取得APPLICATION的資料列表
+def get_deployments(args=None):
+    output: dict = {}
+    app: model.Application = None
+    if 'application_id' in args:
+        app = model.Application.query.filter_by(
+            id=args.get('application_id')).order_by(model.Application.id.desc()).first()
+    if app is None:
+        return output
+    k8s_yaml: dict = json.loads(app.k8s_yaml)
+    cluster_id: str = str(app.cluster_id)
+    cluster_info: dict = get_clusters_name(cluster_id)
+    url = None
+    deployment_info = {
+        "name": None,
+        "available_pod_number": None,
+        "total_pod_number": None,
+        "created_time": None,
+        "containers": None
+    }
+    if k8s_yaml.get('deploy_finish') and app.status_id == 5:
+        try:
+            deployment_info, url = get_deployment_info(
+                cluster_info[cluster_id], k8s_yaml)
+        except MaxRetryError as ex:
+            logger.info(f'No Route To Host {cluster_id}!')
+            logger.error(ex)
+    output['deployment'] = deployment_info
+    output['public_endpoint'] = url
+    return output
+
+
+class Deployment(Resource):
+    @jwt_required()
+    def get(self, application_id):
+        try:
+            args = {'application_id': application_id}
+            output = get_deployments(args)
+            return util.success(output)
+        except NoResultFound:
+            return util.respond(404,
+                                _ERROR_GET_DEPLOY_APPLICATION,
+                                error=apiError.get_deployment_failed(application_id=args.get('application')))
+# 20230118 新增上列程式，以解決因遠端機器不存在造成TIMEOUT使得無法取得APPLICATION的資料列表

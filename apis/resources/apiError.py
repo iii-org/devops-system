@@ -474,3 +474,13 @@ class TemplateError(Exception):
         self.status_code = status_code
         self.message = message
         self.error_value = error
+
+
+# 20230118 新增下列程式，因新增取得DEPLOYMENT的API而新增下列錯誤訊息的程式
+def get_deployment_failed(**kwargs):
+    _FAILED_GET_DEPLOYMENT = 'Get deployment failed'
+    if len(kwargs) != 0:
+        return build(2020, _FAILED_GET_DEPLOYMENT, kwargs)
+    else:
+        return build(2020, _FAILED_GET_DEPLOYMENT)
+# 20230118 新增上列程式，因新增取得DEPLOYMENT的API而新增下列錯誤訊息的程式

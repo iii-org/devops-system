@@ -641,6 +641,11 @@ api.add_resource(deploy.UpdateApplication,
                  '/deploy/applications/<int:application_id>/update')
 
 api.add_resource(deploy.Cronjob, '/deploy/applications/cronjob')
+
+# 20230118 新增下列API程式，以解決因遠端機器不存在造成TIMEOUT使得無法取得APPLICATION的資料列表
+api.add_resource(deploy.Deployment, '/deploy/applications/deployment/<int:application_id>')
+# 20230118 新增上列API程式，以解決因遠端機器不存在造成TIMEOUT使得無法取得APPLICATION的資料列表
+
 # Alert
 api.add_resource(alert.ProjectAlert, '/project/<sint:project_id>/alert')
 api.add_resource(alert.ProjectAlertUpdate, '/alert/<int:alert_id>')
