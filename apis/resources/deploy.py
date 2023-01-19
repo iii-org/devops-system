@@ -939,6 +939,15 @@ class DeployK8sClient:
         return k8s_resource_exist(
             name, self.client.list_namespace_pvc(namespace))
 
+    # 20230118 為取得 storage class 資訊而新增下列一段程式
+    def list_storage_class(self):
+        return self.client.list_storage_class()
+
+    def check_storage_class(self, name):
+        return k8s_resource_exist(
+            name, self.client.list_storage_class())
+    # 20230118 為取得 storage class 資訊而新增上列一段程式
+
 
 class DeployNamespace:
     def __init__(self, namespace):
@@ -1932,7 +1941,7 @@ class Cronjob(Resource):
 
 
 # 20230118 新增下列程式，以解決因遠端機器不存在造成TIMEOUT使得無法取得APPLICATION的資料列表
-def get_deployments(args=None):
+def get_deployments(args=None) -> dict:
     output: dict = {}
     app: model.Application = None
     if 'application_id' in args:
@@ -1975,3 +1984,128 @@ class Deployment(Resource):
                                 _ERROR_GET_DEPLOY_APPLICATION,
                                 error=apiError.get_deployment_failed(application_id=args.get('application')))
 # 20230118 新增上列程式，以解決因遠端機器不存在造成TIMEOUT使得無法取得APPLICATION的資料列表
+
+
+# 20230118 為取得 storage class 資訊而新增下列一段程式
+def get_storage_class_info(cluster_name):
+    deploy_k8s_client = DeployK8sClient(cluster_name)
+    storages_info = []
+    for storage in deploy_k8s_client.list_storage_class().items:
+        if storage.metadata.name == "anchore-sc" or storage.metadata.name == "iiidevops-nfs-storage":
+            continue
+        storages_info.append(kubernetesClient.get_storage_class_info(storage))
+    return storages_info
+
+
+def get_storage_classes_from_db(cluster_id: int) -> list[model.StorageClass]:
+    return model.StorageClass.query.filter_by(cluster_id=cluster_id).order_by(model.StorageClass.id.desc()).all()
+
+
+def get_storage_class_json(storage: model.StorageClass) -> dict:
+    status = "Disabled"
+    if storage.disabled is None:
+        status = "Not Exist"
+    elif storage.disabled:
+        status = "Enabled"
+    return {"id": storage.id, "name": storage.name, "Pods used": 0, "status": status, "disabled": storage.disabled}
+
+
+def sync_storage_classes(args=None) -> list:
+    output: list = []
+    db_sc_list: list = []
+    storage_list: list = []
+    cluster_id: int = args.get('cluster_id', None)
+    if cluster_id is not None:
+        db_sc_list = get_storage_classes_from_db(cluster_id)
+    cluster_info: dict = get_clusters_name(cluster_id)
+    try:
+        storage_list = get_storage_class_info(cluster_info[str(cluster_id)])
+    except MaxRetryError as ex:
+        logger.info(f'No Route To Host {cluster_id}!')
+        logger.error(ex)
+    storage_name_list: list = []
+    for storage in storage_list:
+        storage_name_list.append(storage["name"])
+    db_sc_name_list: list = []
+    is_commit: bool = False
+    for db_sc in db_sc_list:
+        db_sc_name_list.append(db_sc.name)
+        index = storage_name_list.index(db_sc.name)
+        if index < 0:
+            db_sc.disabled = None
+            is_commit = True
+        else:
+            del storage_name_list[index]
+        output.append(get_storage_class_json(db_sc))
+    for storage_name in storage_name_list:
+        new = model.StorageClass(cluster_id=cluster_id, name=storage_name, disabled=False)
+        db.session.add(new)
+        db.session.commit()
+        # is_commit = True
+        output.append(get_storage_class_json(new))
+    if is_commit:
+        db.session.commit()
+    return output
+
+
+def get_storage_classes_info(args=None) -> list:
+    output: list = []
+    db_sc_list: list = []
+    # storage_list: list = []
+    cluster_id: int = args.get('cluster_id', None)
+    if cluster_id is not None:
+        db_sc_list = get_storage_classes_from_db(cluster_id)
+    # cluster_info: dict = get_clusters_name(cluster_id)
+    # try:
+    #     storage_list = get_storage_class_info(cluster_info[str(cluster_id)])
+    # except MaxRetryError as ex:
+    #     logger.info(f'No Route To Host {cluster_id}!')
+    #     logger.error(ex)
+    # storage_name_list: list = []
+    # for storage in storage_list:
+    #     storage_name_list.append(storage["name"])
+    # db_sc_name_list: list = []
+    # is_commit: bool = False
+    for db_sc in db_sc_list:
+        # db_sc_name_list.append(db_sc.name)
+        # index = storage_name_list.index(db_sc.name)
+        # if index < 0:
+        #     db_sc.disabled = None
+        #     is_commit = True
+        # else:
+        #     del storage_name_list[index]
+        output.append(get_storage_class_json(db_sc))
+    # for storage_name in storage_name_list:
+    #     new = model.StorageClass(cluster_id=cluster_id, name=storage_name, disabled=False)
+    #     db.session.add(new)
+    #     is_commit = True
+    #     output.append(new)
+    # if is_commit:
+    #     db.session.commit()
+    # output = storage_list
+    return output
+
+
+class StorageClass(Resource):
+    @jwt_required()
+    def get(self, cluster_id):
+        try:
+            args = {'cluster_id': cluster_id}
+            output = get_storage_classes_info(args)
+            return util.success(output)
+        except NoResultFound:
+            return util.respond(404,
+                                _ERROR_GET_DEPLOY_APPLICATION,
+                                error=apiError.get_deployment_failed(application_id=args.get('application')))
+
+    @jwt_required()
+    def post(self, cluster_id):
+        try:
+            args = {'cluster_id': cluster_id}
+            output = sync_storage_classes(args)
+            return util.success(output)
+        except NoResultFound:
+            return util.respond(404,
+                                _ERROR_GET_DEPLOY_APPLICATION,
+                                error=apiError.get_deployment_failed(application_id=args.get('application')))
+# 20230118 為取得 storage class 資訊而新增上列一段程式

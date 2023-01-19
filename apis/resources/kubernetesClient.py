@@ -58,6 +58,9 @@ class ApiK8sClient:
         self.batch_v1 = k8s_client.BatchV1Api(self.api_k8s_client)
         self.network_v1beta1 = k8s_client.NetworkingV1beta1Api(
             self.api_k8s_client)
+        # 20230118 為取得 storage class 資訊而新增下列一行程式
+        self.storage_v1 = k8s_client.StorageV1Api(self.api_k8s_client)
+        # 20230118 為取得 storage class 資訊而新增上列一行程式
 
     # api  version
     def get_api_resources(self):
@@ -543,6 +546,29 @@ class ApiK8sClient:
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
+
+    # 20230118 為取得 storage class 資訊而新增下列一段程式
+    def list_storage_class(self):
+        try:
+            return self.storage_v1.list_storage_class()
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+    # 20230118 為取得 storage class 資訊而新增上列一段程式
+
+
+# 20230118 為取得 storage class 資訊而新增下列一段程式
+def get_storage_class_info(storage_class):
+    output: dict = {}
+    if storage_class is None:
+        return output
+    output["name"] = storage_class.metadata.name
+    output["parameters"] = storage_class.parameters
+    output["provisioner"] = storage_class.provisioner
+    output["reclaim_policy"] = storage_class.reclaim_policy
+    output["volume_binding_mode"] = storage_class.volume_binding_mode
+    return output
+# 20230118 為取得 storage class 資訊而新增上列一段程式
 
 
 MAX_RETRY_APPLY_CRONJOB = 30

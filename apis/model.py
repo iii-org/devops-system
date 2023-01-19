@@ -1287,3 +1287,13 @@ class PipelineExecution(db.Model):
     commit_id = Column(String)
     created_at = Column(DateTime)
     run_num = Column(Integer)
+
+
+# 20230118 為取得 storage class 資訊而新增下列一段程式
+# 尚未建立 alembic
+class StorageClass(db.Model):
+    id = Column(Integer, primary_key=True)
+    cluster_id = Column(Integer, ForeignKey(Cluster.id, ondelete="CASCADE"))
+    name = Column(String)
+    disabled = Column(Boolean)
+# 20230118 為取得 storage class 資訊而新增下上列一段程式
