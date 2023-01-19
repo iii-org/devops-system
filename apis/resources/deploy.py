@@ -22,7 +22,8 @@ from resources import harbor, kubernetesClient
 from resources import release
 from resources.system_parameter import check_upload_type
 from resources.apiError import DevOpsError
-
+from enums.action_type import ActionType
+from resources.activity import record_activity
 from resources.logger import logger
 
 _DEFAULT_RESTART_NUMBER = 30
@@ -43,6 +44,15 @@ _ERROR_DELETE_DEPLOY_APPLICATION = 'Delete deploy application failed'
 _ERROR_APPLICATION_EXISTS = "Deploy application had been deployed"
 _ERROR_RESTART_DEPLOY_APPLICATION = "Deploy application had reached retry number limit"
 _ERROR_RELEASE_APPLICATION = "Deploy application not found at gitlab"
+
+# 20230119 新增下列程式，因新增取得DEPLOYMENT的API而新增下列錯誤訊息的程式
+_ERROR_GET_DEPLOYMENT = 'Get deployment failed'
+# 202301198 新增上列程式，因新增取得DEPLOYMENT的API而新增上列錯誤訊息的程式
+
+# 20230119 為取得 storage class 資訊而新增下列一段程式
+_ERROR_GET_STORAGE_CLASS = 'Get storage class failed'
+_ERROR_CREATE_STORAGE_CLASS = 'Create storage class failed'
+# 20230119 為取得 storage class 資訊而新增上列一段程式
 
 _NEED_UPDATE_APPLICATION_STATUS = [1, 2, 3, 4, 9, 11]
 _DEFAULT_K8S_CONFIG_FILE = 'k8s_config'
@@ -1975,13 +1985,13 @@ def get_deployments(args=None) -> dict:
 class Deployment(Resource):
     @jwt_required()
     def get(self, application_id):
+        args = {'application_id': application_id}
         try:
-            args = {'application_id': application_id}
             output = get_deployments(args)
             return util.success(output)
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_GET_DEPLOY_APPLICATION,
+                                _ERROR_GET_DEPLOYMENT,
                                 error=apiError.get_deployment_failed(application_id=args.get('application')))
 # 20230118 新增上列程式，以解決因遠端機器不存在造成TIMEOUT使得無法取得APPLICATION的資料列表
 
@@ -2002,12 +2012,44 @@ def get_storage_classes_from_db(cluster_id: int) -> list[model.StorageClass]:
 
 
 def get_storage_class_json(storage: model.StorageClass) -> dict:
+    pods: int = 0
+    app_list: list = model.Application.query.filter_by(storage_class_id=storage.id
+                                                       ).order_by(model.Application.order).all()
+    for app in app_list:
+        k8s_yaml = json.loads(app.k8s_yaml)
+        cluster_id = str(app.cluster_id)
+        # single cluster get single cluster name
+        cluster_info = get_clusters_name(cluster_id)
+        url = None
+        deployment_info = {
+            "name": None,
+            "available_pod_number": None,
+            "total_pod_number": None,
+            "created_time": None,
+            "containers": None
+        }
+        if k8s_yaml.get('deploy_finish') and app.status_id == 5:
+            try:
+                deployment_info, url = get_deployment_info(
+                    cluster_info[cluster_id], k8s_yaml)
+            except MaxRetryError as ex:
+                logger.info(f'No Route To Host {cluster_id}!')
+                logger.error(ex)
+        if deployment_info["total_pod_number"] is not None:
+            pods += deployment_info["total_pod_number"]
     status = "Disabled"
     if storage.disabled is None:
         status = "Not Exist"
     elif storage.disabled:
         status = "Enabled"
-    return {"id": storage.id, "name": storage.name, "Pods used": 0, "status": status, "disabled": storage.disabled}
+    return {"id": storage.id, "name": storage.name, "Pods used": pods, "status": status, "disabled": storage.disabled}
+
+
+@record_activity(ActionType.CREATE_SC)
+def create_storage_class(cluster_id: int, storage_name: str, disabled: bool):
+    new = model.StorageClass(cluster_id=cluster_id, name=storage_name, disabled=disabled)
+    db.session.add(new)
+    db.session.commit()
 
 
 def sync_storage_classes(args=None) -> list:
@@ -2041,7 +2083,6 @@ def sync_storage_classes(args=None) -> list:
         new = model.StorageClass(cluster_id=cluster_id, name=storage_name, disabled=False)
         db.session.add(new)
         db.session.commit()
-        # is_commit = True
         output.append(get_storage_class_json(new))
     if is_commit:
         db.session.commit()
@@ -2051,61 +2092,34 @@ def sync_storage_classes(args=None) -> list:
 def get_storage_classes_info(args=None) -> list:
     output: list = []
     db_sc_list: list = []
-    # storage_list: list = []
     cluster_id: int = args.get('cluster_id', None)
     if cluster_id is not None:
         db_sc_list = get_storage_classes_from_db(cluster_id)
-    # cluster_info: dict = get_clusters_name(cluster_id)
-    # try:
-    #     storage_list = get_storage_class_info(cluster_info[str(cluster_id)])
-    # except MaxRetryError as ex:
-    #     logger.info(f'No Route To Host {cluster_id}!')
-    #     logger.error(ex)
-    # storage_name_list: list = []
-    # for storage in storage_list:
-    #     storage_name_list.append(storage["name"])
-    # db_sc_name_list: list = []
-    # is_commit: bool = False
     for db_sc in db_sc_list:
-        # db_sc_name_list.append(db_sc.name)
-        # index = storage_name_list.index(db_sc.name)
-        # if index < 0:
-        #     db_sc.disabled = None
-        #     is_commit = True
-        # else:
-        #     del storage_name_list[index]
         output.append(get_storage_class_json(db_sc))
-    # for storage_name in storage_name_list:
-    #     new = model.StorageClass(cluster_id=cluster_id, name=storage_name, disabled=False)
-    #     db.session.add(new)
-    #     is_commit = True
-    #     output.append(new)
-    # if is_commit:
-    #     db.session.commit()
-    # output = storage_list
     return output
 
 
 class StorageClass(Resource):
     @jwt_required()
     def get(self, cluster_id):
+        args = {'cluster_id': cluster_id}
         try:
-            args = {'cluster_id': cluster_id}
             output = get_storage_classes_info(args)
             return util.success(output)
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_GET_DEPLOY_APPLICATION,
-                                error=apiError.get_deployment_failed(application_id=args.get('application')))
+                                _ERROR_GET_STORAGE_CLASS,
+                                error=apiError.get_storage_class_failed(cluster_id=args.get('cluster_id')))
 
     @jwt_required()
     def post(self, cluster_id):
+        args = {'cluster_id': cluster_id}
         try:
-            args = {'cluster_id': cluster_id}
             output = sync_storage_classes(args)
             return util.success(output)
         except NoResultFound:
             return util.respond(404,
-                                _ERROR_GET_DEPLOY_APPLICATION,
-                                error=apiError.get_deployment_failed(application_id=args.get('application')))
+                                _ERROR_CREATE_STORAGE_CLASS,
+                                error=apiError.create_storage_class_failed(cluster_id=args.get('cluster_id')))
 # 20230118 為取得 storage class 資訊而新增上列一段程式

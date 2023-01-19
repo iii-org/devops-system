@@ -480,7 +480,25 @@ class TemplateError(Exception):
 def get_deployment_failed(**kwargs):
     _FAILED_GET_DEPLOYMENT = 'Get deployment failed'
     if len(kwargs) != 0:
-        return build(2020, _FAILED_GET_DEPLOYMENT, kwargs)
+        return build(2030, _FAILED_GET_DEPLOYMENT, kwargs)
     else:
-        return build(2020, _FAILED_GET_DEPLOYMENT)
+        return build(2030, _FAILED_GET_DEPLOYMENT)
 # 20230118 新增上列程式，因新增取得DEPLOYMENT的API而新增下列錯誤訊息的程式
+
+
+# 20230119 為取得 storage class 資訊而新增上下列一段程式
+def get_storage_class_failed(**kwargs):
+    _FAILED_GET_STORAGE_CLASS = 'Get storage class failed'
+    if len(kwargs) != 0:
+        return build(2040, _FAILED_GET_STORAGE_CLASS, kwargs)
+    else:
+        return build(2040, _FAILED_GET_STORAGE_CLASS)
+
+
+def create_storage_class_failed(**kwargs):
+    _FAILED_CREATE_STORAGE_CLASS = 'Create storage class failed'
+    if len(kwargs) != 0:
+        return build(2040, _FAILED_CREATE_STORAGE_CLASS, kwargs)
+    else:
+        return build(2040, _FAILED_CREATE_STORAGE_CLASS)
+# 20230119 為取得 storage class 資訊而新增上列一段程式
