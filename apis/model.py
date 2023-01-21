@@ -655,8 +655,8 @@ class Application(db.Model):
     restarted_at = Column(DateTime)
     # 20230119 為取得 storage class 資訊而新增下列一段程式
     # 尚未建立 alembic
-    storage_class_id = Column(Integer)
-    order = Column(Integer, default=0)
+    # storage_class_id = Column(Integer)
+    # order = Column(Integer, default=0)
     # 20230119 為取得 storage class 資訊而新增下列一段程式
 
 
