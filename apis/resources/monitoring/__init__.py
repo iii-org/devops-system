@@ -10,8 +10,15 @@ from sqlalchemy import desc
 
 import config
 import util
-from model import MonitoringRecord, NotificationMessage, Project, ProjectPluginRelation, db, PluginSoftware, \
-    SystemParameter
+from model import (
+    MonitoringRecord,
+    NotificationMessage,
+    Project,
+    ProjectPluginRelation,
+    db,
+    PluginSoftware,
+    SystemParameter,
+)
 from model import ServerDataCollection
 from nexus import nx_get_project_plugin_relation
 from plugins.sonarqube.sonarqube_main import sq_get_current_measures
@@ -21,8 +28,12 @@ from resources.harbor import hb_get_project_summary, hb_get_registries
 from resources.kubernetesClient import ApiK8sClient as K8s_client
 from resources.kubernetesClient import list_namespace_services
 from resources.mail import Mail, mail_server_is_open
-from resources.notification_message import close_notification_message, create_notification_message, \
-    get_unclose_notification_message, get_unread_notification_message_list
+from resources.notification_message import (
+    close_notification_message,
+    create_notification_message,
+    get_unclose_notification_message,
+    get_unread_notification_message_list,
+)
 from resources.rancher import rancher
 from resources.redis import update_server_alive
 from resources.redmine import redmine
@@ -44,20 +55,12 @@ AlertServiceIDMapping = {
     "Rancher pod restart times out of limits": 603,
     "Excalidraw not alive": 1001,
     "ad not alive": 1002,
-    "SMTP not alive": 1101
+    "SMTP not alive": 1101,
 }
 
 
 def plugin_disable_or_not():
-    ServicesNames = [
-        "Redmine",
-        "GitLab",
-        "Harbor",
-        "Kubernetes",
-        "Sonarqube",
-        "Rancher",
-        "Excalidraw"
-    ]
+    ServicesNames = ["Redmine", "GitLab", "Harbor", "Kubernetes", "Sonarqube", "Rancher", "Excalidraw"]
     plugin_software = PluginSoftware.query.all()
     if plugin_software:
         for row in plugin_software:
@@ -98,7 +101,7 @@ class Monitoring:
             func(*args, **kwargs)
             return True
         except Exception as e:
-            logger.logger.info(f'{self.server} : {str(e)}')
+            logger.logger.info(f"{self.server} : {str(e)}")
             self.error_message = str(e)
             return False
 
@@ -120,13 +123,17 @@ class Monitoring:
             if not_alive_messages is not None and len(not_alive_messages) > 0:
                 for not_alive_message in not_alive_messages:
                     close_notification_message(not_alive_message["id"])
-                    logger.logger.info(f"Close Alert message id: {self.alert_service_id}, server: {self.server}")
+                    logger.logger.info(
+                        f"Close Alert message id: {self.alert_service_id}, server: {self.server}"
+                    )
                     not_alive_mes_title = not_alive_message["title"]
 
-                    # Do not need to send same recover notification and notification which not 
+                    # Do not need to send same recover notification and notification which not
                     # in AlertServiceIDMapping's keys
-                    if not_alive_mes_title in AlertServiceIDMapping and \
-                            not_alive_mes_title not in send_back_notification_titles:
+                    if (
+                        not_alive_mes_title in AlertServiceIDMapping
+                        and not_alive_mes_title not in send_back_notification_titles
+                    ):
                         send_back_notification_titles.append(not_alive_mes_title)
 
                 for send_back_notification_title in send_back_notification_titles:
@@ -166,17 +173,22 @@ class Monitoring:
 
     def send_notification(self):
         title = f"{self.server} not alive" if self.error_title is None else self.error_title
-        previous_server_notification = NotificationMessage.query.filter_by(title=title) \
-            .order_by(desc(NotificationMessage.created_at)).all()
-        if previous_server_notification == [] or \
-                get_unread_notification_message_list(alert_service_id=self.alert_service_id) == []:
+        previous_server_notification = (
+            NotificationMessage.query.filter_by(title=title)
+            .order_by(desc(NotificationMessage.created_at))
+            .all()
+        )
+        if (
+            previous_server_notification == []
+            or get_unread_notification_message_list(alert_service_id=self.alert_service_id) == []
+        ):
             args = {
                 "alert_level": 102,
                 "title": title,
                 "alert_service_id": self.alert_service_id,
                 "message": str(self.error_message),
                 "type_ids": [4],
-                "type_parameters": {"role_ids": [5]}
+                "type_parameters": {"role_ids": [5]},
             }
             create_notification_message(args, user_id=1)
             logger.logger.exception(f"Send Alert message {title}, error_message: {str(self.error_message)}")
@@ -190,18 +202,14 @@ class Monitoring:
                         "alert_service_id": self.alert_service_id,
                         "message": str(mes),
                         "type_ids": [2],
-                        "type_parameters": {"project_ids": [int(pj_id)]}
+                        "type_parameters": {"project_ids": [int(pj_id)]},
                     }
                     create_notification_message(args, user_id=1)
                     sleep(0.5)
                 self.invalid_project_id_mapping = {}
 
     def store_in_monitoring_record(self):
-        args = {
-            "server": self.server,
-            "message": self.error_message,
-            "detail": self.detail
-        }
+        args = {"server": self.server, "message": self.error_message, "detail": self.detail}
         create_monitoring_record(args)
         self.detail = {}
 
@@ -209,7 +217,7 @@ class Monitoring:
         recover_message_mapping = {
             "Kubernetes node has insufficient storage": "All nodes' storage used percentage back to health level.",
             "Harbor pull limit exceed": "All nodes' pull remain rate back to health level.",
-            "Gitlab projects are exceeded its storage limit": "All projects' storage are in health level."
+            "Gitlab projects are exceeded its storage limit": "All projects' storage are in health level.",
         }
 
         if title.endswith("not alive"):
@@ -221,7 +229,7 @@ class Monitoring:
             "title": recover_title,
             "message": recover_message_mapping.get(title, recover_title),
             "type_ids": [4],
-            "type_parameters": {"role_ids": [5]}
+            "type_parameters": {"role_ids": [5]},
         }
         create_notification_message(args, user_id=1)
         logger.logger.info(f"Send Server back message {title}")
@@ -231,15 +239,22 @@ class Monitoring:
         self.server = "Redmine"
         self.alert_service_id = 101
         return self.__check_server_alive(
-            redmine.rm_get_project, check_url_alive, self.plan_pj_id, url=f"{config.get('REDMINE_INTERNAL_BASE_URL')}")
+            redmine.rm_get_project,
+            check_url_alive,
+            self.plan_pj_id,
+            url=f"{config.get('REDMINE_INTERNAL_BASE_URL')}",
+        )
 
     # Gitlab
     def gitlab_alive(self, is_project=False):
         self.server = "GitLab"
         self.alert_service_id = 201
         gitlab_alive = self.__check_server_alive(
-            gitlab.gl_get_project, check_url_alive, self.gl_pj_id,
-            url=f'{config.get("GITLAB_BASE_URL")}/api/{config.get("GITLAB_API_VERSION")}')
+            gitlab.gl_get_project,
+            check_url_alive,
+            self.gl_pj_id,
+            url=f'{config.get("GITLAB_BASE_URL")}/api/{config.get("GITLAB_API_VERSION")}',
+        )
         if not gitlab_alive or is_project:
             return gitlab_alive
 
@@ -252,8 +267,7 @@ class Monitoring:
     def harbor_alive(self, is_project=False):
         self.server = "Harbor"
         self.alert_service_id = 301
-        harbor_alive = self.__check_server_alive(
-            hb_get_project_summary, hb_get_registries, self.hr_pj_id)
+        harbor_alive = self.__check_server_alive(hb_get_project_summary, hb_get_registries, self.hr_pj_id)
         if not harbor_alive or is_project:
             return harbor_alive
         harbor_alive = True
@@ -281,28 +295,32 @@ class Monitoring:
         self.server = "K8s"
         self.alert_service_id = 401
         k8s_alive = self.__check_server_alive(
-            list_namespace_services, K8s_client().get_api_resources, self.__get_project_name())
+            list_namespace_services, K8s_client().get_api_resources, self.__get_project_name()
+        )
         if not k8s_alive or is_project:
             return k8s_alive
-        
+
         for check_element in [k8s_storage_remain_limit]:
             if not self.__check_server_element_alive(check_element):
                 k8s_alive = False
         return k8s_alive
 
-
     def sonarqube_alive(self):
         self.server = "Sonarqube"
         self.alert_service_id = 501
         return self.__check_server_alive(
-            sq_get_current_measures, check_url_alive, self.__get_project_name(),
-            url=config.get('SONARQUBE_INTERNAL_BASE_URL'))
+            sq_get_current_measures,
+            check_url_alive,
+            self.__get_project_name(),
+            url=config.get("SONARQUBE_INTERNAL_BASE_URL"),
+        )
 
     def rancher_alive(self, is_project=False):
         self.server = "Rancher"
         self.alert_service_id = 601
         rancher_alive = self.__check_server_alive(
-            rancher.rc_get_pipeline_info, rancher.rc_get_project_pipeline, self.ci_pj_id, self.ci_pipeline_id)
+            rancher.rc_get_pipeline_info, rancher.rc_get_project_pipeline, self.ci_pj_id, self.ci_pipeline_id
+        )
         if not rancher_alive or is_project:
             return rancher_alive
 
@@ -314,12 +332,14 @@ class Monitoring:
     # Plugins
     def excalidraw_alive(self):
         from resources.excalidraw import check_excalidraw_alive
+
         self.server = "Excalidraw"
         self.alert_service_id = 1001
         return self.__check_plugin_server_alive(check_excalidraw_alive)
 
     def ad_alive(self):
         from plugins.ad.ad_main import check_ad_alive
+
         self.server = "ad"
         self.alert_service_id = 1002
         return self.__check_plugin_server_alive(check_ad_alive)
@@ -343,18 +363,16 @@ class Monitoring:
             "excalidraw": {
                 "alive": self.excalidraw_alive,
             },
-            "mail": {
-                "alive": self.smtp_alive,
-                "is_open": mail_server_is_open
-            },
+            "mail": {"alive": self.smtp_alive, "is_open": mail_server_is_open},
             "ad": {
                 "alive": self.ad_alive,
-            }
+            },
         }
         for plugin, plugin_info in plugin_mapping.items():
             in_plugin_db = plugin_info.get("is_open") is None
-            if (in_plugin_db and self.check_plugin_is_open(plugin)) or \
-                    (not in_plugin_db and plugin_info["is_open"]()):
+            if (in_plugin_db and self.check_plugin_is_open(plugin)) or (
+                not in_plugin_db and plugin_info["is_open"]()
+            ):
                 alive = plugin_info["alive"]()
                 ret[plugin] = alive
         return ret
@@ -376,7 +394,7 @@ class Monitoring:
                 "Sonarqube": self.sonarqube_alive(),
                 "Rancher": self.rancher_alive(is_project),
             },
-            "all_alive": self.all_alive
+            "all_alive": self.all_alive,
         }
         if not only_server:
             all_alive["alive"] |= plugin_alive_dict
@@ -436,7 +454,7 @@ def create_monitoring_record(args):
         server=args["server"],
         message=args["message"],
         detail=args.get("detail", {}),
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
     )
     db.session.add(row)
     db.session.commit()
@@ -448,9 +466,7 @@ def verify_github_info(value: dict[str, str]) -> None:
     g: Github = Github(login_or_token=token)
     try:
         login: str = g.get_user().login
-        not_alive_messages: list = get_unread_notification_message_list(
-            title="GitHub token is unavailable"
-        )
+        not_alive_messages: list = get_unread_notification_message_list(title="GitHub token is unavailable")
         if not_alive_messages:
             for not_alive_message in not_alive_messages:
                 close_notification_message(not_alive_message["id"])
@@ -475,9 +491,7 @@ def verify_github_info(value: dict[str, str]) -> None:
         raise apiError.DevOpsError(
             400,
             "Token is not belong to this account.",
-            apiError.error_with_alert_code(
-                "github", 20002, "Token is not belong to this account.", value
-            ),
+            apiError.error_with_alert_code("github", 20002, "Token is not belong to this account.", value),
         )
 
     if len([repo for repo in g.search_repositories(query="iiidevops in:name")]) == 0:
@@ -495,7 +509,8 @@ def verify_github_info(value: dict[str, str]) -> None:
 
 def docker_image_pull_limit_alert():
     output_str, _ = util.ssh_to_node_by_key(
-        'perl deploy-devops/bin/get-cluster-pull-ratelimit.pl', config.get("DEPLOYER_NODE_IP"))
+        "perl deploy-devops/bin/get-cluster-pull-ratelimit.pl", config.get("DEPLOYER_NODE_IP")
+    )
     outputs = output_str.split("\n")
     if "---" in outputs:
         nodes_info = outputs[outputs.index("---") + 1]
@@ -520,7 +535,8 @@ def docker_image_pull_limit_alert():
             error_nodes_message.append(f"Can not get node {node_info.get('node')} pull remain times.")
         elif limit < 30:
             error_nodes_message.append(
-                f"Node {node_info.get('node')} pull remain times({limit}) below limit(30 times).")
+                f"Node {node_info.get('node')} pull remain times({limit}) below limit(30 times)."
+            )
 
     return {
         "name": "Harbor proxy remain limit",
@@ -533,8 +549,9 @@ def docker_image_pull_limit_alert():
 
 def k8s_storage_remain_limit():
     output_str, _ = util.ssh_to_node_by_key(
-        'perl deploy-devops/bin/get-cluster-df.pl', config.get("DEPLOYER_NODE_IP"))
-    nodes_storage_info = max(output_str.split('\n'))
+        "perl deploy-devops/bin/get-cluster-df.pl", config.get("DEPLOYER_NODE_IP")
+    )
+    nodes_storage_info = max(output_str.split("\n"))
     try:
         nodes_storage_info = json.loads(nodes_storage_info)
     except:
@@ -557,7 +574,8 @@ def k8s_storage_remain_limit():
             continue
         elif int(usage.replace("%", "")) > 75:
             error_nodes_message.append(
-                f"Node {node_storage_info.get('node')} storage used percentage({usage}) exceeded 75%!")
+                f"Node {node_storage_info.get('node')} storage used percentage({usage}) exceeded 75%!"
+            )
 
     return {
         "name": "Kubernetes node storage remain.",
@@ -580,7 +598,8 @@ def check_mail_server():
 def gitlab_projects_storage_limit():
     invalid_project_id_mapping = {}
     project_rows = db.session.query(Project, ProjectPluginRelation).join(
-        ProjectPluginRelation, Project.id == ProjectPluginRelation.project_id)
+        ProjectPluginRelation, Project.id == ProjectPluginRelation.project_id
+    )
     for project_row in project_rows:
         try:
             project_obj, repo_id = project_row.Project, project_row.ProjectPluginRelation.git_repository_id
@@ -592,14 +611,15 @@ def gitlab_projects_storage_limit():
                 max_used = int(pj_gl_storage_usage_dict.get("quota", {}).get("value", 0)) / 1024 / 1024 / 1024
                 limit = gitlab_resource_info["limit"]
                 if compare_operator(
-                        gitlab_resource_info["comparison"],
-                        used,
-                        limit,
-                        max_used,
-                        percentage=gitlab_resource_info["percentage"]
+                    gitlab_resource_info["comparison"],
+                    used,
+                    limit,
+                    max_used,
+                    percentage=gitlab_resource_info["percentage"],
                 ):
                     invalid_project_id_mapping[
-                        project_obj.id] = f"Project: {project_obj.name} 在gitlab上的使用量({round(used, 5)}) 超過限制({limit})"
+                        project_obj.id
+                    ] = f"Project: {project_obj.name} 在gitlab上的使用量({round(used, 5)}) 超過限制({limit})"
         except Exception as e:
             logger.logger.exception(str(e))
             continue
@@ -617,32 +637,36 @@ def rancher_projects_limit_num():
     output_str, _ = util.ssh_to_node_by_key(command, config.get("DEPLOYER_NODE_IP"))
     parameter = SystemParameter.query.filter_by(name="rancher_app_revision_limit").first()
     logger.logger.info(
-        f"Rancher monitor app limit num. Default: {parameter.value['limit_nums']}, Current: {output_str}")
+        f"Rancher monitor app limit num. Default: {parameter.value['limit_nums']}, Current: {output_str}"
+    )
     if int(output_str) >= int(parameter.value["limit_nums"]):
         return {
             "error_title": "Rancher AppRevision counts out of limit",
             "status": False,
-            "message": f"Rancher AppRevision counts surpass {parameter.value['limit_nums']}. Now is {output_str}."
+            "message": f"Rancher AppRevision counts surpass {parameter.value['limit_nums']}. Now is {output_str}.",
         }
     else:
-        return {
-            "error_title": "Rancher AppRevision counts out of limit",
-            "status": True
-        }
+        return {"error_title": "Rancher AppRevision counts out of limit", "status": True}
 
 
 def rancher_pod_restart_times_outoflimits():
     # 獲取restart上限值
     condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
     if not condition.active or condition.active is None:
-        raise apiError.DevOpsError(404, "k8s_pod_restart_times_limit.active is null or false in system_parameter table.")
+        raise apiError.DevOpsError(
+            404, "k8s_pod_restart_times_limit.active is null or false in system_parameter table."
+        )
     limit_times = condition.value["limit_times"]
     # 獲取過去一小時內重啟次數資料
     last_hour = datetime.utcnow() - timedelta(hours=1)
     limit_hour = last_hour.strftime("%Y-%m-%d %H:00:00")
-    data_collections = ServerDataCollection.query.filter_by(
-        type_id=1).filter(ServerDataCollection.collect_at >= limit_hour)
+    data_collections = (
+        ServerDataCollection.query.filter_by(type_id=1)
+        .filter(ServerDataCollection.collect_at >= limit_hour)
+        .distinct(ServerDataCollection.project_id)
+    )
     # 進行監控並回傳結果
+    message = []
     if data_collections:
         for data_collection in data_collections:
             detail = data_collection.detail
@@ -651,54 +675,17 @@ def rancher_pod_restart_times_outoflimits():
                 row = Project.query.filter_by(id=data_collection.project_id).first()
                 if row:
                     project_name = row.name
-                    return {
-                        "status": False,
-                        "message": f"Project: {project_name} Restart times of pod({detail['pod_name']}) belong in container("
-                                   f"{detail['containers_name']}) has surpassed 20 times({restart_times}) in 1 hour.",
-                        "error_title": "Rancher pod restart times out of limits",
-                    }
+                    message.append(
+                        f"Project: {project_name} Restart times of pod({detail['pod_name']}) belong in container("
+                        f"{detail['containers_name']}) has surpassed 20 times({restart_times}) in 1 hour.",
+                    )
+    if message:
+        return {
+            "status": False,
+            "message": "\n".join(message),
+            "error_title": "Rancher pod restart times out of limits",
+        }
     return {
         "error_title": "Rancher pod restart times out of limits",
         "status": True,
     }
-
-# def rancher_pod_restart_times_outoflimits():
-#     condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
-#     if not condition.active or condition.active is None:
-#         raise apiError.DevOpsError(404, "k8s_pod_restart_times_limit.active is null or false in system_parameter table.")
-#     limit_times = condition.value["limit_times"]
-#     last_hour = datetime.utcnow() - timedelta(hours=1)
-#     limit_hour = last_hour.strftime("%Y-%m-%d %H:00:00")
-#     data_collections = ServerDataCollection.query.filter_by(
-#         type_id=1).filter(ServerDataCollection.collect_at >= limit_hour)
-#     mapping = {}
-#     if data_collections:
-#         for data_collection in data_collections:
-#             detail = data_collection.detail
-#             restart_times = data_collection.value["value"]
-#             mapping.setdefault(
-#                 f'{data_collection.project_id}=={detail["pod_name"]}=={detail["containers_name"]}', []).append(
-#                 restart_times)
-#     project_rows = db.session.query(Project, ProjectPluginRelation).join(
-#         ProjectPluginRelation, Project.id == ProjectPluginRelation.project_id)
-#     invalid_project_id_mapping = {}
-#     if mapping != {}:
-#         for detail, times in mapping.items():
-#             details = detail.split("==")
-#             total_restart_times = max(times) - min(times)
-#             if len(times) >= 2 and total_restart_times > limit_times:
-#                 for project_row in project_rows:
-#                     project_obj, repo_id = project_row.Project, project_row.ProjectPluginRelation.git_repository_id
-#                     invalid_project_id_mapping[
-#                         project_obj.id] = f"Project: {project_obj.name} Restart times of pod({details[1]}) belong in container({details[2]}) has surpassed 20 times({total_restart_times}) in 1 hour."
-#                 message = "\n".join(invalid_project_id_mapping.values())
-#                 return {
-#                     "status": False,
-#                     "message": message,
-#                     "error_title": "Rancher pod restart times out of limits",
-#                     # "invalid_project_id_mapping": invalid_project_id_mapping
-#                 }
-#     return {
-#         "error_title": "Rancher pod restart times out of limits",
-#         "status": True,
-#     }
