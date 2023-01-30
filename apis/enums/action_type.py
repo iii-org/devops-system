@@ -57,3 +57,5 @@ class ActionType(Enum):
     RESTORE_EXCALIDRAW_HISTORY = 20
     CREATE_SC = 21
     DELETE_SC = 22
+    ENABLED_SC = 23
+    DISABLED_SC = 24
