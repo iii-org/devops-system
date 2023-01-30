@@ -27,7 +27,7 @@ def upgrade():
     sa.PrimaryKeyConstraint('id')
     )
     op.add_column('application', sa.Column('storage_class_id', sa.Integer(), nullable=True))
-    op.add_column('application', sa.Column('order', sa.Integer(), nullable=True, server_default=0))
+    op.add_column('application', sa.Column('order', sa.Integer(), nullable=True, server_default='0'))
     # ### end Alembic commands ###
     with op.get_context().autocommit_block():
         op.execute("ALTER TYPE actiontype ADD VALUE IF NOT EXISTS 'ENABLED_SC'")
