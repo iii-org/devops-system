@@ -1129,6 +1129,7 @@ def delete_issue(issue_id, delete_excalidraw=False):
 
         project_id = nexus.nx_get_project_plugin_relation(rm_project_id=redmine_issue.project.id).project_id
         redmine.rm_delete_issue(issue_id)
+        delete_issue_excalidraw_conn(issue_id, delete_current=delete_excalidraw)
         remove_issue_relations(issue_id)
 
         if parent_id is not None:
@@ -1137,7 +1138,6 @@ def delete_issue(issue_id, delete_excalidraw=False):
 
         delete_issue_extensions(issue_id)
         delete_issue_tags(issue_id)
-        delete_issue_excalidraw_conn(issue_id, delete_current=delete_excalidraw)
 
         for pj_id in (
             get_all_fathers_project(project_id, []) + [project_id] + get_all_sons_project(project_id, [])
