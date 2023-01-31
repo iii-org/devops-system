@@ -20,6 +20,7 @@ class SideexPutSch(Schema):
 
 class SideexGetVariableSch(Schema):
     filename = fields.Str(required=False, example="sideex.json")
+    record = fields.Boolean(required=False, example=True)
 
 
 class SideexPutVariableSch(Schema):

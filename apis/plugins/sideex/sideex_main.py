@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timedelta
+import time
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from gitlab.v4 import objects
@@ -363,7 +364,7 @@ def generate_result(project_id):
     return result_list
 
 
-def generate_json_file(project_id, filename):
+def generate_json_file(project_id, filename, kwargs):
     df_sorted = sort_convert_result_to_df(project_id)
     template_content: dict = get_gitlab_file_todict(project_id, filename)
 
@@ -423,6 +424,8 @@ def generate_json_file(project_id, filename):
                  f"{df_sorted.columns.tolist()} with {df_sorted.values.tolist()}"
 
     commit_to_gitlab(project, gitlab_files, commit_msg)
+    if kwargs.get("record"):
+        record_branch_commit_id(project_id)
 
 
 def commit_to_gitlab(project: objects.Project, files: list[dict[str, str]], commit_msg: str) -> None:
@@ -461,8 +464,8 @@ def get_current_branch_commit(project_id, rec):
 
 
 def get_pict_status(project_id):
-    row = model.Pict.query.filter_by(project_id=project_id).order_by(desc(model.Pict.id)).first()
-    branch, commit_id = row.branch, row.commit_id
+    row_pict = model.Pict.query.filter_by(project_id=project_id).order_by(desc(model.Pict.id)).first()
+    branch, commit_id = row_pict.branch, row_pict.commit_id
     row = model.Sideex.query.filter_by(branch=branch).filter_by(commit_id=commit_id).first()
     finish = False
     if row:
@@ -470,7 +473,8 @@ def get_pict_status(project_id):
     status_dict = {
         "finish": finish,
         "branch": branch,
-        "commit_id": commit_id
+        "commit_id": commit_id,
+        "sideex_id": row_pict.sideex_id
     }
     if finish:
         delete_json_configfile(project_id)
@@ -501,6 +505,40 @@ def delete_json_configfile(project_id):
                     })
         gitlab.gitlab.gl_operate_multi_files(project, delete_list,
                                              f"delete _{get_jwt_identity()['user_id']}-sideex json file", "")
+
+
+def record_branch_commit_id(project_id):
+    branch, commit_id = get_current_branch_commit(project_id, 0)
+    commit_id = commit_id[0:7]
+    while True:
+        time.sleep(10)
+        row = model.Sideex.query.filter_by(branch=branch).filter_by(commit_id=commit_id).first()
+        if row:
+            save_to_project_dir(project_id, branch, commit_id)
+            save_to_db(project_id, row, branch, commit_id)
+            break
+
+
+def save_to_db(project_id, row, branch, commit_id):
+    new_record = model.Pict(
+        project_id=project_id,
+        branch=branch,
+        commit_id=commit_id,
+        run_at=datetime.utcnow(),
+        status="finish",
+        sideex_id=row.id
+    )
+    model.db.session.add(new_record)
+    model.db.session.commit()
+
+
+def save_to_project_dir(project_id, branch, commit_id):
+    project_name = nexus.nx_get_project(id=project_id).name
+    commit_id = commit_id[0:7]
+    path = f"devops-data/project-data/{project_name}/pict/{branch}/{commit_id}"
+    if not os.path.isfile(path):
+        Path(path).mkdir(parents=True, exist_ok=True)
+    sort_convert_result_to_df(project_id, branch, commit_id)
 
 
 def is_json(string):
@@ -599,7 +637,7 @@ class SideexGenerateJsonfile(Resource):
     @use_kwargs(router_model.SideexGetVariableSch, location="json")
     @jwt_required()
     def post(self, project_id, **kwargs):
-        generate_json_file(project_id, kwargs['filename'])
+        generate_json_file(project_id, kwargs['filename'], kwargs)
         return util.success()
 
     @jwt_required()
@@ -614,7 +652,7 @@ class SideexGenerateJsonfileV2(MethodResource):
     @use_kwargs(router_model.SideexGetVariableSch, location="json")
     @marshal_with(util.CommonResponse)
     def post(self, project_id, **kwargs):
-        generate_json_file(project_id, kwargs['filename'])
+        generate_json_file(project_id, kwargs['filename'], kwargs)
         return util.success()
 
     @doc(tags=['Sideex'], description="delete pict jsonfile by operate user")
