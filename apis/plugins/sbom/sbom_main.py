@@ -64,8 +64,10 @@ def decompress_tarfile(file_path, decompress_path):
     tar.extractall(path=decompress_path)
 
 
-def get_sboms(project_id):
+def get_sboms(project_id, kwargs):
     sboms = Sbom.query.filter_by(project_id=project_id)
+    if kwargs.get('latest'):
+        return [nexus_sbom(sboms[-1])]
     return [nexus_sbom(sbom) for sbom in sboms]
 
 
@@ -273,11 +275,12 @@ def download_report_file(file_path, file_name):
 # --------------------- Resources ---------------------
 
 @doc(tags=['Sbom'], description="Get all project's scan")
+@use_kwargs(router_model.SbomGetSbomsResponse, location="query")
 @marshal_with(router_model.SbomGetRes)
 class SbomGetV2(MethodResource):
     @jwt_required()
-    def get(self, project_id):
-        return util.success(get_sboms(project_id))
+    def get(self, project_id, **kwargs):
+        return util.success(get_sboms(project_id, kwargs))
 
 
 @doc(tags=['Sbom'], description="Get risk detail")

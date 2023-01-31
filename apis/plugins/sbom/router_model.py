@@ -73,6 +73,10 @@ class SbomDetailResponse(Schema):
     ascending = fields.Boolean(required=False, description='ascending', example=True)
 
 
+class SbomGetSbomsResponse(Schema):
+    latest = fields.Boolean()
+
+
 class SbomGetFileList(CommonBasicResponse):
     data = fields.List(fields.Str())
 
