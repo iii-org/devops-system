@@ -580,6 +580,14 @@ def create_storage_class_failed(**kwargs):
         return build(2040, _FAILED_CREATE_STORAGE_CLASS, kwargs)
     else:
         return build(2040, _FAILED_CREATE_STORAGE_CLASS)
-
-
 # 20230119 為取得 storage class 資訊而新增上列一段程式
+
+
+# 20230201 為變更 storage class disabled 布林值而新增上列一段程式
+def change_storage_class_disabled_failed(**kwargs):
+    _FAILED_DISABLED_STORAGE_CLASS = 'Change storage class disabled failed'
+    if len(kwargs) != 0:
+        return build(2040, _FAILED_DISABLED_STORAGE_CLASS, kwargs)
+    else:
+        return build(2040, _FAILED_DISABLED_STORAGE_CLASS)
+# 20230201 為變更 storage class disabled 布林值而新增上列一段程式

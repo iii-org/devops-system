@@ -53,6 +53,9 @@ _ERROR_GET_DEPLOYMENT = "Get deployment failed"
 _ERROR_GET_STORAGE_CLASS = "Get storage class failed"
 _ERROR_CREATE_STORAGE_CLASS = "Create storage class failed"
 # 20230119 為取得 storage class 資訊而新增上列一段程式
+# 20230201 為變更 storage class disabled 布林值而新增下列一段程式
+_ERROR_DISABLED_STORAGE_CLASS = 'Change storage class disabled failed'
+# 20230201 為變更 storage class disabled 布林值而新增上列一段程式
 
 _NEED_UPDATE_APPLICATION_STATUS = [1, 2, 3, 4, 9, 11]
 _DEFAULT_K8S_CONFIG_FILE = "k8s_config"
@@ -2087,10 +2090,11 @@ def get_storage_class_json(storage: model.StorageClass) -> dict:
 
 
 @record_activity(ActionType.CREATE_SC)
-def create_storage_class(cluster_id: int, storage_name: str, disabled: bool):
-    new = model.StorageClass(cluster_id=cluster_id, name=storage_name, disabled=disabled)
-    db.session.add(new)
+def create_storage_class(cluster_id: int, storage_name: str) -> model.StorageClass:
+    sc = model.StorageClass(cluster_id=cluster_id, name=storage_name, disabled=False)
+    db.session.add(sc)
     db.session.commit()
+    return sc
 
 
 def sync_storage_classes(args=None) -> list:
@@ -2121,10 +2125,8 @@ def sync_storage_classes(args=None) -> list:
             del storage_name_list[index]
         output.append(get_storage_class_json(db_sc))
     for storage_name in storage_name_list:
-        new = model.StorageClass(cluster_id=cluster_id, name=storage_name, disabled=False)
-        db.session.add(new)
-        db.session.commit()
-        output.append(get_storage_class_json(new))
+        sc = create_storage_class(cluster_id=cluster_id, name=storage_name)
+        output.append(get_storage_class_json(sc))
     if is_commit:
         db.session.commit()
     return output
@@ -2167,6 +2169,32 @@ class StorageClass(Resource):
                 _ERROR_CREATE_STORAGE_CLASS,
                 error=apiError.create_storage_class_failed(cluster_id=args.get("cluster_id")),
             )
-
-
 # 20230118 為取得 storage class 資訊而新增上列一段程式
+
+
+# 20230201 為變更 storage class disabled 而新增下列一段程式
+def patch_storage_class(storage_class_id, args):
+    sc = model.StorageClass.query.filter_by(id=storage_class_id).first()
+    for key in args.keys():
+        if not hasattr(sc, key):
+            continue
+        elif args[key] is not None:
+            setattr(sc, key, args[key])
+    db.session.commit()
+    return storage_class_id
+
+
+class UpdateStorageClass(Resource):
+    @jwt_required()
+    def patch(self, storage_class_id):
+        try:
+            parser = reqparse.RequestParser()
+            parser.add_argument('disabled', type=inputs.boolean)
+            args = parser.parse_args()
+            output = patch_storage_class(storage_class_id, args)
+            return util.success({"storage_class": output})
+        except NoResultFound:
+            return util.respond(404,
+                                _ERROR_DISABLED_STORAGE_CLASS,
+                                error=apiError.change_storage_class_disabled_failed(storage_class_id=storage_class_id))
+# 20230201 為變更 storage class disabled 而新增上列一段程式
