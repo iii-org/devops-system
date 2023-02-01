@@ -45,7 +45,7 @@ class SingleIssueV2(MethodResource):
     # @marshal_with(router_model.SingleIssueGetResponse)
     @jwt_required()
     def get(self, issue_id):
-        issue_info = get_issue(issue_id)
+        issue_info = get_issue(issue_id, operator_id=get_jwt_identity()["user_id"])
         require_issue_visible(issue_id, issue_info)
         if "parent_id" in issue_info:
             parent_check_info = get_issue(issue_info["parent_id"])
@@ -202,7 +202,7 @@ class CreateSingleIssueV2(MethodResource):
 class SingleIssue(Resource):
     @jwt_required()
     def get(self, issue_id):
-        issue_info = get_issue(issue_id)
+        issue_info = get_issue(issue_id, operator_id=get_jwt_identity()["user_id"])
         require_issue_visible(issue_id, issue_info)
         if "parent_id" in issue_info:
             parent_info = get_issue(issue_info["parent_id"], with_children=False)

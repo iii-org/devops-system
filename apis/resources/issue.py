@@ -665,10 +665,14 @@ def verify_issue_user(issue_id, user_id, issue_info=None):
     return count > 0
 
 
-def get_issue(issue_id, with_children=True, journals=True):
-    issue = redmine.rm_get_issue(issue_id, journals)
-    redmine_issue_status = redmine.rm_get_issue_status()
-    closed_statuses = redmine.get_closed_status(redmine_issue_status["issue_statuses"])
+def get_issue(issue_id, with_children=True, journals=True, operator_id=None):
+    if operator_id is not None:
+        redmine_obj = get_redmine_obj(operator_id=operator_id)
+    else:
+        redmine_obj = redmine
+    issue = redmine_obj.rm_get_issue(issue_id, journals)
+    redmine_issue_status = redmine_obj.rm_get_issue_status()
+    closed_statuses = redmine_obj.get_closed_status(redmine_issue_status["issue_statuses"])
     if not with_children:
         issue.pop("children", None)
     elif issue.get("children", None):
