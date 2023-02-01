@@ -83,9 +83,7 @@ class SingleIssueV2(MethodResource):
         if has_children:
             validate_field_mapping = {
                 "priority_id": redmine_issue.priority.id if hasattr(redmine_issue, "priority") else None,
-                "start_date": redmine_issue.start_date.isoformat()
-                if hasattr(redmine_issue, "start_date")
-                else "",
+                "start_date": redmine_issue.start_date.isoformat() if hasattr(redmine_issue, "start_date") else "",
                 "due_date": redmine_issue.due_date.isoformat() if hasattr(redmine_issue, "due_date") else "",
             }
             for invalidate_field in ["priority_id", "start_date", "due_date"]:
@@ -120,13 +118,11 @@ class SingleIssueV2(MethodResource):
                 pass
 
         if start_date is not None and due_date is not None and due_date < start_date:
-            arg = (
-                "due_date"
-                if kwargs.get("due_date") is not None and len(kwargs.get("due_date")) > 0
-                else "start_date"
-            )
+            arg = "due_date" if kwargs.get("due_date") is not None and len(kwargs.get("due_date")) > 0 else "start_date"
             raise DevOpsError(
-                400, "Due date must be greater than start date.", error=apiError.argument_error(arg)
+                400,
+                "Due date must be greater than start date.",
+                error=apiError.argument_error(arg),
             )
 
         # Handle removable int parameters
@@ -178,7 +174,9 @@ class CreateSingleIssueV2(MethodResource):
             and kwargs["due_date"] < kwargs["start_date"]
         ):
             raise DevOpsError(
-                400, "Due date must be greater than start date.", error=apiError.argument_error("due_date")
+                400,
+                "Due date must be greater than start date.",
+                error=apiError.argument_error("due_date"),
             )
         user_role_id = get_jwt_identity()["role_id"]
         if user_role_id == 5 and kwargs.get("creator_id") is not None:
@@ -248,7 +246,10 @@ class SingleIssue(Resource):
 
         # Attachment upload
         parser.add_argument(
-            "upload_files", type=werkzeug.datastructures.FileStorage, location="files", action="append"
+            "upload_files",
+            type=werkzeug.datastructures.FileStorage,
+            location="files",
+            action="append",
         )
         parser.add_argument("upload_filename", type=str, location="form")
         parser.add_argument("upload_description", type=str, location="form")
@@ -276,7 +277,9 @@ class SingleIssue(Resource):
             and args["due_date"] < args["start_date"]
         ):
             raise DevOpsError(
-                400, "Due date must be greater than start date.", error=apiError.argument_error("due_date")
+                400,
+                "Due date must be greater than start date.",
+                error=apiError.argument_error("due_date"),
             )
 
         # Handle removable int parameters
@@ -312,7 +315,10 @@ class SingleIssue(Resource):
 
         # Attachment uploadsd
         parser.add_argument(
-            "upload_files", type=werkzeug.datastructures.FileStorage, location="files", action="append"
+            "upload_files",
+            type=werkzeug.datastructures.FileStorage,
+            location="files",
+            action="append",
         )
         parser.add_argument("upload_filename", type=str, location="form")
         parser.add_argument("upload_description", type=str, location="form")
@@ -328,9 +334,7 @@ class SingleIssue(Resource):
         if has_children:
             validate_field_mapping = {
                 "priority_id": redmine_issue.priority.id if hasattr(redmine_issue, "priority") else None,
-                "start_date": redmine_issue.start_date.isoformat()
-                if hasattr(redmine_issue, "start_date")
-                else "",
+                "start_date": redmine_issue.start_date.isoformat() if hasattr(redmine_issue, "start_date") else "",
                 "due_date": redmine_issue.due_date.isoformat() if hasattr(redmine_issue, "due_date") else "",
             }
             for invalidate_field in ["priority_id", "start_date", "due_date"]:
@@ -365,13 +369,11 @@ class SingleIssue(Resource):
                 pass
 
         if start_date is not None and due_date is not None and due_date < start_date:
-            arg = (
-                "due_date"
-                if args.get("due_date") is not None and len(args.get("due_date")) > 0
-                else "start_date"
-            )
+            arg = "due_date" if args.get("due_date") is not None and len(args.get("due_date")) > 0 else "start_date"
             raise DevOpsError(
-                400, "Due date must be greater than start date.", error=apiError.argument_error(arg)
+                400,
+                "Due date must be greater than start date.",
+                error=apiError.argument_error(arg),
             )
 
         # Handle removable int parameters
@@ -421,7 +423,10 @@ class IssueFamilyV2(MethodResource):
     @jwt_required()
     def get(self, issue_id, **kwargs):
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=["children", "relations"])
-        require_issue_visible(issue_id, issue_info=NexusIssue().set_redmine_issue_v2(redmine_issue).to_json())
+        require_issue_visible(
+            issue_id,
+            issue_info=NexusIssue().set_redmine_issue_v2(redmine_issue).to_json(),
+        )
         family = get_issue_family(redmine_issue, kwargs)
         return util.success(family)
 
@@ -433,7 +438,10 @@ class IssueFamily(Resource):
         parser.add_argument("with_point", type=bool, location="args")
         args = parser.parse_args()
         redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=["children", "relations"])
-        require_issue_visible(issue_id, issue_info=NexusIssue().set_redmine_issue_v2(redmine_issue).to_json())
+        require_issue_visible(
+            issue_id,
+            issue_info=NexusIssue().set_redmine_issue_v2(redmine_issue).to_json(),
+        )
         family = get_issue_family(redmine_issue, args)
         return util.success(family)
 
@@ -519,9 +527,7 @@ class RelationV2(MethodResource):
         parser.add_argument("issue_id", type=int, required=True)
         parser.add_argument("issue_to_id", type=int, required=True)
         args = parser.parse_args()
-        output = post_issue_relation(
-            args["issue_id"], args["issue_to_id"], get_jwt_identity()["user_account"]
-        )
+        output = post_issue_relation(args["issue_id"], args["issue_to_id"], get_jwt_identity()["user_account"])
         return util.success(output)
 
     @doc(tags=["Issue"], description="Update issue's relation.")
@@ -529,7 +535,11 @@ class RelationV2(MethodResource):
     @marshal_with(util.CommonResponse)
     @jwt_required()
     def put(self, **kwargs):
-        put_issue_relation(kwargs["issue_id"], kwargs["issue_to_ids"], get_jwt_identity()["user_account"])
+        put_issue_relation(
+            kwargs["issue_id"],
+            kwargs["issue_to_ids"],
+            get_jwt_identity()["user_account"],
+        )
         return util.success()
 
 
@@ -548,9 +558,7 @@ class Relation(Resource):
         parser.add_argument("issue_id", type=int, required=True)
         parser.add_argument("issue_to_id", type=int, required=True)
         args = parser.parse_args()
-        output = post_issue_relation(
-            args["issue_id"], args["issue_to_id"], get_jwt_identity()["user_account"]
-        )
+        output = post_issue_relation(args["issue_id"], args["issue_to_id"], get_jwt_identity()["user_account"])
         return util.success(output)
 
     @jwt_required()

@@ -37,7 +37,10 @@ from resources.notification_message import (
 from resources.rancher import rancher
 from resources.redis import update_server_alive
 from resources.redmine import redmine
-from resources.resource_storage import get_project_resource_storage_level, compare_operator
+from resources.resource_storage import (
+    get_project_resource_storage_level,
+    compare_operator,
+)
 from util import check_url_alive
 
 DATETIMEFORMAT = "%Y-%m-%d %H:%M:%S"
@@ -60,7 +63,15 @@ AlertServiceIDMapping = {
 
 
 def plugin_disable_or_not():
-    ServicesNames = ["Redmine", "GitLab", "Harbor", "Kubernetes", "Sonarqube", "Rancher", "Excalidraw"]
+    ServicesNames = [
+        "Redmine",
+        "GitLab",
+        "Harbor",
+        "Kubernetes",
+        "Sonarqube",
+        "Rancher",
+        "Excalidraw",
+    ]
     plugin_software = PluginSoftware.query.all()
     if plugin_software:
         for row in plugin_software:
@@ -123,9 +134,7 @@ class Monitoring:
             if not_alive_messages is not None and len(not_alive_messages) > 0:
                 for not_alive_message in not_alive_messages:
                     close_notification_message(not_alive_message["id"])
-                    logger.logger.info(
-                        f"Close Alert message id: {self.alert_service_id}, server: {self.server}"
-                    )
+                    logger.logger.info(f"Close Alert message id: {self.alert_service_id}, server: {self.server}")
                     not_alive_mes_title = not_alive_message["title"]
 
                     # Do not need to send same recover notification and notification which not
@@ -174,9 +183,7 @@ class Monitoring:
     def send_notification(self):
         title = f"{self.server} not alive" if self.error_title is None else self.error_title
         previous_server_notification = (
-            NotificationMessage.query.filter_by(title=title)
-            .order_by(desc(NotificationMessage.created_at))
-            .all()
+            NotificationMessage.query.filter_by(title=title).order_by(desc(NotificationMessage.created_at)).all()
         )
         if (
             previous_server_notification == []
@@ -209,7 +216,11 @@ class Monitoring:
                 self.invalid_project_id_mapping = {}
 
     def store_in_monitoring_record(self):
-        args = {"server": self.server, "message": self.error_message, "detail": self.detail}
+        args = {
+            "server": self.server,
+            "message": self.error_message,
+            "detail": self.detail,
+        }
         create_monitoring_record(args)
         self.detail = {}
 
@@ -295,7 +306,9 @@ class Monitoring:
         self.server = "K8s"
         self.alert_service_id = 401
         k8s_alive = self.__check_server_alive(
-            list_namespace_services, K8s_client().get_api_resources, self.__get_project_name()
+            list_namespace_services,
+            K8s_client().get_api_resources,
+            self.__get_project_name(),
         )
         if not k8s_alive or is_project:
             return k8s_alive
@@ -319,12 +332,18 @@ class Monitoring:
         self.server = "Rancher"
         self.alert_service_id = 601
         rancher_alive = self.__check_server_alive(
-            rancher.rc_get_pipeline_info, rancher.rc_get_project_pipeline, self.ci_pj_id, self.ci_pipeline_id
+            rancher.rc_get_pipeline_info,
+            rancher.rc_get_project_pipeline,
+            self.ci_pj_id,
+            self.ci_pipeline_id,
         )
         if not rancher_alive or is_project:
             return rancher_alive
 
-        for check_element in [rancher_projects_limit_num, rancher_pod_restart_times_outoflimits]:
+        for check_element in [
+            rancher_projects_limit_num,
+            rancher_pod_restart_times_outoflimits,
+        ]:
             if not self.__check_server_element_alive(check_element):
                 rancher_alive = False
         return rancher_alive
@@ -370,9 +389,7 @@ class Monitoring:
         }
         for plugin, plugin_info in plugin_mapping.items():
             in_plugin_db = plugin_info.get("is_open") is None
-            if (in_plugin_db and self.check_plugin_is_open(plugin)) or (
-                not in_plugin_db and plugin_info["is_open"]()
-            ):
+            if (in_plugin_db and self.check_plugin_is_open(plugin)) or (not in_plugin_db and plugin_info["is_open"]()):
                 alive = plugin_info["alive"]()
                 ret[plugin] = alive
         return ret
@@ -509,7 +526,8 @@ def verify_github_info(value: dict[str, str]) -> None:
 
 def docker_image_pull_limit_alert():
     output_str, _ = util.ssh_to_node_by_key(
-        "perl deploy-devops/bin/get-cluster-pull-ratelimit.pl", config.get("DEPLOYER_NODE_IP")
+        "perl deploy-devops/bin/get-cluster-pull-ratelimit.pl",
+        config.get("DEPLOYER_NODE_IP"),
     )
     outputs = output_str.split("\n")
     if "---" in outputs:
@@ -548,9 +566,7 @@ def docker_image_pull_limit_alert():
 
 
 def k8s_storage_remain_limit():
-    output_str, _ = util.ssh_to_node_by_key(
-        "perl deploy-devops/bin/get-cluster-df.pl", config.get("DEPLOYER_NODE_IP")
-    )
+    output_str, _ = util.ssh_to_node_by_key("perl deploy-devops/bin/get-cluster-df.pl", config.get("DEPLOYER_NODE_IP"))
     nodes_storage_info = max(output_str.split("\n"))
     try:
         nodes_storage_info = json.loads(nodes_storage_info)
@@ -602,7 +618,10 @@ def gitlab_projects_storage_limit():
     )
     for project_row in project_rows:
         try:
-            project_obj, repo_id = project_row.Project, project_row.ProjectPluginRelation.git_repository_id
+            project_obj, repo_id = (
+                project_row.Project,
+                project_row.ProjectPluginRelation.git_repository_id,
+            )
             pj_resource_storage = get_project_resource_storage_level(project_obj.id)
             gitlab_resource_info = pj_resource_storage.get("gitlab")
             if gitlab_resource_info is not None:
@@ -646,7 +665,10 @@ def rancher_projects_limit_num():
             "message": f"Rancher AppRevision counts surpass {parameter.value['limit_nums']}. Now is {output_str}.",
         }
     else:
-        return {"error_title": "Rancher AppRevision counts out of limit", "status": True}
+        return {
+            "error_title": "Rancher AppRevision counts out of limit",
+            "status": True,
+        }
 
 
 def rancher_pod_restart_times_outoflimits():
@@ -654,7 +676,8 @@ def rancher_pod_restart_times_outoflimits():
     condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
     if not condition.active or condition.active is None:
         raise apiError.DevOpsError(
-            404, "k8s_pod_restart_times_limit.active is null or false in system_parameter table."
+            404,
+            "k8s_pod_restart_times_limit.active is null or false in system_parameter table.",
         )
     limit_times = condition.value["limit_times"]
     # 獲取過去一小時內重啟次數資料

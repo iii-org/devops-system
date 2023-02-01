@@ -24,8 +24,8 @@ import pandas as pd
 
 def cm_get_config(key):
     for arg in get_plugin_config("checkmarx")["arguments"]:
-        if arg['key'] == key:
-            return arg['value']
+        if arg["key"] == key:
+            return arg["value"]
     return None
 
 
@@ -44,15 +44,16 @@ class CheckMarx(object):
         return self.access_token
 
     def login(self):
-        url = build_url('/auth/identity/connect/token')
-        data = {'userName': cm_get_config("username"),
-                'password': cm_get_config("password"),
-                'grant_type': 'password',
-                'scope': 'sast_rest_api',
-                'client_id': 'resource_owner_client',
-                'client_secret': cm_get_config("client-secret")
-                }
-        self.access_token = requests.post(url, data).json().get('access_token')
+        url = build_url("/auth/identity/connect/token")
+        data = {
+            "userName": cm_get_config("username"),
+            "password": cm_get_config("password"),
+            "grant_type": "password",
+            "scope": "sast_rest_api",
+            "client_id": "resource_owner_client",
+            "client_secret": cm_get_config("client-secret"),
+        }
+        self.access_token = requests.post(url, data).json().get("access_token")
         self.expire_at = time.time() + 1800  # 0.5 hour
 
     def __api_request(self, method, path, headers=None, data=None):
@@ -61,19 +62,23 @@ class CheckMarx(object):
         if headers is None:
             headers = {}
         url = build_url(path)
-        headers['Authorization'] = 'Bearer ' + self.token()
-        if method.upper() == 'GET':
+        headers["Authorization"] = "Bearer " + self.token()
+        if method.upper() == "GET":
             res = requests.get(url, headers=headers, allow_redirects=True)
-        elif method.upper() == 'POST':
+        elif method.upper() == "POST":
             res = requests.post(url, headers=headers, data=data, allow_redirects=True)
         else:
-            raise DevOpsError(500, 'Only GET and POST is allowed.',
-                              error=apiError.invalid_code_path('Only GET and POST is allowed, but'
-                                                               '{0} provided.'.format(method)))
+            raise DevOpsError(
+                500,
+                "Only GET and POST is allowed.",
+                error=apiError.invalid_code_path("Only GET and POST is allowed, but" "{0} provided.".format(method)),
+            )
         if int(res.status_code / 100) != 2:
             raise apiError.DevOpsError(
-                res.status_code, 'Got non-2xx response from Checkmarx.',
-                apiError.error_3rd_party_api('Checkmarx', self.__handle_error_message(res)))
+                res.status_code,
+                "Got non-2xx response from Checkmarx.",
+                apiError.error_3rd_party_api("Checkmarx", self.__handle_error_message(res)),
+            )
         return res
 
     def __handle_error_message(self, res):
@@ -87,10 +92,9 @@ class CheckMarx(object):
 
         if type(res) is dict and res.get("messageDetails") is not None:
             return res["messageDetails"]
-            
 
     def __api_get(self, path, headers=None):
-        return self.__api_request('GET', path, headers=headers)
+        return self.__api_request("GET", path, headers=headers)
 
     def __api_post(self, path, data=None, headers=None):
         if data is None:
@@ -98,7 +102,7 @@ class CheckMarx(object):
         if headers is None:
             headers = {}
         url = build_url(path)
-        headers['Authorization'] = 'Bearer ' + self.token()
+        headers["Authorization"] = "Bearer " + self.token()
         res = requests.post(url, headers=headers, data=data, allow_redirects=True)
         return res
 
@@ -108,27 +112,33 @@ class CheckMarx(object):
         if headers is None:
             headers = {}
         url = build_url(path)
-        headers['Authorization'] = 'Bearer ' + self.token()
+        headers["Authorization"] = "Bearer " + self.token()
         res = requests.patch(url, headers=headers, data=data, allow_redirects=True)
         return res
 
     @staticmethod
     def create_scan(args):
         new = Model(
-            cm_project_id=args['cm_project_id'],
-            repo_id=args['repo_id'],
-            scan_id=args['scan_id'],
-            branch=args['branch'],
-            commit_id=args['commit_id'],
+            cm_project_id=args["cm_project_id"],
+            repo_id=args["repo_id"],
+            scan_id=args["scan_id"],
+            branch=args["branch"],
+            commit_id=args["commit_id"],
             scan_final_status=None,
-            run_at=datetime.datetime.utcnow())
+            run_at=datetime.datetime.utcnow(),
+        )
         db.session.add(new)
         db.session.commit()
-        record = Model.query.filter_by(repo_id=args['repo_id']).filter(Model.report_id != -1).order_by(
-            Model.run_at).all()
+        record = (
+            Model.query.filter_by(repo_id=args["repo_id"]).filter(Model.report_id != -1).order_by(Model.run_at).all()
+        )
         if len(record) >= 5:
-            update_row = Model.query.filter_by(repo_id=args['repo_id']).filter(Model.report_id != -1).order_by(
-                Model.run_at).first()
+            update_row = (
+                Model.query.filter_by(repo_id=args["repo_id"])
+                .filter(Model.report_id != -1)
+                .order_by(Model.run_at)
+                .first()
+            )
             if update_row:
                 update_row.report_id = -1
                 db.session.commit()
@@ -137,21 +147,23 @@ class CheckMarx(object):
     # Need to write into db if see a final scan status
     def get_scan_status(self, scan_id):
         try:
-            status = self.__api_get('/sast/scans/{0}'.format(scan_id)).json().get('status')
+            status = self.__api_get("/sast/scans/{0}".format(scan_id)).json().get("status")
         except Exception as e:
             error_mes = None
             if e.status_code == 404 and hasattr(e, "error_value"):
                 scan = Model.query.filter_by(scan_id=scan_id).one()
                 scan.scan_final_status = "Deleted"
                 error_mes = e.error_value.get("message")
-            
+
             error_mes = error_mes if error_mes is not None else str(e)
             raise apiError.DevOpsError(
-                e.status_code, 'Got non-2xx response from Checkmarx.',
-                apiError.error_3rd_party_api('Checkmarx', error_mes)) 
+                e.status_code,
+                "Got non-2xx response from Checkmarx.",
+                apiError.error_3rd_party_api("Checkmarx", error_mes),
+            )
 
-        status_id = status.get('id')
-        status_name = status.get('name')
+        status_id = status.get("id")
+        status_name = status.get("name")
         if status_id in {7, 8, 9}:
             scan = Model.query.filter_by(scan_id=scan_id).one()
             if status_id == 7:
@@ -161,39 +173,42 @@ class CheckMarx(object):
         return status_id, status_name
 
     def get_scan_statistics(self, scan_id):
-        return self.__api_get('/sast/scans/%s/resultsStatistics' % scan_id).json()
+        return self.__api_get("/sast/scans/%s/resultsStatistics" % scan_id).json()
 
     def register_report(self, scan_id):
-        r = self.__api_post('/reports/sastScan', {'reportType': 'PDF', 'scanId': scan_id})
-        report_id = r.json().get('reportId')
+        r = self.__api_post("/reports/sastScan", {"reportType": "PDF", "scanId": scan_id})
+        report_id = r.json().get("reportId")
         scan = Model.query.filter_by(scan_id=scan_id).one()
         scan.report_id = report_id
         db.session.commit()
-        return util.respond(r.status_code, 'Report registered.',
-                            data={'scanId': scan_id, 'reportId': report_id})
+        return util.respond(
+            r.status_code,
+            "Report registered.",
+            data={"scanId": scan_id, "reportId": report_id},
+        )
 
     def get_report_status(self, report_id):
-        resp = self.__api_get('/reports/sastScan/%s/status' % report_id)
-        status = resp.json().get('status')
-        if status.get('id') == 2:
+        resp = self.__api_get("/reports/sastScan/%s/status" % report_id)
+        status = resp.json().get("status")
+        if status.get("id") == 2:
             row = Model.query.filter_by(report_id=report_id).one()
             row.finished_at = datetime.datetime.utcnow()
             row.finished = True
             db.session.commit()
-        return status.get('id'), status.get('value')
+        return status.get("id"), status.get("value")
 
     def get_report(self, report_id):
         row = Model.query.filter_by(report_id=report_id).one()
         if not row.finished:
             status, _ = self.get_report_status(report_id)
             if status != 2:
-                return {'message': 'Report is not available yet'}, 400
-        r = self.__api_get('/reports/sastScan/{0}'.format(report_id))
+                return {"message": "Report is not available yet"}, 400
+        r = self.__api_get("/reports/sastScan/{0}".format(report_id))
         file_obj = BytesIO(r.content)
         return send_file(
             file_obj,
-            attachment_filename='report.pdf',
-            mimetype="Content-Type: application/pdf; charset={r.encoding}"
+            attachment_filename="report.pdf",
+            mimetype="Content-Type: application/pdf; charset={r.encoding}",
         )
 
     def get_report_content(self, report_id):
@@ -201,17 +216,17 @@ class CheckMarx(object):
         if not row.finished:
             status, _ = self.get_report_status(report_id)
             if status != 2:
-                return {'message': 'Report is not available yet'}, 400
-        r = self.__api_get('/reports/sastScan/{0}'.format(report_id))
+                return {"message": "Report is not available yet"}, 400
+        r = self.__api_get("/reports/sastScan/{0}".format(report_id))
         return r.content
 
     def get_queue_scan_position(self, scan_id):
-        res = self.__api_get(f'/sast/scansQueue/{scan_id}').json()
+        res = self.__api_get(f"/sast/scansQueue/{scan_id}").json()
         return res.get("queuePosition")
 
     def cancel_scan(self, scan_id):
         data = {"status": "Canceled"}
-        res = self.__api_patch(f'/sast/scansQueue/{scan_id}', data=data)
+        res = self.__api_patch(f"/sast/scansQueue/{scan_id}", data=data)
         return res.status_code
 
     @staticmethod
@@ -220,8 +235,7 @@ class CheckMarx(object):
             repo_id = nexus.nx_get_repository_id(project_id)
         except NoResultFound:
             return -1
-        row = Model.query.filter_by(repo_id=repo_id).order_by(
-            desc(Model.run_at)).limit(1).first()
+        row = Model.query.filter_by(repo_id=repo_id).order_by(desc(Model.run_at)).limit(1).first()
         if row is None:
             return -1
         return getattr(row, column)
@@ -233,19 +247,16 @@ class CheckMarx(object):
             "result": {},
             "run_at": None,
         }
-        scan_id = self.get_latest('scan_id', project_id)
+        scan_id = self.get_latest("scan_id", project_id)
         row = Model.query.filter_by(scan_id=scan_id).first()
         if scan_id < 0 or row is None:
             ret["status"] = 0
-            ret["message"] = 'This project does not have any scan.'
+            ret["message"] = "This project does not have any scan."
             return ret
         st_id, st_name = self.get_scan_status(scan_id)
         if st_id != 7:
             if st_id in [8, 9]:
-                st_mapping = {
-                    8: "The scan is canceled.",
-                    9: "The scan failed."
-                }
+                st_mapping = {8: "The scan is canceled.", 9: "The scan failed."}
                 ret["status"] = -1
                 ret["message"] = st_mapping[st_id]
             else:
@@ -256,14 +267,14 @@ class CheckMarx(object):
         report_id = row.report_id
         if report_id < 0:
             data_json, status_code = self.register_report(scan_id)
-            report_id = data_json['data']['reportId']
+            report_id = data_json["data"]["reportId"]
         rst_id, rst_name = self.get_report_status(report_id)
 
         data = self.get_scan_statistics(scan_id)
         data.pop("statisticsCalculationDate", "")
         if rst_id != 2:
-            ret["message"] = 'In the process of generating report.'
-        ret["message"] = 'success'
+            ret["message"] = "In the process of generating report."
+        ret["message"] = "success"
         ret["status"] = 1
         ret["result"] = data
         ret["run_at"] = str(row.run_at) if row.run_at is not None else None
@@ -272,18 +283,20 @@ class CheckMarx(object):
 
     @staticmethod
     def list_scans(project_id):
-        rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(
-            desc(Model.run_at)).all()
+        rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(desc(Model.run_at)).all()
         ret = [CheckMarx.to_json(row, project_id) for row in rows]
         return ret
 
     @staticmethod
     def get_scan(project_id, commit_id):
-        row = Model.query.filter(
-            Model.repo_id == nexus.nx_get_repository_id(project_id),
-            Model.commit_id.like(f'{commit_id}%')
-        ).order_by(
-            desc(Model.scan_id)).first()
+        row = (
+            Model.query.filter(
+                Model.repo_id == nexus.nx_get_repository_id(project_id),
+                Model.commit_id.like(f"{commit_id}%"),
+            )
+            .order_by(desc(Model.scan_id))
+            .first()
+        )
         if row is not None:
             scan_id = row.scan_id
             ret = CheckMarx.to_json(row, project_id)
@@ -303,15 +316,15 @@ class CheckMarx(object):
         else:
             stats = json.loads(row.stats)
         return {
-            'scan_id': row.scan_id,
-            'branch': row.branch,
-            'commit_id': row.commit_id[0:7],
-            'commit_url': gitlab.commit_id_to_url(project_id, row.commit_id),
-            'status': row.scan_final_status,
-            'stats': stats,
-            'run_at': str(row.run_at),
-            'report_id': row.report_id,
-            'report_ready': row.finished is True and row.report_id != -1
+            "scan_id": row.scan_id,
+            "branch": row.branch,
+            "commit_id": row.commit_id[0:7],
+            "commit_url": gitlab.commit_id_to_url(project_id, row.commit_id),
+            "status": row.scan_final_status,
+            "stats": stats,
+            "run_at": str(row.run_at),
+            "report_id": row.report_id,
+            "report_ready": row.finished is True and row.report_id != -1,
         }
 
 
@@ -322,19 +335,19 @@ checkmarx = CheckMarx()
 class GetCheckmarxProject(Resource):
     @jwt_required()
     def get(self, project_id):
-        cm_project_id = checkmarx.get_latest('cm_project_id', project_id)
-        return util.success({'cm_project_id': cm_project_id})
+        cm_project_id = checkmarx.get_latest("cm_project_id", project_id)
+        return util.success({"cm_project_id": cm_project_id})
 
 
 class CreateCheckmarxScan(Resource):
     @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('cm_project_id', type=int, required=True)
-        parser.add_argument('repo_id', type=int, required=True)
-        parser.add_argument('scan_id', type=int, required=True)
-        parser.add_argument('branch', type=str, required=True)
-        parser.add_argument('commit_id', type=str, required=True)
+        parser.add_argument("cm_project_id", type=int, required=True)
+        parser.add_argument("repo_id", type=int, required=True)
+        parser.add_argument("scan_id", type=int, required=True)
+        parser.add_argument("branch", type=str, required=True)
+        parser.add_argument("commit_id", type=str, required=True)
         args = parser.parse_args()
         return checkmarx.create_scan(args)
 
@@ -348,9 +361,9 @@ class GetCheckmarxScans(Resource):
 class GetCheckmarxLatestScan(Resource):
     @jwt_required()
     def get(self, project_id):
-        scan_id = checkmarx.get_latest('scan_id', project_id)
+        scan_id = checkmarx.get_latest("scan_id", project_id)
         if scan_id >= 0:
-            return util.success({'scan_id': scan_id})
+            return util.success({"scan_id": scan_id})
         else:
             return util.respond(204)
 
@@ -358,11 +371,11 @@ class GetCheckmarxLatestScan(Resource):
 class GetCheckmarxLatestScanStats(Resource):
     @jwt_required()
     def get(self, project_id):
-        scan_id = checkmarx.get_latest('scan_id', project_id)
+        scan_id = checkmarx.get_latest("scan_id", project_id)
         if scan_id < 0:
             return util.respond(204)
         stats = checkmarx.get_scan_statistics(scan_id)
-        if 'statisticsCalculationDate' in stats:
+        if "statisticsCalculationDate" in stats:
             return util.success(stats)
         else:
             raise DevOpsError(400, stats)
@@ -371,7 +384,7 @@ class GetCheckmarxLatestScanStats(Resource):
 class GetCheckmarxLatestReport(Resource):
     @jwt_required()
     def get(self, project_id):
-        report_id = checkmarx.get_latest('report_id', project_id)
+        report_id = checkmarx.get_latest("report_id", project_id)
         if report_id < 0:
             return util.respond(204)
         return checkmarx.get_report(report_id)
@@ -392,7 +405,7 @@ class GetCheckmarxScanStatus(Resource):
         if status_id == 10:
             status_id, name = 2, "PreScan"
 
-        result = {'id': status_id, 'name': name}
+        result = {"id": status_id, "name": name}
         if status_id in [1, 2, 3]:
             result.update({"queue_position": checkmarx.get_queue_scan_position(scan_id)})
         return util.success(result)
@@ -408,14 +421,14 @@ class GetCheckmarxReportStatus(Resource):
     @jwt_required()
     def get(self, scan_id):
         status_id, value = checkmarx.get_report_status(scan_id)
-        return util.success({'id': status_id, 'value': value})
+        return util.success({"id": status_id, "value": value})
 
 
 class GetCheckmarxScanStatistics(Resource):
     @jwt_required()
     def get(self, scan_id):
         stats = checkmarx.get_scan_statistics(scan_id)
-        if 'statisticsCalculationDate' in stats:
+        if "statisticsCalculationDate" in stats:
             return util.success(stats)
         else:
             raise DevOpsError(400, stats)
@@ -482,13 +495,10 @@ class CronjobScan(Resource):
                 df_five_download = df[0:5]
                 # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
                 for i in list(df_five_download.scan_id):
-                    Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update(
-                        {"scan_final_status": None})
+                    Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update({"scan_final_status": None})
                 update_list = list(df.drop(list(df_five_download.index)).scan_id)
                 # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
                 for i in update_list:
-                    Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update(
-                        {"report_id": -1})
+                    Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update({"report_id": -1})
                 db.session.commit()
         return util.success()
-

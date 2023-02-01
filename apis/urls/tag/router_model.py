@@ -7,8 +7,10 @@ from util import CommonBasicResponse
 
 ########## API Action ##########
 
+
 class TagSchema(Schema):
-    name = fields.Str(required=False, doc='name',example="tag name")
+    name = fields.Str(required=False, doc="name", example="tag name")
+
 
 #################################### Response ####################################
 
@@ -17,26 +19,26 @@ class TagSchema(Schema):
 ########## API Action ##########
 class TagDataTagResponse(Schema):
     id = fields.Integer(required=False, doc=1)
-    name = fields.Str(required=False, doc='name')
+    name = fields.Str(required=False, doc="name")
+
 
 class TagDataResponse(Schema):
-    tag = fields.Dict(example={
-            "id": 1,
-            "name": "name"
-        },required=False)
+    tag = fields.Dict(example={"id": 1, "name": "name"}, required=False)
+
 
 class TagResponse(CommonBasicResponse):
-    data = fields.Nested(TagDataResponse,required=True)
+    data = fields.Nested(TagDataResponse, required=True)
+
 
 class PutTagDataResponse(CommonBasicResponse):
-    tag = fields.Integer(required=True,example=1)
+    tag = fields.Integer(required=True, example=1)
+
 
 class PutTagResponse(CommonBasicResponse):
-    data = fields.Nested(PutTagDataResponse,required=True)
+    data = fields.Nested(PutTagDataResponse, required=True)
+
 
 ##################################################################
-
-
 
 
 ### Tags
@@ -45,11 +47,14 @@ class PutTagResponse(CommonBasicResponse):
 
 ########## API Action ##########
 
+
 class PostTagsSchema(Schema):
-    project_id = fields.Integer(required=False, doc='project_id',example=231)
+    project_id = fields.Integer(required=False, doc="project_id", example=231)
+
 
 class TagsSchema(PostTagsSchema):
-    tag_name = fields.Str(required=False, doc='tag_name',example="1")
+    tag_name = fields.Str(required=False, doc="tag_name", example="1")
+
 
 #################################### Response ####################################
 
@@ -57,15 +62,13 @@ class TagsSchema(PostTagsSchema):
 
 ########## API Action ##########
 
+
 class GetTagsDataResponse(CommonBasicResponse):
-    tags = fields.List(fields.Dict(example={
-            "id": 1,
-            "name": "name"
-        },required=False))
+    tags = fields.List(fields.Dict(example={"id": 1, "name": "name"}, required=False))
+
 
 class GetTagsResponse(CommonBasicResponse):
-    data = fields.Nested(GetTagsDataResponse,required=True)
+    data = fields.Nested(GetTagsDataResponse, required=True)
+
 
 ##################################################################
-
-

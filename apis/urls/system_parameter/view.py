@@ -22,13 +22,19 @@ class UploadFiles(MethodResource):
 
 
 class UploadFile(MethodResource):
-    @doc(tags=["System"], description="Delete a upload_file_types by upload_file_type_id.")
+    @doc(
+        tags=["System"],
+        description="Delete a upload_file_types by upload_file_type_id.",
+    )
     @marshal_with(util.CommonResponse)
     @jwt_required()
     def delete(self, upload_file_type_id):
         return system_parameter.delete_upload_file_types(upload_file_type_id)
 
-    @doc(tags=["System"], description="Update a upload_file_types by upload_file_type_id.")
+    @doc(
+        tags=["System"],
+        description="Update a upload_file_types by upload_file_type_id.",
+    )
     @use_kwargs(route_model.UpdateFilesPatchSchema, location="form")
     @marshal_with(route_model.UpdateFilePostResponse)
     @jwt_required()

@@ -15,7 +15,7 @@ def row_to_dict(row):
     if row is None:
         return row
     for key in type(row).__table__.columns.keys():
-        if key == 'project_id':
+        if key == "project_id":
             continue
         value = getattr(row, key)
         ret[key] = value
@@ -33,7 +33,7 @@ def get_tags_for_dict(project_id=None):
     else:
         return output
     for tag in tags:
-        output[int(tag.id)] = {'id': int(tag.id), 'name': tag.name}
+        output[int(tag.id)] = {"id": int(tag.id), "name": tag.name}
     return output
 
 
@@ -48,8 +48,7 @@ def get_tags(project_id=None, tag_name=None):
             tags = model.Tag.query.filter_by(project_id=project_id).all()
         else:
             search = "%{}%".format(tag_name)
-            tags = model.Tag.query.filter_by(project_id=project_id). \
-                filter(model.Tag.name.like(search)).all()
+            tags = model.Tag.query.filter_by(project_id=project_id).filter(model.Tag.name.like(search)).all()
     for tag in tags:
         output.append(row_to_dict(tag))
     return output
@@ -65,12 +64,9 @@ def check_tags(project_id, tag_name):
 
 
 def create_tags(project_id, args):
-    if args.get('name', None) is None:
+    if args.get("name", None) is None:
         return None
-    new = model.Tag(
-        project_id=project_id,
-        name=args.get('name')
-    )
+    new = model.Tag(project_id=project_id, name=args.get("name"))
     db.session.add(new)
     db.session.commit()
     return new.id
@@ -81,6 +77,7 @@ def update_tag(tag_id, name):
     tag.name = name
     db.session.commit()
     return tag.id
+
 
 def delete_tag(tag_id):
     model.Tag.query.filter_by(id=tag_id).delete()
@@ -105,13 +102,11 @@ def delete_tag(tag_id):
 
 def get_user_project_ids(user_id):
     output = []
-    projects = model.ProjectUserRole.query. \
-        filter_by(user_id=user_id). \
-        filter(model.ProjectUserRole.project_id != -1) \
-        .all()
+    projects = (
+        model.ProjectUserRole.query.filter_by(user_id=user_id).filter(model.ProjectUserRole.project_id != -1).all()
+    )
     if projects is None:
         return output
     for project in projects:
         output.append(project.project_id)
     return output
-

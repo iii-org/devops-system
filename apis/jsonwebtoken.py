@@ -12,4 +12,3 @@ def my_expired_token_callback(jwt_header, jwt_payload):
 @jsonwebtoken.invalid_token_loader
 def custom_error(jwt_header):
     return build(3006, jwt_header), 422
-

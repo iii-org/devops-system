@@ -17,8 +17,11 @@ def get_wiki_list_by_project(project_id):
     try:
         plan_id = project.get_plan_project_id(project_id)
     except NoResultFound:
-        return util.respond(404, "Error while getting wiki.",
-                            error=apiError.project_not_found(project_id))
+        return util.respond(
+            404,
+            "Error while getting wiki.",
+            error=apiError.project_not_found(project_id),
+        )
     wiki_list = redmine.rm_get_wiki_list(plan_id)
     return util.success(wiki_list)
 
@@ -27,16 +30,20 @@ def get_wiki_by_project(project_id, wiki_name):
     try:
         plan_id = project.get_plan_project_id(project_id)
     except NoResultFound:
-        return util.respond(404, "Error while getting wiki.",
-                            error=apiError.project_not_found(project_id))
+        return util.respond(
+            404,
+            "Error while getting wiki.",
+            error=apiError.project_not_found(project_id),
+        )
     wiki_list = redmine.rm_get_wiki(plan_id, wiki_name)
     wiki_detail = wiki_list
-    if 'author' in wiki_detail['wiki_page']:
-        user_info = user.get_user_id_name_by_plan_user_id(
-            wiki_detail['wiki_page']['author']['id'])
+    if "author" in wiki_detail["wiki_page"]:
+        user_info = user.get_user_id_name_by_plan_user_id(wiki_detail["wiki_page"]["author"]["id"])
         if user_info is not None:
-            wiki_detail['wiki_page']['author'] = {
-                'id': user_info.id, 'name': user_info.name}
+            wiki_detail["wiki_page"]["author"] = {
+                "id": user_info.id,
+                "name": user_info.name,
+            }
     return util.success(wiki_detail)
 
 
@@ -44,8 +51,11 @@ def put_wiki_by_project(project_id, wiki_name, args, operator_id):
     try:
         plan_id = project.get_plan_project_id(project_id)
     except NoResultFound:
-        return util.respond(404, "Error while updating wiki.",
-                            error=apiError.project_not_found(project_id))
+        return util.respond(
+            404,
+            "Error while updating wiki.",
+            error=apiError.project_not_found(project_id),
+        )
     plan_operator_id = None
     if operator_id is not None:
         operator_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=operator_id)
@@ -61,8 +71,10 @@ def delete_wiki_by_project(project_id, wiki_name):
     try:
         plan_id = project.get_plan_project_id(project_id)
     except NoResultFound:
-        return util.respond(404, "Error while deleting wiki.",
-                            error=apiError.project_not_found(project_id))
+        return util.respond(
+            404,
+            "Error while deleting wiki.",
+            error=apiError.project_not_found(project_id),
+        )
     redmine.rm_delete_wiki(plan_id, wiki_name)
     return util.success()
-

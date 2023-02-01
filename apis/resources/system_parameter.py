@@ -49,8 +49,7 @@ def execute_pre_func(obj, args=None):
 
 
 def get_system_parameter():
-    return [
-        row_to_dict(system_parameter) for system_parameter in SystemParameter.query.all()]
+    return [row_to_dict(system_parameter) for system_parameter in SystemParameter.query.all()]
 
 
 def update_system_parameter(id: int, args: dict) -> None:
@@ -121,14 +120,10 @@ def get_github_verify_execute_status() -> dict[str, Any]:
             ret["status"] = {"first_stage": False, "second_stage": False}
 
             # Check the first stage is done
-            ret["status"]["first_stage"] = (
-                output_list[-2].strip().endswith("SUCCESS")
-            )
+            ret["status"]["first_stage"] = output_list[-2].strip().endswith("SUCCESS")
 
             # Check the second stage is done
-            ret["status"]["second_stage"] = (
-                output_list[-1].strip().endswith("SUCCESS")
-            )
+            ret["status"]["second_stage"] = output_list[-1].strip().endswith("SUCCESS")
 
     return ret
 
@@ -146,8 +141,7 @@ def execute_sync_template_by_perl(cmd: str, name: str) -> None:
 
     value: dict = SystemParameter.query.filter_by(name=name).first().value
     command: str = (
-        f"perl {cmd} {value['account']}:{value['token']}"
-        f" > /iiidevopsNFS/api-logs/sync-github-templ-api.log 2>&1"
+        f"perl {cmd} {value['account']}:{value['token']}" f" > /iiidevopsNFS/api-logs/sync-github-templ-api.log 2>&1"
     )
 
     _out: str
@@ -212,6 +206,7 @@ def get_github_verify_log_websocket(data):
 
 ## upload_file
 
+
 def get_all_upload_file_mimetype():
     upload_file_types = get_upload_file_types_obj().value["upload_file_types"]
     return [upload_file_type["MIME Type"] for upload_file_type in upload_file_types]
@@ -225,56 +220,64 @@ def upload_file_types_handle(func):
 
         upload_file_types_obj.value = new_value
         from sqlalchemy.orm.attributes import flag_modified
+
         flag_modified(upload_file_types_obj, "value")
         db.session.commit()
         return util.success(ret)
+
     return wrapper
 
 
 def get_upload_file_types_obj():
     return SystemParameter.query.filter_by(name="upload_file_types").first()
 
+
 def get_upload_file_size():
     return SystemParameter.query.filter_by(name="upload_file_size").first().value
+
 
 def get_upload_file_types():
     value = get_upload_file_types_obj().value
     return util.success(value)
 
+
 def update_upload_file_size(kwargs):
-    '''
+    """
     To adjust file size, there are five different plan need to change,
     K8s, Ingress, UI-nginx, Redmine-setting, Flask-setting(the code below), DB(SystmeParameter)
-    '''
+    """
     query = SystemParameter.query.filter_by(name="upload_file_size").first()
     if kwargs.get("upload_file_size") >= 0 and kwargs.get("upload_file_size") <= 100:
         if query:
             db.session.query(SystemParameter).filter_by(name="upload_file_size").update({"value": kwargs})
             db.session.commit()
         else:
-            row = SystemParameter(
-                value=kwargs,
-                name="upload_file_size",
-                active=True
-            )
+            row = SystemParameter(value=kwargs, name="upload_file_size", active=True)
             db.session.add(row)
             db.session.commit()
     else:
-        raise DevOpsError(404, 'invalid value! Please input the size between 0-100')
+        raise DevOpsError(404, "invalid value! Please input the size between 0-100")
     return util.success()
+
 
 @upload_file_types_handle
 def create_upload_file_types(args, upload_file_types={}):
     for upload_file_type in upload_file_types["upload_file_types"]:
-        if upload_file_type["MIME Type"] == args["mimetype"] and upload_file_type["file extension"] == args["file_extension"]:
-            raise DevOpsError(400, f'Argument mimetype+file extension is duplicated.',
-                              error=apiError.argument_error("mimetype,file_extension"))
+        if (
+            upload_file_type["MIME Type"] == args["mimetype"]
+            and upload_file_type["file extension"] == args["file_extension"]
+        ):
+            raise DevOpsError(
+                400,
+                f"Argument mimetype+file extension is duplicated.",
+                error=apiError.argument_error("mimetype,file_extension"),
+            )
 
     row = {
         "id": upload_file_types["upload_file_types"][-1]["id"] + 1,
         "MIME Type": args["mimetype"],
         "file extension": args["file_extension"],
-        "name": args.get("name")
+        "name": args.get("name"),
     }
 
     upload_file_types["upload_file_types"].append(row)
@@ -283,7 +286,13 @@ def create_upload_file_types(args, upload_file_types={}):
 
 @upload_file_types_handle
 def delete_upload_file_types(update_file_type_id, upload_file_types={}):
-    delete_mapping = next(filter(lambda x: x['id'] == update_file_type_id, upload_file_types["upload_file_types"]), {})
+    delete_mapping = next(
+        filter(
+            lambda x: x["id"] == update_file_type_id,
+            upload_file_types["upload_file_types"],
+        ),
+        {},
+    )
     if delete_mapping != {}:
         upload_file_types["upload_file_types"].remove(delete_mapping)
 
@@ -297,15 +306,27 @@ def update_upload_file_types(update_file_type_id, args, upload_file_types={}):
     if args.get("mimetype") is not None:
         args["MIME Type"] = args.pop("mimetype")
 
-    found_mapping = next(filter(lambda x: x['id'] == update_file_type_id, upload_file_types["upload_file_types"]), {})
+    found_mapping = next(
+        filter(
+            lambda x: x["id"] == update_file_type_id,
+            upload_file_types["upload_file_types"],
+        ),
+        {},
+    )
     if found_mapping != {}:
         index = upload_file_types["upload_file_types"].index(found_mapping)
         upload_file_types["upload_file_types"].remove(found_mapping)
         found_mapping.update(args)
         for upload_file_type in upload_file_types["upload_file_types"]:
-            if upload_file_type["MIME Type"] == found_mapping["MIME Type"] and upload_file_type["file extension"] == found_mapping["file extension"]:
-                raise DevOpsError(400, f'Argument mimetype+file extension is duplicated.',
-                                  error=apiError.argument_error("mimetype,file_extension"))
+            if (
+                upload_file_type["MIME Type"] == found_mapping["MIME Type"]
+                and upload_file_type["file extension"] == found_mapping["file extension"]
+            ):
+                raise DevOpsError(
+                    400,
+                    f"Argument mimetype+file extension is duplicated.",
+                    error=apiError.argument_error("mimetype,file_extension"),
+                )
 
         upload_file_types["upload_file_types"].insert(index, found_mapping)
 
@@ -324,15 +345,23 @@ def get_upload_file_distinct_name():
 
 def check_upload_type(file):
     if file.mimetype not in get_all_upload_file_mimetype():
-        raise DevOpsError(400, 'Argument upload_file type is not supported.',
-                          error=apiError.argument_error("upload_file"))
-    file_size_limit = int(
-        SystemParameter.query.filter_by(name="upload_file_size").first().value["upload_file_size"])
+        raise DevOpsError(
+            400,
+            "Argument upload_file type is not supported.",
+            error=apiError.argument_error("upload_file"),
+        )
+    file_size_limit = int(SystemParameter.query.filter_by(name="upload_file_size").first().value["upload_file_size"])
     blob = file.read()
     file_size = int(len(blob))
     file.seek(0)
     if file_size / 1048576 > file_size_limit:
-        raise DevOpsError(404, 'file size exceed maximum', error=apiError.argument_error("upload_file"))
+        raise DevOpsError(
+            404,
+            "file size exceed maximum",
+            error=apiError.argument_error("upload_file"),
+        )
+
+
 # --------------------- Resources ---------------------
 
 
@@ -366,9 +395,7 @@ class SystemParameters(Resource):
 class ParameterGithubVerifyExecuteStatus(Resource):
     @jwt_required()
     def get(self):
-        ret: dict[
-            str, Union[str, bool, datetime, dict[str, bool]]
-        ] = get_github_verify_execute_status()
+        ret: dict[str, Union[str, bool, datetime, dict[str, bool]]] = get_github_verify_execute_status()
         if ret.get("sync_date"):
             ret["sync_date"] = ret["sync_date"].isoformat()
         return util.success(ret)
@@ -376,11 +403,11 @@ class ParameterGithubVerifyExecuteStatus(Resource):
 
 class SyncTemplateWebsocketLog(Namespace):
     def on_connect(self):
-        print('Connect')
+        print("Connect")
 
     def on_disconnect(self):
-        print('Disconnect')
+        print("Disconnect")
 
     def on_get_perl_log(self, data):
-        print('get_perl_log')
+        print("get_perl_log")
         get_github_verify_log_websocket(data)

@@ -25,9 +25,8 @@ def get_plugin_software(simple=False) -> list[dict[str, Any]]:
             if plugin and plugin["name"] not in disable_list
         ]
     else:
-        output: list[dict[str, Any]] =[
-            {"id": plugin["id"], "name": plugin["name"], "disabled": plugin["disabled"]}
-            for plugin in plugins
+        output: list[dict[str, Any]] = [
+            {"id": plugin["id"], "name": plugin["name"], "disabled": plugin["disabled"]} for plugin in plugins
         ]
     return output
 
@@ -41,9 +40,7 @@ def display_by_permission() -> list[dict[str, ...]]:
     role_name: str = get_jwt_identity()["role_name"]
 
     route_list: list[dict[str, ...]] = []
-    node: UIRouteData = UIRouteData.query.filter_by(
-        parent=0, role=role_name, old_brother=0
-    ).first()
+    node: UIRouteData = UIRouteData.query.filter_by(parent=0, role=role_name, old_brother=0).first()
     route_list.append(get_ui_route(node, role_name))
 
     while node.next_node:
@@ -177,7 +174,7 @@ def print_list(node: UIRouteData) -> None:
 
 def update_plugin_hidden(plugin_name: str, hidden: Boolean) -> None:
     from sqlalchemy.orm.attributes import flag_modified
-    
+
     plugin_name_mapping = {
         "checkmarx": "Checkmarx",
         "cmas": "Cmas",
@@ -187,11 +184,11 @@ def update_plugin_hidden(plugin_name: str, hidden: Boolean) -> None:
         "sbom": "Sbom",
         "sonarqube": "Sonarqube",
         "sideex": "Sideex",
-        "excalidraw": "Whiteboard"
+        "excalidraw": "Whiteboard",
     }
     plugin_name = plugin_name_mapping.get(plugin_name)
     if plugin_name is None:
-        return 
+        return
     ui_route_obj_list = UIRouteData.query.filter_by(name=plugin_name).all()
     for ui_route_obj in ui_route_obj_list:
         ui_route_value = ui_route_obj.ui_route

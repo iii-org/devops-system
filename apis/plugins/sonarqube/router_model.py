@@ -2,12 +2,11 @@ from marshmallow import Schema, fields
 from util import CommonBasicResponse
 
 
-
 class SonarqubeHistoryData(Schema):
     link = fields.Str(required=True)
     history = fields.Dict(
-        required=True, 
-        example= {
+        required=True,
+        example={
             "1970-01-01T00:00:00+0000": {
                 "coverage": "0.0",
                 "duplicated_blocks": "0",
@@ -23,12 +22,11 @@ class SonarqubeHistoryData(Schema):
                 "security_rating": "1.0",
                 "branch": "master",
                 "commit_id": "0db78e9",
-                "issue_link": "http://issue_link"
+                "issue_link": "http://issue_link",
             }
-        }
+        },
     )
 
 
 class SonarqubeHistoryResponse(CommonBasicResponse):
     data = fields.Nested(SonarqubeHistoryData, required=True)
-    

@@ -67,9 +67,7 @@ class User(db.Model):
         for field in [
             x
             for x in dir(self)
-            if not x.startswith("query")
-            and not x.startswith("_")
-            and x not in ["metadata", "registry"]
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
         ]:
             if field in ["starred_project", "plugin_relation", "project_role"]:
                 continue
@@ -106,9 +104,7 @@ class Project(db.Model):
     disabled = Column(Boolean)
     display = Column(String)
     owner_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
-    creator_id = Column(
-        Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True
-    )
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
     is_lock = Column(Boolean, default=False)
     lock_reason = Column(String)
     base_example = Column(String)
@@ -116,9 +112,7 @@ class Project(db.Model):
     uuid = Column(String)
     is_inheritance_member = Column(Boolean, default=False)
     is_empty_project = Column(Boolean, server_default="false")
-    starred_by = relationship(
-        User, secondary="starred_project", backref="starred_project"
-    )
+    starred_by = relationship(User, secondary="starred_project", backref="starred_project")
     plugin_relation = relationship("ProjectPluginRelation", uselist=False)
     user_role = relationship("ProjectUserRole", back_populates="project")
     alert = Column(Boolean, default=False)
@@ -130,9 +124,7 @@ class Project(db.Model):
         for field in [
             x
             for x in dir(self)
-            if not x.startswith("query")
-            and not x.startswith("_")
-            and x not in ["metadata", "registry"]
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
         ]:
             if field in ["starred_by", "plugin_relation", "user_role"]:
                 continue
@@ -157,9 +149,7 @@ class Release(db.Model):
     commit = Column(String)
     tag_name = Column(String)
     note = Column(String)
-    creator_id = Column(
-        Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True
-    )
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
     image_paths = Column(postgresql.ARRAY(String))
@@ -193,9 +183,7 @@ class PipelineLogsCache(db.Model):
 
 
 class ProjectUserRole(db.Model):
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), primary_key=True)
     role_id = Column(Integer, primary_key=True)
     user = relationship("User", back_populates="project_role")
@@ -285,9 +273,7 @@ class UserPluginRelation(db.Model):
 class Checkmarx(db.Model):
     scan_id = Column(Integer, primary_key=True)
     cm_project_id = Column(Integer)
-    repo_id = Column(
-        Integer, ForeignKey(ProjectPluginRelation.git_repository_id, ondelete="CASCADE")
-    )
+    repo_id = Column(Integer, ForeignKey(ProjectPluginRelation.git_repository_id, ondelete="CASCADE"))
     branch = Column(String)
     commit_id = Column(String)
     # -1 if report is not registered yet
@@ -348,9 +334,7 @@ class WebInspect(db.Model):
         for field in [
             x
             for x in dir(self)
-            if not x.startswith("query")
-            and not x.startswith("_")
-            and x not in ["metadata", "registry"]
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
         ]:
             data = self.__getattribute__(field)
             try:
@@ -369,9 +353,7 @@ class Activity(db.Model):
     id = Column(Integer, primary_key=True)
     action_type = Column(Enum(ActionType), nullable=False)
     action_parts = Column(String)
-    operator_id = Column(
-        Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True
-    )
+    operator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
     operator_name = Column(String)
     object_id = Column(String)
     act_at = Column(DateTime)
@@ -415,9 +397,7 @@ class Zap(db.Model):
         for field in [
             x
             for x in dir(self)
-            if not x.startswith("query")
-            and not x.startswith("_")
-            and x not in ["metadata", "registry"]
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
         ]:
             data = self.__getattribute__(field)
             try:
@@ -449,9 +429,7 @@ class Sideex(db.Model):
         for field in [
             x
             for x in dir(self)
-            if not x.startswith("query")
-            and not x.startswith("_")
-            and x not in ["metadata", "registry"]
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
         ]:
             data = self.__getattribute__(field)
             try:
@@ -556,17 +534,13 @@ class TestGeneratedIssue(db.Model):
 
 class StarredProject(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
 
 
 class RancherPiplineNumberEachDays(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     date = Column(Date)
     pipline_number = Column(Integer)
     created_at = Column(DateTime)
@@ -574,9 +548,7 @@ class RancherPiplineNumberEachDays(db.Model):
 
 class Alert(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     condition = Column(String)
     days = Column(Integer)
     disabled = Column(Boolean)
@@ -601,9 +573,7 @@ class Cluster(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     disabled = Column(Boolean)
-    creator_id = Column(
-        Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True
-    )
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
     cluster_name = Column(String)
@@ -616,9 +586,7 @@ class Cluster(db.Model):
         for field in [
             x
             for x in dir(self)
-            if not x.startswith("query")
-            and not x.startswith("_")
-            and x not in ["metadata", "registry"]
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
         ]:
             if field in ["application"]:
                 continue
@@ -635,9 +603,7 @@ class Cluster(db.Model):
 class Application(db.Model):
     __tablename__ = "application"
     id = Column(Integer, primary_key=True)
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     name = Column(String)
     cluster_id = Column(Integer, ForeignKey(Cluster.id))
     registry_id = Column(Integer, ForeignKey(Registries.registries_id))
@@ -668,18 +634,14 @@ class DefaultAlertDays(db.Model):
 class TraceOrder(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String)
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     order = Column(ARRAY(String))
     default = Column(Boolean)
 
 
 class TraceResult(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     current_num = Column(Integer)
     results = Column(String)
     execute_time = Column(DateTime)
@@ -689,9 +651,7 @@ class TraceResult(db.Model):
 
 class AlertUnchangeRecord(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     issue_id = Column(Integer, nullable=False)
     before_update_time = Column(DateTime)
     after_update_time = Column(DateTime)
@@ -706,9 +666,7 @@ class IssueExtensions(db.Model):
 
 class Tag(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     name = Column(String)
 
 
@@ -734,9 +692,7 @@ class Lock(db.Model):
 class IssueDisplayField(db.Model):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     display_field = Column(ARRAY(String))
     type = Column(String)
 
@@ -755,12 +711,8 @@ class ServerType(db.Model):
 
 class ServerDataCollection(db.Model):
     id = Column(Integer, primary_key=True)
-    type_id = Column(
-        Integer, ForeignKey(ServerType.id, ondelete="CASCADE"), nullable=False
-    )
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    type_id = Column(Integer, ForeignKey(ServerType.id, ondelete="CASCADE"), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     detail = Column(JSON)
     value = Column(JSON)
     create_at = Column(DateTime)
@@ -797,9 +749,7 @@ class AlertMessage(db.Model):
 class CustomIssueFilter(db.Model):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     name = Column(String)
     type = Column(String)
     custom_filter = Column(JSON)
@@ -820,9 +770,7 @@ class CustomIssueFilter(db.Model):
             "tracker_id",
         ]
         if custom_filter_keys != expected_keys:
-            raise AssertionError(
-                f"Custom filter keys must be the same as {expected_keys}."
-            )
+            raise AssertionError(f"Custom filter keys must be the same as {expected_keys}.")
         return custom_filter
 
     @validates("type")
@@ -834,9 +782,7 @@ class CustomIssueFilter(db.Model):
 
 class CMAS(db.Model):
     task_id = Column(String, primary_key=True)
-    repo_id = Column(
-        Integer, ForeignKey(ProjectPluginRelation.git_repository_id, ondelete="CASCADE")
-    )
+    repo_id = Column(Integer, ForeignKey(ProjectPluginRelation.git_repository_id, ondelete="CASCADE"))
     branch = Column(String)
     commit_id = Column(String)
     run_at = Column(DateTime)  # The time scan registered
@@ -873,9 +819,7 @@ class CMAS(db.Model):
 
 class IssueCommitRelation(db.Model):
     commit_id = Column(String, primary_key=True)
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     issue_ids = Column(postgresql.ARRAY(Integer))
     author_name = Column(String)
     commit_title = Column(String)
@@ -890,9 +834,7 @@ class IssueCommitRelation(db.Model):
 class ProjectCommitEndpoint(db.Model):
     id = Column(Integer, primary_key=True)
     commit_id = Column(String, unique=True)
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     updated_at = Column(DateTime)
 
 
@@ -903,9 +845,7 @@ class NotificationMessage(db.Model):
     title = Column(String)
     message = Column(String, nullable=False)
     message_parameter = Column(JSON)
-    creator_id = Column(
-        Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True
-    )
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     close = Column(Boolean, default=False)
@@ -915,9 +855,7 @@ class NotificationMessage(db.Model):
         for field in [
             x
             for x in dir(self)
-            if not x.startswith("query")
-            and not x.startswith("_")
-            and x not in ["metadata", "registry"]
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
         ]:
             data = self.__getattribute__(field)
             try:
@@ -953,9 +891,7 @@ class NotificationMessageRecipient(db.Model):
         for field in [
             x
             for x in dir(self)
-            if not x.startswith("query")
-            and not x.startswith("_")
-            and x not in ["metadata", "registry"]
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
         ]:
             data = self.__getattribute__(field)
             try:
@@ -969,9 +905,7 @@ class NotificationMessageRecipient(db.Model):
 
 class ProjectParentSonRelation(db.Model):
     id = Column(Integer, primary_key=True)
-    parent_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False
-    )
+    parent_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     son_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime)
 
@@ -1070,9 +1004,7 @@ class MonitoringRecord(db.Model):
 
 
 class ProjectIssueCheck(db.Model):
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True)
     enable = Column(Boolean, default=False)
     need_fatherissue_trackers = Column(postgresql.ARRAY(Integer))
     created_at = Column(DateTime)
@@ -1081,9 +1013,7 @@ class ProjectIssueCheck(db.Model):
 
 class ReleaseRepoTag(db.Model):
     id = Column(Integer, primary_key=True)
-    release_id = Column(
-        Integer, ForeignKey(Release.id, ondelete="CASCADE"), nullable=False
-    )
+    release_id = Column(Integer, ForeignKey(Release.id, ondelete="CASCADE"), nullable=False)
     tag = Column(String)
     custom_path = Column(String)
 
@@ -1103,9 +1033,7 @@ class TemplateProject(db.Model):
         for field in [
             x
             for x in dir(self)
-            if not x.startswith("query")
-            and not x.startswith("_")
-            and x not in ["metadata", "registry"]
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
         ]:
             data = self.__getattribute__(field)
             try:
@@ -1135,9 +1063,7 @@ class HarborScan(db.Model):
         for field in [
             x
             for x in dir(self)
-            if not x.startswith("query")
-            and not x.startswith("_")
-            and x not in ["metadata", "registry"]
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
         ]:
             data = self.__getattribute__(field)
             try:
@@ -1155,16 +1081,12 @@ class Excalidraw(db.Model):
     name = Column(String)
     room = Column(String, nullable=False)
     key = Column(String, nullable=False)
-    operator_id = Column(
-        Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True
-    )
+    operator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     file_key = Column(String)
     project = relationship("Project", back_populates="excalidraws")
-    excalidraw_histories = relationship(
-        "ExcalidrawHistory", back_populates="excalidraw"
-    )
+    excalidraw_histories = relationship("ExcalidrawHistory", back_populates="excalidraw")
 
 
 class ExcalidrawJson(db.Model):
@@ -1198,9 +1120,7 @@ class ProjectResourceStoragelevel(db.Model):
     }
     """
 
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True)
     gitlab = Column(JSON)
 
 
@@ -1214,17 +1134,13 @@ class UserMessageType(db.Model):
 class GitlabSourceCodeLens(db.Model):
     branch = Column(String, primary_key=True)
     commit_id = Column(String)
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True)
     source_code_num = Column(Integer)
     updated_at = Column(DateTime)
 
 
 class PipelineUpdateVersion(db.Model):
-    project_id = Column(
-        Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True
-    )
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True)
     version = Column(Integer)
     status = Column(String)
     message = Column(String)
@@ -1250,9 +1166,7 @@ class Sbom(db.Model):
         for field in [
             x
             for x in dir(self)
-            if not x.startswith("query")
-            and not x.startswith("_")
-            and x not in ["metadata", "registry"]
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
         ]:
             data = self.__getattribute__(field)
             try:
@@ -1279,9 +1193,7 @@ class Pict(db.Model):
     commit_id = Column(String)
     run_at = Column(DateTime)
     status = Column(String)
-    sideex_id = Column(
-        Integer, ForeignKey(Sideex.id, ondelete="CASCADE"), nullable=False
-    )
+    sideex_id = Column(Integer, ForeignKey(Sideex.id, ondelete="CASCADE"), nullable=False)
 
 
 class PipelineExecution(db.Model):
@@ -1299,4 +1211,6 @@ class StorageClass(db.Model):
     cluster_id = Column(Integer, ForeignKey(Cluster.id, ondelete="CASCADE"))
     name = Column(String)
     disabled = Column(Boolean)
+
+
 # 20230118 為取得 storage class 資訊而新增下上列一段程式

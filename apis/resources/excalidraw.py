@@ -152,9 +152,7 @@ def get_excalidraws(args):
         .join(User, Excalidraw.operator_id == User.id)
         .join(Project, Excalidraw.project_id == Project.id)
     )
-    user_project_ids = [
-        project.project_id for project in ProjectUserRole.query.filter_by(user_id=user_id).all()
-    ]
+    user_project_ids = [project.project_id for project in ProjectUserRole.query.filter_by(user_id=user_id).all()]
 
     if project_id is not None:
         if project_id not in user_project_ids and not_admin_user:
@@ -171,8 +169,7 @@ def get_excalidraws(args):
 
 def get_excalidraw_by_issue_id(issue_id):
     excalidraw_ids = [
-        excalidraw_rel.excalidraw_id
-        for excalidraw_rel in ExcalidrawIssueRelation.query.filter_by(issue_id=issue_id)
+        excalidraw_rel.excalidraw_id for excalidraw_rel in ExcalidrawIssueRelation.query.filter_by(issue_id=issue_id)
     ]
     if excalidraw_ids == []:
         return []
@@ -303,9 +300,7 @@ def save_file_info(kwargs):
     # 一個白板（room_key)對上多個檔案,也可以是單一檔案
     file_key_list = kwargs["file_key"].split(",")
     # 抓取相對應的file_key & file_value整理成字典形式
-    file_value_dict = {
-        file_key: df_keyv[df_keyv["key"] == file_key].iloc[0]["value"] for file_key in file_key_list
-    }
+    file_value_dict = {file_key: df_keyv[df_keyv["key"] == file_key].iloc[0]["value"] for file_key in file_key_list}
     # 將多組的file_key & file_value依次存入ExcalidrawJson表中
     for key, value in file_value_dict.items():
         value_dict = {
@@ -455,9 +450,7 @@ def update_excalidraw_history(excalidraw_id: int, excalidraw_history_id: int = N
     """
     If excalidraw_history_id is None, only updating excalidraw db when its value is empty.
     """
-    excalidraw_row, excalidraw_history_row = get_excalidraw_history_join_row(
-        excalidraw_id, excalidraw_history_id
-    )
+    excalidraw_row, excalidraw_history_row = get_excalidraw_history_join_row(excalidraw_id, excalidraw_history_id)
     if excalidraw_row is None:
         logger.logger.exception(f"Excalidraw id {excalidraw_id} not found")
         return
@@ -507,9 +500,7 @@ def add_new_record_to_history(excalidraw_id, excalidraw_history_id=None, add_dic
     if int(len(rows)) >= 5:
         oldest_time = row_to_dict(rows[-1])["updated_at"]
         oldest_row = (
-            ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id)
-            .filter_by(updated_at=oldest_time)
-            .first()
+            ExcalidrawHistory.query.filter_by(excalidraw_id=excalidraw_id).filter_by(updated_at=oldest_time).first()
         )
         db.session.delete(oldest_row)
     add_to_db(add_dict)

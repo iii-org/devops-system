@@ -42,12 +42,8 @@ template_replace_dict = {
 }
 
 gitlab_private_token = config.get("GITLAB_PRIVATE_TOKEN")
-gl = Gitlab(
-    config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token, ssl_verify=False
-)
-support_software_json = util.read_json_file(
-    "apis/resources/template/supported_software.json"
-)
+gl = Gitlab(config.get("GITLAB_BASE_URL"), private_token=gitlab_private_token, ssl_verify=False)
+support_software_json = util.read_json_file("apis/resources/template/supported_software.json")
 TEMPLATE_FOLDER_NAME = "pj_push_template"
 
 TEMPLATE_GROUP_DICT = {
@@ -72,10 +68,7 @@ def __tm_get_tag_info(pj, tag_name):
             # Get the last tag
             for tag in tags:
                 seconds = (
-                    datetime.utcnow()
-                    - dateutil.parser.parse(tag.commit["committed_date"]).replace(
-                        tzinfo=None
-                    )
+                    datetime.utcnow() - dateutil.parser.parse(tag.commit["committed_date"]).replace(tzinfo=None)
                 ).total_seconds()
                 if seconds < tag_info_dict["commit_time"]:
                     tag_info_dict["tag_name"] = tag.name
@@ -140,14 +133,10 @@ def tm_read_pipe_set_json(pj, tag_name=None):
             iiidevops_folder = pj.repository_tree(path="iiidevops")
         else:
             tag_info_dict = __tm_get_tag_info(pj, tag_name)
-            iiidevops_folder = pj.repository_tree(
-                path="iiidevops", ref=tag_info_dict["commit_id"]
-            )
+            iiidevops_folder = pj.repository_tree(path="iiidevops", ref=tag_info_dict["commit_id"])
         for file in iiidevops_folder:
             if file["name"] == "pipeline_settings.json":
-                f_raw = pj.files.raw(
-                    file_path="iiidevops/pipeline_settings.json", ref=pj.default_branch
-                )
+                f_raw = pj.files.raw(file_path="iiidevops/pipeline_settings.json", ref=pj.default_branch)
                 pip_set_json = json.loads(f_raw.decode())
         return pip_set_json
     except apiError.TemplateError:
@@ -155,12 +144,8 @@ def tm_read_pipe_set_json(pj, tag_name=None):
 
 
 def set_git_username_config(path):
-    git_user_email_proc = subprocess.Popen(
-        ["git", "config", "user.email"], stdout=subprocess.PIPE, shell=False
-    )
-    git_user_name_proc = subprocess.Popen(
-        ["git", "config", "user.name"], stdout=subprocess.PIPE, shell=False
-    )
+    git_user_email_proc = subprocess.Popen(["git", "config", "user.email"], stdout=subprocess.PIPE, shell=False)
+    git_user_name_proc = subprocess.Popen(["git", "config", "user.name"], stdout=subprocess.PIPE, shell=False)
     git_user_email = git_user_email_proc.stdout.read().decode("utf-8")
     git_user_name = git_user_name_proc.stdout.read().decode("utf-8")
     if git_user_email == "":
@@ -169,9 +154,7 @@ def set_git_username_config(path):
             cwd=path,
         )
     if git_user_name == "":
-        subprocess.call(
-            ["git", "config", "--global", "user.name", '"system"'], cwd=path
-        )
+        subprocess.call(["git", "config", "--global", "user.name", '"system"'], cwd=path)
 
 
 def __check_git_project_is_empty(pj):
@@ -313,10 +296,7 @@ def fetch_and_update_template_cache():
                     "description": pip_set_json["description"],
                     "version": tag_list,
                 }
-                if (
-                    group.name == "iiidevops-templates"
-                    and TEMPLATE_SUPPORT_VERSION is None
-                ):
+                if group.name == "iiidevops-templates" and TEMPLATE_SUPPORT_VERSION is None:
                     output[0]["options"].append(template_data)
                 elif (
                     group.name == "iiidevops-templates"
@@ -326,9 +306,7 @@ def fetch_and_update_template_cache():
                     output[0]["options"].append(template_data)
                 elif group.name == "local-templates":
                     output[1]["options"].append(template_data)
-                template_list |= handle_template_cache(
-                    pj, group.name, pip_set_json, tag_list
-                )
+                template_list |= handle_template_cache(pj, group.name, pip_set_json, tag_list)
                 # update_redis_template_cache(pj, group.name, pip_set_json, tag_list)
     update_template_cache_all(template_list)
     logger.logger.info(f"Updated data: {template_list}")
@@ -338,10 +316,7 @@ def fetch_and_update_template_cache():
 def __update_stage_when_plugin_disable(stage):
     if stage.get("iiidevops") is not None:
         for software in support_software_json:
-            if (
-                software.get("template_key") == stage.get("iiidevops")
-                and software.get("plugin_disabled") is True
-            ):
+            if software.get("template_key") == stage.get("iiidevops") and software.get("plugin_disabled") is True:
                 if "when" not in stage:
                     stage["when"] = {"branch": {"include": []}}
                 stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
@@ -353,9 +328,7 @@ def __update_stage_when_plugin_disable(stage):
 def lock_project(pj_name, info):
     pj_row = Project.query.filter_by(name=pj_name).first()
     pj_row.is_lock = True
-    pj_row.lock_reason = (
-        f"The {info} softwares of the {pj_name} project has been deleted."
-    )
+    pj_row.lock_reason = f"The {info} softwares of the {pj_name} project has been deleted."
     db.session.commit()
 
 
@@ -425,9 +398,7 @@ def tm_get_secret_url(pj):
     return secret_http_url
 
 
-def tm_use_template_push_into_pj(
-    template_repository_id, user_repository_id, tag_name, arguments, uuids, force=False
-):
+def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag_name, arguments, uuids, force=False):
     fetch_latest_plugin_status()
     template_pj = gl.projects.get(template_repository_id)
     secret_temp_http_url = tm_get_secret_url(template_pj)
@@ -459,19 +430,12 @@ def tm_use_template_push_into_pj(
                         if fun_key == "applyAppConfig":
                             for ans_key in fun_value["answers"].keys():
                                 if ans_key in template_replace_dict:
-                                    fun_value["answers"][
-                                        ans_key
-                                    ] = template_replace_dict[ans_key]
+                                    fun_value["answers"][ans_key] = template_replace_dict[ans_key]
                                 # Replace by pipeline_settings.json default value
                                 if "arguments" in pip_set_json:
                                     for argument in pip_set_json["arguments"]:
-                                        if (
-                                            "default_value" in argument
-                                            and argument["key"] == ans_key
-                                        ):
-                                            fun_value["answers"][ans_key] = argument[
-                                                "default_value"
-                                            ]
+                                        if "default_value" in argument and argument["key"] == ans_key:
+                                            fun_value["answers"][ans_key] = argument["default_value"]
                                 # Replace by user input parameter.
                                 if arguments is not None and ans_key in arguments:
                                     if type(arguments) is str:
@@ -481,10 +445,7 @@ def tm_use_template_push_into_pj(
                                             fun_value["answers"][ans_key] = arg_value
 
                             # Add volume uuid in DB and Web answer.
-                            if (
-                                fun_value.get("answers", {}).get("volumeMounts.uuid")
-                                is not None
-                            ):
+                            if fun_value.get("answers", {}).get("volumeMounts.uuid") is not None:
                                 fun_value["answers"]["volumeMounts.uuid"] = uuids
 
                         elif fun_key == "envFrom":
@@ -492,21 +453,15 @@ def tm_use_template_push_into_pj(
                         else:
                             for parm_key in fun_value.keys():
                                 if parm_key in template_replace_dict:
-                                    fun_value[parm_key] = template_replace_dict[
-                                        parm_key
-                                    ]
+                                    fun_value[parm_key] = template_replace_dict[parm_key]
             stage = __update_stage_when_plugin_disable(stage)
     with open(f"{TEMPLATE_FOLDER_NAME}/{pj.path}/{pipe_yaml_file_name}", "w") as file:
         yaml.dump(pipe_json, file, sort_keys=False)
     set_git_username_config(f"{TEMPLATE_FOLDER_NAME}/{pj.path}")
-    tm_git_commit_push(
-        pj.path, secret_pj_http_url, TEMPLATE_FOLDER_NAME, "範本 commit", force=force
-    )
+    tm_git_commit_push(pj.path, secret_pj_http_url, TEMPLATE_FOLDER_NAME, "範本 commit", force=force)
 
 
-def tm_git_commit_push(
-    pj_path, secret_pj_http_url, folder_name, commit_message, force=False
-):
+def tm_git_commit_push(pj_path, secret_pj_http_url, folder_name, commit_message, force=False):
     subprocess.call(["git", "branch"], cwd=f"{folder_name}/{pj_path}")
     # Too lazy to handle file deleting issue on Windows, just keep the garbage there
     try:
@@ -519,18 +474,14 @@ def tm_git_commit_push(
         cwd=f"{folder_name}/{pj_path}",
     )
     subprocess.call(["git", "add", "."], cwd=f"{folder_name}/{pj_path}")
-    subprocess.call(
-        ["git", "commit", "-m", f'"{commit_message}"'], cwd=f"{folder_name}/{pj_path}"
-    )
+    subprocess.call(["git", "commit", "-m", f'"{commit_message}"'], cwd=f"{folder_name}/{pj_path}")
     if force:
         subprocess.call(
             ["git", "push", "-u", "-f", "origin", "master"],
             cwd=f"{folder_name}/{pj_path}",
         )
     else:
-        subprocess.call(
-            ["git", "push", "-u", "origin", "master"], cwd=f"{folder_name}/{pj_path}"
-        )
+        subprocess.call(["git", "push", "-u", "origin", "master"], cwd=f"{folder_name}/{pj_path}")
     # Too lazy to handle file deleting issue on Windows, just keep the garbage there
     try:
         shutil.rmtree(f"{folder_name}/{pj_path}", ignore_errors=True)
@@ -576,19 +527,14 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
             soft_key_and_status = {
                 "key": yaml_stage["key"],
                 "name": yaml_stage["name"],
-                "enable": "branches" in yaml_stage
-                and branch.name in yaml_stage["branches"],
+                "enable": "branches" in yaml_stage and branch.name in yaml_stage["branches"],
             }
             if soft_key_and_status not in testing_tools:
                 if all_data:
                     tem_soft_key_and_status = soft_key_and_status.copy()
-                    tem_soft_key_and_status["enable"] = not tem_soft_key_and_status[
-                        "enable"
-                    ]
+                    tem_soft_key_and_status["enable"] = not tem_soft_key_and_status["enable"]
                     if tem_soft_key_and_status in testing_tools:
-                        duplicate_tools.setdefault(
-                            f'{yaml_stage["key"]},{yaml_stage["name"]}', []
-                        ).append(branch.name)
+                        duplicate_tools.setdefault(f'{yaml_stage["key"]},{yaml_stage["name"]}', []).append(branch.name)
                 testing_tools.append(soft_key_and_status)
         out[branch.name]["testing_tools"] = testing_tools
         if disable_list != []:
@@ -635,9 +581,7 @@ def get_tool_name(stage):
         if stage["name"].startswith("Test--SonarQube for Java"):
             tool_name = "sonarqube"
         else:
-            tool_name = (
-                stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
-            )
+            tool_name = stage.get("steps")[0].get("applyAppConfig", {}).get("catalogTemplate")
             if tool_name is not None:
                 tool_name = tool_name.split(":")[1].replace("iii-dev-charts3-", "")
                 if tool_name == "web":
@@ -696,9 +640,7 @@ def update_branches(stage, pipline_soft, branch, enable_key_name, exist_branches
     return had_update_branche
 
 
-def tm_update_pipline_branches(
-    user_account, repository_id, data, default=True, run=False
-):
+def tm_update_pipline_branches(user_account, repository_id, data, default=True, run=False):
     if run is None:
         run = False
     pj = gl.projects.get(repository_id)
@@ -714,9 +656,7 @@ def tm_update_pipline_branches(
     pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
     if pipe_yaml_file_name is None:
         return
-    f = rs_gitlab.gl_get_file_from_lib(
-        repository_id, pipe_yaml_file_name, branch_name=default_branch
-    )
+    f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=default_branch)
     default_pipe_json = yaml.safe_load(f.decode())
     for stage in default_pipe_json["stages"]:
         if default:
@@ -766,13 +706,7 @@ def tm_update_pipline_branches(
         )
 
     # Rest of branches
-    rest_branch_names = sorted(
-        [
-            br
-            for br in all_branches
-            if br not in need_running_branches + [default_branch]
-        ]
-    )
+    rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches + [default_branch]])
     thread = threading.Thread(
         target=sync_branches,
         args=(
@@ -786,13 +720,9 @@ def tm_update_pipline_branches(
     thread.start()
 
 
-def sync_branches(
-    user_account, repository_id, pipe_yaml_file_name, br_name_list, default_pipe_json
-):
+def sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name_list, default_pipe_json):
     for br_name in br_name_list:
-        sync_branch(
-            user_account, repository_id, pipe_yaml_file_name, br_name, default_pipe_json
-        )
+        sync_branch(user_account, repository_id, pipe_yaml_file_name, br_name, default_pipe_json)
 
 
 def sync_branch(
@@ -803,9 +733,7 @@ def sync_branch(
     updated_pipe_json,
     not_run=True,
 ):
-    f = rs_gitlab.gl_get_file_from_lib(
-        repository_id, pipe_yaml_file_name, branch_name=br_name
-    )
+    f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br_name)
     pipe_json = yaml.safe_load(f.decode())
     had_update_branche = pipe_json != updated_pipe_json
     pipe_json = updated_pipe_json
@@ -833,11 +761,7 @@ def initial_rancher_pipline_info(repository_id):
     except GitlabGetError as e:
         if "Project Not Found" in e.error_message:
             lock_project(
-                nexus.nx_get_project(
-                    id=nexus.nx_get_project_plugin_relation(
-                        repo_id=repository_id
-                    ).project_id
-                ).name,
+                nexus.nx_get_project(id=nexus.nx_get_project_plugin_relation(repo_id=repository_id).project_id).name,
                 "Gitlab",
             )
         raise DevOpsError(
@@ -851,9 +775,7 @@ def initial_rancher_pipline_info(repository_id):
     pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=default_branch)
     if pipe_yaml_name is None:
         return {}
-    f = rs_gitlab.gl_get_file_from_lib(
-        repository_id, pipe_yaml_name, branch_name=default_branch
-    )
+    f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=default_branch)
     return {"default_branch": default_branch, "pipe_dict": yaml.safe_load(f.decode())}
 
 
@@ -902,9 +824,7 @@ def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
         tool = stage["iiidevops"]
 
         software = software_dict.get(tool, None)
-        if software and (
-            not software.get("plugin_disabled") or tool == "deployed-environments"
-        ):
+        if software and (not software.get("plugin_disabled") or tool == "deployed-environments"):
             single_stage["name"] = software["display"]
             single_stage["key"] = software["template_key"]
 
@@ -940,9 +860,7 @@ def update_pj_rancher_pipline(repository_id):
     for br in pj.branches.list(all=True):
         try:
             pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
-            f = rs_gitlab.gl_get_file_from_lib(
-                repository_id, pipe_yaml_name, branch_name=br.name
-            )
+            f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
             pipe_dict = yaml.safe_load(f.decode())
             temp_list = []
             for info in pipe_dict["stages"]:
@@ -955,23 +873,17 @@ def update_pj_rancher_pipline(repository_id):
                         temp_dict.update(info)
                         info = temp_dict
                     else:
-                        catalog_template_value = (
-                            info["steps"][0]
-                            .get("applyAppConfig", {})
-                            .get("catalogTemplate")
-                        )
+                        catalog_template_value = info["steps"][0].get("applyAppConfig", {}).get("catalogTemplate")
                         if catalog_template_value is not None:
-                            catalog_template_value = catalog_template_value.split(":")[
-                                1
-                            ].replace("iii-dev-charts3-", "")
+                            catalog_template_value = catalog_template_value.split(":")[1].replace(
+                                "iii-dev-charts3-", ""
+                            )
                             if catalog_template_value == "web":
                                 catalog_template_value = "deployed-environments"
                             else:
                                 for prefix in ["test-", "scan-"]:
                                     if catalog_template_value.startswith(prefix):
-                                        catalog_template_value = (
-                                            catalog_template_value.replace(prefix, "")
-                                        )
+                                        catalog_template_value = catalog_template_value.replace(prefix, "")
                                         break
                         else:
                             catalog_template_value = "deployed-environments"
@@ -1020,9 +932,7 @@ def update_pj_plugin_status(plugin_name, disable):
         branch_name_list = [br.name for br in pj.branches.list(all=True)]
         for br in pj.branches.list(all=True):
             pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
-            f = rs_gitlab.gl_get_file_from_lib(
-                repository_id, pipe_yaml_name, branch_name=br.name
-            )
+            f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
             pipe_dict = yaml.safe_load(f.decode())
             match = False
             for stage in pipe_dict["stages"]:
@@ -1030,9 +940,7 @@ def update_pj_plugin_status(plugin_name, disable):
                     match = True
                     if "when" not in stage:
                         stage["when"] = {"branch": {"include": []}}
-                    stage_when = (
-                        stage.get("when", {}).get("branch", {}).get("include", {})
-                    )
+                    stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
                     if disable:
                         stage_when.clear()
                         stage_when.append("skip")
@@ -1106,9 +1014,7 @@ class ProjectPipelineBranches(Resource):
         args = parser.parse_args()
         # Remove duplicate args
         for branch, pip_info in args["detail"].items():
-            args["detail"][branch] = [
-                dict(t) for t in {tuple(d.items()) for d in pip_info}
-            ]
+            args["detail"][branch] = [dict(t) for t in {tuple(d.items()) for d in pip_info}]
         # thread = threading.Thread(
         #     target=tm_update_pipline_branches,
         #     args=(get_jwt_identity()["user_account"], repository_id, args["detail"],),
@@ -1137,10 +1043,6 @@ class ProjectPipelineDefaultBranch(Resource):
         args = parser.parse_args()
 
         # Remove duplicate args
-        args["detail"]["stages"] = [
-            dict(t) for t in {tuple(d.items()) for d in args["detail"]["stages"]}
-        ]
-        tm_update_pipline_branches(
-            get_jwt_identity()["user_account"], repository_id, args["detail"]
-        )
+        args["detail"]["stages"] = [dict(t) for t in {tuple(d.items()) for d in args["detail"]["stages"]}]
+        tm_update_pipline_branches(get_jwt_identity()["user_account"], repository_id, args["detail"])
         return util.success()

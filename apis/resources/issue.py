@@ -108,9 +108,18 @@ class NexusIssue:
                 "name": nx_project.name,
                 "display": nx_project.display,
             },
-            "tracker": {"id": redmine_issue["tracker"]["id"], "name": redmine_issue["tracker"]["name"]},
-            "priority": {"id": redmine_issue["priority"]["id"], "name": redmine_issue["priority"]["name"]},
-            "status": {"id": redmine_issue["status"]["id"], "name": redmine_issue["status"]["name"]},
+            "tracker": {
+                "id": redmine_issue["tracker"]["id"],
+                "name": redmine_issue["tracker"]["name"],
+            },
+            "priority": {
+                "id": redmine_issue["priority"]["id"],
+                "name": redmine_issue["priority"]["name"],
+            },
+            "status": {
+                "id": redmine_issue["status"]["id"],
+                "name": redmine_issue["status"]["name"],
+            },
             "relations": [],
         }
         if "start_date" in redmine_issue:
@@ -160,15 +169,22 @@ class NexusIssue:
             "done_ratio": redmine_issue.done_ratio,
             "is_closed": False,
             "issue_link": redmine.rm_build_external_link("/issues/{0}".format(redmine_issue.id)),
-            "tracker": {"id": redmine_issue.tracker.id, "name": redmine_issue.tracker.name},
-            "priority": {"id": redmine_issue.priority.id, "name": redmine_issue.priority.name},
-            "status": {"id": redmine_issue.status.id, "name": redmine_issue.status.name},
+            "tracker": {
+                "id": redmine_issue.tracker.id,
+                "name": redmine_issue.tracker.name,
+            },
+            "priority": {
+                "id": redmine_issue.priority.id,
+                "name": redmine_issue.priority.name,
+            },
+            "status": {
+                "id": redmine_issue.status.id,
+                "name": redmine_issue.status.name,
+            },
             "tags": get_issue_tags(redmine_issue.id),
         }
         if hasattr(redmine_issue, "project"):
-            project_id = nexus.nx_get_project_plugin_relation(
-                rm_project_id=redmine_issue.project.id
-            ).project_id
+            project_id = nexus.nx_get_project_plugin_relation(rm_project_id=redmine_issue.project.id).project_id
             if nx_project is None or project_has_child(project_id) or project_has_parent(project_id):
                 nx_project = model.Project.query.get(project_id)
             self.data["project"] = {
@@ -182,11 +198,7 @@ class NexusIssue:
             self.data["has_children"] = True
         if relationship_bool:
             self.data["family"] = False
-            if (
-                hasattr(redmine_issue, "parent")
-                or redmine_issue.relations.total_count > 0
-                or self.data["has_children"]
-            ):
+            if hasattr(redmine_issue, "parent") or redmine_issue.relations.total_count > 0 or self.data["has_children"]:
                 self.data["family"] = True
         if with_relationship:
             self.data["parent"] = None
@@ -385,9 +397,7 @@ def update_issue_tags(issue_id, tags, plan_operator_id):
         delete_tags = check_tags_diff(origin_tag_list, new_tag_list)
         if delete_tags != {}:
             for tag_id, tag_name in delete_tags.items():
-                personal_redmine_obj.rm_update_issue(
-                    issue_id, {"notes": tags_note_json(tag_id, tag_name, add=False)}
-                )
+                personal_redmine_obj.rm_update_issue(issue_id, {"notes": tags_note_json(tag_id, tag_name, add=False)})
     logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
     return issue_id
@@ -490,7 +500,10 @@ def get_issue_attr_name(detail, value):
                 "kwargs": {"resource": "issue_priorities"},
                 "res_attr": "name",
             },
-            "fixed_version_id": {"func": redmine_lib.redmine.version, "res_attr": "name"},
+            "fixed_version_id": {
+                "func": redmine_lib.redmine.version,
+                "res_attr": "name",
+            },
             "parent_id": {"func": redmine_lib.redmine.issue, "res_attr": "subject"},
         }
         d_name = detail["name"]
@@ -501,7 +514,10 @@ def get_issue_attr_name(detail, value):
                 ret = attr["func"].get(int(value), **kwargs)
             except redminelibError.ResourceNotFoundError:
                 return resource_not_found
-            return {"id": int(value), "name": ret.name if attr["res_attr"] == "name" else ret.subject}
+            return {
+                "id": int(value),
+                "name": ret.name if attr["res_attr"] == "name" else ret.subject,
+            }
         else:
             return value
 
@@ -522,7 +538,14 @@ def dump_by_issue(issue_id):
     if not check_issue_exist(issue_id):
         return util.respond(401, "Issue Not found", error=apiError.issue_not_found(issue_id))
     output = {}
-    tables = ["requirements", "parameters", "flows", "test_cases", "test_items", "test_values"]
+    tables = [
+        "requirements",
+        "parameters",
+        "flows",
+        "test_cases",
+        "test_items",
+        "test_values",
+    ]
     for table in tables:
         output[table] = []
         result = db.engine.execute("SELECT * FROM public.{0} WHERE issue_id={1}".format(table, issue_id))
@@ -575,12 +598,12 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
             if "user" in redmine_output["journals"][i]:
                 user_info = user.get_user_id_name_by_plan_user_id(redmine_output["journals"][i]["user"]["id"])
                 if user_info is not None:
-                    redmine_output["journals"][i]["user"] = {"id": user_info.id, "name": user_info.name}
+                    redmine_output["journals"][i]["user"] = {
+                        "id": user_info.id,
+                        "name": user_info.name,
+                    }
             list_details = []
-            if (
-                "details" in redmine_output["journals"][i]
-                and len(redmine_output["journals"][i]["details"]) > 0
-            ):
+            if "details" in redmine_output["journals"][i] and len(redmine_output["journals"][i]["details"]) > 0:
                 for detail in redmine_output["journals"][i]["details"]:
                     detail_info = {}
                     detail_info["name"] = detail["name"]
@@ -589,17 +612,13 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
                         if detail["old_value"] is not None:
                             user_info = user.get_user_id_name_by_plan_user_id(detail["old_value"])
                             if user_info is not None:
-                                detail_info["old_value"] = {
-                                    "user": {"id": user_info.id, "name": user_info.name}
-                                }
+                                detail_info["old_value"] = {"user": {"id": user_info.id, "name": user_info.name}}
                         else:
                             detail_info["old_value"] = detail["old_value"]
                         if detail["new_value"] is not None:
                             user_info = user.get_user_id_name_by_plan_user_id(detail["new_value"])
                             if user_info is not None:
-                                detail_info["new_value"] = {
-                                    "user": {"id": user_info.id, "name": user_info.name}
-                                }
+                                detail_info["new_value"] = {"user": {"id": user_info.id, "name": user_info.name}}
                         else:
                             detail_info["new_value"] = detail["new_value"]
                     else:
@@ -617,9 +636,7 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
     redmine_output["is_closed"] = False
     if redmine_output["status"]["id"] in closed_status:
         redmine_output["is_closed"] = True
-    redmine_output[
-        "issue_url"
-    ] = f'http://{config.get("DEPLOYMENT_NAME")}/#/project/issues/{redmine_output["id"]}'
+    redmine_output["issue_url"] = f'http://{config.get("DEPLOYMENT_NAME")}/#/project/issues/{redmine_output["id"]}'
     return redmine_output
 
 
@@ -669,9 +686,16 @@ def get_issue_assign_to_detail(issue):
     if hasattr(issue_obj, "assigned_to"):
         user_relation = nexus.nx_get_user_plugin_relation(plan_user_id=issue_obj.assigned_to.id)
         user = model.User.query.get(user_relation.user_id)
-        issue_detail["assigned_to"] = {"id": user.id, "name": user.name, "login": user.login}
+        issue_detail["assigned_to"] = {
+            "id": user.id,
+            "name": user.name,
+            "login": user.login,
+        }
     if hasattr(issue_obj, "tracker"):
-        issue_detail["tracker"] = {"id": issue_obj.tracker.id, "name": issue_obj.tracker.name}
+        issue_detail["tracker"] = {
+            "id": issue_obj.tracker.id,
+            "name": issue_obj.tracker.name,
+        }
     if hasattr(issue_obj, "subject"):
         issue_detail["name"] = issue_obj.subject
     return issue_detail
@@ -788,10 +812,14 @@ def create_issue(args, operator_id):
         ws_output_list.append(ws_common_response(args["parent_issue_id"]))
 
     main_pj_id = main_output["project"]["id"]
-    for pj_id in (
-        get_all_fathers_project(main_pj_id, []) + [main_pj_id] + get_all_sons_project(main_pj_id, [])
-    ):
-        emit("add_issue", ws_output_list, namespace="/issues/websocket", to=pj_id, broadcast=True)
+    for pj_id in get_all_fathers_project(main_pj_id, []) + [main_pj_id] + get_all_sons_project(main_pj_id, []):
+        emit(
+            "add_issue",
+            ws_output_list,
+            namespace="/issues/websocket",
+            to=pj_id,
+            broadcast=True,
+        )
 
     logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
@@ -925,7 +953,9 @@ def get_all_sons(project_id: int, fix_version_ids: str) -> list[dict[str, Any]]:
         ]
 
     all_issues = get_issue_list_by_project_helper(
-        project_id, {"fixed_version_id": fixed_version_id}, operator_id=get_jwt_identity()["user_id"]
+        project_id,
+        {"fixed_version_id": fixed_version_id},
+        operator_id=get_jwt_identity()["user_id"],
     )
     all_issues_mapping = {str(all_issue["id"]): all_issue for all_issue in all_issues}
     all_issues_ids = list(all_issues_mapping.keys())
@@ -948,7 +978,9 @@ def get_all_sons(project_id: int, fix_version_ids: str) -> list[dict[str, Any]]:
     missing_issues = list(set(a_exist_issues_ids) - set(all_issues_ids))
     if missing_issues:
         all_issues = get_issue_list_by_project_helper(
-            project_id, {"issue_id": ",".join(missing_issues)}, operator_id=get_jwt_identity()["user_id"]
+            project_id,
+            {"issue_id": ",".join(missing_issues)},
+            operator_id=get_jwt_identity()["user_id"],
         )
         all_issues_mapping.update({str(all_issue["id"]): all_issue for all_issue in all_issues})
 
@@ -959,16 +991,13 @@ def add_issue_info_helper(id, son_ids, issud_id_info_mapping):
     if son_ids == {}:
         return issud_id_info_mapping[id]
     issud_id_info_mapping[id]["children"] = [
-        add_issue_info_helper(son_id, son_son_ids, issud_id_info_mapping)
-        for son_id, son_son_ids in son_ids.items()
+        add_issue_info_helper(son_id, son_son_ids, issud_id_info_mapping) for son_id, son_son_ids in son_ids.items()
     ]
     return issud_id_info_mapping[id]
 
 
 def add_issue_info(redis_mapping, issud_id_info_mapping):
-    return [
-        add_issue_info_helper(id, son_ids, issud_id_info_mapping) for id, son_ids in redis_mapping.items()
-    ]
+    return [add_issue_info_helper(id, son_ids, issud_id_info_mapping) for id, son_ids in redis_mapping.items()]
 
 
 def update_issue(issue_id, args, operator_id=None):
@@ -1023,9 +1052,7 @@ def update_issue(issue_id, args, operator_id=None):
                     error=apiError.invalid_fixed_version_id(version.name, version.status),
                 )
             else:
-                origin_fixed_version_id = (
-                    None if not hasattr(issue, "fixed_version") else issue.fixed_version.id
-                )
+                origin_fixed_version_id = None if not hasattr(issue, "fixed_version") else issue.fixed_version.id
         else:
             args["fixed_version_id"] = None
     if "parent_id" in args:
@@ -1048,9 +1075,7 @@ def update_issue(issue_id, args, operator_id=None):
     if "assigned_to_id" in args and len(args["assigned_to_id"]) > 0:
         user_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=int(args["assigned_to_id"]))
         if hasattr(issue, "assigned_to") and issue.assigned_to.id != user_plugin_relation.plan_user_id:
-            origin_assigned_to_id = nexus.nx_get_user_plugin_relation(
-                plan_user_id=issue.assigned_to.id
-            ).user_id
+            origin_assigned_to_id = nexus.nx_get_user_plugin_relation(plan_user_id=issue.assigned_to.id).user_id
         args["assigned_to_id"] = user_plugin_relation.plan_user_id
 
         # close all issue
@@ -1088,7 +1113,10 @@ def update_issue(issue_id, args, operator_id=None):
         update_pj_issue_calc(pj_id, closed_count=1)
 
     main_output = ws_common_response(
-        issue_id, extension_args=extension_args, tags=tags, plan_operator_id=plan_operator_id
+        issue_id,
+        extension_args=extension_args,
+        tags=tags,
+        plan_operator_id=plan_operator_id,
     )
     if origin_parent_id is not None:
         main_output["origin_parent_id"] = origin_parent_id
@@ -1103,10 +1131,14 @@ def update_issue(issue_id, args, operator_id=None):
             ws_output_list.append(ws_common_response(origin_parent_id))
 
     main_pj_id = main_output["project"]["id"]
-    for pj_id in (
-        get_all_fathers_project(main_pj_id, []) + [main_pj_id] + get_all_sons_project(main_pj_id, [])
-    ):
-        emit("update_issue", ws_output_list, namespace="/issues/websocket", to=pj_id, broadcast=True)
+    for pj_id in get_all_fathers_project(main_pj_id, []) + [main_pj_id] + get_all_sons_project(main_pj_id, []):
+        emit(
+            "update_issue",
+            ws_output_list,
+            namespace="/issues/websocket",
+            to=pj_id,
+            broadcast=True,
+        )
     logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
     del personal_redmine_obj
     return main_output
@@ -1139,10 +1171,14 @@ def delete_issue(issue_id, delete_excalidraw=False):
         delete_issue_extensions(issue_id)
         delete_issue_tags(issue_id)
 
-        for pj_id in (
-            get_all_fathers_project(project_id, []) + [project_id] + get_all_sons_project(project_id, [])
-        ):
-            emit("delete_issue", {"id": issue_id}, namespace="/issues/websocket", to=pj_id, broadcast=True)
+        for pj_id in get_all_fathers_project(project_id, []) + [project_id] + get_all_sons_project(project_id, []):
+            emit(
+                "delete_issue",
+                {"id": issue_id},
+                namespace="/issues/websocket",
+                to=pj_id,
+                broadcast=True,
+            )
     except DevOpsError as e:
         print(e.status_code)
         if e.status_code == 404:
@@ -1182,7 +1218,11 @@ def get_issue_by_project(project_id, args):
         nx_project = NexusProject().set_project_id(project_id)
         plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
     except NoResultFound:
-        raise DevOpsError(404, "Error while getting issues", error=apiError.project_not_found(project_id))
+        raise DevOpsError(
+            404,
+            "Error while getting issues",
+            error=apiError.project_not_found(project_id),
+        )
     output_array = []
     redmine_output_issue_array = redmine.rm_get_issues_by_project(plan_id, args)
     for redmine_issue in redmine_output_issue_array:
@@ -1209,7 +1249,11 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         nx_issue_params["nx_project"] = nx_project
         plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
     except NoResultFound:
-        raise DevOpsError(404, "Error while getting issues", error=apiError.project_not_found(project_id))
+        raise DevOpsError(
+            404,
+            "Error while getting issues",
+            error=apiError.project_not_found(project_id),
+        )
 
     default_filters = get_custom_filters_by_args(args, project_id=plan_id, children=True)
     # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
@@ -1259,12 +1303,20 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         project_id = nexus.nx_get_project_plugin_relation(rm_project_id=issue["project"]["id"]).project_id
         if project_has_child(project_id) or project_has_parent(project_id):
             nx_project = model.Project.query.get(project_id)
-        issue["project"] = {"id": nx_project.id, "name": nx_project.name, "display": nx_project.display}
+        issue["project"] = {
+            "id": nx_project.id,
+            "name": nx_project.name,
+            "display": nx_project.display,
+        }
 
         if issue.get("assigned_to") is not None:
             for user_info in users_info:
                 if user_info[3] == issue["assigned_to"]["id"]:
-                    issue["assigned_to"] = {"id": user_info[0], "name": user_info[1], "login": user_info[2]}
+                    issue["assigned_to"] = {
+                        "id": user_info[0],
+                        "name": user_info[1],
+                        "login": user_info[2],
+                    }
                     break
         else:
             issue["assigned_to"] = {}
@@ -1365,7 +1417,11 @@ def get_issue_by_tree_by_project(project_id):
         nx_project = NexusProject().set_project_id(project_id)
         plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
     except NoResultFound:
-        raise DevOpsError(404, "Error while getting issues", error=apiError.project_not_found(project_id))
+        raise DevOpsError(
+            404,
+            "Error while getting issues",
+            error=apiError.project_not_found(project_id),
+        )
     default_filters = get_custom_filters_by_args(project_id=plan_id)
     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
     users_info = user.get_all_user_info()
@@ -1373,7 +1429,10 @@ def get_issue_by_tree_by_project(project_id):
         tree[redmine_issue.id] = (
             NexusIssue()
             .set_redmine_issue_v2(
-                redmine_issue, with_relationship=True, nx_project=nx_project, users_info=users_info
+                redmine_issue,
+                with_relationship=True,
+                nx_project=nx_project,
+                users_info=users_info,
             )
             .to_json()
         )
@@ -1469,9 +1528,7 @@ def handle_allowed_keywords(default_filters, args):
                     filter_users = args[key].split("|")
                     filter_users.remove("null")
                     filter_users = [int(filter_user) for filter_user in filter_users]
-                    all_users = [
-                        user["id"] for user in user_list_by_project(args["project_id"], {"exclude": None})
-                    ]
+                    all_users = [user["id"] for user in user_list_by_project(args["project_id"], {"exclude": None})]
                     except_users = [
                         str(validate_plan_user_id(int(all_user)))
                         for all_user in all_users
@@ -1488,9 +1545,7 @@ def handle_allowed_keywords(default_filters, args):
                 if "null" in args[key]:
                     filter_versions = args[key].split("|")
                     filter_versions.remove("null")
-                    all_versions = get_all_id(
-                        redmine_lib.redmine.project.get(default_filters["project_id"]).versions
-                    )
+                    all_versions = get_all_id(redmine_lib.redmine.project.get(default_filters["project_id"]).versions)
                     except_versions = [
                         all_version for all_version in all_versions if all_version not in filter_versions
                     ]
@@ -1562,7 +1617,10 @@ def get_issue_assigned_to_search(default_filters, args):
         db.session.query(model.UserPluginRelation)
         .join(model.User, model.ProjectUserRole)
         .filter(
-            or_(model.User.login.ilike(f'%{args["search"]}%'), model.User.name.ilike(f'%{args["search"]}%')),
+            or_(
+                model.User.login.ilike(f'%{args["search"]}%'),
+                model.User.name.ilike(f'%{args["search"]}%'),
+            ),
             model.ProjectUserRole.role_id != 6,
         )
         .all()
@@ -1578,9 +1636,7 @@ def get_issue_assigned_to_search(default_filters, args):
                 else:
                     all_issues = redmine_lib.redmine.issue.filter(**default_filters)
             else:
-                all_issues = redmine_lib.redmine.issue.filter(
-                    **default_filters, assigned_to_id=nx_user.plan_user_id
-                )
+                all_issues = redmine_lib.redmine.issue.filter(**default_filters, assigned_to_id=nx_user.plan_user_id)
             assigned_to_issue.extend([issue.id for issue in all_issues])
     return assigned_to_issue
 
@@ -1694,7 +1750,11 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
         nx_project = NexusProject().set_project_id(project_id)
         plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
     except NoResultFound:
-        raise DevOpsError(404, "Error while getting issues", error=apiError.project_not_found(project_id))
+        raise DevOpsError(
+            404,
+            "Error while getting issues",
+            error=apiError.project_not_found(project_id),
+        )
     # redmine issue filter 參數，fixed_version_id 為 optional
     filters = {"project_id": plan_id, "status_id": "*"}
     if args.get("fixed_version_id"):
@@ -1706,9 +1766,7 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
     elif statistics:
         output_keys = ["assigned_to", "priority", "tracker", "tags"]
         # output_values 格式: {'xxxx': { "Active": 0, "Assigned": 0, "InProgress": 0 ..... }}
-        output_values = defaultdict(
-            lambda: defaultdict(dict, {status: 0 for status in issue_status.values()})
-        )
+        output_values = defaultdict(lambda: defaultdict(dict, {status: 0 for status in issue_status.values()}))
         output = {key: output_values.copy() for key in output_keys}
         calculate_issue_statistics(filters, issue_status, output_keys, output, args)
     return output
@@ -1863,7 +1921,10 @@ def handle_issue_trackers(func):
             project_issue_check = model.ProjectIssueCheck.query.filter_by(project_id=project_id).first()
             if project_issue_check is not None and project_issue_check.enable:
                 ret = list(
-                    filter(lambda x: int(x["id"]) not in project_issue_check.need_fatherissue_trackers, ret)
+                    filter(
+                        lambda x: int(x["id"]) not in project_issue_check.need_fatherissue_trackers,
+                        ret,
+                    )
                 )
         return ret
 
@@ -1998,7 +2059,11 @@ def deal_with_json_string(json_string):
 
 
 def deal_with_parameters(sql_row):
-    output = {"id": sql_row.id, "name": sql_row.name, "parameter_type_id": sql_row.parameter_type_id}
+    output = {
+        "id": sql_row.id,
+        "name": sql_row.name,
+        "parameter_type_id": sql_row.parameter_type_id,
+    }
     parameter_type_id = str(sql_row.parameter_type_id)
     output["parameter_type"] = "None"
     if parameter_type_id in PARAMETER_TYPES:
@@ -2116,11 +2181,7 @@ def modify_flow_by_flow_id(flow_id, args):
 
 
 def get_flow_by_requirement_id(requirement_id):
-    rows = (
-        model.Flows.query.filter_by(requirement_id=requirement_id)
-        .filter(model.Flows.disabled.isnot(True))
-        .all()
-    )
+    rows = model.Flows.query.filter_by(requirement_id=requirement_id).filter(model.Flows.disabled.isnot(True)).all()
     output = []
     for row in rows:
         output.append(deal_with_flow_object(row))
@@ -2189,11 +2250,7 @@ def modify_requirement_by_rqmt_id(requirement_id, args):
 
 
 def get_requirements_by_issue_id(issue_id):
-    rows = (
-        model.Requirements.query.filter_by(issue_id=issue_id)
-        .filter(model.Requirements.disabled.isnot(True))
-        .all()
-    )
+    rows = model.Requirements.query.filter_by(issue_id=issue_id).filter(model.Requirements.disabled.isnot(True)).all()
     output = []
     for row in rows:
         output.append(json.loads(row.flow_info))
@@ -2214,9 +2271,7 @@ def post_requirement_by_issue_id(issue_id, args):
 
 def get_requirements_by_project_id(project_id):
     rows = (
-        model.Requirements.query.filter_by(project_id=project_id)
-        .filter(model.Requirements.disabled.isnot(True))
-        .all()
+        model.Requirements.query.filter_by(project_id=project_id).filter(model.Requirements.disabled.isnot(True)).all()
     )
     output = []
     for row in rows:
@@ -2372,39 +2427,30 @@ def execute_issue_alert(alert_mapping):
                                 if delta.days <= 0:
                                     note = common_note
                                     alert_unchange_record.before_update_time = update_time
-                                    alert_unchange_record.after_update_time = util.get_certain_date_from_now(
-                                        0
-                                    )
+                                    alert_unchange_record.after_update_time = util.get_certain_date_from_now(0)
                                     db.session.commit()
                             else:
                                 if alert_unchange_record.after_update_time == update_time:
-                                    delta = (
-                                        alert_unchange_record.before_update_time
-                                        - util.get_certain_date_from_now(days)
+                                    delta = alert_unchange_record.before_update_time - util.get_certain_date_from_now(
+                                        days
                                     )
                                     if delta.days <= 0:
                                         note = common_note
-                                        alert_unchange_record.after_update_time = (
-                                            util.get_certain_date_from_now(0)
-                                        )
+                                        alert_unchange_record.after_update_time = util.get_certain_date_from_now(0)
                                         db.session.commit()
                                 else:
                                     delta = update_time - util.get_certain_date_from_now(days)
                                     if delta.days <= 0:
                                         note = common_note
                                         alert_unchange_record.before_update_time = update_time
-                                        alert_unchange_record.after_update_time = (
-                                            util.get_certain_date_from_now(0)
-                                        )
+                                        alert_unchange_record.after_update_time = util.get_certain_date_from_now(0)
                                     else:
                                         alert_unchange_record.before_update_time = None
                                     db.session.commit()
                     if condition == "comming":
                         if issue.get("due_date") is None:
                             continue
-                        delta = util.get_certain_date_from_now(-days) - datetime.strptime(
-                            issue["due_date"], "%Y-%m-%d"
-                        )
+                        delta = util.get_certain_date_from_now(-days) - datetime.strptime(issue["due_date"], "%Y-%m-%d")
                         if delta.days >= 0:
                             d_day = days - delta.days
                             if d_day >= 0:
@@ -2533,11 +2579,7 @@ class DownloadIssueAsExcel:
 
             if column["field"] == "fixed_version":
                 result.update(
-                    {
-                        column["display"]: value["fixed_version"]["name"]
-                        if value["fixed_version"] != {}
-                        else ""
-                    }
+                    {column["display"]: value["fixed_version"]["name"] if value["fixed_version"] != {} else ""}
                 )
             if column["field"] == "StartDate":
                 result.update({column["display"]: value["start_date"]})
@@ -2549,9 +2591,7 @@ class DownloadIssueAsExcel:
                 result.update({column["display"]: value["priority"]["name"]})
 
             if column["field"] == "assigned_to":
-                result.update(
-                    {column["display"]: value["assigned_to"]["name"] if value["assigned_to"] != {} else ""}
-                )
+                result.update({column["display"]: value["assigned_to"]["name"] if value["assigned_to"] != {} else ""})
             if column["field"] == "DoneRatio":
                 result.update({column["display"]: value["done_ratio"]})
             if column["field"] == "points":
@@ -2608,9 +2648,7 @@ def sync_issue_relation():
                 for issue in all_issues:
                     if issue.get("parent") is not None:
                         parent_id = issue["parent"]["id"]
-                        issue_family[parent_id] = handle_sync_son_issue(
-                            issue_family.get(parent_id), str(issue["id"])
-                        )
+                        issue_family[parent_id] = handle_sync_son_issue(issue_family.get(parent_id), str(issue["id"]))
             except:
                 continue
 
@@ -3159,9 +3197,7 @@ class ExecuteIssueAlert(Resource):
         alerts = model.Alert.query.filter_by(disabled=False)
         alerts = [alert for alert in alerts if model.Project.query.get(alert.project_id).alert]
         for alert in alerts:
-            alert_mapping.setdefault(alert.project_id, []).append(
-                {"condition": alert.condition, "days": alert.days}
-            )
+            alert_mapping.setdefault(alert.project_id, []).append({"condition": alert.condition, "days": alert.days})
 
         return util.success(execute_issue_alert(alert_mapping))
 

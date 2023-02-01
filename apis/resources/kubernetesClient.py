@@ -22,42 +22,38 @@ from resources.logger import logger
 
 # kubernetes 抓取 III 定義 annotations 標籤
 iii_template = {
-    'project_name': 'iiidevops.org/project_name',
-    'branch': 'iiidevops.org/branch',
-    'commit_id': 'iiidevops.org/commit_id',
-    'type': 'iiidevops.org/type'
+    "project_name": "iiidevops.org/project_name",
+    "branch": "iiidevops.org/branch",
+    "commit_id": "iiidevops.org/commit_id",
+    "type": "iiidevops.org/type",
 }
 
 system_parameter = read_json_file("apis/resources/maintenance/system_parameter.json")
 iii_env_default = system_parameter["secret"] + system_parameter["registry"]
 
-env_normal_type = ['Opaque']
+env_normal_type = ["Opaque"]
 
-DEFAULT_NAMESPACE = 'default'
-SYSTEM_SECRET_NAMESPACE = 'iiidevops-env-secret'
-CRONJOB_WHITELIST = ['anchore-grypedb-update-job-by-day']
+DEFAULT_NAMESPACE = "default"
+SYSTEM_SECRET_NAMESPACE = "iiidevops-env-secret"
+CRONJOB_WHITELIST = ["anchore-grypedb-update-job-by-day"]
 
 
 class ApiK8sClient:
     def __init__(self, configuration=None, configuration_file=None):
         if configuration_file is not None:
-            configuration = k8s_config.load_kube_config(
-                config_file=configuration_file)
+            configuration = k8s_config.load_kube_config(config_file=configuration_file)
         elif configuration is None:
             configuration = k8s_config.load_kube_config()
 
         self.configuration = configuration
         self.api_k8s_client = k8s_client.ApiClient(configuration=configuration)
         self.core_v1 = k8s_client.CoreV1Api(self.api_k8s_client)
-        self.rbac_auth_v1 = k8s_client.RbacAuthorizationV1Api(
-            self.api_k8s_client)
+        self.rbac_auth_v1 = k8s_client.RbacAuthorizationV1Api(self.api_k8s_client)
         self.app_v1 = k8s_client.AppsV1Api(self.api_k8s_client)
-        self.extensions_v1beta1 = k8s_client.ExtensionsV1beta1Api(
-            self.api_k8s_client)
+        self.extensions_v1beta1 = k8s_client.ExtensionsV1beta1Api(self.api_k8s_client)
         self.batch_v1beta1 = k8s_client.BatchV1beta1Api(self.api_k8s_client)
         self.batch_v1 = k8s_client.BatchV1Api(self.api_k8s_client)
-        self.network_v1beta1 = k8s_client.NetworkingV1beta1Api(
-            self.api_k8s_client)
+        self.network_v1beta1 = k8s_client.NetworkingV1beta1Api(self.api_k8s_client)
         # 20230118 為取得 storage class 資訊而新增下列一行程式
         self.storage_v1 = k8s_client.StorageV1Api(self.api_k8s_client)
         # 20230118 為取得 storage class 資訊而新增上列一行程式
@@ -80,32 +76,28 @@ class ApiK8sClient:
 
     def read_namespaced_ingress(self, name, namespace):
         try:
-            return self.network_v1beta1.read_namespaced_ingress(
-                name, namespace)
+            return self.network_v1beta1.read_namespaced_ingress(name, namespace)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
     def create_namespaced_ingress(self, namespace, body):
         try:
-            return self.network_v1beta1.create_namespaced_ingress(
-                namespace, body)
+            return self.network_v1beta1.create_namespaced_ingress(namespace, body)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
     def patch_namespaced_ingress(self, name, namespace, body):
         try:
-            return self.network_v1beta1.patch_namespaced_ingress(
-                name, namespace, body)
+            return self.network_v1beta1.patch_namespaced_ingress(name, namespace, body)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
     def delete_namespaced_ingress(self, name, namespace):
         try:
-            return self.network_v1beta1.delete_namespaced_ingress(
-                name, namespace)
+            return self.network_v1beta1.delete_namespaced_ingress(name, namespace)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
@@ -142,8 +134,7 @@ class ApiK8sClient:
 
     def patch_namespaced_config_map(self, name, namespace, body):
         try:
-            return self.core_v1.patch_namespaced_config_map(
-                name, namespace, body)
+            return self.core_v1.patch_namespaced_config_map(name, namespace, body)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
@@ -179,8 +170,7 @@ class ApiK8sClient:
 
     def patch_namespaced_secret(self, secret_name, namespace, body):
         try:
-            return self.core_v1.patch_namespaced_secret(
-                secret_name, namespace, body)
+            return self.core_v1.patch_namespaced_secret(secret_name, namespace, body)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
@@ -260,8 +250,7 @@ class ApiK8sClient:
 
     def patch_namespaced_deployment(self, name, namespace, body):
         try:
-            return self.app_v1.patch_namespaced_deployment(
-                name, namespace, body)
+            return self.app_v1.patch_namespaced_deployment(name, namespace, body)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
@@ -297,12 +286,10 @@ class ApiK8sClient:
 
     def read_namespaced_pod_log(self, name, namespace, container=None):
         try:
-            return self.core_v1.read_namespaced_pod_log(name,
-                                                        namespace,
-                                                        container=container)
+            return self.core_v1.read_namespaced_pod_log(name, namespace, container=container)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
-                raise apiError.error_3rd_party_api('kubernetes', e)
+                raise apiError.error_3rd_party_api("kubernetes", e)
 
     def read_namespaced_pod_status(self, name, namespace):
         try:
@@ -343,16 +330,14 @@ class ApiK8sClient:
 
     def create_namespaced_role_binding(self, namespace=None, body=None):
         try:
-            return self.rbac_auth_v1.create_namespaced_role_binding(
-                namespace=namespace, body=body)
+            return self.rbac_auth_v1.create_namespaced_role_binding(namespace=namespace, body=body)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
     def delete_namespaced_role_binding(self, role_binding_name, namespace):
         try:
-            return self.rbac_auth_v1.delete_namespaced_role_binding(
-                role_binding_name, namespace)
+            return self.rbac_auth_v1.delete_namespaced_role_binding(role_binding_name, namespace)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
@@ -375,17 +360,14 @@ class ApiK8sClient:
 
     def create_namespaced_resource_quota(self, namespace, resource_quota):
         try:
-            return self.core_v1.create_namespaced_resource_quota(
-                namespace, resource_quota)
+            return self.core_v1.create_namespaced_resource_quota(namespace, resource_quota)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
-    def replace_namespaced_resource_quota(self, name, namespace,
-                                          namespace_quota):
+    def replace_namespaced_resource_quota(self, name, namespace, namespace_quota):
         try:
-            return self.core_v1.replace_namespaced_resource_quota(
-                name, namespace, namespace_quota)
+            return self.core_v1.replace_namespaced_resource_quota(name, namespace, namespace_quota)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
@@ -393,8 +375,7 @@ class ApiK8sClient:
     # namespace limit Range
     def create_namespaced_limit_range(self, namespace, resource_quota):
         try:
-            return self.core_v1.create_namespaced_limit_range(
-                namespace, resource_quota)
+            return self.core_v1.create_namespaced_limit_range(namespace, resource_quota)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
@@ -417,24 +398,21 @@ class ApiK8sClient:
 
     def create_namespaced_service_account(self, namespace, body):
         try:
-            return self.core_v1.create_namespaced_service_account(
-                namespace, body)
+            return self.core_v1.create_namespaced_service_account(namespace, body)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
     def read_namespaced_service_account(self, name, namespace):
         try:
-            return self.core_v1.read_namespaced_service_account(
-                name, namespace)
+            return self.core_v1.read_namespaced_service_account(name, namespace)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
     def delete_namespaced_service_account(self, name, namespace):
         try:
-            return self.core_v1.delete_namespaced_service_account(
-                name, namespace)
+            return self.core_v1.delete_namespaced_service_account(name, namespace)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
@@ -483,7 +461,6 @@ class ApiK8sClient:
             return self.batch_v1.read_namespaced_job(name, namespace)
         except Exception as e:
             print(e)
-
 
     def list_namespaced_job(self, namespace):
         try:
@@ -554,6 +531,7 @@ class ApiK8sClient:
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
+
     # 20230118 為取得 storage class 資訊而新增上列一段程式
 
 
@@ -568,6 +546,8 @@ def get_storage_class_info(storage_class):
     output["reclaim_policy"] = storage_class.reclaim_policy
     output["volume_binding_mode"] = storage_class.volume_binding_mode
     return output
+
+
 # 20230118 為取得 storage class 資訊而新增上列一段程式
 
 
@@ -588,16 +568,16 @@ def apply_cronjob_yamls():
             still_has_cj = cronjob_name in get_k8s_cronjob_name_list(api_k8s_client)
             retry += 1
         if retry >= MAX_RETRY_APPLY_CRONJOB:
-            logger.critical(
-                f'Cannot delete existing cronjob {cronjob_name}!'
-                f' Cronjob is not applied.')
+            logger.critical(f"Cannot delete existing cronjob {cronjob_name}!" f" Cronjob is not applied.")
 
     api_k8s_client = ApiK8sClient()
     k8s_cronjob_name_list = get_k8s_cronjob_name_list(api_k8s_client)
     logger.info(f"Exist cronjob list {k8s_cronjob_name_list}")
     need_removed_cronjob_list = [
-        need_removed_cronjob for need_removed_cronjob in k8s_cronjob_name_list  \
-        if need_removed_cronjob not in CRONJOB_WHITELIST]
+        need_removed_cronjob
+        for need_removed_cronjob in k8s_cronjob_name_list
+        if need_removed_cronjob not in CRONJOB_WHITELIST
+    ]
 
     # Recreate cronjob
     for root, _, files in os.walk("k8s-yaml/api-init/cronjob"):
@@ -607,7 +587,7 @@ def apply_cronjob_yamls():
                     json_file = yaml.safe_load(f)
                     cronjob_name = json_file["metadata"]["name"]
                     logger.info(f"Remove {cronjob_name}")
-                    
+
                     if cronjob_name in k8s_cronjob_name_list:
                         need_removed_cronjob_list.remove(cronjob_name)
                         remove_cronjob()
@@ -624,10 +604,10 @@ def apply_cronjob_yamls():
                     k8s_utils.create_from_yaml(api_k8s_client.get_api_client(), os.path.join(root, file))
                     logger.info(f"Recreate {cronjob_name} done")
                 except k8s_utils.FailToCreateError as e:
-                    print('e1')
+                    print("e1")
                     info = json.loads(e.api_exceptions[0].body)
-                    print(f'e2 {info}')
-                    if info.get('reason').lower() != 'alreadyexists':
+                    print(f"e2 {info}")
+                    if info.get("reason").lower() != "alreadyexists":
                         raise e
 
     logger.info(f"Need remove cronjob list {need_removed_cronjob_list}")
@@ -639,24 +619,33 @@ def apply_cronjob_yamls():
 def list_service_all_namespaces():
     list_services = []
     for service in ApiK8sClient().list_service_for_all_namespaces().items:
-        logger.info("{0}, {1}, {2}, {3}".format(
-            service.metadata.name, service.metadata.namespace,
-            service.spec.type, service.spec.ports[0].node_port))
+        logger.info(
+            "{0}, {1}, {2}, {3}".format(
+                service.metadata.name,
+                service.metadata.namespace,
+                service.spec.type,
+                service.spec.ports[0].node_port,
+            )
+        )
         list_ports = []
         for port in service.spec.ports:
-            list_ports.append({
-                "nodePort": port.node_port,
-                "protocol": port.protocol,
-                "target_port": port.target_port,
-                "name": port.name,
-                "port": port.port
-            })
-        list_services.append({
-            "name": service.metadata.name,
-            "namespace": service.metadata.namespace,
-            "type": service.spec.type,
-            "ports": list_ports
-        })
+            list_ports.append(
+                {
+                    "nodePort": port.node_port,
+                    "protocol": port.protocol,
+                    "target_port": port.target_port,
+                    "name": port.name,
+                    "port": port.port,
+                }
+            )
+        list_services.append(
+            {
+                "name": service.metadata.name,
+                "namespace": service.metadata.namespace,
+                "type": service.spec.type,
+                "ports": list_ports,
+            }
+        )
     return list_services
 
 
@@ -677,20 +666,18 @@ def list_work_node():
     for node in ApiK8sClient().list_node().items:
         ip = None
         hostname = None
-        if 'node-role.kubernetes.io/worker' in node.metadata.labels:
-            ip = node.metadata.annotations[
-                'projectcalico.org/IPv4Address'].split('/')[0]
+        if "node-role.kubernetes.io/worker" in node.metadata.labels:
+            ip = node.metadata.annotations["projectcalico.org/IPv4Address"].split("/")[0]
             for address in node.status.addresses:
-                if address.type == 'Hostname':
+                if address.type == "Hostname":
                     hostname = address.address
-            list_nodes.append({
-                "worker":
-                node.metadata.labels['node-role.kubernetes.io/worker'],
-                "ip":
-                ip,
-                "hostname":
-                hostname
-            })
+            list_nodes.append(
+                {
+                    "worker": node.metadata.labels["node-role.kubernetes.io/worker"],
+                    "ip": ip,
+                    "hostname": hostname,
+                }
+            )
     logger.info("list_worknode node_list: {0}".format(list_nodes))
     return list_nodes
 
@@ -702,9 +689,7 @@ def create_iiidevops_env_secret_namespace():
 
 def create_namespace(project_name):
     try:
-        ApiK8sClient().create_namespace(
-            k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(
-                name=project_name)))
+        ApiK8sClient().create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -736,14 +721,13 @@ def delete_namespace(project_name):
 def create_service_account(login_sa_name):
     sa = ApiK8sClient().create_namespaced_service_account(
         "account",
-        k8s_client.V1ServiceAccount(metadata=k8s_client.V1ObjectMeta(
-            name=login_sa_name)))
+        k8s_client.V1ServiceAccount(metadata=k8s_client.V1ObjectMeta(name=login_sa_name)),
+    )
     return sa
 
 
 def delete_service_account(login_sa_name):
-    sa = ApiK8sClient().delete_namespaced_service_account(
-        login_sa_name, "account")
+    sa = ApiK8sClient().delete_namespaced_service_account(login_sa_name, "account")
     return sa
 
 
@@ -762,42 +746,45 @@ def get_service_account_config(sa_name):
         hostname = None
         if "node-role.kubernetes.io/controlplane" in node.metadata.labels:
             for address in node.status.addresses:
-                if address.type == 'InternalIP':
+                if address.type == "InternalIP":
                     ip = address.address
-                elif address.type == 'Hostname':
+                elif address.type == "Hostname":
                     hostname = address.address
-            list_nodes.append({
-                "controlplane":
-                node.metadata.labels['node-role.kubernetes.io/controlplane'],
-                "ip":
-                ip,
-                "hostname":
-                hostname
-            })
-    sa_secrets_name = api_k8s_client.read_namespaced_service_account(
-        sa_name, "account").secrets[0].name
+            list_nodes.append(
+                {
+                    "controlplane": node.metadata.labels["node-role.kubernetes.io/controlplane"],
+                    "ip": ip,
+                    "hostname": hostname,
+                }
+            )
+    sa_secrets_name = api_k8s_client.read_namespaced_service_account(sa_name, "account").secrets[0].name
     if config.get("KUBERNETES_MASTER_DOMAIN") is not None:
         server_ip = str(config.get("KUBERNETES_MASTER_DOMAIN"))
     else:
-        server_ip = str(list_nodes[0]['ip'])
-    sa_secret = api_k8s_client.read_namespaced_secret(sa_secrets_name,
-                                                      "account")
+        server_ip = str(list_nodes[0]["ip"])
+    sa_secret = api_k8s_client.read_namespaced_secret(sa_secrets_name, "account")
     # sa_ca = sa_secret.data['ca.crt']
-    sa_token = str(
-        base64.b64decode(str(sa_secret.data['token'])).decode('utf-8'))
-    sa_config = "apiVersion: v1\nclusters:\n- cluster:\n    insecure-skip-tls-verify: true\n    server: https://" + server_ip + ":6443" + \
-                "\n  name: cluster\ncontexts:\n- context:\n    cluster: cluster\n    user: " + sa_name + "\n  name: default\ncurrent-context: default\nkind: Config\npreferences: {}\nusers:\n- name: " + sa_name + \
-                "\n  user:\n    token: " + sa_token
-    k8s_sa_config = {'name': sa_name, 'config': sa_config}
+    sa_token = str(base64.b64decode(str(sa_secret.data["token"])).decode("utf-8"))
+    sa_config = (
+        "apiVersion: v1\nclusters:\n- cluster:\n    insecure-skip-tls-verify: true\n    server: https://"
+        + server_ip
+        + ":6443"
+        + "\n  name: cluster\ncontexts:\n- context:\n    cluster: cluster\n    user: "
+        + sa_name
+        + "\n  name: default\ncurrent-context: default\nkind: Config\npreferences: {}\nusers:\n- name: "
+        + sa_name
+        + "\n  user:\n    token: "
+        + sa_token
+    )
+    k8s_sa_config = {"name": sa_name, "config": sa_config}
     return k8s_sa_config
 
 
 def get_namespace_quota(namespace):
-    namespace_quota = ApiK8sClient().read_namespaced_resource_quota(
-        "project-quota", namespace)
+    namespace_quota = ApiK8sClient().read_namespaced_resource_quota("project-quota", namespace)
     resource = {
-        'quota': namespace_quota.status.hard,
-        'used': namespace_quota.status.used
+        "quota": namespace_quota.status.hard,
+        "used": namespace_quota.status.used,
     }
     return resource
 
@@ -805,8 +792,7 @@ def get_namespace_quota(namespace):
 def list_namespace_resource_quota(namespace):
     try:
         list_resource_quota = []
-        for limitrange in ApiK8sClient().list_namespaced_resource_quota(
-                namespace).items:
+        for limitrange in ApiK8sClient().list_namespaced_resource_quota(namespace).items:
             list_resource_quota.append(limitrange.metadata.name)
         return list_resource_quota
     except apiError.DevOpsError as e:
@@ -824,12 +810,12 @@ def create_namespace_quota(namespace):
                     "pods": "20",
                     "persistentvolumeclaims": "10",
                     "configmaps": "60",
-                    "services.nodeports": "10"
-                }))
-        resource_quota.metadata = k8s_client.V1ObjectMeta(namespace=namespace,
-                                                          name="project-quota")
-        ApiK8sClient().create_namespaced_resource_quota(
-            namespace, resource_quota)
+                    "services.nodeports": "10",
+                }
+            )
+        )
+        resource_quota.metadata = k8s_client.V1ObjectMeta(namespace=namespace, name="project-quota")
+        ApiK8sClient().create_namespaced_resource_quota(namespace, resource_quota)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -838,11 +824,9 @@ def create_namespace_quota(namespace):
 def update_namespace_quota(namespace, resource):
     try:
         api_k8s_client = ApiK8sClient()
-        namespace_quota = api_k8s_client.read_namespaced_resource_quota(
-            "project-quota", namespace)
+        namespace_quota = api_k8s_client.read_namespaced_resource_quota("project-quota", namespace)
         namespace_quota.spec.hard = resource
-        api_k8s_client.replace_namespaced_resource_quota(
-            "project-quota", namespace, namespace_quota)
+        api_k8s_client.replace_namespaced_resource_quota("project-quota", namespace, namespace_quota)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -851,19 +835,17 @@ def update_namespace_quota(namespace, resource):
 def create_namespace_limitrange(namespace):
     try:
         resource_quota = k8s_client.V1LimitRange(
-            spec=k8s_client.V1LimitRangeSpec(limits=[{
-                "default": {
-                    "memory": "10Gi",
-                    "cpu": 10
-                },
-                "defaultRequest": {
-                    "memory": "64Mi",
-                    "cpu": 0.1
-                },
-                "type": "Container"
-            }]),
-            metadata=k8s_client.V1ObjectMeta(namespace=namespace,
-                                             name="project-limitrange"))
+            spec=k8s_client.V1LimitRangeSpec(
+                limits=[
+                    {
+                        "default": {"memory": "10Gi", "cpu": 10},
+                        "defaultRequest": {"memory": "64Mi", "cpu": 0.1},
+                        "type": "Container",
+                    }
+                ]
+            ),
+            metadata=k8s_client.V1ObjectMeta(namespace=namespace, name="project-limitrange"),
+        )
         ApiK8sClient().create_namespaced_limit_range(namespace, resource_quota)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -873,8 +855,7 @@ def create_namespace_limitrange(namespace):
 def list_limitrange_in_namespace(namespace):
     try:
         list_limitranges = []
-        for limitrange in ApiK8sClient().list_namespaced_limit_range(
-                namespace).items:
+        for limitrange in ApiK8sClient().list_namespaced_limit_range(namespace).items:
             list_limitranges.append(limitrange.metadata.name)
         return list_limitranges
     except apiError.DevOpsError as e:
@@ -883,14 +864,15 @@ def list_limitrange_in_namespace(namespace):
 
 
 def create_role_in_namespace(namespace):
-    rules = [k8s_client.V1PolicyRule(
-        ["*"],
-        resources=["*"],
-        verbs=["*"],
-    )]
+    rules = [
+        k8s_client.V1PolicyRule(
+            ["*"],
+            resources=["*"],
+            verbs=["*"],
+        )
+    ]
     role = k8s_client.V1Role(rules=rules)
-    role.metadata = k8s_client.V1ObjectMeta(namespace=namespace,
-                                            name="user-role")
+    role.metadata = k8s_client.V1ObjectMeta(namespace=namespace, name="user-role")
     try:
         ApiK8sClient().create_namespaced_role(namespace, role)
     except apiError.DevOpsError as e:
@@ -924,21 +906,16 @@ def list_role_binding_in_namespace(namespace):
 def create_role_binding(namespace, sa_name):
     # create ns RoleBinding
     role_binding = k8s_client.V1RoleBinding(
-        metadata=k8s_client.V1ObjectMeta(namespace=namespace,
-                                         name="{0}-rb".format(sa_name)),
-        subjects=[
-            k8s_client.V1Subject(namespace="account",
-                                 name=sa_name,
-                                 kind="ServiceAccount")
-        ],
+        metadata=k8s_client.V1ObjectMeta(namespace=namespace, name="{0}-rb".format(sa_name)),
+        subjects=[k8s_client.V1Subject(namespace="account", name=sa_name, kind="ServiceAccount")],
         role_ref=k8s_client.V1RoleRef(
             kind="Role",
             api_group="rbac.authorization.k8s.io",
             name="user-role",
-        ))
+        ),
+    )
     try:
-        ApiK8sClient().create_namespaced_role_binding(namespace=namespace,
-                                                      body=role_binding)
+        ApiK8sClient().create_namespaced_role_binding(namespace=namespace, body=role_binding)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -946,8 +923,7 @@ def create_role_binding(namespace, sa_name):
 
 def delete_role_binding(namespace, role_binding_name):
     try:
-        ApiK8sClient().delete_namespaced_role_binding(role_binding_name,
-                                                      namespace)
+        ApiK8sClient().delete_namespaced_role_binding(role_binding_name, namespace)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -960,28 +936,23 @@ def list_namespace_pods_info(namespace):
             containers = []
             if pod.status.container_statuses is not None:
                 for container_status in pod.status.container_statuses:
-                    container_status_time = analysis_container_status_time(
-                        container_status)
-                    containers.append({
-                        "name":
-                        container_status.name,
-                        "image":
-                        container_status.image,
-                        "restart":
-                        container_status.restart_count,
-                        "state":
-                        container_status_time['state'],
-                        "time":
-                        container_status_time['status_time']
-                    })
-            list_pods.append({
-                'name':
-                pod.metadata.name,
-                "created_time":
-                str(pod.metadata.creation_timestamp),
-                'containers':
-                containers
-            })
+                    container_status_time = analysis_container_status_time(container_status)
+                    containers.append(
+                        {
+                            "name": container_status.name,
+                            "image": container_status.image,
+                            "restart": container_status.restart_count,
+                            "state": container_status_time["state"],
+                            "time": container_status_time["status_time"],
+                        }
+                    )
+            list_pods.append(
+                {
+                    "name": pod.metadata.name,
+                    "created_time": str(pod.metadata.creation_timestamp),
+                    "containers": containers,
+                }
+            )
         return list_pods
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -992,7 +963,7 @@ def delete_namespace_pod(namespace, name):
     try:
         pod = ApiK8sClient().delete_namespaced_pod(name, namespace)
         link_path = pod.metadata.self_link
-        paths = link_path.split('/')
+        paths = link_path.split("/")
         return paths[len(paths) - 1]
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1001,8 +972,7 @@ def delete_namespace_pod(namespace, name):
 
 def read_namespace_pod_log(namespace, name, container=None):
     try:
-        pod_log = ApiK8sClient().read_namespaced_pod_log(
-            name, namespace, container)
+        pod_log = ApiK8sClient().read_namespaced_pod_log(name, namespace, container)
         return pod_log
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1024,43 +994,32 @@ def get_deployments_info(deployment):
         "available_pod_number": None,
         "total_pod_number": None,
         "created_time": None,
-        "containers": None
+        "containers": None,
     }
     if deployment is None:
         return output
     return {
-        "name":
-        deployment.metadata.name,
-        "available_pod_number":
-        deployment.status.available_replicas,
-        "total_pod_number":
-        deployment.status.replicas,
-        "created_time":
-        str(deployment.metadata.creation_timestamp),
-        "containers":
-        get_spec_containers_image_and_name(
-            deployment.spec.template.spec.containers)
+        "name": deployment.metadata.name,
+        "available_pod_number": deployment.status.available_replicas,
+        "total_pod_number": deployment.status.replicas,
+        "created_time": str(deployment.metadata.creation_timestamp),
+        "containers": get_spec_containers_image_and_name(deployment.spec.template.spec.containers),
     }
 
 
 def list_namespace_deployments(namespace):
     try:
         list_deployments = []
-        for deployment in ApiK8sClient().list_namespaced_deployment(
-                namespace).items:
-            list_deployments.append({
-                "name":
-                deployment.metadata.name,
-                "available_pod_number":
-                deployment.status.available_replicas,
-                "total_pod_number":
-                deployment.status.replicas,
-                "created_time":
-                str(deployment.metadata.creation_timestamp),
-                "containers":
-                get_spec_containers_image_and_name(
-                    deployment.spec.template.spec.containers)
-            })
+        for deployment in ApiK8sClient().list_namespaced_deployment(namespace).items:
+            list_deployments.append(
+                {
+                    "name": deployment.metadata.name,
+                    "available_pod_number": deployment.status.available_replicas,
+                    "total_pod_number": deployment.status.replicas,
+                    "created_time": str(deployment.metadata.creation_timestamp),
+                    "containers": get_spec_containers_image_and_name(deployment.spec.template.spec.containers),
+                }
+            )
         return list_deployments
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1077,8 +1036,7 @@ def read_namespace_deployment(namespace, name):
 
 def update_namespace_deployment(namespace, name, body):
     try:
-        return ApiK8sClient().patch_namespaced_deployment(
-            name, namespace, body)
+        return ApiK8sClient().patch_namespaced_deployment(name, namespace, body)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -1086,8 +1044,7 @@ def update_namespace_deployment(namespace, name, body):
 
 def delete_namespace_deployment(namespace, name):
     try:
-        deployment = ApiK8sClient().delete_namespaced_deployment(
-            name, namespace)
+        deployment = ApiK8sClient().delete_namespaced_deployment(name, namespace)
         return deployment.details.name
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1097,16 +1054,13 @@ def delete_namespace_deployment(namespace, name):
 def update_deployment_image_tag(namespace, deployment_name, new_image_tag):
     deployment = read_namespace_deployment(namespace, deployment_name)
     image_api = deployment.spec.template.spec.containers[0].image
-    parts = image_api.split(':')
+    parts = image_api.split(":")
     parts[-1] = new_image_tag
     if deployment.spec.template.metadata.annotations is None:
-        deployment.spec.template.metadata.annotations = {
-            'iiidevops_redeploy_at': str(datetime.utcnow())
-        }
+        deployment.spec.template.metadata.annotations = {"iiidevops_redeploy_at": str(datetime.utcnow())}
     else:
-        deployment.spec.template.metadata.annotations[
-            "iiidevops_redeploy_at"] = str(datetime.utcnow())
-    deployment.spec.template.spec.containers[0].image = ':'.join(parts)
+        deployment.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(datetime.utcnow())
+    deployment.spec.template.spec.containers[0].image = ":".join(parts)
     update_namespace_deployment(namespace, deployment_name, deployment)
 
 
@@ -1114,12 +1068,12 @@ def list_namespace_services(namespace):
     try:
         list_services = []
         for service in ApiK8sClient().list_namespaced_service(namespace).items:
-            list_services.append({
-                'name':
-                service.metadata.name,
-                'is_iii':
-                check_if_iii_template(service.metadata)
-            })
+            list_services.append(
+                {
+                    "name": service.metadata.name,
+                    "is_iii": check_if_iii_template(service.metadata),
+                }
+            )
         return list_services
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1154,8 +1108,7 @@ def read_namespace_secret(namespace, secret_name):
         if secret.data is None:
             return {}
         for key, value in secret.data.items():
-            secret_data[key] = str(
-                base64.b64decode(str(value)).decode('utf-8'))
+            secret_data[key] = str(base64.b64decode(str(value)).decode("utf-8"))
         return secret_data
     except ApiException as e:
         if e.status != 404:
@@ -1165,12 +1118,12 @@ def read_namespace_secret(namespace, secret_name):
 
 def create_namespace_secret(namespace, secret_name, secrets):
     for key, value in secrets.items():
-        secrets[key] = base64.b64encode(bytes(
-            value, encoding='utf-8')).decode('utf-8')
+        secrets[key] = base64.b64encode(bytes(value, encoding="utf-8")).decode("utf-8")
     try:
-        body = k8s_client.V1Secret(metadata=k8s_client.V1ObjectMeta(
-            namespace=namespace, name=secret_name),
-            data=secrets)
+        body = k8s_client.V1Secret(
+            metadata=k8s_client.V1ObjectMeta(namespace=namespace, name=secret_name),
+            data=secrets,
+        )
         ApiK8sClient().create_namespaced_secret(namespace, body)
         return {}
     except apiError.DevOpsError as e:
@@ -1180,12 +1133,12 @@ def create_namespace_secret(namespace, secret_name, secrets):
 
 def patch_namespace_secret(namespace, secret_name, secrets):
     for key, value in secrets.items():
-        secrets[key] = base64.b64encode(bytes(
-            value, encoding='utf-8')).decode('utf-8')
+        secrets[key] = base64.b64encode(bytes(value, encoding="utf-8")).decode("utf-8")
     try:
-        body = k8s_client.V1Secret(metadata=k8s_client.V1ObjectMeta(
-            namespace=namespace, name=secret_name),
-            data=secrets)
+        body = k8s_client.V1Secret(
+            metadata=k8s_client.V1ObjectMeta(namespace=namespace, name=secret_name),
+            data=secrets,
+        )
         ApiK8sClient().patch_namespaced_secret(secret_name, namespace, body)
         return {}
     except apiError.DevOpsError as e:
@@ -1208,8 +1161,7 @@ def delete_namespace_secret(namespace, name):
 def list_namespace_configmap(namespace):
     try:
         list_configmaps = []
-        for configmap in ApiK8sClient().list_namespaced_config_map(
-                namespace).items:
+        for configmap in ApiK8sClient().list_namespaced_config_map(namespace).items:
             list_configmaps.append(configmap_info_by_iii(configmap))
         return list_configmaps
     except apiError.DevOpsError as e:
@@ -1231,8 +1183,7 @@ def read_namespace_configmap(namespace, name):
 
 def create_namespace_configmap(namespace, name, configmaps):
     try:
-        body = k8s_client.V1ConfigMap(
-            metadata=k8s_client.V1ObjectMeta(name=name), data=configmaps)
+        body = k8s_client.V1ConfigMap(metadata=k8s_client.V1ObjectMeta(name=name), data=configmaps)
         ApiK8sClient().create_namespaced_config_map(namespace, body)
         return {}
     except apiError.DevOpsError as e:
@@ -1242,9 +1193,10 @@ def create_namespace_configmap(namespace, name, configmaps):
 
 def put_namespace_configmap(namespace, name, configmaps):
     try:
-        body = k8s_client.V1ConfigMap(metadata=k8s_client.V1ObjectMeta(
-            namespace=namespace, name=name),
-            data=configmaps)
+        body = k8s_client.V1ConfigMap(
+            metadata=k8s_client.V1ObjectMeta(namespace=namespace, name=name),
+            data=configmaps,
+        )
         ApiK8sClient().patch_namespaced_config_map(name, namespace, body)
         return {}
     except apiError.DevOpsError as e:
@@ -1268,10 +1220,9 @@ def list_namespace_ingresses(namespace):
         for ingress in ApiK8sClient().list_namespaced_ingress(namespace).items:
             ingress_info = {
                 "name": ingress.metadata.name,
-                "created_time": str(ingress.metadata.creation_timestamp)
+                "created_time": str(ingress.metadata.creation_timestamp),
             }
-            ingress_info["ingress_list"] = map_ingress_with_host(
-                ingress.spec.rules)
+            ingress_info["ingress_list"] = map_ingress_with_host(ingress.spec.rules)
             ingress_info["tls"] = ingress.spec.tls
             list_ingresses.append(ingress_info)
         return list_ingresses
@@ -1283,7 +1234,7 @@ def list_namespace_ingresses(namespace):
 def check_ingress_exist(namespace, branch):
     ingress_list = list_namespace_ingresses(namespace)
     for ingress in ingress_list:
-        if f"{namespace}-{branch}-serv-ing" == ingress['name']:
+        if f"{namespace}-{branch}-serv-ing" == ingress["name"]:
             return True
     return False
 
@@ -1296,19 +1247,19 @@ def map_ingress_with_host(rules):
                 hostname = rule.host
                 for path in rule.http.paths:
                     if hostname is not None:
-                        info.append({
-                            "hostname_path":
-                            hostname + path.path,
-                            "service":
-                            f"{path.backend.service_name}:{path.backend.service_port}"
-                        })
+                        info.append(
+                            {
+                                "hostname_path": hostname + path.path,
+                                "service": f"{path.backend.service_name}:{path.backend.service_port}",
+                            }
+                        )
                     else:
-                        info.append({
-                            "hostname_path":
-                            path.path,
-                            "service":
-                            f"{path.backend.service_name}:{path.backend.service_port}"
-                        })
+                        info.append(
+                            {
+                                "hostname_path": path.path,
+                                "service": f"{path.backend.service_name}:{path.backend.service_port}",
+                            }
+                        )
         return info
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1325,41 +1276,35 @@ def list_dev_environment_by_branch(namespace, git_url):
             labels = pod.metadata.labels
             is_iii = check_if_iii_template(pod.metadata)
             if is_iii is True and pod.status.container_statuses is not None:
-                pods_info, environment = check_iii_project_branch_key_exist(
-                    pod.metadata, pods_info, git_url, 'pods')
+                pods_info, environment = check_iii_project_branch_key_exist(pod.metadata, pods_info, git_url, "pods")
                 pod_info = {
-                    'app_name': labels['app'],
-                    'pod_name': pod.metadata.name,
-                    'type': annotations[iii_template['type']],
-                    'containers': []
+                    "app_name": labels["app"],
+                    "pod_name": pod.metadata.name,
+                    "type": annotations[iii_template["type"]],
+                    "containers": [],
                 }
-                namespace_services_info = get_list_service_match_pods_labels(
-                    list_services, labels, environment)
-                container_status_info = get_list_container_statuses(
-                    pod.status.container_statuses)
+                namespace_services_info = get_list_service_match_pods_labels(list_services, labels, environment)
+                container_status_info = get_list_container_statuses(pod.status.container_statuses)
                 container_info = {}
                 for container in pod.spec.containers:
                     if container.name in container_status_info:
                         container_info[container.name] = {
-                            'name':
-                            container.name,
-                            'image':
-                            container.image,
-                            'status':
-                            container_status_info[container.name],
-                            'service_port_mapping':
-                            map_service_to_container(container.ports,
-                                                     namespace_services_info, namespace)
+                            "name": container.name,
+                            "image": container.image,
+                            "status": container_status_info[container.name],
+                            "service_port_mapping": map_service_to_container(
+                                container.ports, namespace_services_info, namespace
+                            ),
                         }
                     else:
                         container_info[container.name] = {
-                            'name': container.name,
-                            'image': container.image,
-                            'port': get_spec_container_ports(container.ports)
+                            "name": container.name,
+                            "image": container.image,
+                            "port": get_spec_container_ports(container.ports),
                         }
-                pod_info['containers'] = list(container_info.values())
+                pod_info["containers"] = list(container_info.values())
 
-                pods_info[environment]['pods'].append(pod_info)
+                pods_info[environment]["pods"].append(pod_info)
         return list(pods_info.values())
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1369,14 +1314,10 @@ def list_dev_environment_by_branch(namespace, git_url):
 def delete_dev_environment_by_branch(namespace, branch_name):
     try:
         info = []
-        for deployment in ApiK8sClient().list_namespaced_deployment(
-                namespace).items:
+        for deployment in ApiK8sClient().list_namespaced_deployment(namespace).items:
             is_iii = check_if_iii_template(deployment.spec.template.metadata)
-            if is_iii and branch_name == deployment.spec.template.metadata.annotations[
-                    iii_template['branch']]:
-                info.append(
-                    delete_namespace_deployment(namespace,
-                                                deployment.metadata.name))
+            if is_iii and branch_name == deployment.spec.template.metadata.annotations[iii_template["branch"]]:
+                info.append(delete_namespace_deployment(namespace, deployment.metadata.name))
         return info
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1386,16 +1327,11 @@ def delete_dev_environment_by_branch(namespace, branch_name):
 def update_dev_environment_by_branch(namespace, branch_name):
     try:
         info = []
-        for deployment in ApiK8sClient().list_namespaced_deployment(
-                namespace).items:
+        for deployment in ApiK8sClient().list_namespaced_deployment(namespace).items:
             is_iii = check_if_iii_template(deployment.spec.template.metadata)
-            if is_iii and branch_name == deployment.spec.template.metadata.annotations[
-                    iii_template['branch']]:
-                deployment.spec.template.metadata.annotations[
-                    "iiidevops_redeploy_at"] = str(datetime.utcnow())
-                update_namespace_deployment(namespace,
-                                            deployment.metadata.name,
-                                            deployment)
+            if is_iii and branch_name == deployment.spec.template.metadata.annotations[iii_template["branch"]]:
+                deployment.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(datetime.utcnow())
+                update_namespace_deployment(namespace, deployment.metadata.name, deployment)
         return info
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1407,8 +1343,7 @@ def redeploy_deployment(namespace, deployment_name):
         deploy = read_namespace_deployment(namespace, deployment_name)
         if deploy.spec.template.metadata.annotations is None:
             deploy.spec.template.metadata.annotations = {}
-        deploy.spec.template.metadata.annotations[
-            f"{deployment_name}_redeploy_at"] = str(datetime.utcnow())
+        deploy.spec.template.metadata.annotations[f"{deployment_name}_redeploy_at"] = str(datetime.utcnow())
         update_namespace_deployment(namespace, deployment_name, deploy)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1419,9 +1354,7 @@ def get_list_container_statuses(container_statuses):
     try:
         container_status_info = {}
         for container_status in container_statuses:
-            container_status_info[
-                container_status.name] = analysis_k8s_container_status(
-                    container_status)
+            container_status_info[container_status.name] = analysis_k8s_container_status(container_status)
         return container_status_info
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1431,9 +1364,9 @@ def get_list_container_statuses(container_statuses):
 def secret_info_by_iii(secret):
     try:
         info = {
-            'is_iii': check_if_iii_default(secret.metadata.name, secret.type),
-            'name': secret.metadata.name,
-            'data': secret.data
+            "is_iii": check_if_iii_default(secret.metadata.name, secret.type),
+            "name": secret.metadata.name,
+            "data": secret.data,
         }
         return info
     except apiError.DevOpsError as e:
@@ -1444,9 +1377,9 @@ def secret_info_by_iii(secret):
 def configmap_info_by_iii(configmap):
     try:
         info = {
-            'is_iii': check_if_iii_default(configmap.metadata.name),
-            'name': configmap.metadata.name,
-            'data': configmap.data
+            "is_iii": check_if_iii_default(configmap.metadata.name),
+            "name": configmap.metadata.name,
+            "data": configmap.data,
         }
         return info
     except apiError.DevOpsError as e:
@@ -1462,24 +1395,23 @@ def list_namespace_services_by_iii(namespace):
             is_iii = check_if_iii_template(service.metadata)
             if is_iii is True:
                 list_services, environment = check_iii_project_branch_key_exist(
-                    service.metadata, list_services, '', 'services')
+                    service.metadata, list_services, "", "services"
+                )
                 service_info = {
-                    'type':
-                    service.spec.type,
-                    'name':
-                    service.metadata.name,
-                    'service_selector':
-                    service.spec.selector,
-                    'service_type':
-                    annotations[iii_template['type']],
-                    'public_endpoints':
-                    json.loads(annotations['field.cattle.io/publicEndpoints'])
+                    "type": service.spec.type,
+                    "name": service.metadata.name,
+                    "service_selector": service.spec.selector,
+                    "service_type": annotations[iii_template["type"]],
+                    "public_endpoints": json.loads(annotations["field.cattle.io/publicEndpoints"]),
                 }
-                service_info['url'] = map_port_and_public_endpoint(
-                    service.spec.ports, service_info['public_endpoints'],
-                    annotations[iii_template['type']], namespace,
-                    list_services[environment]['branch'])
-                list_services[environment]['services'].append(service_info)
+                service_info["url"] = map_port_and_public_endpoint(
+                    service.spec.ports,
+                    service_info["public_endpoints"],
+                    annotations[iii_template["type"]],
+                    namespace,
+                    list_services[environment]["branch"],
+                )
+                list_services[environment]["services"].append(service_info)
         return list_services
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1489,33 +1421,28 @@ def list_namespace_services_by_iii(namespace):
 def get_list_service_match_pods_labels(list_services, pod_labels, environment):
     namespace_services_info = []
     if environment in list_services:
-        for service in list_services[environment]['services']:
-            is_match = check_match_selector(service['service_selector'],
-                                            pod_labels)
+        for service in list_services[environment]["services"]:
+            is_match = check_match_selector(service["service_selector"], pod_labels)
             if is_match is True:
-                for url in service['url']:
-                    url['name'] = service['name']
-                    url['service_type'] = service['service_type']
+                for url in service["url"]:
+                    url["name"] = service["name"]
+                    url["service_type"] = service["service_type"]
                     namespace_services_info.append(url)
     return namespace_services_info
 
 
-def check_iii_project_branch_key_exist(metadata,
-                                       target_info,
-                                       git_url='',
-                                       info_type='pods'):
-    project_name = metadata.annotations[iii_template['project_name']]
-    branch = metadata.annotations[iii_template['branch']]
-    commit_id = metadata.annotations[iii_template['commit_id']]
-    environment = f'{project_name}:{branch}'
+def check_iii_project_branch_key_exist(metadata, target_info, git_url="", info_type="pods"):
+    project_name = metadata.annotations[iii_template["project_name"]]
+    branch = metadata.annotations[iii_template["branch"]]
+    commit_id = metadata.annotations[iii_template["commit_id"]]
+    environment = f"{project_name}:{branch}"
     if environment not in target_info:
         target_info[environment] = {}
-        target_info[environment]['project_name'] = project_name
-        target_info[environment]['branch'] = branch
-        target_info[environment]['commit_id'] = commit_id
-        if git_url != '':
-            target_info[environment][
-                'commit_url'] = f'{git_url[0:-4]}/-/commit/{commit_id}'
+        target_info[environment]["project_name"] = project_name
+        target_info[environment]["branch"] = branch
+        target_info[environment]["commit_id"] = commit_id
+        if git_url != "":
+            target_info[environment]["commit_url"] = f"{git_url[0:-4]}/-/commit/{commit_id}"
         target_info[environment][info_type] = []
     return target_info, environment
 
@@ -1523,19 +1450,18 @@ def check_iii_project_branch_key_exist(metadata,
 def analysis_k8s_container_status(container_status):
     info = {}
     analysis_status = analysis_container_status_time(container_status)
-    info['state'] = analysis_status['state']
-    info['time'] = analysis_status['status_time']
-    info['restart'] = container_status.restart_count
-    info['image'] = container_status.image
-    info['name'] = container_status.name
-    info['ready'] = container_status.ready
+    info["state"] = analysis_status["state"]
+    info["time"] = analysis_status["status_time"]
+    info["restart"] = container_status.restart_count
+    info["image"] = container_status.image
+    info["name"] = container_status.name
+    info["ready"] = container_status.ready
     return info
 
 
 def check_match_selector(selectors, pod_label):
     try:
-        res = all(
-            pod_label.get(key, None) == val for key, val in selectors.items())
+        res = all(pod_label.get(key, None) == val for key, val in selectors.items())
         return res
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1547,8 +1473,7 @@ def map_service_to_container(container_ports, services, namespace):
         mapping_info = []
         for container_port in container_ports:
             port_info = analysis_container_port(container_port)
-            port_info['services'] = check_service_map_container(
-                port_info, services, namespace)
+            port_info["services"] = check_service_map_container(port_info, services, namespace)
             mapping_info.append(port_info)
         return mapping_info
     except apiError.DevOpsError as e:
@@ -1560,9 +1485,11 @@ def check_service_map_container(container_port, services, namespace):
     try:
         services_info = []
         for service in services:
-            if service['port_name'] == container_port['name'] or \
-                    service['target_port'] == container_port['container_port']:
-                service['internal_url'] = [f"{service['name']}.{namespace}.svc.cluster.local"]
+            if (
+                service["port_name"] == container_port["name"]
+                or service["target_port"] == container_port["container_port"]
+            ):
+                service["internal_url"] = [f"{service['name']}.{namespace}.svc.cluster.local"]
                 services_info.append(service)
         return services_info
     except apiError.DevOpsError as e:
@@ -1573,9 +1500,9 @@ def check_service_map_container(container_port, services, namespace):
 def analysis_container_port(port):
     try:
         port_info = {
-            'container_port': port.container_port,
-            'name': port.name,
-            'protocol': port.protocol
+            "container_port": port.container_port,
+            "name": port.name,
+            "protocol": port.protocol,
         }
         return port_info
     except apiError.DevOpsError as e:
@@ -1594,25 +1521,20 @@ def get_spec_container_ports(ports):
             raise e
 
 
-def map_port_and_public_endpoint(ports,
-                                 public_endpoints,
-                                 service_type='',
-                                 namespace='',
-                                 branch=''):
+def map_port_and_public_endpoint(ports, public_endpoints, service_type="", namespace="", branch=""):
     try:
         info = []
         for port in ports:
             for public_endpoint in public_endpoints:
                 url_info = {}
-                if getattr(port, 'node_port') == public_endpoint.get('port'):
-                    url_info['port_name'] = getattr(port, 'name')
-                    url_info['target_port'], url_info[
-                        'port'] = identify_target_port(
-                            getattr(port, 'target_port'),
-                            getattr(port, 'port'))
-                    url_info['url'] = identify_external_url(
-                        public_endpoint, port.node_port, service_type,
-                        namespace, branch)
+                if getattr(port, "node_port") == public_endpoint.get("port"):
+                    url_info["port_name"] = getattr(port, "name")
+                    url_info["target_port"], url_info["port"] = identify_target_port(
+                        getattr(port, "target_port"), getattr(port, "port")
+                    )
+                    url_info["url"] = identify_external_url(
+                        public_endpoint, port.node_port, service_type, namespace, branch
+                    )
                     info.append(url_info)
         return info
     except apiError.DevOpsError as e:
@@ -1634,38 +1556,34 @@ def identify_target_port(target_port, port):
 
 
 # Identify Service Exact External URL
-def identify_external_url(public_endpoint,
-                          node_port,
-                          service_type='',
-                          namespace='',
-                          branch=''):
+def identify_external_url(public_endpoint, node_port, service_type="", namespace="", branch=""):
     try:
         external_url_format = ""
         http_base = "http://"
         https_base = "https://"
-        if service_type != 'db-server':
+        if service_type != "db-server":
             external_url_format = http_base
-            if config.get('INGRESS_EXTERNAL_TLS') is not None and config.get(
-                    'INGRESS_EXTERNAL_TLS') != '':
+            if config.get("INGRESS_EXTERNAL_TLS") is not None and config.get("INGRESS_EXTERNAL_TLS") != "":
                 external_url_format = https_base
 
         url = []
-        if config.get('INGRESS_EXTERNAL_BASE') != '' and config.get('INGRESS_EXTERNAL_BASE') is not None \
-                and service_type not in ['db-server', 'db-gui'] and namespace != '' and branch != '' and \
-                check_ingress_exist(namespace, branch):
-            url.append(
-                f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}"
-            )
-        elif 'hostname' in public_endpoint:
-            if service_type != 'db-server':
+        if (
+            config.get("INGRESS_EXTERNAL_BASE") != ""
+            and config.get("INGRESS_EXTERNAL_BASE") is not None
+            and service_type not in ["db-server", "db-gui"]
+            and namespace != ""
+            and branch != ""
+            and check_ingress_exist(namespace, branch)
+        ):
+            url.append(f"{external_url_format}{namespace}-{branch}.{config.get('INGRESS_EXTERNAL_BASE')}")
+        elif "hostname" in public_endpoint:
+            if service_type != "db-server":
                 external_url_format = http_base
-            url.append(
-                f"{external_url_format}{public_endpoint['hostname']}:{node_port}"
-            )
+            url.append(f"{external_url_format}{public_endpoint['hostname']}:{node_port}")
         else:
-            if service_type != 'db-server':
+            if service_type != "db-server":
                 external_url_format = http_base
-            for address in public_endpoint['addresses']:
+            for address in public_endpoint["addresses"]:
                 url.append(f"{external_url_format}{address}:{node_port}")
         return url
     except apiError.DevOpsError as e:
@@ -1677,7 +1595,7 @@ def get_spec_containers_image_and_name(containers):
     try:
         container_list = []
         for container in containers:
-            container_info = {'image': container.image, 'name': container.name}
+            container_info = {"image": container.image, "name": container.name}
             container_list.append(container_info)
         return container_list
     except apiError.DevOpsError as e:
@@ -1696,12 +1614,11 @@ def analysis_container_status_time(container_status):
         elif container_status.state.terminated is not None:
             status = "terminated"
             if container_status.state.terminated.finished_at is not None:
-                status_time = str(
-                    container_status.state.terminated.finished_at)
+                status_time = str(container_status.state.terminated.finished_at)
         else:
             status = "waiting"
-        container_status_time['status_time'] = status_time
-        container_status_time['state'] = status
+        container_status_time["status_time"] = status_time
+        container_status_time["state"] = status
         return container_status_time
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1710,19 +1627,20 @@ def analysis_container_status_time(container_status):
 
 def check_if_iii_default(name, var_type=None):
     is_iii = False
-    if name in iii_env_default and (var_type not in env_normal_type
-                                    or var_type is None):
+    if name in iii_env_default and (var_type not in env_normal_type or var_type is None):
         is_iii = True
     return is_iii
 
 
 def check_if_iii_template(metadata):
     is_iii = False
-    if metadata.annotations is not None and \
-            iii_template['project_name'] in metadata.annotations and \
-            iii_template['branch'] in metadata.annotations and \
-            iii_template['commit_id'] in metadata.annotations and \
-            'app' in metadata.labels:
+    if (
+        metadata.annotations is not None
+        and iii_template["project_name"] in metadata.annotations
+        and iii_template["branch"] in metadata.annotations
+        and iii_template["commit_id"] in metadata.annotations
+        and "app" in metadata.labels
+    ):
         is_iii = True
 
     return is_iii
@@ -1730,26 +1648,27 @@ def check_if_iii_template(metadata):
 
 def get_iii_template_info(metadata):
     template_info = {
-        'label': metadata.labels['app'],
-        'branch': metadata.annotations[iii_template['branch']],
-        'project_name': metadata.annotations[iii_template['project_name']],
-        'commit_id': metadata.annotations[iii_template['commit_id']]
+        "label": metadata.labels["app"],
+        "branch": metadata.annotations[iii_template["branch"]],
+        "project_name": metadata.annotations[iii_template["project_name"]],
+        "commit_id": metadata.annotations[iii_template["commit_id"]],
     }
     return template_info
 
 
 class K8sPodExec(object):
     def __init__(self, data):
-        self.namespace_name = data['project_name']
-        self.pod_name = data['pod_name']
+        self.namespace_name = data["project_name"]
+        self.pod_name = data["pod_name"]
         self.container_name = data.get("container_name")
         self.exec_command = [
             "/bin/sh",
             "-c",
-            'TERM=xterm-256color; export TERM; [ -x /bin/bash ] '
-            '&& ([ -x /usr/bin/script ] '
+            "TERM=xterm-256color; export TERM; [ -x /bin/bash ] "
+            "&& ([ -x /usr/bin/script ] "
             '&& /usr/bin/script -q -c "/bin/bash" /dev/null || exec /bin/bash) '
-            '|| exec /bin/sh']
+            "|| exec /bin/sh",
+        ]
         if self.container_name is None:
             self.resp = k8s_stream(
                 ApiK8sClient().core_v1.connect_get_namespaced_pod_exec,
@@ -1760,7 +1679,8 @@ class K8sPodExec(object):
                 stdin=True,
                 stdout=True,
                 tty=False,
-                _preload_content=False)
+                _preload_content=False,
+            )
         else:
             self.resp = k8s_stream(
                 ApiK8sClient().core_v1.connect_get_namespaced_pod_exec,
@@ -1772,20 +1692,21 @@ class K8sPodExec(object):
                 stdin=True,
                 stdout=True,
                 tty=False,
-                _preload_content=False)
+                _preload_content=False,
+            )
 
     def exec_namespace_pod(self, data):
-        command = data['command']
+        command = data["command"]
         while self.resp.is_open():
             self.resp.update(timeout=1)
             if self.resp.peek_stdout():
                 output_mess = self.resp.read_stdout()
                 print("STDOUT: %s" % output_mess)
-                emit('get_cmd_response', {'output': output_mess})
+                emit("get_cmd_response", {"output": output_mess})
             elif self.resp.peek_stderr():
                 output_err = self.resp.read_stderr()
                 print("STDERR: %s" % output_err)
-                emit('get_cmd_response', output_err)
+                emit("get_cmd_response", output_err)
             elif command:
                 print("Running command... %s\n" % command)
                 self.resp.write_stdin(command + "\n")
@@ -1800,33 +1721,40 @@ class KubernetesPodExec(Namespace):
     k8s_pod_exec = None
 
     def on_connect(self):
-        print('connect')
+        print("connect")
 
     def on_disconnect(self):
-        print('Client disconnected')
+        print("Client disconnected")
 
     def on_pod_exec_cmd(self, data):
-        print('exec_namespace_pod_log')
-        if self.k8s_pod_exec is None or (self.k8s_pod_exec.namespace_name != data['project_name']
-                                         or self.k8s_pod_exec.pod_name != data['pod_name']
-                                         or self.k8s_pod_exec.container_name != data.get("container_name")):
+        print("exec_namespace_pod_log")
+        if self.k8s_pod_exec is None or (
+            self.k8s_pod_exec.namespace_name != data["project_name"]
+            or self.k8s_pod_exec.pod_name != data["pod_name"]
+            or self.k8s_pod_exec.container_name != data.get("container_name")
+        ):
             self.k8s_pod_exec = K8sPodExec(data)
         self.k8s_pod_exec.exec_namespace_pod(data)
+
 
 # Only run it when server is redeployed
 
 
 def create_cron_secret():
     from resources.user import jwt_response_data
-    '''
+
+    """
     If we do not replace the old token when server is being redeployed, 
         token sometime can not be used.
-    '''
+    """
     if read_namespace_secret("default", "cornjob-bot"):
         delete_namespace_secret("default", "cornjob-bot")
-    token = create_access_token(identity=jwt_response_data(None, None, None, None), expires_delta=timedelta(days=36500))
-    create_namespace_secret(
-        "default", "cornjob-bot", {'cornjob-token': token})
+    token = create_access_token(
+        identity=jwt_response_data(None, None, None, None),
+        expires_delta=timedelta(days=36500),
+    )
+    create_namespace_secret("default", "cornjob-bot", {"cornjob-token": token})
+
 
 # gitlab ingress body
 
@@ -1836,29 +1764,22 @@ def gitlab_connection(action):
         paths = [
             k8s_client.NetworkingV1beta1HTTPIngressPath(
                 path="/",
-                backend=k8s_client.NetworkingV1beta1IngressBackend(
-                    service_name="gitlab-service", service_port=80
-                )
-            )]
+                backend=k8s_client.NetworkingV1beta1IngressBackend(service_name="gitlab-service", service_port=80),
+            )
+        ]
     if action == "close":
         paths = [
             k8s_client.NetworkingV1beta1HTTPIngressPath(
                 path="/",
-                backend=k8s_client.NetworkingV1beta1IngressBackend(
-                    service_name="gitlab-service", service_port=80
-                )
+                backend=k8s_client.NetworkingV1beta1IngressBackend(service_name="gitlab-service", service_port=80),
             ),
             k8s_client.NetworkingV1beta1HTTPIngressPath(
                 path="/api/v3",
-                backend=k8s_client.NetworkingV1beta1IngressBackend(
-                    service_name="gitlab-service", service_port=30080
-                )
+                backend=k8s_client.NetworkingV1beta1IngressBackend(service_name="gitlab-service", service_port=30080),
             ),
             k8s_client.NetworkingV1beta1HTTPIngressPath(
                 path="/api/v4",
-                backend=k8s_client.NetworkingV1beta1IngressBackend(
-                    service_name="gitlab-service", service_port=30080
-                )
+                backend=k8s_client.NetworkingV1beta1IngressBackend(service_name="gitlab-service", service_port=30080),
             ),
         ]
 
@@ -1871,17 +1792,15 @@ def gitlab_connection(action):
                 "nginx.ingress.kubernetes.io/force-ssl-redirect": "false",
                 "nginx.ingress.kubernetes.io/proxy-body-size": "1g",
                 "nginx.ingress.kubernetes.io/proxy-read-timeout": "600",
-                "nginx.ingress.kubernetes.io/proxy-send-timeout": "600"
-            }
+                "nginx.ingress.kubernetes.io/proxy-send-timeout": "600",
+            },
         ),
         spec=k8s_client.NetworkingV1beta1IngressSpec(
             rules=[
                 k8s_client.NetworkingV1beta1IngressRule(
                     host=config.get("GITLAB_DOMAIN_NAME"),
-                    http=k8s_client.NetworkingV1beta1HTTPIngressRuleValue(
-                        paths=paths
-                    )
+                    http=k8s_client.NetworkingV1beta1HTTPIngressRuleValue(paths=paths),
                 )
             ]
-        )
+        ),
     )

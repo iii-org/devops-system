@@ -128,7 +128,10 @@ class HarborAlive(Resource):
         return server_alive("Harbor")
 
 
-@doc(tags=["Monitoring"], description="Get Harbor remain time of pull image from docker hub")
+@doc(
+    tags=["Monitoring"],
+    description="Get Harbor remain time of pull image from docker hub",
+)
 @marshal_with(router_model.HarborProxyResponse)
 class HarborProxyV2(MethodResource):
     @jwt_required()
@@ -263,9 +266,7 @@ class CollectPodRestartTimeV2(MethodResource):
     @doc(tags=["Monitoring"], description="Delete out of time limit pods.")
     def delete(self):
         expired_date = datetime.utcnow() - timedelta(days=30)
-        ServerDataCollection.query.filter_by(type_id=1).filter(
-            ServerDataCollection.create_at <= expired_date
-        ).delete()
+        ServerDataCollection.query.filter_by(type_id=1).filter(ServerDataCollection.create_at <= expired_date).delete()
         db.session.commit()
 
 
@@ -294,9 +295,7 @@ class CollectPodRestartTime(Resource):
 
     def delete(self):
         expired_date = datetime.utcnow() - timedelta(days=30)
-        ServerDataCollection.query.filter_by(type_id=1).filter(
-            ServerDataCollection.create_at <= expired_date
-        ).delete()
+        ServerDataCollection.query.filter_by(type_id=1).filter(ServerDataCollection.create_at <= expired_date).delete()
         db.session.commit()
 
 

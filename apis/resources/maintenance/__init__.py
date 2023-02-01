@@ -17,8 +17,7 @@ def get_system_parameter():
 def check_name_duplicate(name, type):
     system_parameter = get_system_parameter()
     if name in system_parameter[type]:
-        raise apiError.DevOpsError(
-            404, 'Name must not be duplicate', apiError.argument_error("name"))
+        raise apiError.DevOpsError(404, "Name must not be duplicate", apiError.argument_error("name"))
 
 
 def add_system_tag(system_list, type):
@@ -29,16 +28,19 @@ def add_system_tag(system_list, type):
 
 def update_db_rancher_projectid_and_pipelineid(force=None):
     # get all project
-    rows = db.session.query(ProjectPluginRelation, Project). \
-        join(Project, ProjectPluginRelation.project_id == Project.id).all()
+    rows = (
+        db.session.query(ProjectPluginRelation, Project)
+        .join(Project, ProjectPluginRelation.project_id == Project.id)
+        .all()
+    )
     rancher.rc_get_project_id()
     now_pipe_data = rancher.rc_get_project_pipeline()
-    if force == 'true':
+    if force == "true":
         for now_pipe in now_pipe_data:
-            rancher.rc_disable_project_pipeline(now_pipe['projectId'], now_pipe['id'])
+            rancher.rc_disable_project_pipeline(now_pipe["projectId"], now_pipe["id"])
         for row in rows:
             pj_info = gitlab.gl_get_project(row.ProjectPluginRelation.git_repository_id)
-            rancher_pipeline_id = rancher.rc_enable_project_pipeline(pj_info['http_url_to_repo'])
+            rancher_pipeline_id = rancher.rc_enable_project_pipeline(pj_info["http_url_to_repo"])
             ppro = ProjectPluginRelation.query.filter_by(project_id=row.ProjectPluginRelation.project_id).first()
             ppro.ci_project_id = rancher.project_id
             ppro.ci_pipeline_id = rancher_pipeline_id
@@ -46,19 +48,20 @@ def update_db_rancher_projectid_and_pipelineid(force=None):
     else:
         for now_pipe in now_pipe_data:
             for row in rows:
-                if now_pipe['repositoryUrl'].split('//')[1] == row.Project.http_url.split('//')[1] and \
-                        (now_pipe['projectId'] != row.ProjectPluginRelation.ci_project_id or
-                         now_pipe['id'] != row.ProjectPluginRelation.ci_pipeline_id):
+                if now_pipe["repositoryUrl"].split("//")[1] == row.Project.http_url.split("//")[1] and (
+                    now_pipe["projectId"] != row.ProjectPluginRelation.ci_project_id
+                    or now_pipe["id"] != row.ProjectPluginRelation.ci_pipeline_id
+                ):
                     ppro = ProjectPluginRelation.query.filter_by(
-                        project_id=row.ProjectPluginRelation.project_id).first()
-                    ppro.ci_project_id = now_pipe['projectId']
-                    ppro.ci_pipeline_id = now_pipe['id']
+                        project_id=row.ProjectPluginRelation.project_id
+                    ).first()
+                    ppro.ci_project_id = now_pipe["projectId"]
+                    ppro.ci_pipeline_id = now_pipe["id"]
                     db.session.commit()
 
 
 def update_pj_httpurl():
-    rows = db.session.query(Project, ProjectPluginRelation) \
-        .filter(ProjectPluginRelation.project_id == Project.id).all()
+    rows = db.session.query(Project, ProjectPluginRelation).filter(ProjectPluginRelation.project_id == Project.id).all()
     gl_pjs = gitlab.gl_get_all_project()
     for row in rows:
         for gl_pj in gl_pjs:
@@ -77,9 +80,9 @@ class UpdateDbRcProjectPipelineId(Resource):
     def get(self):
         role.require_admin()
         parser = reqparse.RequestParser()
-        parser.add_argument('force', type=str, location="args")
+        parser.add_argument("force", type=str, location="args")
         args = parser.parse_args()
-        update_db_rancher_projectid_and_pipelineid(args['force'])
+        update_db_rancher_projectid_and_pipelineid(args["force"])
         return util.success()
 
 
@@ -102,9 +105,9 @@ class SecretesIntoRcAll(Resource):
     @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str, required=True)
-        parser.add_argument('type', type=str, required=True)
-        parser.add_argument('data', type=dict, required=True)
+        parser.add_argument("name", type=str, required=True)
+        parser.add_argument("type", type=str, required=True)
+        parser.add_argument("data", type=dict, required=True)
         args = parser.parse_args()
 
         # check_name_duplicate(args["name"], "secret")
@@ -115,8 +118,8 @@ class SecretesIntoRcAll(Resource):
     @jwt_required()
     def put(self, secret_name):
         parser = reqparse.RequestParser()
-        parser.add_argument('type', type=str, required=True)
-        parser.add_argument('data', type=dict, required=True)
+        parser.add_argument("type", type=str, required=True)
+        parser.add_argument("data", type=dict, required=True)
         args = parser.parse_args()
         rancher.rc_put_secrets_into_rc_all(secret_name, args)
         return util.success()
@@ -136,10 +139,10 @@ class RegistryIntoRcAll(Resource):
     @jwt_required()
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('name')
-        parser.add_argument('url')
-        parser.add_argument('username')
-        parser.add_argument('password')
+        parser.add_argument("name")
+        parser.add_argument("url")
+        parser.add_argument("username")
+        parser.add_argument("password")
         args = parser.parse_args()
 
         # check_name_duplicate(args["name"], "registry")

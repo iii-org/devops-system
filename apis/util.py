@@ -25,12 +25,11 @@ from marshmallow import Schema, fields
 
 
 def base64decode(value):
-    return str(base64.b64decode(str(value)).decode('utf-8'))
+    return str(base64.b64decode(str(value)).decode("utf-8"))
 
 
 def base64encode(value):
-    return base64.b64encode(
-        bytes(str(value), encoding='utf-8')).decode('utf-8')
+    return base64.b64encode(bytes(str(value), encoding="utf-8")).decode("utf-8")
 
 
 def ssh_to_node_by_key(command, node_ip) -> tuple[str, str]:
@@ -65,43 +64,47 @@ def is_dummy_project(project_id):
 # If you need to return 201, 204 or other success, use #respond.
 def success(data=None, has_date_etc=False):
     if data is None:
-        return {'message': 'success'}, 200
+        return {"message": "success"}, 200
     else:
         if has_date_etc:
-            return {'message': 'success',
-                    'data': json.loads(json.dumps(data, cls=DateEncoder)),
-                    'datetime': datetime.utcnow().isoformat()}, 200
+            return {
+                "message": "success",
+                "data": json.loads(json.dumps(data, cls=DateEncoder)),
+                "datetime": datetime.utcnow().isoformat(),
+            }, 200
         else:
-            return {'message': 'success', 'data': data,
-                    'datetime': datetime.utcnow().isoformat()}, 200
+            return {
+                "message": "success",
+                "data": data,
+                "datetime": datetime.utcnow().isoformat(),
+            }, 200
 
 
 def respond(status_code, message=None, data=None, error=None):
     if message is None:
         return None, status_code
-    message_obj = {'message': message}
+    message_obj = {"message": message}
     if data is not None:
         if type(data) is dict:
-            message_obj['data'] = json.loads(json.dumps(data, cls=DateEncoder))
+            message_obj["data"] = json.loads(json.dumps(data, cls=DateEncoder))
         else:
             try:
-                message_obj['data'] = json.loads(data)
+                message_obj["data"] = json.loads(data)
             except (ValueError, TypeError):
-                message_obj['data'] = data
+                message_obj["data"] = data
     if error is not None:
-        message_obj['error'] = error
+        message_obj["error"] = error
     return message_obj, status_code
 
 
 def respond_request_style(status_code, message=None, data=None, error=None):
     ret = respond(status_code, message, data, error)
-    ret[0]['status_code'] = ret[1]
+    ret[0]["status_code"] = ret[1]
     return ret[0]
 
 
-def respond_uncaught_exception(exception, message='An uncaught exception occurs:'):
-    return respond(500, message,
-                   error=apiError.uncaught_exception(exception))
+def respond_uncaught_exception(exception, message="An uncaught exception occurs:"):
+    return respond(500, message, error=apiError.uncaught_exception(exception))
 
 
 class DateEncoder(json.JSONEncoder):
@@ -120,7 +123,7 @@ def reset_ticker():
     ticker = time.time()
 
 
-def tick(message='', init=False, use_logger=False):
+def tick(message="", init=False, use_logger=False):
     global ticker
     now = time.time()
     if init:
@@ -131,9 +134,9 @@ def tick(message='', init=False, use_logger=False):
         ticker = now
         return
     elapsed = now - ticker
-    print('%f seconds elapsed. [%s]' % (elapsed, message))
+    print("%f seconds elapsed. [%s]" % (elapsed, message))
     if use_logger:
-        logger.logger.info('%f seconds elapsed. [%s]' % (elapsed, message))
+        logger.logger.info("%f seconds elapsed. [%s]" % (elapsed, message))
     ticker = now
     return elapsed
 
@@ -143,7 +146,7 @@ def timeit(method):
         ts = time.time()
         ret = method(*args, **kw)
         te = time.time()
-        print(f'{method.__name__} %2.2f ms' % ((te - ts) * 1000))
+        print(f"{method.__name__} %2.2f ms" % ((te - ts) * 1000))
         return ret
 
     return timed
@@ -152,30 +155,30 @@ def timeit(method):
 def api_request(method, url, headers=None, params=None, data=None, auth=None):
     body = data
     if type(data) is dict or type(data) is reqparse.Namespace:
-        if 'Content-Type' not in headers:
-            headers['Content-Type'] = 'application/json'
-        if headers['Content-Type'] == 'application/json' and body is not None:
+        if "Content-Type" not in headers:
+            headers["Content-Type"] = "application/json"
+        if headers["Content-Type"] == "application/json" and body is not None:
             body = json.dumps(data)
 
-    if method.upper() == 'GET':
+    if method.upper() == "GET":
         return requests.get(url, headers=headers, params=params, verify=False, auth=auth)
-    elif method.upper() == 'POST':
-        return requests.post(url, data=body, params=params,
-                             headers=headers, verify=False, auth=auth)
-    elif method.upper() == 'PUT':
-        return requests.put(url, data=body, params=params,
-                            headers=headers, verify=False, auth=auth)
-    elif method.upper() == 'DELETE':
+    elif method.upper() == "POST":
+        return requests.post(url, data=body, params=params, headers=headers, verify=False, auth=auth)
+    elif method.upper() == "PUT":
+        return requests.put(url, data=body, params=params, headers=headers, verify=False, auth=auth)
+    elif method.upper() == "DELETE":
         return requests.delete(url, headers=headers, params=params, verify=False, auth=auth)
     else:
         return respond_request_style(
-            500, 'Error while request {0} {1}'.format(method, url),
-            error=apiError.invalid_code_path('Only GET/PUT/POST/DELETE is allowed, but'
-                                             '{0} provided.'.format(method)))
+            500,
+            "Error while request {0} {1}".format(method, url),
+            error=apiError.invalid_code_path("Only GET/PUT/POST/DELETE is allowed, but" "{0} provided.".format(method)),
+        )
 
 
 def check_url_alive(url, is_200=False):
     import requests
+
     try:
         if is_200:
             alive = requests.get(url).status_code < 400
@@ -187,30 +190,30 @@ def check_url_alive(url, is_200=False):
 
 
 def encode_k8s_sa(name):
-    ret = ''
+    ret = ""
     for c in name:
-        if 'a' <= c <= 'z' or '1' <= c <= '9' or c == '-' or c == '.':
+        if "a" <= c <= "z" or "1" <= c <= "9" or c == "-" or c == ".":
             ret += c
-        elif 'A' <= c <= 'Z':
-            ret += c.lower() + '0'
-        elif c == '0':
-            ret += '00'
-        elif c == '_':
-            ret += '-0'
+        elif "A" <= c <= "Z":
+            ret += c.lower() + "0"
+        elif c == "0":
+            ret += "00"
+        elif c == "_":
+            ret += "-0"
     return ret
 
 
 def merge_zero(c):
-    if c == '0':
-        return '0'
-    elif c == '-':
-        return '_'
+    if c == "0":
+        return "0"
+    elif c == "-":
+        return "_"
     else:
         return c.upper()
 
 
 def decode_k8s_sa(string):
-    ret = ''
+    ret = ""
     i = 0
     while i < len(string):
         c = string[i]
@@ -219,11 +222,11 @@ def decode_k8s_sa(string):
             i += 1
             continue
         n = string[i + 1]
-        if n == '0':
+        if n == "0":
             nn = i + 2
             zero_count = 1
             while nn < len(string):
-                if string[nn] == '0':
+                if string[nn] == "0":
                     nn += 1
                     zero_count += 1
                 else:
@@ -236,7 +239,7 @@ def decode_k8s_sa(string):
                 ret += c
                 i += 1
             for _ in range(0, int(zero_count / 2)):
-                ret += '0'
+                ret += "0"
                 i += 2
         else:
             ret += c
@@ -245,17 +248,14 @@ def decode_k8s_sa(string):
 
 
 def get_random_alphanumeric_string(letters_count_each, digits_count):
-    sample_str = ''.join((random.choice(string.ascii_lowercase)
-                         for _ in range(letters_count_each)))
-    sample_str += ''.join((random.choice(string.ascii_uppercase)
-                          for _ in range(letters_count_each)))
-    sample_str += ''.join((random.choice(string.digits)
-                          for _ in range(digits_count)))
+    sample_str = "".join((random.choice(string.ascii_lowercase) for _ in range(letters_count_each)))
+    sample_str += "".join((random.choice(string.ascii_uppercase) for _ in range(letters_count_each)))
+    sample_str += "".join((random.choice(string.digits) for _ in range(digits_count)))
 
     # Convert string to list and shuffle it to mix letters and digits
     sample_list = list(sample_str)
     random.shuffle(sample_list)
-    final_string = ''.join(sample_list)
+    final_string = "".join(sample_list)
     return final_string
 
 
@@ -279,19 +279,20 @@ def df_pagination(df, per_page, page):
     prev = page - 1 if page - 1 > 0 else None
     next = page + 1 if page + 1 <= pages else None
     total = len(df)
-    index_list = str(pd.cut([0, pages * per_page], pages).categories[page - 1]).replace("(", "").replace("]", "").split(
-        ',')
+    index_list = (
+        str(pd.cut([0, pages * per_page], pages).categories[page - 1]).replace("(", "").replace("]", "").split(",")
+    )
     index_top = 0 if not prev else math.ceil(float(index_list[0]))
     index_down = math.ceil(float(index_list[1]))
     df = df.where(pd.notnull(df), None)
     data = df[index_top:index_down].T.to_dict()
     page_dict = {
-        'current': current,
-        'next': next,
-        'pages': pages,
-        'per_page': per_page,
-        'prev': prev,
-        'total': total
+        "current": current,
+        "next": next,
+        "pages": pages,
+        "per_page": per_page,
+        "prev": prev,
+        "total": total,
     }
     result_list = [value for key, value in data.items()]
     return result_list, page_dict
@@ -303,13 +304,13 @@ def get_pagination(total_count, limit, offset):
         page += 1
     pages = math.ceil(float(total_count) / limit)
     page_dict = {
-        'current': page,
-        'prev': page - 1 if page - 1 > 0 else None,
-        'next': page + 1 if page + 1 <= pages else None,
-        'pages': pages,
-        'limit': limit,
-        'offset': offset,
-        'total': total_count
+        "current": page,
+        "prev": page - 1 if page - 1 > 0 else None,
+        "next": page + 1 if page + 1 <= pages else None,
+        "pages": pages,
+        "limit": limit,
+        "offset": offset,
+        "total": total_count,
     }
     return page_dict
 
@@ -330,8 +331,8 @@ def list_pagination(out_list, limit, offset):
     if offset is None:
         offset = 0
     page_dict = get_pagination(len(out_list), limit, offset)
-    if (limit-offset) <= len(out_list):
-        out_list = out_list[offset: offset+limit]
+    if (limit - offset) <= len(out_list):
+        out_list = out_list[offset : offset + limit]
     return out_list, page_dict
 
 
@@ -370,8 +371,7 @@ class ServiceBatchOpHelper:
         threads = {}
         for service in self.services:
             self.errors[service] = None
-            threads[service] = DevOpsThread(target=self.targets[service],
-                                            args=self.service_args[service])
+            threads[service] = DevOpsThread(target=self.targets[service], args=self.service_args[service])
             threads[service].start()
 
         for service in self.services:
@@ -381,30 +381,29 @@ class ServiceBatchOpHelper:
                 self.errors[service] = e
 
 
-class AWSEngine():
+class AWSEngine:
     def __init__(self, access_key_id, secret_access_key):
         self.credential = boto3.Session(
             aws_access_key_id=access_key_id,
             aws_secret_access_key=secret_access_key,
         )
-        self.ec2_client = self.credential.client('ec2', 'ap-northeast-1')
-        self.sts_client = self.credential.client('sts')
+        self.ec2_client = self.credential.client("ec2", "ap-northeast-1")
+        self.sts_client = self.credential.client("sts")
 
     def get_account_id(self):
         try:
-            account_id = self.sts_client.get_caller_identity().get('Account')
+            account_id = self.sts_client.get_caller_identity().get("Account")
             return account_id
         except ClientError as e:
             raise e
 
     def list_regions(self):
         response = self.ec2_client.describe_regions()
-        return [context['RegionName'] for context in response['Regions']]
+        return [context["RegionName"] for context in response["Regions"]]
 
 
 def get_certain_date_from_now(days):
-    return datetime.combine(
-        (datetime.utcnow() - timedelta(days=days)), d_time(00, 00))
+    return datetime.combine((datetime.utcnow() - timedelta(days=days)), d_time(00, 00))
 
 
 def get_few_months_ago_utc_datetime(units, value_key):
@@ -438,7 +437,7 @@ def read_json_file(path, return_obj=False):
 
 
 def write_json_file(path, data):
-    with open(path, "w", encoding='utf-8') as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 
@@ -465,12 +464,13 @@ def is_json(content):
 
 def model_insert_default_value(db_name, data_list):
     from model import db
+
     for data in data_list:
         new = db_name(**data)
         db.session.add(new)
         db.session.commit()
 
-    
+
 class CommonResponse(Schema):
     message = fields.Str(required=True)
 

@@ -1,6 +1,6 @@
 from marshmallow import Schema, fields
 
-'''
+"""
 class CreateNotificationMessageSchema(Schema):
     message = fields.Str(required=True)
     title = fields.Str(required=True)
@@ -17,4 +17,4 @@ class MessageListScheme(Schema):
     to_date = fields.Int()
     alert_ids = fields.Str()
     unread = fields.Bool()
-'''
+"""

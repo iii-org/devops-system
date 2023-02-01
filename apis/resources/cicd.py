@@ -15,21 +15,21 @@ from plugins.sbom.sbom_main import get_scan_report
 
 
 def check_plugin_software_open(row, project_id, commit_id):
-    if row.name == 'postman':
-        return {'postman': apiTest.get_results_by_commit(project_id, commit_id)}
-    elif row.name == 'checkmarx':
-        return {'checkmarx': CheckMarx.get_scan(project_id, commit_id)}
-    elif row.name == 'sideex':
-        return {'sideex': sd_get_test_by_commit(project_id, commit_id)}
-    elif row.name == 'sonarqube':
-        return {'sonarqube': sq_get_history_by_commit(project_id, commit_id)}
-    elif row.name == 'webinspect':
-        return {'webinspect': wi_get_scan_by_commit(project_id, commit_id)}
-    elif row.name == 'zap':
-        return {'zap': zap_get_test_by_commit(project_id, commit_id)}
-    elif row.name == 'sbom':
-        return {'sbom': get_scan_report(project_id, commit_id)}
-    elif row.name == 'cmas':
+    if row.name == "postman":
+        return {"postman": apiTest.get_results_by_commit(project_id, commit_id)}
+    elif row.name == "checkmarx":
+        return {"checkmarx": CheckMarx.get_scan(project_id, commit_id)}
+    elif row.name == "sideex":
+        return {"sideex": sd_get_test_by_commit(project_id, commit_id)}
+    elif row.name == "sonarqube":
+        return {"sonarqube": sq_get_history_by_commit(project_id, commit_id)}
+    elif row.name == "webinspect":
+        return {"webinspect": wi_get_scan_by_commit(project_id, commit_id)}
+    elif row.name == "zap":
+        return {"zap": zap_get_test_by_commit(project_id, commit_id)}
+    elif row.name == "sbom":
+        return {"sbom": get_scan_report(project_id, commit_id)}
+    elif row.name == "cmas":
         cmas_content = get_task_state(project_id, commit_id)
         if not isinstance(cmas_content, dict):
             cmas_content = {}
@@ -43,7 +43,7 @@ def get_commit_summary(project_id, commit_id):
         result = check_plugin_software_open(row, project_id, commit_id)
         if result is not None:
             output.update(result)
-    output.update({'harbor': harbor_get_scan_by_commit(project_id, commit_id)})
+    output.update({"harbor": harbor_get_scan_by_commit(project_id, commit_id)})
     return output
 
 

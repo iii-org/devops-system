@@ -38,9 +38,7 @@ def get_ci_last_test_result(relation):
     if last_exec_id is None:
         return ret
     try:
-        last_run = rancher.rc_get_pipeline_execution(
-            relation.ci_project_id, relation.ci_pipeline_id, last_exec_id
-        )
+        last_run = rancher.rc_get_pipeline_execution(relation.ci_project_id, relation.ci_pipeline_id, last_exec_id)
     except apiError.DevOpsError as e:
         if e.status_code == 404:
             return ret
@@ -193,9 +191,7 @@ class Rancher(object):
         return output_array
 
     def rc_get_pipeline_executions_action(self, ci_project_id, ci_pipeline_id, pipelines_exec_run, action):
-        path = "/project/{0}/pipelineExecutions/{1}-{2}".format(
-            ci_project_id, ci_pipeline_id, pipelines_exec_run
-        )
+        path = "/project/{0}/pipelineExecutions/{1}-{2}".format(ci_project_id, ci_pipeline_id, pipelines_exec_run)
         params = {"action": "rerun"}
         if action == "stop":
             params = {"action": "stop"}
@@ -203,9 +199,7 @@ class Rancher(object):
         return response
 
     def rc_delete_pipeline_executions_run(self, ci_project_id, ci_pipeline_id, pipelines_exec_run):
-        path = "/project/{0}/pipelineExecutions/{1}-{2}".format(
-            ci_project_id, ci_pipeline_id, pipelines_exec_run
-        )
+        path = "/project/{0}/pipelineExecutions/{1}-{2}".format(ci_project_id, ci_pipeline_id, pipelines_exec_run)
         self.__api_delete(path)
 
     def rc_get_pipeline_info(self, ci_project_id, ci_pipeline_id):
@@ -224,9 +218,7 @@ class Rancher(object):
         output_dict = []
         self.token = self.__generate_token()
         self.rc_get_project_id()
-        output_executions = self.rc_get_pipeline_executions(
-            self.project_id, ci_pipeline_id, run=pipelines_exec_run
-        )
+        output_executions = self.rc_get_pipeline_executions(self.project_id, ci_pipeline_id, run=pipelines_exec_run)
         output_execution = output_executions["data"][0]
         for index, stage in enumerate(output_execution["pipelineConfig"]["stages"]):
             tmp_step_message = []
@@ -266,9 +258,7 @@ class Rancher(object):
         result = None
         try:
             ws_start_time = time.time()
-            ws = websocket.create_connection(
-                url, header=[headersandtoken], sslopt={"cert_reqs": ssl.CERT_NONE}
-            )
+            ws = websocket.create_connection(url, header=[headersandtoken], sslopt={"cert_reqs": ssl.CERT_NONE})
             i = 0
             while True:
                 result = ws.recv()
@@ -309,16 +299,12 @@ class Rancher(object):
         output_dict = []
         self.token = self.__generate_token()
         headersandtoken = "Authorization: Bearer {0}".format(self.token)
-        output_executions = self.rc_get_pipeline_executions(
-            ci_project_id, ci_pipeline_id, run=pipelines_exec_run
-        )
+        output_executions = self.rc_get_pipeline_executions(ci_project_id, ci_pipeline_id, run=pipelines_exec_run)
         output_execution = output_executions["data"][0]
         for index, stage in enumerate(output_execution["pipelineConfig"]["stages"]):
             tmp_step_message = []
             for step_index, step in enumerate(stage["steps"]):
-                url = (
-                    "wss://{0}/{1}/project/{2}/pipelineExecutions/" "{3}-{4}/log?stage={5}&step={6}"
-                ).format(
+                url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/" "{3}-{4}/log?stage={5}&step={6}").format(
                     config.get("RANCHER_IP_PORT"),
                     config.get("RANCHER_API_VERSION"),
                     ci_project_id,
@@ -329,9 +315,7 @@ class Rancher(object):
                 )
                 logger.info("wss url: {0}".format(url))
                 result = None
-                ws = websocket.create_connection(
-                    url, header=[headersandtoken], sslopt={"cert_reqs": ssl.CERT_NONE}
-                )
+                ws = websocket.create_connection(url, header=[headersandtoken], sslopt={"cert_reqs": ssl.CERT_NONE})
                 ws.settimeout(3)
                 try:
                     result = ws.recv()
@@ -412,14 +396,10 @@ class Rancher(object):
         elif status_code == 404:
             logger.info("project does not exist, don't need to delete.")
         else:
-            logger.info(
-                "disable_rancher_project_pipeline error, error message: {0}".format(rancher_output.text)
-            )
+            logger.info("disable_rancher_project_pipeline error, error message: {0}".format(rancher_output.text))
             abort(
                 400,
-                message='"disable_rancher_project_pipeline error, error message: {0}'.format(
-                    rancher_output.text
-                ),
+                message='"disable_rancher_project_pipeline error, error message: {0}'.format(rancher_output.text),
             )
 
     def rc_get_yaml(self, project_id):
@@ -427,9 +407,7 @@ class Rancher(object):
         if project_relation:
             pipeline_name = project_relation.ci_pipeline_id
             token = self.__generate_token()
-            headers = {
-                "Cookie": f"R_LOCALE=en-us; R_USERNAME=admin; R_PCS=light; CSRF=b88fa1f502; R_SESS={token}"
-            }
+            headers = {"Cookie": f"R_LOCALE=en-us; R_USERNAME=admin; R_PCS=light; CSRF=b88fa1f502; R_SESS={token}"}
             result = requests.get(
                 f"https://{config.get('RANCHER_IP_PORT')}/v1/project.cattle.io.pipelines/{pipeline_name.split(':')[0]}/{pipeline_name.split(':')[1]}",
                 verify=False,
@@ -445,9 +423,7 @@ class Rancher(object):
             if int(result["status"]["nextRun"]) <= total_run:
                 result["status"]["nextRun"] = total_run + 1
             token = self.__generate_token()
-            headers = {
-                "Cookie": f"R_LOCALE=en-us; R_USERNAME=admin; R_PCS=light; CSRF=b88fa1f502; R_SESS={token}"
-            }
+            headers = {"Cookie": f"R_LOCALE=en-us; R_USERNAME=admin; R_PCS=light; CSRF=b88fa1f502; R_SESS={token}"}
             result = requests.put(
                 f"https://{config.get('RANCHER_IP_PORT')}/v1/project.cattle.io.pipelines/{pipeline_name.split(':')[0]}/{pipeline_name.split(':')[1]}",
                 verify=False,
@@ -654,9 +630,7 @@ def remove_pj_executions(pj_id):
     pj_executions = rancher.rc_get_pipeline_executions(relation.ci_project_id, relation.ci_pipeline_id)
     for data in pj_executions["data"]:
         try:
-            rancher.rc_delete_pipeline_executions_run(
-                relation.ci_project_id, relation.ci_pipeline_id, data["run"]
-            )
+            rancher.rc_delete_pipeline_executions_run(relation.ci_project_id, relation.ci_pipeline_id, data["run"])
         except:
             pass
 
@@ -695,9 +669,7 @@ def remove_extra_executions():
                     rancher.rc_delete_pipeline_executions_run(
                         relation.ci_project_id, relation.ci_pipeline_id, data["run"]
                     )
-                    logger.info(
-                        f'{relation.ci_project_id}/{relation.ci_pipeline_id}-{data["run"]} has been removed.'
-                    )
+                    logger.info(f'{relation.ci_project_id}/{relation.ci_pipeline_id}-{data["run"]} has been removed.')
                 except Exception as e:
                     logger.exception(str(e))
 
@@ -809,9 +781,7 @@ def check_pipeline_need_remove(repo_name: str, branch: str, commit_id: str = "")
         pj_plugin_relation.ci_project_id,
         pj_plugin_relation.ci_pipeline_id,
     )
-    pipeline_outputs = rancher.rc_get_pipeline_executions(
-        ci_project_id, ci_pipeline_id, limit=1, branch=branch
-    )
+    pipeline_outputs = rancher.rc_get_pipeline_executions(ci_project_id, ci_pipeline_id, limit=1, branch=branch)
 
     if not pipeline_outputs["data"]:
         record_log(f"Empty pipeline branch:{branch}.")
