@@ -422,7 +422,8 @@ class SingleIssue(Resource):
 class IssueFamilyV2(MethodResource):
     @jwt_required()
     def get(self, issue_id, **kwargs):
-        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=["children", "relations"])
+        user_account = get_jwt_identity()["user_account"]
+        redmine_issue = redmine_lib.rm_impersonate(user_account).issue.get(issue_id, include=["children", "relations"])
         require_issue_visible(
             issue_id,
             issue_info=NexusIssue().set_redmine_issue_v2(redmine_issue).to_json(),
@@ -437,7 +438,8 @@ class IssueFamily(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("with_point", type=bool, location="args")
         args = parser.parse_args()
-        redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=["children", "relations"])
+        user_account = get_jwt_identity()["user_account"]
+        redmine_issue = redmine_lib.rm_impersonate(user_account).issue.get(issue_id, include=["children", "relations"])
         require_issue_visible(
             issue_id,
             issue_info=NexusIssue().set_redmine_issue_v2(redmine_issue).to_json(),
