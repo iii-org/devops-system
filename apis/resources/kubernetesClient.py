@@ -490,7 +490,7 @@ class ApiK8sClient:
 
     def read_namespace_pvc(self, name: str, namespace: str):
         try:
-            self.core_v1.read_namespaced_persistent_volume_claim(name, namespace)
+            return self.core_v1.read_namespaced_persistent_volume_claim(name, namespace)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
@@ -531,8 +531,16 @@ class ApiK8sClient:
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
-
     # 20230118 為取得 storage class 資訊而新增上列一段程式
+
+    # 20230202 為取得 persistent volume claim 資訊而新增下列一段程式
+    def read_persistent_volume(self, name: str):
+        try:
+            return self.core_v1.read_persistent_volume(name)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+    # 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
 
 
 # 20230118 為取得 storage class 資訊而新增下列一段程式
@@ -546,9 +554,29 @@ def get_storage_class_info(storage_class):
     output["reclaim_policy"] = storage_class.reclaim_policy
     output["volume_binding_mode"] = storage_class.volume_binding_mode
     return output
-
-
 # 20230118 為取得 storage class 資訊而新增上列一段程式
+
+
+# 20230202 為取得 persistent volume claim 資訊而新增下列一段程式
+def get_persistent_volume_claim_info(persistent_volume_claim):
+    output: dict = {}
+    if persistent_volume_claim is None:
+        return output
+    output["namespace"] = persistent_volume_claim.metadata.namespace
+    output["name"] = persistent_volume_claim.metadata.name
+    output["volume"] = persistent_volume_claim.spec.volume_name
+
+    return output
+
+
+def get_persistent_volume_info(persistent_volume):
+    output: dict = {}
+    if persistent_volume is None:
+        return output
+    # 可以依不同的 VolumeSource 取得對應的實體路徑(path)，以下為取得 nfs 的實體路徑。
+    output["nfs"] = persistent_volume.spec.nfs.path
+    return output
+# 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
 
 
 MAX_RETRY_APPLY_CRONJOB = 30

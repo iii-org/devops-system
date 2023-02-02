@@ -631,6 +631,9 @@ api.add_resource(deploy.StorageClass, "/deploy/clusters/storage/<int:cluster_id>
 # 20230201 為變更 storage class disabled 布林值而新增下列API
 api.add_resource(deploy.UpdateStorageClass, '/deploy/storage/<int:storage_class_id>')
 # 20230201 為變更 storage class disabled 布林值而新增上列API
+# 20230202 為取得 persistent volume claim 資訊而新增下列API
+api.add_resource(deploy.PersistentVolumeClaim, "/deploy/clusters/storage/pvc/<int:storage_class_id>")
+# 20230202 為取得 persistent volume claim 資訊而新增上列API
 
 # Alert
 api.add_resource(alert.ProjectAlert, "/project/<sint:project_id>/alert")

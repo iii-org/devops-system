@@ -56,6 +56,9 @@ _ERROR_CREATE_STORAGE_CLASS = "Create storage class failed"
 # 20230201 為變更 storage class disabled 布林值而新增下列一段程式
 _ERROR_DISABLED_STORAGE_CLASS = 'Change storage class disabled failed'
 # 20230201 為變更 storage class disabled 布林值而新增上列一段程式
+# 20230202 為取得 persistent volume claim 資訊而新增下列一段程式
+_ERROR_GET_PERSISTENT_VOLUME_CLAIM = "Get persistent volume claim failed"
+# 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
 
 _NEED_UPDATE_APPLICATION_STATUS = [1, 2, 3, 4, 9, 11]
 _DEFAULT_K8S_CONFIG_FILE = "k8s_config"
@@ -926,6 +929,14 @@ class DeployK8sClient:
                 pvc_list.append(self.client.read_namespace_pvc(body.metadata.name, namespace))
         return pvc_list
 
+    # 20230102 為取得 persistent volume claim 資訊而新增下列一段程式
+    def list_persistent_volume_claim(self, namespace:str):
+        return self.client.list_namespace_pvc(namespace)
+
+    def read_persistent_volume(self, name: str):
+        return self.client.read_persistent_volume(name)
+    # 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
+
     def delete_namespace_pvc(self, name, namespace):
         if self.check_namespace_pvc(name, namespace):
             return self.client.delete_namespace_pvc(name, namespace)
@@ -939,7 +950,6 @@ class DeployK8sClient:
 
     def check_storage_class(self, name):
         return k8s_resource_exist(name, self.client.list_storage_class())
-
     # 20230118 為取得 storage class 資訊而新增上列一段程式
 
 
@@ -2075,11 +2085,11 @@ def get_storage_class_json(storage: model.StorageClass) -> dict:
                 logger.error(ex)
         if deployment_info["total_pod_number"] is not None:
             pods += deployment_info["total_pod_number"]
-    status = "Disabled"
+    status = "Enabled"
     if storage.disabled is None:
         status = "Not Exist"
     elif storage.disabled:
-        status = "Enabled"
+        status = "Disabled"
     return {
         "id": storage.id,
         "name": storage.name,
@@ -2198,3 +2208,56 @@ class UpdateStorageClass(Resource):
                                 _ERROR_DISABLED_STORAGE_CLASS,
                                 error=apiError.change_storage_class_disabled_failed(storage_class_id=storage_class_id))
 # 20230201 為變更 storage class disabled 而新增上列一段程式
+
+
+# 20230202 為枝得 storage class 所擁有的 PVC 而新增下列一段程式
+def get_cluster_name_by_storage_class_id(storage_class_id: int) -> str:
+    sc = model.StorageClass.query.filter_by(id=storage_class_id).first()
+    cluster_name = ""
+    if sc is not None:
+        cluster = model.Cluster.query.filter_by(id=sc.cluster_id).first()
+        if cluster is not None:
+            cluster_name = cluster.name
+    return cluster_name
+
+
+def get_persistent_volume_claim_info(cluster_name: str, namespace: str) -> list:
+    deploy_k8s_client = DeployK8sClient(cluster_name)
+    pvc_info = []
+    for pvc in deploy_k8s_client.list_persistent_volume_claim(namespace).items:
+        pvc_json = kubernetesClient.get_persistent_volume_claim_info(pvc)
+        # pvc_json["volume_path"] = kubernetesClient.get_persistent_volume_info(
+        #     deploy_k8s_client.read_persistent_volume(pvc_json["volume"])
+        # )
+        pvc_info.append(pvc_json)
+    return pvc_info
+
+
+def get_persistent_volume_claim_json(storage_class_id: int, cluster_name: str) -> list:
+    pvc_list: list = []
+    if cluster_name != "":
+        app_list: list = (
+            model.Application.query.filter_by(storage_class_id=storage_class_id).order_by(model.Application.order).all()
+        )
+        namespace_list: list = []
+        for app in app_list:
+            if app.namespace in namespace_list:
+                continue
+            namespace_list.append(app.namespace)
+        for namespace in namespace_list:
+            pvc_list.append(get_persistent_volume_claim_info(cluster_name, namespace))
+    return pvc_list
+
+
+class PersistentVolumeClaim(Resource):
+    @jwt_required()
+    def get(self, storage_class_id):
+        try:
+            cluster_name = get_cluster_name_by_storage_class_id(storage_class_id)
+            output = get_persistent_volume_claim_json(storage_class_id, cluster_name)
+            return util.success({"pvc_list": output})
+        except NoResultFound:
+            return util.respond(404,
+                                _ERROR_GET_PERSISTENT_VOLUME_CLAIM,
+                                error=apiError.get_persistent_volume_claim_failed(storage_class_id=storage_class_id))
+# 20230202 為枝得 storage class 所擁有的 PVC 而新增上列一段程式

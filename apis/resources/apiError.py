@@ -591,3 +591,13 @@ def change_storage_class_disabled_failed(**kwargs):
     else:
         return build(2040, _FAILED_DISABLED_STORAGE_CLASS)
 # 20230201 為變更 storage class disabled 布林值而新增上列一段程式
+
+
+# 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
+def get_persistent_volume_claim_failed(**kwargs):
+    _FAILED_GET_PERSISTENT_VOLUME_CLAIM = 'Get persistent volume claim failed'
+    if len(kwargs) != 0:
+        return build(2040, _FAILED_GET_PERSISTENT_VOLUME_CLAIM, kwargs)
+    else:
+        return build(2040, _FAILED_GET_PERSISTENT_VOLUME_CLAIM)
+# 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
