@@ -2135,7 +2135,7 @@ def sync_storage_classes(args=None) -> list:
             del storage_name_list[index]
         output.append(get_storage_class_json(db_sc))
     for storage_name in storage_name_list:
-        sc = create_storage_class(cluster_id=cluster_id, name=storage_name)
+        sc = create_storage_class(cluster_id=cluster_id, storage_name=storage_name)
         output.append(get_storage_class_json(sc))
     if is_commit:
         db.session.commit()
@@ -2210,7 +2210,7 @@ class UpdateStorageClass(Resource):
 # 20230201 為變更 storage class disabled 而新增上列一段程式
 
 
-# 20230202 為枝得 storage class 所擁有的 PVC 而新增下列一段程式
+# 20230202 為取得 storage class 所擁有的 PVC 而新增下列一段程式
 def get_cluster_name_by_storage_class_id(storage_class_id: int) -> str:
     sc = model.StorageClass.query.filter_by(id=storage_class_id).first()
     cluster_name = ""
@@ -2260,4 +2260,4 @@ class PersistentVolumeClaim(Resource):
             return util.respond(404,
                                 _ERROR_GET_PERSISTENT_VOLUME_CLAIM,
                                 error=apiError.get_persistent_volume_claim_failed(storage_class_id=storage_class_id))
-# 20230202 為枝得 storage class 所擁有的 PVC 而新增上列一段程式
+# 20230202 為取得 storage class 所擁有的 PVC 而新增上列一段程式

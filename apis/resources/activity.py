@@ -204,6 +204,14 @@ class Activity(model.Activity):
             project_id = model.ExcalidrawHistory.query.get(excalidraw_id).excalidraw.project.id
             self.object_id = f'{get_jwt_identity()["user_id"]}@{project_id}'
             self.action_parts = f'Restore excalidraw history: {args["excalidraw_history_id"]}'
+        # 20230202 為建立 storage class 到資料庫而產生 ACTIVITY 而新增下列一段程式
+        if self.action_type == ActionType.CREATE_SC:
+            self.object_id = f'{get_jwt_identity()["user_id"]}@{args["cluster_id"]}'
+            self.action_parts = (
+                f'Create storage class records of cluster:{args["storage_name"]}{args["cluster_id"]} '
+                f'was deleted by user:{get_jwt_identity()["user_id"]}!'
+            )
+        # 20230202 為建立 storage class 到資料庫而產生 ACTIVITY 而新增上列一段程式
 
     def __get_issue_project_id(self, issue_id):
         row = model.ProjectPluginRelation.query.filter_by(
