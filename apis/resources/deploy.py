@@ -2221,16 +2221,15 @@ def get_cluster_name_by_storage_class_id(storage_class_id: int) -> str:
     return cluster_name
 
 
-def get_persistent_volume_claim_info(cluster_name: str, namespace: str) -> list:
+def get_persistent_volume_claim_info(cluster_name: str, namespace: str, pvc_list: list):
     deploy_k8s_client = DeployK8sClient(cluster_name)
-    pvc_info = []
     for pvc in deploy_k8s_client.list_persistent_volume_claim(namespace).items:
         pvc_json = kubernetesClient.get_persistent_volume_claim_info(pvc)
         # pvc_json["volume_path"] = kubernetesClient.get_persistent_volume_info(
         #     deploy_k8s_client.read_persistent_volume(pvc_json["volume"])
         # )
-        pvc_info.append(pvc_json)
-    return pvc_info
+        pvc_list.append(pvc_json)
+    # return pvc_info
 
 
 def get_persistent_volume_claim_json(storage_class_id: int, cluster_name: str) -> list:
@@ -2245,7 +2244,8 @@ def get_persistent_volume_claim_json(storage_class_id: int, cluster_name: str) -
                 continue
             namespace_list.append(app.namespace)
         for namespace in namespace_list:
-            pvc_list.append(get_persistent_volume_claim_info(cluster_name, namespace))
+            get_persistent_volume_claim_info(cluster_name, namespace, pvc_list)
+            # pvc_list.append()
     return pvc_list
 
 
