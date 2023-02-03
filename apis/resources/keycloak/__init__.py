@@ -1,105 +1,91 @@
-import argparse
-from typing import Any, Dict, List
-
-import requests
-
-
-KEYCLOAK_URL: str = ""
-BASE_RESTFUL: str = f"{KEYCLOAK_URL}/admin/realms"
+from typing import Any
+from keycloak import KeycloakAdmin
+from keycloak.exceptions import KeycloakGetError
+from resources.logger import logger
 
 
-def get_token(acc: str, password: str):
-    url = f"{KEYCLOAK_URL}/realms/master/protocol/openid-connect/token"
+KEYCLOAK_URL = "https://10.20.0.75:32110"
+REALM_NAME = "IIIdevops"
+CLIENT_ID = "IIIdevops"
+CLIENT_SECRET_KEY = "OPkQ6b2pm9BhWG3EUUIhH4uK4Hg9G88O"
+AM_REALM_ROLE_NAME = "admin"
 
-    params: dict[str, str] = {
-        "client_id": "admin-cli",
-        "grant_type": "password",
-        "username": acc,
-        "password": password,
-    }
-    r = requests.post(url, params, verify=False)
-
-    if r.ok:
-        return r.json().get("access_token")
-
-    raise ValueError("[ERROR] Get token failed, please check your account and password")
+# Root url: change to dev4
 
 
-def create_user(
-    access_token: str,
-    *,
-    username: str = None,
-    email: str = None,
-    firstname: str = None,
-    lastname: str = None,
-    password: str = None,
-    groups: List[str] = None,
-):
-    url: str = f"{BASE_RESTFUL}/IIIdevops/users"
+class KeyCloak:
+    def __init__(self):
+        self.keycloak_admin = KeycloakAdmin(
+            server_url=KEYCLOAK_URL,
+            username="admin",
+            password="IIIdevops123!",
+            realm_name=REALM_NAME,
+            user_realm_name="master",
+            auto_refresh_token=["get", "put", "post", "delete"],
+            verify=False,
+        )
 
-    headers: dict[str, str] = {
-        "content-type": "application/json",
-        "Authorization": f"Bearer {access_token}",
-    }
+    def create_user(self, args: dict[str, Any], force: bool = False, is_admin: bool = False) -> int:
+        """
+        should adjust create_user's param 'enable'
+        """
+        new_user_id = self.keycloak_admin.create_user(
+            {
+                "email": args["email"],
+                "username": args["login"],
+                "enabled": True,
+                "emailVerified": True,
+                "firstName": "#",
+                "lastName": args["name"],
+                "credentials": [
+                    {
+                        "value": args["password"],
+                        "type": "password",
+                    }
+                ],
+            },
+            exist_ok=force,
+        )
+        if is_admin:
+            self.assign_role(new_user_id, "admin")
+        return new_user_id
 
-    params: Dict[str, Any] = {
-        "enabled": True,
-    }
+    def get_users(self, args: dict[str, str] = {}):
+        ret = self.keycloak_admin.get_users(args)
 
-    if username:
-        params["username"] = username
+        return ret
 
-    if email:
-        params["email"] = email
-        params["emailVerified"] = True
+    def get_user(self, key_cloak_user_id: int) -> dict[str, Any]:
+        try:
+            user = self.keycloak_admin.get_user(key_cloak_user_id)
+        except KeycloakGetError as e:
+            raise e
+        return user
 
-    if firstname:
-        params["firstName"] = firstname
+    def delete_user(self, key_cloak_user_id: int) -> None:
+        return self.keycloak_admin.delete_user(user_id=key_cloak_user_id)
 
-    if lastname:
-        params["lastName"] = lastname
+    def get_role_info(self, name: str = "") -> list[dict[str, Any]]:
+        all_role_infos = self.keycloak_admin.get_realm_roles()
+        if not name:
+            return all_role_infos
 
-    if password:
-        params["credentials"] = [{"type": "password", "value": password, "temporary": False}]
+        match_role_info = []
+        for role_info in all_role_infos:
+            if role_info.get("name") == name:
+                match_role_info = [role_info]
+        return match_role_info
 
-    if groups:
-        params["groups"] = groups
-
-    r = requests.post(url, json=params, headers=headers, verify=False)
-
-    if r.ok:
-        print(f"[INFO] {params.get('username')} created successfully")
-
-    elif r.status_code == 409:
-        print(f"[INFO] {params.get('username')} already exists")
-
-    else:
-        raise ValueError(f"Create client failed, {r.text}")
-
-
-# if __name__ == "__main__":
-#     parser = argparse.ArgumentParser(description="Create user in keycloak")
-#     parser.add_argument("kc_account", type=str, help="admin account of keycloak")
-#     parser.add_argument("kc_password", type=str, help="admin password of keycloak")
-#     parser.add_argument("kc_base", type=str, help="keycloak base url")
-#     parser.add_argument("--username", type=str, help="New user name", required=True)
-#     parser.add_argument("--email", type=str, help="New user email")
-#     parser.add_argument("--firstname", type=str, help="New user firstname")
-#     parser.add_argument("--lastname", type=str, help="New user lastname")
-#     parser.add_argument("--password", type=str, help="New user password")
-#     parser.add_argument("--groups", type=str, nargs="+", help="New user groups, if exist")
-
-#     args = parser.parse_args()
+    def assign_role(self, key_cloak_user_id: int, role: str):
+        """
+        :param role: admin
+        """
+        if role == "admin":
+            ad_role_info = self.get_role_info(AM_REALM_ROLE_NAME)
+        else:
+            logger.exception(f"Fail to assign role on {key_cloak_user_id}, because role_name {role} has not definded")
+            return
+        return self.keycloak_admin.assign_realm_roles(user_id=key_cloak_user_id, roles=ad_role_info)
 
 
-#     token: str = get_token(args.kc_account, args.kc_password)
-
-#     create_user(
-#         token,
-#         username=args.username,
-#         email=args.email,
-#         firstname=args.firstname,
-#         lastname=args.lastname,
-#         password=args.password,
-#         groups=args.groups,
-#     )
+key_cloak = KeyCloak()
