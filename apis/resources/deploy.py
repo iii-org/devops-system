@@ -1095,8 +1095,8 @@ class DeployIngress:
         release_id = str(app.release_id)
         self.app = app
         self.k8s_info = json.loads(app.k8s_yaml)
-        self.service_name = f"{self.project.name}-service-{release_id}-{app.name}"
-        self.ingress_name = f"{self.project.name}-ingress-{release_id}-{app.name}"
+        self.service_name = f"{project.name}-service-{release_id}-{app.name}"
+        self.ingress_name = f"{project.name}-ingress-{release_id}-{app.name}"
 
     def get_ingress_info(self):
         return {
