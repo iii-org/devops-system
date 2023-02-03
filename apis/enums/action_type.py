@@ -33,6 +33,7 @@ def downgrade():
 
 '''
 
+
 class ActionType(Enum):
     CREATE_PROJECT = 1  # Must return a dict with key "project_id"
     UPDATE_PROJECT = 2  # Requires argument "project_id"
@@ -45,12 +46,16 @@ class ActionType(Enum):
     DELETE_ISSUE = 9  # Requires argument "issue_id"
     # ADD_TAG = 10  # Requires argument "project_id"
     # DELETE_TAG = 11  # Requires argument "project_id"
-    MODIFY_HOOK = 12 # Requires argument "issue_id"
+    MODIFY_HOOK = 12  # Requires argument "issue_id"
     RECREATE_PROJECT = 13  # Requires argument "project_id"
-    ENABLE_ISSUE_CHECK = 14 # Requires argument "project_id"
-    DISABLE_ISSUE_CHECK = 15 # Requires argument "project_id"
-    ENABLE_PLUGIN = 16 # Required user_id
-    DISABLE_PLUGIN = 17 # Required user_id
+    ENABLE_ISSUE_CHECK = 14  # Requires argument "project_id"
+    DISABLE_ISSUE_CHECK = 15  # Requires argument "project_id"
+    ENABLE_PLUGIN = 16  # Required user_id
+    DISABLE_PLUGIN = 17  # Required user_id
     DELETE_SIDEEX_JSONFILE = 18
     DELETE_EXCALIDRAW = 19
     RESTORE_EXCALIDRAW_HISTORY = 20
+    CREATE_SC = 21
+    DELETE_SC = 22
+    ENABLED_SC = 23
+    DISABLED_SC = 24

@@ -8,18 +8,21 @@ from resources.template import template_from_project
 from urls.template import router_model
 
 
-@doc(tags=['Template from project'], description='Create template from project_id')
+@doc(tags=["Template from project"], description="Create template from project_id")
 class TemplateFromProject(MethodResource):
-    @use_kwargs(router_model.CreateTemplateFormProjectScheme, location=('form'))
+    @use_kwargs(router_model.CreateTemplateFormProjectScheme, location=("form"))
     @jwt_required()
     def post(self, project_id, **kwargs):
-        return util.success(template_from_project.create_template_from_project(project_id, kwargs.get("name"),
-                                                                               kwargs.get("description")))
+        return util.success(
+            template_from_project.create_template_from_project(
+                project_id, kwargs.get("name"), kwargs.get("description")
+            )
+        )
 
 
-@doc(tags=['Template from project'], description='Edit template')
+@doc(tags=["Template from project"], description="Edit template")
 class TemplateEdit(MethodResource):
-    @use_kwargs(router_model.CreateTemplateFormProjectScheme, location=('form'))
+    @use_kwargs(router_model.CreateTemplateFormProjectScheme, location=("form"))
     @jwt_required()
     def put(self, id, **kwargs):
         if role.is_admin() or template_from_project.verify_user_in_template_project(id):
@@ -33,7 +36,7 @@ class TemplateEdit(MethodResource):
         return util.success()
 
 
-@doc(tags=['Template from project'], description='Get template list')
+@doc(tags=["Template from project"], description="Get template list")
 class TemplateFromProjectList(MethodResource):
     @jwt_required()
     def get(self):

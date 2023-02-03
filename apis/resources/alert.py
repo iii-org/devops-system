@@ -13,7 +13,8 @@ from sqlalchemy.exc import NoResultFound
 def check_alert_permission(role_id, owner_id, project_id):
     if role_id not in [5, 7] and owner_id != model.Project.query.get(project_id).owner_id:
         raise apiError.NotProjectOwnerError(
-            "You must be role admin, quality assurance or project owner for this operation.")
+            "You must be role admin, quality assurance or project owner for this operation."
+        )
 
 
 def is_project_alert_enable(project_id):
@@ -26,19 +27,25 @@ def get_alert_by_project(project_id):
     try:
         project.get_plan_project_id(project_id)
     except NoResultFound:
-        raise DevOpsError(404, "Error while getting alerts.",
-                          error=apiError.project_not_found(project_id))
+        raise DevOpsError(
+            404,
+            "Error while getting alerts.",
+            error=apiError.project_not_found(project_id),
+        )
     if not is_project_alert_enable(project_id):
         return []
     rows = model.Alert.query.filter_by(project_id=project_id).order_by(model.Alert.id).all()
-    return {"alert_list": [
-        {
-            "id": row.id,
-            "condition": row.condition,
-            "days": row.days,
-            "disabled": row.disabled,
-        } for row in rows
-    ]}
+    return {
+        "alert_list": [
+            {
+                "id": row.id,
+                "condition": row.condition,
+                "days": row.days,
+                "disabled": row.disabled,
+            }
+            for row in rows
+        ]
+    }
 
 
 def create_alert(project_id, args):
@@ -51,13 +58,13 @@ def create_alert(project_id, args):
                 project_id=project_id,
                 condition="comming",
                 days=default_alert_days.comming_days,
-                disabled=False
+                disabled=False,
             )
             unchange_alert = model.Alert(
                 project_id=project_id,
                 condition="unchange",
                 days=default_alert_days.unchange_days,
-                disabled=False
+                disabled=False,
             )
             db.session.add_all([comming_alert, unchange_alert])
 
@@ -79,6 +86,7 @@ def update_default_alert_days(args):
     default_alert_days.comming_days = args.get("comming_days", default_alert_days.comming_days)
     db.session.commit()
 
+
 # --------------------- Resources ---------------------
 
 
@@ -91,7 +99,7 @@ class ProjectAlert(Resource):
     def post(self, project_id):
         check_alert_permission(get_jwt_identity()["role_id"], get_jwt_identity()["user_id"], project_id)
         parser = reqparse.RequestParser()
-        parser.add_argument('enable', type=bool, required=True)
+        parser.add_argument("enable", type=bool, required=True)
         args = parser.parse_args()
         return util.success(create_alert(project_id, args))
 
@@ -99,11 +107,14 @@ class ProjectAlert(Resource):
 class ProjectAlertUpdate(Resource):
     @jwt_required()
     def patch(self, alert_id):
-        check_alert_permission(get_jwt_identity()["role_id"], get_jwt_identity()[
-                               "user_id"], model.Alert.query.get(alert_id).project_id)
+        check_alert_permission(
+            get_jwt_identity()["role_id"],
+            get_jwt_identity()["user_id"],
+            model.Alert.query.get(alert_id).project_id,
+        )
         parser = reqparse.RequestParser()
-        parser.add_argument('days', type=int)
-        parser.add_argument('disabled', type=bool)
+        parser.add_argument("days", type=int)
+        parser.add_argument("disabled", type=bool)
         args = parser.parse_args()
         args = {k: v for k, v in args.items() if v is not None}
         return util.success(update_alert(alert_id, args))
@@ -113,8 +124,8 @@ class DefaultAlertDaysUpdate(Resource):
     @jwt_required()
     def patch(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('unchange_days', type=int)
-        parser.add_argument('comming_days', type=int)
+        parser.add_argument("unchange_days", type=int)
+        parser.add_argument("comming_days", type=int)
         args = parser.parse_args()
         args = {k: v for k, v in args.items() if v is not None}
         return util.success(update_default_alert_days(args))

@@ -11,11 +11,11 @@ get_router_error = "Without Router Definition"
 
 class Router(Resource):
     @jwt_required()
-    @use_kwargs(route_model.RouterSimpleSchema, location='query')
+    @use_kwargs(route_model.RouterSimpleSchema, location="query")
     def get(self, **kwargs):
         try:
-            if kwargs.get('simple'):
-                return util.success(router.get_plugin_software(kwargs['simple']))
+            if kwargs.get("simple"):
+                return util.success(router.get_plugin_software(kwargs["simple"]))
             else:
                 return util.success(router.get_plugin_software())
         except DevOpsError:

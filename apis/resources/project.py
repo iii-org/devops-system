@@ -23,7 +23,11 @@ import nexus
 import plugins
 import resources.apiError as apiError
 import util as util
-from data.nexus_project import NexusProject, calculate_project_issues, fill_rd_extra_fields
+from data.nexus_project import (
+    NexusProject,
+    calculate_project_issues,
+    fill_rd_extra_fields,
+)
 from model import ProjectPluginRelation, ProjectUserRole, StarredProject, db, Project
 from nexus import nx_get_project_plugin_relation
 from plugins.checkmarx.checkmarx_main import checkmarx
@@ -31,7 +35,7 @@ from resources.apiError import DevOpsError
 from resources.starred_project import spj_unset
 from accessories import redmine_lib
 from util import DevOpsThread
-from redminelib.exceptions import ResourceNotFoundError , ForbiddenError
+from redminelib.exceptions import ResourceNotFoundError, ForbiddenError
 from . import user, harbor, kubernetesClient, role, template
 from .activity import record_activity, ActionType
 from plugins.webinspect import webinspect_main as webinspect
@@ -56,14 +60,14 @@ from .rancher import get_all_appname_by_project
 
 
 def get_pj_id_by_name(name):
-    ret = {
-        "id": -1,
-        "plan_id": -1,
-        "repo_id": -1
-    }
-    pj_info = db.session.query(ProjectPluginRelation).join(Project).filter(
-        model.ProjectPluginRelation.project_id == Project.id).filter(
-        model.Project.name == name).first()
+    ret = {"id": -1, "plan_id": -1, "repo_id": -1}
+    pj_info = (
+        db.session.query(ProjectPluginRelation)
+        .join(Project)
+        .filter(model.ProjectPluginRelation.project_id == Project.id)
+        .filter(model.Project.name == name)
+        .first()
+    )
     if pj_info is None:
         return ret
     ret["id"] = pj_info.project_id
@@ -74,6 +78,7 @@ def get_pj_id_by_name(name):
 
 def get_project_issue_calculation(user_id, project_ids=[]):
     from resources.sync_project import check_project_exist
+
     ret = []
     user_name = model.User.query.get(user_id).login
     recheck_project = False
@@ -88,12 +93,12 @@ def get_project_issue_calculation(user_id, project_ids=[]):
             recheck_project = True
             calculate_project_issue = {
                 "id": project_id,
-                'closed_count': None,
-                'overdue_count': None,
-                'total_count': None,
-                'project_status': None,
-                'updated_time': None,
-                'is_lock': True
+                "closed_count": None,
+                "overdue_count": None,
+                "total_count": None,
+                "project_status": None,
+                "updated_time": None,
+                "is_lock": True,
             }
         else:
             calculate_project_issue = get_certain_pj_issue_calc(project_id)
@@ -118,8 +123,7 @@ def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
     rows, counts = get_project_rows_by_user(user_id, disable, args=args)
     ret = []
     for row in rows:
-        nexus_project = NexusProject().set_project_row(row) \
-            .set_starred_info(user_id)
+        nexus_project = NexusProject().set_project_row(row).set_starred_info(user_id)
         if role == "pm":
             redmine_project_id = row.plugin_relation.plan_project_id
             try:
@@ -127,8 +131,11 @@ def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
                     project_object = redmine_lib.redmine.project.get(redmine_project_id)
                 else:
                     project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
-                rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
-            except (ResourceNotFoundError , ForbiddenError):
+                rm_project = {
+                    "updated_on": project_object.updated_on,
+                    "id": project_object.id,
+                }
+            except (ResourceNotFoundError, ForbiddenError):
                 # When Redmin project was missing
                 sync_project.lock_project(nexus_project.name, "Redmine")
                 rm_project = {"updated_on": datetime.utcnow().isoformat(), "id": -1}
@@ -142,14 +149,13 @@ def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
         ret.append(nexus_project.to_json())
 
     if limit is not None and offset is not None:
-        page_dict = util.get_pagination(counts,
-                                        limit, offset)
-        return {'project_list': ret, 'page': page_dict}
+        page_dict = util.get_pagination(counts, limit, offset)
+        return {"project_list": ret, "page": page_dict}
 
     return ret
 
 
-def get_project_rows_by_user(user_id, disable: Optional, args={}):
+def get_project_rows_by_user(user_id, disable, args={}):
     search: str = args.get("search")
     accsearch: str = args.get("accsearch")
     is_empty_project: bool = args.get("is_empty_project")
@@ -166,32 +172,22 @@ def get_project_rows_by_user(user_id, disable: Optional, args={}):
         else None
     )
 
-    query: Query = model.Project.query.options(
-        joinedload(model.Project.user_role, innerjoin=True)
-    )
+    query: Query = model.Project.query.options(joinedload(model.Project.user_role, innerjoin=True))
     # 如果不是admin（也就是一般RD/PM/QA），取得 user_id 有參加的 project 列表
     if user.get_role_id(user_id) != role.ADMIN.id:
         query: Query = query.filter(Project.user_role.any(user_id=user_id))
 
-    stared_project_list: list[StarredProject] = (
-        db.session.query(StarredProject).filter_by(user_id=user_id).all()
-    )
-    stared_project_objects: list[Project] = [
-        Project.query.get(_.project_id) for _ in stared_project_list
-    ]
+    stared_project_list: list[StarredProject] = db.session.query(StarredProject).filter_by(user_id=user_id).all()
+    stared_project_objects: list[Project] = [Project.query.get(_.project_id) for _ in stared_project_list]
 
     if disable is not None:
         query: Query = query.filter_by(disabled=disable)
         stared_project_objects: list[Project] = [
-            star_project
-            for star_project in stared_project_objects
-            if star_project.disabled == disable
+            star_project for star_project in stared_project_objects if star_project.disabled == disable
         ]
 
     if search is not None:
-        users: list[model.User] = model.User.query.filter(
-            model.User.name.ilike(f"%{search}%")
-        ).all()
+        users: list[model.User] = model.User.query.filter(model.User.name.ilike(f"%{search}%")).all()
         owner_ids: list[int] = [user.id for user in users]
         query: Query = query.filter(
             or_(
@@ -263,13 +259,13 @@ def create_project(user_id, args):
     is_inherit_members = args.pop("is_inheritance_member", False)
     if args["description"] is None:
         args["description"] = ""
-    if args['display'] is None:
-        args['display'] = args['name']
-    if not args['owner_id']:
+    if args["display"] is None:
+        args["display"] = args["name"]
+    if not args["owner_id"]:
         owner_id = user_id
     else:
-        owner_id = args['owner_id']
-    project_name = args['name']
+        owner_id = args["owner_id"]
+    project_name = args["name"]
     # create namespace in kubernetes
     try:
         kubernetesClient.create_namespace(project_name)
@@ -278,29 +274,32 @@ def create_project(user_id, args):
         kubernetesClient.create_namespace_limitrange(project_name)
     except ApiException as e:
         if e.status == 409:
-            raise DevOpsError(e.status, 'Kubernetes already has this identifier.',
-                              error=apiError.identifier_has_been_taken(args['name']))
+            raise DevOpsError(
+                e.status,
+                "Kubernetes already has this identifier.",
+                error=apiError.identifier_has_been_taken(args["name"]),
+            )
         kubernetesClient.delete_namespace(project_name)
         raise e
 
     # 取得母專案資訊
-    if args.get('parent_id', None) is not None:
-        parent_plan_project_id = get_plan_project_id(args.get('parent_id'))
-        args['parent_plan_project_id'] = parent_plan_project_id
+    if args.get("parent_id", None) is not None:
+        parent_plan_project_id = get_plan_project_id(args.get("parent_id"))
+        args["parent_plan_project_id"] = parent_plan_project_id
 
     # 使用 multi-thread 建立各專案
-    services = ['redmine', 'gitlab', 'harbor', 'sonarqube']
+    services = ["redmine", "gitlab", "harbor", "sonarqube"]
     targets = {
-        'redmine': redmine.rm_create_project,
-        'gitlab': gitlab.gl_create_project,
-        'harbor': harbor.hb_create_project,
-        'sonarqube': sonarqube.sq_create_project
+        "redmine": redmine.rm_create_project,
+        "gitlab": gitlab.gl_create_project,
+        "harbor": harbor.hb_create_project,
+        "sonarqube": sonarqube.sq_create_project,
     }
     service_args = {
-        'redmine': (args,),
-        'gitlab': (args,),
-        'harbor': (args['name'],),
-        'sonarqube': (args['name'], args.get('display'))
+        "redmine": (args,),
+        "gitlab": (args,),
+        "harbor": (args["name"],),
+        "sonarqube": (args["name"], args.get("display")),
     }
     helper = util.ServiceBatchOpHelper(services, targets, service_args)
     helper.run()
@@ -312,19 +311,19 @@ def create_project(user_id, args):
     gitlab_pj_ssh_url = None
     gitlab_pj_http_url = None
     harbor_pj_id = None
-    project_name = args['name']
+    project_name = args["name"]
 
     for service in services:
         if helper.errors[service] is None:
             output = helper.outputs[service]
-            if service == 'redmine':
+            if service == "redmine":
                 redmine_pj_id = output["project"]["id"]
-            elif service == 'gitlab':
+            elif service == "gitlab":
                 gitlab_pj_id = output["id"]
                 gitlab_pj_name = output["name"]
                 gitlab_pj_ssh_url = output["ssh_url_to_repo"]
                 gitlab_pj_http_url = output["http_url_to_repo"]
-            elif service == 'harbor':
+            elif service == "harbor":
                 harbor_pj_id = output
 
     # 如果不是全部都成功，rollback
@@ -332,39 +331,42 @@ def create_project(user_id, args):
         kubernetesClient.delete_namespace(project_name)
         for service in services:
             if helper.errors[service] is None:
-                if service == 'redmine':
+                if service == "redmine":
                     redmine.rm_delete_project(redmine_pj_id)
-                elif service == 'gitlab':
+                elif service == "gitlab":
                     gitlab.gl_delete_project(gitlab_pj_id)
-                elif service == 'harbor':
+                elif service == "harbor":
                     harbor_param = [harbor_pj_id, project_name]
                     harbor.hb_delete_project(harbor_param)
-                elif service == 'sonarqube':
+                elif service == "sonarqube":
                     sonarqube.sq_delete_project(project_name)
 
         # 丟出服務序列在最前的錯誤
         for service in services:
             e = helper.errors[service]
             if e is not None:
-                if service == 'redmine':
+                if service == "redmine":
                     status_code = e.status_code
                     resp = e.unpack_response()
-                    if status_code == 422 and 'errors' in resp:
-                        if len(resp['errors']) > 0:
-                            if resp['errors'][0] == 'Identifier has already been taken':
-                                raise DevOpsError(status_code, 'Redmine already used this identifier.',
-                                                  error=apiError.identifier_has_been_taken(args['name']))
+                    if status_code == 422 and "errors" in resp:
+                        if len(resp["errors"]) > 0:
+                            if resp["errors"][0] == "Identifier has already been taken":
+                                raise DevOpsError(
+                                    status_code,
+                                    "Redmine already used this identifier.",
+                                    error=apiError.identifier_has_been_taken(args["name"]),
+                                )
                     raise e
-                elif service == 'gitlab':
+                elif service == "gitlab":
                     status_code = e.status_code
                     gitlab_json = e.unpack_response()
                     if status_code == 400:
                         try:
-                            if gitlab_json['message']['name'][0] == 'has already been taken':
+                            if gitlab_json["message"]["name"][0] == "has already been taken":
                                 raise DevOpsError(
-                                    status_code, {"gitlab": gitlab_json},
-                                    error=apiError.identifier_has_been_taken(
-                                        args['name'])
+                                    status_code,
+                                    {"gitlab": gitlab_json},
+                                    error=apiError.identifier_has_been_taken(args["name"]),
                                 )
                         except (KeyError, IndexError):
                             pass
@@ -376,13 +378,12 @@ def create_project(user_id, args):
         uuids = uuid.uuid1().hex
         # enable rancher pipeline
         rancher.rc_get_project_id()
-        t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline,
-                                 args=(gitlab_pj_http_url,))
+        t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline, args=(gitlab_pj_http_url,))
         t_rancher.start()
         rancher_pipeline_id = t_rancher.join_()
 
         # add kubernetes namespace into rancher default project
-        rancher.rc_add_namespace_into_rc_project(args['name'])
+        rancher.rc_add_namespace_into_rc_project(args["name"])
 
         # get base_example
         template_pj_path = None
@@ -393,13 +394,13 @@ def create_project(user_id, args):
         # Insert into nexus database
         new_pjt = model.Project(
             name=gitlab_pj_name,
-            display=args['display'],
-            description=args['description'],
+            display=args["display"],
+            description=args["description"],
             ssh_url=gitlab_pj_ssh_url,
             http_url=gitlab_pj_http_url,
-            disabled=args['disabled'],
-            start_date=args['start_date'],
-            due_date=args['due_date'],
+            disabled=args["disabled"],
+            start_date=args["start_date"],
+            due_date=args["due_date"],
             create_at=str(datetime.utcnow()),
             owner_id=owner_id,
             creator_id=user_id,
@@ -407,7 +408,7 @@ def create_project(user_id, args):
             example_tag=args["tag_name"],
             uuid=uuids,
             is_inheritance_member=is_inherit_members,
-            is_empty_project=args.get("template_id") is None
+            is_empty_project=args.get("template_id") is None,
         )
         db.session.add(new_pjt)
         db.session.commit()
@@ -420,17 +421,17 @@ def create_project(user_id, args):
             git_repository_id=gitlab_pj_id,
             harbor_project_id=harbor_pj_id,
             ci_project_id=rancher.project_id,
-            ci_pipeline_id=rancher_pipeline_id
+            ci_pipeline_id=rancher_pipeline_id,
         )
         db.session.add(new_relation)
         db.session.commit()
 
         # 若有父專案, 加關聯進ProjectParentSonRelation
-        if args.get('parent_plan_project_id') is not None:
+        if args.get("parent_plan_project_id") is not None:
             new_father_son_relation = model.ProjectParentSonRelation(
-                parent_id=args.get('parent_id'),
+                parent_id=args.get("parent_id"),
                 son_id=project_id,
-                created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
             )
             db.session.add(new_father_son_relation)
             db.session.commit()
@@ -442,25 +443,34 @@ def create_project(user_id, args):
         create_bot(project_id)
 
         # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
-        if is_inherit_members and args.get('parent_plan_project_id') is not None:
-            for row in db.session.query(model.User, ProjectUserRole). \
-                    join(model.User).filter(model.ProjectUserRole.project_id == args.get('parent_id')).all():
-                if row.User.id not in [owner_id, user_id] and \
-                        not row.User.login.startswith("project_bot") and \
-                        row.ProjectUserRole.role_id != 7:
+        if is_inherit_members and args.get("parent_plan_project_id") is not None:
+            for row in (
+                db.session.query(model.User, ProjectUserRole)
+                .join(model.User)
+                .filter(model.ProjectUserRole.project_id == args.get("parent_id"))
+                .all()
+            ):
+                if (
+                    row.User.id not in [owner_id, user_id]
+                    and not row.User.login.startswith("project_bot")
+                    and row.ProjectUserRole.role_id != 7
+                ):
                     project_add_member(project_id, row.User.id)
 
         # Commit and push file by template , if template env is not None
         if args.get("template_id") is not None:
-            template.tm_use_template_push_into_pj(args["template_id"], gitlab_pj_id,
-                                                  args["tag_name"], args["arguments"], uuids)
+            template.tm_use_template_push_into_pj(
+                args["template_id"],
+                gitlab_pj_id,
+                args["tag_name"],
+                args["arguments"],
+                uuids,
+            )
 
         # Create PipelineUpdateVersion
         from resources.check_version import LATEST_VERSION
-        row = model.PipelineUpdateVersion(
-            project_id=project_id,
-            version=LATEST_VERSION
-        )
+
+        row = model.PipelineUpdateVersion(project_id=project_id, version=LATEST_VERSION)
         db.session.add(row)
         db.session.commit()
 
@@ -475,8 +485,8 @@ def create_project(user_id, args):
             "plan_project_id": redmine_pj_id,
             "git_repository_id": gitlab_pj_id,
             "harbor_project_id": harbor_pj_id,
-            "description": args['description'],
-            "project_url": f'http://{config.get("DEPLOYMENT_NAME")}/#/plan/{project_name}/overview'
+            "description": args["description"],
+            "project_url": f'http://{config.get("DEPLOYMENT_NAME")}/#/plan/{project_name}/overview',
         }
     except Exception as e:
         redmine.rm_delete_project(redmine_pj_id)
@@ -485,22 +495,15 @@ def create_project(user_id, args):
         harbor.hb_delete_project(harbor_param)
         kubernetesClient.delete_namespace(project_name)
         sonarqube.sq_delete_project(project_name)
-        t_rancher = DevOpsThread(target=rancher.rc_disable_project_pipeline,
-                                 args=(gitlab_pj_http_url,))
+        t_rancher = DevOpsThread(target=rancher.rc_disable_project_pipeline, args=(gitlab_pj_http_url,))
         t_rancher.start()
         kubernetesClient.delete_namespace(project_name)
 
         if project_id is not None:
             delete_bot(project_id)
-            db.engine.execute(
-                "DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'".format(
-                    project_id))
-            db.engine.execute(
-                "DELETE FROM public.project_user_role WHERE project_id = '{0}'".format(
-                    project_id))
-            db.engine.execute(
-                "DELETE FROM public.projects WHERE id = '{0}'".format(
-                    project_id))
+            db.engine.execute("DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'".format(project_id))
+            db.engine.execute("DELETE FROM public.project_user_role WHERE project_id = '{0}'".format(project_id))
+            db.engine.execute("DELETE FROM public.projects WHERE id = '{0}'".format(project_id))
         raise e
 
 
@@ -508,62 +511,58 @@ def project_add_subadmin(project_id, user_id):
     role_id = user.get_role_id(user_id)
 
     # Check ProjectUserRole table has relationship or not
-    row = model.ProjectUserRole.query.filter_by(
-        user_id=user_id, project_id=project_id, role_id=role_id).first()
+    row = model.ProjectUserRole.query.filter_by(user_id=user_id, project_id=project_id, role_id=role_id).first()
     # if ProjectUserRole table not has relationship
     if row is not None:
-        raise DevOpsError(422, "Error while adding user to project.",
-                          error=apiError.already_in_project(user_id, project_id))
+        raise DevOpsError(
+            422,
+            "Error while adding user to project.",
+            error=apiError.already_in_project(user_id, project_id),
+        )
     # insert one relationship
-    new = model.ProjectUserRole(
-        project_id=project_id, user_id=user_id, role_id=role_id)
+    new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
     db.session.add(new)
     db.session.commit()
 
 
 def create_bot(project_id):
     # Create project BOT
-    login = f'project_bot_{project_id}'
+    login = f"project_bot_{project_id}"
     password = util.get_random_alphanumeric_string(6, 3)
     args = {
-        'name': f'專案管理機器人{project_id}號',
-        'email': f'project_bot_{project_id}@nowhere.net',
-        'phone': 'BOTRingRing',
-        'login': login,
-        'password': password,
-        'role_id': role.BOT.id,
-        'status': 'enable'
+        "name": f"專案管理機器人{project_id}號",
+        "email": f"project_bot_{project_id}@nowhere.net",
+        "phone": "BOTRingRing",
+        "login": login,
+        "password": password,
+        "role_id": role.BOT.id,
+        "status": "enable",
     }
     u = user.create_user(args)
-    user_id = u['user_id']
+    user_id = u["user_id"]
     project_add_member(project_id, user_id)
-    git_user_id = u['repository_user_id']
+    git_user_id = u["repository_user_id"]
     git_access_token = gitlab.gl_create_access_token(git_user_id)
     sonar_access_token = sonarqube.sq_create_access_token(login)
 
     # Add bot secrets to rancher
-    create_kubernetes_namespace_secret(
-        project_id, 'gitlab-bot', {'git-token': git_access_token})
-    create_kubernetes_namespace_secret(
-        project_id, 'sonar-bot', {'sonar-token': sonar_access_token})
-    create_kubernetes_namespace_secret(
-        project_id, 'nexus-bot', {'username': login, 'password': password})
+    create_kubernetes_namespace_secret(project_id, "gitlab-bot", {"git-token": git_access_token})
+    create_kubernetes_namespace_secret(project_id, "sonar-bot", {"sonar-token": sonar_access_token})
+    create_kubernetes_namespace_secret(project_id, "nexus-bot", {"username": login, "password": password})
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
 def pm_update_project(project_id, args):
     is_inherit_members = args.get("is_inheritance_member") or False
 
-    plugin_relation = model.ProjectPluginRelation.query.filter_by(
-        project_id=project_id).first()
-    if args['description'] is not None:
-        gitlab.gl_update_project(
-            plugin_relation.git_repository_id, args["description"])
-    if args.get('parent_id', None) is not None:
+    plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
+    if args["description"] is not None:
+        gitlab.gl_update_project(plugin_relation.git_repository_id, args["description"])
+    if args.get("parent_id", None) is not None:
         if args["parent_id"] == "":
-            args['parent_plan_project_id'] = ""
+            args["parent_plan_project_id"] = ""
         else:
-            args['parent_plan_project_id'] = get_plan_project_id(int(args.get('parent_id')))
+            args["parent_plan_project_id"] = get_plan_project_id(int(args.get("parent_id")))
 
     # Update project template
     project = model.Project.query.filter_by(id=project_id).first()
@@ -571,61 +570,75 @@ def pm_update_project(project_id, args):
     if project.is_empty_project and args.get("template_id") is not None:
         # Because it needs force push, so remove master from protected branch list
         unprotect_project(plugin_relation.git_repository_id, "master")
-        
+
         template_pj = template.get_projects_detail(args["template_id"])
         args |= {
-            "is_empty_project": False, "base_example": template_pj.path, "example_tag": args["tag_name"]}
-        template.tm_use_template_push_into_pj(args["template_id"], plugin_relation.git_repository_id,
-                                                  args["tag_name"], args.get("arguments"), project.uuid, force=True)
-    
+            "is_empty_project": False,
+            "base_example": template_pj.path,
+            "example_tag": args["tag_name"],
+        }
+        template.tm_use_template_push_into_pj(
+            args["template_id"],
+            plugin_relation.git_repository_id,
+            args["tag_name"],
+            args.get("arguments"),
+            project.uuid,
+            force=True,
+        )
+
     redmine.rm_update_project(plugin_relation.plan_project_id, args)
     nexus.nx_update_project(project_id, args)
 
     # 如果有disable, 調整專案在gitlab archive狀態
-    if args.get('disabled'):
-        disabled = args['disabled']
-        gitlab.gl_archive_project(
-            plugin_relation.git_repository_id, disabled)
-        rancher.rc_del_app_with_prefix(f'{project_name}-')
+    if args.get("disabled"):
+        disabled = args["disabled"]
+        gitlab.gl_archive_project(plugin_relation.git_repository_id, disabled)
+        rancher.rc_del_app_with_prefix(f"{project_name}-")
 
     # 若有父專案, 加關聯進ProjectParentSonRelation, 須等redmine更新完再寫入
-    if args.get('parent_plan_project_id') is not None:
+    if args.get("parent_plan_project_id") is not None:
         project_relation = model.ProjectParentSonRelation.query.filter_by(son_id=project_id)
         if project_relation.first() is None:
-            if args.get('parent_plan_project_id') != "":
+            if args.get("parent_plan_project_id") != "":
                 new_father_son_relation = model.ProjectParentSonRelation(
-                    parent_id=int(args.get('parent_id')),
+                    parent_id=int(args.get("parent_id")),
                     son_id=project_id,
-                    created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                    created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                 )
                 db.session.add(new_father_son_relation)
         else:
-            if args.get('parent_plan_project_id') != "":
+            if args.get("parent_plan_project_id") != "":
                 project_relation = project_relation.first()
-                project_relation.parent_id = int(args.get('parent_id'))
+                project_relation.parent_id = int(args.get("parent_id"))
                 project_relation.created_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             else:
                 project_relation.delete()
         db.session.commit()
 
     # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
-    if is_inherit_members and args.get('parent_plan_project_id') is not None:
+    if is_inherit_members and args.get("parent_plan_project_id") is not None:
         exist_user_ids = [row.user_id for row in model.ProjectUserRole.query.filter_by(project_id=project_id).all()]
 
-        for row in db.session.query(model.User, ProjectUserRole). \
-                join(model.User).filter(model.ProjectUserRole.project_id == args.get('parent_id')).all():
-            if row.User.id not in exist_user_ids and \
-                    row.User.id != args.get("owner_id") and \
-                    not row.User.login.startswith("project_bot") and \
-                    row.ProjectUserRole.role_id != 7:
+        for row in (
+            db.session.query(model.User, ProjectUserRole)
+            .join(model.User)
+            .filter(model.ProjectUserRole.project_id == args.get("parent_id"))
+            .all()
+        ):
+            if (
+                row.User.id not in exist_user_ids
+                and row.User.id != args.get("owner_id")
+                and not row.User.login.startswith("project_bot")
+                and row.ProjectUserRole.role_id != 7
+            ):
                 project_add_member(project_id, row.User.id)
 
     # 檢查是否要變更 DISPLAY，若有要一起變更 SONARQUBE 的 PROJECT NAME
-    if args.get('display') is not None:
+    if args.get("display") is not None:
         sonar_url = config.get("SONARQUBE_EXTERNAL_BASE_URL")
         sonar_token = config.get("SONARQUBE_ADMIN_TOKEN")
         project_key = project_name
-        project_name = args.get('display')
+        project_name = args.get("display")
         sonar_host = 'sonar.host.url="' + sonar_url + '"'
         sonar_login = 'sonar.login="' + sonar_token + '"'
         sonar_projectkey = 'sonar.projectKey="' + project_key + '"'
@@ -634,8 +647,16 @@ def pm_update_project(project_id, args):
         #                 " -D " + sonar_projectname)
         # os.system("cd .\\sonar-scanner\\bin &&" + sonar_rename)
         # 以上為 WINDOWS 環境的執行指令，以下為 LINUX 的執行執令
-        sonar_rename = ("./sonar-scanner -D" + sonar_host + " -D" + sonar_login + " -D" + sonar_projectkey +
-                        " -D" + sonar_projectname)
+        sonar_rename = (
+            "./sonar-scanner -D"
+            + sonar_host
+            + " -D"
+            + sonar_login
+            + " -D"
+            + sonar_projectkey
+            + " -D"
+            + sonar_projectname
+        )
         os.system("cd " + sonarqube.SONAR_SCAN_PATH + " && " + sonar_rename)
 
 
@@ -659,14 +680,14 @@ def delete_project(project_id):
 
     server_alive_output = Monitoring().check_project_alive(is_project=True, only_server=True)
     if not server_alive_output["all_alive"]:
-        not_alive_server = [
-            server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive]
+        not_alive_server = [server.capitalize() for server, alive in server_alive_output["alive"].items() if not alive]
         servers = ", ".join(not_alive_server)
-        raise apiError.DevOpsError(500, f"{servers} not alive")
+        raise apiError.DevOpsError(500, f"{servers} not alive", error=apiError.plugin_server_not_alive(servers))
 
     for project_id in delete_id_list:
         delete_project_helper(project_id)
     return util.success()
+
 
 # 用project_id刪除redmine & gitlab的project並將db的相關table欄位一併刪除
 
@@ -684,8 +705,11 @@ def delete_project_helper(project_id):
             db.session.commit()
             return util.success()
         else:
-            raise DevOpsError(404, "Error while deleting project.",
-                              error=apiError.project_not_found(project_id))
+            raise DevOpsError(
+                404,
+                "Error while deleting project.",
+                error=apiError.project_not_found(project_id),
+            )
     redmine_project_id = relation.plan_project_id
     gitlab_project_id = relation.git_repository_id
     harbor_project_id = relation.harbor_project_id
@@ -695,9 +719,7 @@ def delete_project_helper(project_id):
 
     try:
         # disabled rancher pipeline
-        rancher.rc_disable_project_pipeline(
-            relation.ci_project_id,
-            relation.ci_pipeline_id)
+        rancher.rc_disable_project_pipeline(relation.ci_project_id, relation.ci_pipeline_id)
         # remove kubernetes namespace out to rancher project
         rancher.rc_add_namespace_into_rc_project(None)
     except DevOpsError as e:
@@ -720,20 +742,12 @@ def delete_project_helper(project_id):
 
     redmine_pj = model.RedmineProject.query.filter_by(project_id=project_id).first()
     if redmine_pj is not None:
-        db.engine.execute(
-            "DELETE FROM public.redmine_project WHERE project_id = '{0}'".format(
-                project_id))
+        db.engine.execute("DELETE FROM public.redmine_project WHERE project_id = '{0}'".format(project_id))
 
     # 如果gitlab & redmine project都成功被刪除則繼續刪除db內相關tables欄位
-    db.engine.execute(
-        "DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'".format(
-            project_id))
-    db.engine.execute(
-        "DELETE FROM public.project_user_role WHERE project_id = '{0}'".format(
-            project_id))
-    db.engine.execute(
-        "DELETE FROM public.projects WHERE id = '{0}'".format(
-            project_id))
+    db.engine.execute("DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'".format(project_id))
+    db.engine.execute("DELETE FROM public.project_user_role WHERE project_id = '{0}'".format(project_id))
+    db.engine.execute("DELETE FROM public.projects WHERE id = '{0}'".format(project_id))
 
     # Delete project NFS folder
     project_nfs_file_path = f"./devops-data/project-data/{project_name}"
@@ -742,14 +756,13 @@ def delete_project_helper(project_id):
 
 
 def delete_bot(project_id):
-    row = model.ProjectUserRole.query.filter_by(
-        project_id=project_id, role_id=role.BOT.id).first()
+    row = model.ProjectUserRole.query.filter_by(project_id=project_id, role_id=role.BOT.id).first()
     if row is None:
         return
     user.delete_user(row.user_id)
-    delete_kubernetes_namespace_secret(project_id, 'gitlab-bot')
-    delete_kubernetes_namespace_secret(project_id, 'sonar-bot')
-    delete_kubernetes_namespace_secret(project_id, 'nexus-bot')
+    delete_kubernetes_namespace_secret(project_id, "gitlab-bot")
+    delete_kubernetes_namespace_secret(project_id, "sonar-bot")
+    delete_kubernetes_namespace_secret(project_id, "nexus-bot")
 
 
 def get_project_info(project_id):
@@ -761,21 +774,21 @@ def project_add_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
 
     # Check ProjectUserRole table has relationship or not
-    row = model.ProjectUserRole.query.filter_by(
-        user_id=user_id, project_id=project_id, role_id=role_id).first()
+    row = model.ProjectUserRole.query.filter_by(user_id=user_id, project_id=project_id, role_id=role_id).first()
     # if ProjectUserRole table not has relationship
     if row is not None:
-        raise DevOpsError(422, "Error while adding user to project.",
-                          error=apiError.already_in_project(user_id, project_id))
+        raise DevOpsError(
+            422,
+            "Error while adding user to project.",
+            error=apiError.already_in_project(user_id, project_id),
+        )
     # insert one relationship
-    new = model.ProjectUserRole(
-        project_id=project_id, user_id=user_id, role_id=role_id)
+    new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
     db.session.add(new)
     db.session.commit()
 
     user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
-    project_relation = nx_get_project_plugin_relation(
-        nexus_project_id=project_id)
+    project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
     redmine_role_id = user.to_redmine_role_id(role_id)
 
     # get project name
@@ -783,24 +796,27 @@ def project_add_member(project_id, user_id):
     # get user name
     ur_row = model.User.query.filter_by(id=user_id).one()
 
-    services = ['redmine', 'gitlab', 'harbor',
-                'kubernetes_role_binding', 'sonarqube']
+    services = ["redmine", "gitlab", "harbor", "kubernetes_role_binding", "sonarqube"]
     targets = {
-        'redmine': redmine.rm_create_memberships,
-        'gitlab': gitlab.gl_project_add_member,
-        'harbor': harbor.hb_add_member,
-        'kubernetes_role_binding': kubernetesClient.create_role_binding,
-        'sonarqube': sonarqube.sq_add_member
+        "redmine": redmine.rm_create_memberships,
+        "gitlab": gitlab.gl_project_add_member,
+        "harbor": harbor.hb_add_member,
+        "kubernetes_role_binding": kubernetesClient.create_role_binding,
+        "sonarqube": sonarqube.sq_add_member,
     }
     service_args = {
-        'redmine': (project_relation.plan_project_id,
-                    user_relation.plan_user_id, redmine_role_id),
-        'gitlab': (project_relation.git_repository_id,
-                   user_relation.repository_user_id),
-        'harbor': (project_relation.harbor_project_id,
-                   user_relation.harbor_user_id),
-        'kubernetes_role_binding': (pj_row.name, util.encode_k8s_sa(ur_row.login)),
-        'sonarqube': (pj_row.name, ur_row.login)
+        "redmine": (
+            project_relation.plan_project_id,
+            user_relation.plan_user_id,
+            redmine_role_id,
+        ),
+        "gitlab": (
+            project_relation.git_repository_id,
+            user_relation.repository_user_id,
+        ),
+        "harbor": (project_relation.harbor_project_id, user_relation.harbor_user_id),
+        "kubernetes_role_binding": (pj_row.name, util.encode_k8s_sa(ur_row.login)),
+        "sonarqube": (pj_row.name, ur_row.login),
     }
     helper = util.ServiceBatchOpHelper(services, targets, service_args)
     helper.run()
@@ -816,23 +832,27 @@ def project_remove_member(project_id, user_id):
     role_id = user.get_role_id(user_id)
     project = model.Project.query.filter_by(id=project_id).first()
     if project.owner_id == user_id:
-        raise apiError.DevOpsError(404, "Error while removing a member from the project.",
-                                   error=apiError.is_project_owner_in_project(user_id, project_id))
+        raise apiError.DevOpsError(
+            404,
+            "Error while removing a member from the project.",
+            error=apiError.is_project_owner_in_project(user_id, project_id),
+        )
 
     user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
-    project_relation = nx_get_project_plugin_relation(
-        nexus_project_id=project_id)
+    project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
     if project_relation is None:
-        raise apiError.DevOpsError(404, "Error while removing a member from the project.",
-                                   error=apiError.project_not_found(project_id))
+        raise apiError.DevOpsError(
+            404,
+            "Error while removing a member from the project.",
+            error=apiError.project_not_found(project_id),
+        )
 
     # get membership id
-    memberships = redmine.rm_get_memberships_list(
-        project_relation.plan_project_id)
+    memberships = redmine.rm_get_memberships_list(project_relation.plan_project_id)
     redmine_membership_id = None
-    for membership in memberships['memberships']:
-        if membership['user']['id'] == user_relation.plan_user_id:
-            redmine_membership_id = membership['id']
+    for membership in memberships["memberships"]:
+        if membership["user"]["id"] == user_relation.plan_user_id:
+            redmine_membership_id = membership["id"]
     if redmine_membership_id is not None:
         # delete membership
         try:
@@ -848,15 +868,13 @@ def project_remove_member(project_id, user_id):
         pass
 
     try:
-        gitlab.gl_project_delete_member(project_relation.git_repository_id,
-                                        user_relation.repository_user_id)
+        gitlab.gl_project_delete_member(project_relation.git_repository_id, user_relation.repository_user_id)
     except DevOpsError as e:
         if e.status_code != 404:
             raise e
 
     try:
-        harbor.hb_remove_member(project_relation.harbor_project_id,
-                                user_relation.harbor_user_id)
+        harbor.hb_remove_member(project_relation.harbor_project_id, user_relation.harbor_user_id)
     except DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -866,8 +884,7 @@ def project_remove_member(project_id, user_id):
     # get user name
     ur_row = model.User.query.filter_by(id=user_id).one()
     try:
-        kubernetesClient.delete_role_binding(pj_row.name,
-                                             f"{util.encode_k8s_sa(ur_row.login)}-rb")
+        kubernetesClient.delete_role_binding(pj_row.name, f"{util.encode_k8s_sa(ur_row.login)}-rb")
     except DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -880,12 +897,13 @@ def project_remove_member(project_id, user_id):
 
     # delete relationship from ProjectUserRole table.
     try:
-        row = model.ProjectUserRole.query.filter_by(
-            project_id=project_id, user_id=user_id, role_id=role_id).one()
+        row = model.ProjectUserRole.query.filter_by(project_id=project_id, user_id=user_id, role_id=role_id).one()
     except NoResultFound:
-        raise apiError.DevOpsError(404, 'Relation not found, project_id={0}, role_id={1}.'.format(
-            project_id, role_id
-        ), error=apiError.user_not_found(user_id))
+        raise apiError.DevOpsError(
+            404,
+            "Relation not found, project_id={0}, role_id={1}.".format(project_id, role_id),
+            error=apiError.user_not_found(user_id),
+        )
     db.session.delete(row)
     db.session.commit()
     spj_unset(user_id, project_id)
@@ -894,40 +912,45 @@ def project_remove_member(project_id, user_id):
 
 # May throws NoResultFound
 def get_plan_project_id(project_id):
-    return model.ProjectPluginRelation.query.filter_by(
-        project_id=project_id).one().plan_project_id
+    return model.ProjectPluginRelation.query.filter_by(project_id=project_id).one().plan_project_id
 
 
 def get_project_by_plan_project_id(plan_project_id):
     result = db.engine.execute(
-        "SELECT * FROM public.project_plugin_relation"
-        " WHERE plan_project_id = {0}".format(plan_project_id))
+        "SELECT * FROM public.project_plugin_relation" " WHERE plan_project_id = {0}".format(plan_project_id)
+    )
     project = result.fetchone()
     result.close()
     return project
 
 
 def get_test_summary(project_id):
-    '''
+    """
     -1: fail
     0: No lastest
-    1: success 
+    1: success
     2: running
-    '''
+    """
     ret = {}
     project_name = nexus.nx_get_project(id=project_id).name
     not_found_ret = {
-        'message': '',
-        'status': 0,
-        'result': {},
-        'run_at': None,
+        "message": "",
+        "status": 0,
+        "result": {},
+        "run_at": None,
     }
-    def not_found_ret_message(plugin): return f"The latest scan is not Found in the {plugin} server"
+
+    def not_found_ret_message(plugin):
+        return f"The latest scan is not Found in the {plugin} server"
 
     # newman ..
-    if not plugins.get_plugin_config('postman')['disabled']:
-        row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
-            model.TestResults.id)).limit(1).first()
+    if not plugins.get_plugin_config("postman")["disabled"]:
+        row = (
+            model.TestResults.query.filter_by(project_id=project_id)
+            .order_by(desc(model.TestResults.id))
+            .limit(1)
+            .first()
+        )
         if row is not None:
             total = row.total
             if total is None:
@@ -935,159 +958,172 @@ def get_test_summary(project_id):
             else:
                 fail = row.fail
                 passed = total - fail
-            ret['postman'] = {
-                'message': 'success',
-                'status': 1,
-                'id': row.id,
-                'result': {
-                    'passed': passed,
-                    'failed': fail,
-                    'total': total,
+            ret["postman"] = {
+                "message": "success",
+                "status": 1,
+                "id": row.id,
+                "result": {
+                    "passed": passed,
+                    "failed": fail,
+                    "total": total,
                 },
-                'run_at': str(row.run_at) if row.run_at is not None else None
+                "run_at": str(row.run_at) if row.run_at is not None else None,
             }
         else:
-            not_found_ret['message'] = not_found_ret_message("postman")
-            ret['postman'] = not_found_ret.copy()
+            not_found_ret["message"] = not_found_ret_message("postman")
+            ret["postman"] = not_found_ret.copy()
 
     # checkmarx
-    if not plugins.get_plugin_config('checkmarx')['disabled']:
+    if not plugins.get_plugin_config("checkmarx")["disabled"]:
         try:
-            ret['checkmarx'] = checkmarx.get_result(project_id)
+            ret["checkmarx"] = checkmarx.get_result(project_id)
         except DevOpsError as e:
             if e.status_code == 404:
-                not_found_ret['message'] = not_found_ret_message("checkmarx")
-                ret['checkmarx'] = not_found_ret.copy()
+                not_found_ret["message"] = not_found_ret_message("checkmarx")
+                ret["checkmarx"] = not_found_ret.copy()
             else:
                 raise e
 
     # webinspect ..
-    if not plugins.get_plugin_config('webinspect')['disabled']:
+    if not plugins.get_plugin_config("webinspect")["disabled"]:
         scan = webinspect.get_latest_scans(project_name)
         if scan is not None:
-            if type(scan['stats']) is dict and scan['stats']['status'] == 'Complete':
-                ret['webinspect'] = {
-                    'message': 'success',
-                    'status': 1,
-                    'result': scan['stats'],
-                    "run_at": scan['run_at'],
+            if type(scan["stats"]) is dict and scan["stats"]["status"] == "Complete":
+                ret["webinspect"] = {
+                    "message": "success",
+                    "status": 1,
+                    "result": scan["stats"],
+                    "run_at": scan["run_at"],
                 }
-            elif scan['stats']['status'] in ['NotRunning', 'Interrupted', 'Failed']:
-                ret['webinspect'] = {
-                    'message': f"Status is {scan['stats']['status'].lower()}.",
-                    'status': -1,
-                    'result': {},
-                    "run_at": str(scan['run_at']) if scan['run_at'] is not None else None,
+            elif scan["stats"]["status"] in ["NotRunning", "Interrupted", "Failed"]:
+                ret["webinspect"] = {
+                    "message": f"Status is {scan['stats']['status'].lower()}.",
+                    "status": -1,
+                    "result": {},
+                    "run_at": str(scan["run_at"]) if scan["run_at"] is not None else None,
                 }
             else:
-                ret['webinspect'] = {
-                    'message': 'It is not finished yet.',
-                    'status': 2,
-                    'result': {},
-                    "run_at": str(scan['run_at']) if scan.get('run_at') is not None else None,
+                ret["webinspect"] = {
+                    "message": "It is not finished yet.",
+                    "status": 2,
+                    "result": {},
+                    "run_at": str(scan["run_at"]) if scan.get("run_at") is not None else None,
                 }
         else:
-            not_found_ret['message'] = not_found_ret_message("webinspect")
-            ret['webinspect'] = not_found_ret.copy()
+            not_found_ret["message"] = not_found_ret_message("webinspect")
+            ret["webinspect"] = not_found_ret.copy()
 
     # sonarqube ..
-    if not plugins.get_plugin_config('sonarqube')['disabled']:
+    if not plugins.get_plugin_config("sonarqube")["disabled"]:
         items = sonarqube.sq_get_current_measures(project_name)
         if items != []:
-            sonar_result = {
-                "result": {item["metric"]: item["value"] for item in items if item["metric"] != "run_at"}}
+            sonar_result = {"result": {item["metric"]: item["value"] for item in items if item["metric"] != "run_at"}}
 
-            sonar_result.update({
-                "message": "success",
-                "status": 1,
-                "run_at": items[-1]["value"] if items[-1]["metric"] == "run_at" else None
-            })
-            ret['sonarqube'] = sonar_result
+            sonar_result.update(
+                {
+                    "message": "success",
+                    "status": 1,
+                    "run_at": items[-1]["value"] if items[-1]["metric"] == "run_at" else None,
+                }
+            )
+            ret["sonarqube"] = sonar_result
         else:
-            not_found_ret['message'] = not_found_ret_message("sonarqube")
-            ret['sonarqube'] = not_found_ret.copy()
+            not_found_ret["message"] = not_found_ret_message("sonarqube")
+            ret["sonarqube"] = not_found_ret.copy()
 
     # zap ..
-    if not plugins.get_plugin_config('zap')['disabled']:
+    if not plugins.get_plugin_config("zap")["disabled"]:
         result = zap.zap_get_latest_test(project_id)
         if result != {}:
             if result["status"] in ["Aborted", "Failed"]:
-                ret['zap'] = {
-                    'message': 'failed',
-                    'status': -1,
-                    'result': {},
+                ret["zap"] = {
+                    "message": "failed",
+                    "status": -1,
+                    "result": {},
                     "run_at": None,
                 }
             elif result["status"] == "Finished":
-                result.update({
-                    "message": "success",
-                    "status": 1,
-                })
-                ret['zap'] = result
+                result.update(
+                    {
+                        "message": "success",
+                        "status": 1,
+                    }
+                )
+                ret["zap"] = result
             else:
-                result.update({
-                    "message": "scanning",
-                    "status": 2,
-                })
-                ret['zap'] = result
+                result.update(
+                    {
+                        "message": "scanning",
+                        "status": 2,
+                    }
+                )
+                ret["zap"] = result
         else:
-            not_found_ret['message'] = not_found_ret_message("zap")
-            ret['zap'] = not_found_ret.copy()
+            not_found_ret["message"] = not_found_ret_message("zap")
+            ret["zap"] = not_found_ret.copy()
 
     # sideex
-    if not plugins.get_plugin_config('sideex')['disabled']:
+    if not plugins.get_plugin_config("sideex")["disabled"]:
         result = sideex.sd_get_latest_test(project_id)
         if result != {}:
             if result["status"] in ["Aborted", "Failed"]:
-                ret['sideex'] = {
-                    'message': 'failed',
-                    'status': -1,
-                    'result': {},
+                ret["sideex"] = {
+                    "message": "failed",
+                    "status": -1,
+                    "result": {},
                     "run_at": None,
                 }
             elif result["status"] == "Finished":
-                result.update({
-                    "message": "success",
-                    "status": 1,
-                })
-                ret['sideex'] = result
+                result.update(
+                    {
+                        "message": "success",
+                        "status": 1,
+                    }
+                )
+                ret["sideex"] = result
             else:
-                result.update({
-                    "message": "scanning",
-                    "status": 2,
-                })
-                ret['sideex'] = result
+                result.update(
+                    {
+                        "message": "scanning",
+                        "status": 2,
+                    }
+                )
+                ret["sideex"] = result
         else:
-            not_found_ret['message'] = not_found_ret_message("sideex")
-            ret['sideex'] = not_found_ret.copy()
+            not_found_ret["message"] = not_found_ret_message("sideex")
+            ret["sideex"] = not_found_ret.copy()
 
     # cmas ..
-    if not plugins.get_plugin_config('cmas')['disabled']:
+    if not plugins.get_plugin_config("cmas")["disabled"]:
         cmas_content = cmas.get_latest_state(project_id)
         if isinstance(cmas_content, dict):
             if cmas_content["status"] == "FAIL":
-                ret['cmas'] = {
-                    'message': cmas_content["logs"],
-                    'status': -1,
-                    'result': {},
+                ret["cmas"] = {
+                    "message": cmas_content["logs"],
+                    "status": -1,
+                    "result": {},
                     "run_at": None,
                 }
             elif cmas_content["status"] == "SUCCESS":
                 cmas_content["result"] = cmas_content.pop("stats")
-                cmas_content.update({
-                    "message": "success",
-                    "status": 1,
-                })
-                ret['cmas'] = cmas_content
+                cmas_content.update(
+                    {
+                        "message": "success",
+                        "status": 1,
+                    }
+                )
+                ret["cmas"] = cmas_content
             else:
-                cmas_content.update({
-                    "message": "scanning",
-                    "status": 2,
-                })
-                ret['cmas'] = cmas_content
+                cmas_content.update(
+                    {
+                        "message": "scanning",
+                        "status": 2,
+                    }
+                )
+                ret["cmas"] = cmas_content
         else:
-            not_found_ret['message'] = not_found_ret_message("cmas")
-            ret['cmas'] = not_found_ret.copy()
+            not_found_ret["message"] = not_found_ret_message("cmas")
+            ret["cmas"] = not_found_ret.copy()
 
     # Harbor scan
     scan_list = harbor_scan.harbor_scan_list(project_id, {"per_page": 2, "page": 1})["scan_list"]
@@ -1095,78 +1131,86 @@ def get_test_summary(project_id):
         scan = scan_list[0]
         ret["harbor"] = {"run_at": scan.get("created_at")}
         ret["harbor"]["result"] = {
-            key: scan.get(key) for key in ["Critical", "High", "Low", "Medium", "Negligible", "Unknown"]
-            if scan.get(key) is not None}
+            key: scan.get(key)
+            for key in ["Critical", "High", "Low", "Medium", "Negligible", "Unknown"]
+            if scan.get(key) is not None
+        }
         if scan.get("scan_status") == "Success" and scan.get("finished"):
             ret["harbor"] |= {"message": "success", "status": 1}
-        elif (scan.get("scan_status") == "Success" and not scan.get("finished")) or \
-                scan.get("scan_status") in ["Queued", "Scanning", "Complete"]:
+        elif (scan.get("scan_status") == "Success" and not scan.get("finished")) or scan.get("scan_status") in [
+            "Queued",
+            "Scanning",
+            "Complete",
+        ]:
             ret["harbor"] |= {"message": "scanning", "status": 2}
         else:
             ret["harbor"] |= {"message": "failed", "status": -1, "run_at": None}
     else:
-        not_found_ret['message'] = not_found_ret_message("harbor")
-        ret['harbor'] = not_found_ret.copy()
+        not_found_ret["message"] = not_found_ret_message("harbor")
+        ret["harbor"] = not_found_ret.copy()
 
-    return util.success({'test_results': ret})
+    return util.success({"test_results": ret})
 
 
 def get_all_reports(project_id):
     project_name = nexus.nx_get_project(id=project_id).name
     memory_file = BytesIO()
-    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+    with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zf:
         # newman
-        if not plugins.get_plugin_config('postman')['disabled']:
-            row = model.TestResults.query.filter_by(project_id=project_id).order_by(desc(
-                model.TestResults.id)).limit(1).first()
+        if not plugins.get_plugin_config("postman")["disabled"]:
+            row = (
+                model.TestResults.query.filter_by(project_id=project_id)
+                .order_by(desc(model.TestResults.id))
+                .limit(1)
+                .first()
+            )
             if row is not None:
-                zf.writestr('postman.json', row.report)
+                zf.writestr("postman.json", row.report)
 
         # checkmarx
-        if not plugins.get_plugin_config('checkmarx')['disabled']:
-            report_id = checkmarx.get_latest('report_id', project_id)
+        if not plugins.get_plugin_config("checkmarx")["disabled"]:
+            report_id = checkmarx.get_latest("report_id", project_id)
             if report_id is not None:
-                zf.writestr('checkmarx.pdf', checkmarx.get_report_content(report_id))
+                zf.writestr("checkmarx.pdf", checkmarx.get_report_content(report_id))
 
         # webinspect
-        if not plugins.get_plugin_config('webinspect')['disabled']:
+        if not plugins.get_plugin_config("webinspect")["disabled"]:
             scans = webinspect.wi_list_scans(project_name)
             scan_id = None
             for scan in scans:
-                if type(scan['stats']) is dict and scan['stats']['status'] == 'Complete':
-                    scan_id = scan['scan_id']
+                if type(scan["stats"]) is dict and scan["stats"]["status"] == "Complete":
+                    scan_id = scan["scan_id"]
                     break
             if scan_id is not None:
                 xml = webinspect.wix_get_report(scan_id)
                 if xml is not None:
-                    zf.writestr('webinspect.xml', xml)
+                    zf.writestr("webinspect.xml", xml)
 
-        if not plugins.get_plugin_config('sonarqube')['disabled']:
-            zf.writestr('sonarqube.json', str(sonarqube.sq_get_current_measures(project_name)))
+        if not plugins.get_plugin_config("sonarqube")["disabled"]:
+            zf.writestr("sonarqube.json", str(sonarqube.sq_get_current_measures(project_name)))
 
-        if not plugins.get_plugin_config('zap')['disabled']:
+        if not plugins.get_plugin_config("zap")["disabled"]:
             report = zap.zap_get_latest_full_log(project_name)
             if report is not None:
-                zf.writestr('zap.html', report)
+                zf.writestr("zap.html", report)
 
-        if not plugins.get_plugin_config('sideex')['disabled']:
-            test_id = sideex.sd_get_latest_test(project_id).get('id', None)
+        if not plugins.get_plugin_config("sideex")["disabled"]:
+            test_id = sideex.sd_get_latest_test(project_id).get("id", None)
             if test_id is not None:
-                zf.writestr('sideex.html', sideex.sd_get_report(test_id))
+                zf.writestr("sideex.html", sideex.sd_get_report(test_id))
 
     memory_file.seek(0)
     return memory_file
 
 
 def get_kubernetes_namespace_quota(project_id):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_quota = kubernetesClient.get_namespace_quota(project_name)
     deployments = kubernetesClient.list_namespace_deployments(project_name)
     ingresses = kubernetesClient.list_namespace_ingresses(project_name)
     apps = rancher.rc_get_apps_all()
     df_app = pd.DataFrame(apps)
-    df_project_app = df_app[df_app['targetNamespace'] == project_name]
+    df_project_app = df_app[df_app["targetNamespace"] == project_name]
     project_quota["quota"]["deployments"] = None
     project_quota["used"]["deployments"] = str(len(deployments))
     project_quota["quota"]["ingresses"] = None
@@ -1177,7 +1221,14 @@ def get_kubernetes_namespace_quota(project_id):
         secrets = kubernetesClient.list_namespace_secrets(project_name)
         project_quota["quota"]["secrets"] = None
         project_quota["used"]["secrets"] = str(len(secrets))
-    for item in ["configmaps", "cpu", "memory", "persistentvolumeclaims", "pods", "services.nodeports"]:
+    for item in [
+        "configmaps",
+        "cpu",
+        "memory",
+        "persistentvolumeclaims",
+        "pods",
+        "services.nodeports",
+    ]:
         if item not in project_quota["quota"]:
             project_quota["quota"][item] = "0"
         if item not in project_quota["used"]:
@@ -1187,23 +1238,24 @@ def get_kubernetes_namespace_quota(project_id):
 
 
 def update_kubernetes_namespace_quota(project_id, resource):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
-    project_quota = kubernetesClient.update_namespace_quota(
-        project_name, resource)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_quota = kubernetesClient.update_namespace_quota(project_name, resource)
     return util.success(project_quota)
 
 
 def get_kubernetes_plugin_pods(project_id, plugin_name):
     pods, _ = get_kubernetes_namespace_pods(project_id)
     ret = {}
-    pods_data = [{
-        "container_name": pod["containers"][0]["name"],
-        "pod_name": pod["name"],
-        "time": pod["containers"][0]["time"]
-    } for pod in pods["data"]
-        if len(pod["containers"]) > 0 and pod["containers"][0]["name"].startswith(plugin_name) and \
-            pod["containers"][0]["time"] is not None
+    pods_data = [
+        {
+            "container_name": pod["containers"][0]["name"],
+            "pod_name": pod["name"],
+            "time": pod["containers"][0]["time"],
+        }
+        for pod in pods["data"]
+        if len(pod["containers"]) > 0
+        and pod["containers"][0]["name"].startswith(plugin_name)
+        and pod["containers"][0]["time"] is not None
     ]
 
     ret["has_pod"] = len(pods_data) > 0
@@ -1216,63 +1268,52 @@ def get_kubernetes_plugin_pods(project_id, plugin_name):
 
 
 def get_kubernetes_namespace_pods(project_id):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_pod = kubernetesClient.list_namespace_pods_info(project_name)
     return util.success(project_pod)
 
 
 def delete_kubernetes_namespace_pod(project_id, name):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_pod = kubernetesClient.delete_namespace_pod(project_name, name)
     return util.success(project_pod)
 
 
 def get_kubernetes_namespace_pod_log(project_id, name, container_name=None):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     pod_status = kubernetesClient.read_namespaced_pod_status(name, project_name)
     if pod_status.status.phase == "Waiting":
         return util.success()
-    pod_log = kubernetesClient.read_namespace_pod_log(
-        project_name, name, container_name)
+    pod_log = kubernetesClient.read_namespace_pod_log(project_name, name, container_name)
     return util.success(pod_log)
 
 
 def get_kubernetes_namespace_deployment(project_id):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
-    project_deployment = kubernetesClient.list_namespace_deployments(
-        project_name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_deployment = kubernetesClient.list_namespace_deployments(project_name)
     return util.success(project_deployment)
 
 
 def put_kubernetes_namespace_deployment(project_id, name):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
-    deployment_info = kubernetesClient.read_namespace_deployment(
-        project_name, name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    deployment_info = kubernetesClient.read_namespace_deployment(project_name, name)
     if deployment_info.spec.template.metadata.annotations is not None:
-        deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(
-            datetime.utcnow())
-    project_deployment = kubernetesClient.update_namespace_deployment(
-        project_name, name, deployment_info)
+        deployment_info.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(datetime.utcnow())
+    project_deployment = kubernetesClient.update_namespace_deployment(project_name, name, deployment_info)
     return util.success(project_deployment.metadata.name)
 
 
 def delete_kubernetes_namespace_deployment(project_id, name):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
-    project_deployment = kubernetesClient.delete_namespace_deployment(
-        project_name, name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_deployment = kubernetesClient.delete_namespace_deployment(project_name, name)
     return util.success(project_deployment)
 
 
 def get_kubernetes_namespace_dev_environment(project_id):
     project_info = model.Project.query.filter_by(id=project_id).first()
-    project_deployment = kubernetesClient.list_dev_environment_by_branch(str(project_info.name),
-                                                                         str(project_info.http_url))
+    project_deployment = kubernetesClient.list_dev_environment_by_branch(
+        str(project_info.name), str(project_info.http_url)
+    )
     return project_deployment
 
 
@@ -1280,140 +1321,113 @@ def get_kubernetes_namespace_dev_environment_urls(project_id, branch_name):
     ret = []
     data = get_kubernetes_namespace_dev_environment(project_id)
     for d in data:
-        if d['branch'] == branch_name:
-            for pod in d['pods']:
-                if pod['type'] == 'web-server':
-                    for con in pod['containers']:
-                        if con['status']['state'] == 'running':
-                            for mapping in con.get('service_port_mapping', []):
-                                for service in mapping.get('services', []):
-                                    ret.extend(service.get('url', []))
+        if d["branch"] == branch_name:
+            for pod in d["pods"]:
+                if pod["type"] == "web-server":
+                    for con in pod["containers"]:
+                        if con["status"]["state"] == "running":
+                            for mapping in con.get("service_port_mapping", []):
+                                for service in mapping.get("services", []):
+                                    ret.extend(service.get("url", []))
     return ret
 
 
 def put_kubernetes_namespace_dev_environment(project_id, branch_name):
     project_info = model.Project.query.filter_by(id=project_id).first()
-    update_info = kubernetesClient.update_dev_environment_by_branch(
-        str(project_info.name), branch_name)
+    update_info = kubernetesClient.update_dev_environment_by_branch(str(project_info.name), branch_name)
     return util.success(update_info)
 
 
 def delete_kubernetes_namespace_dev_environment(project_id, branch_name):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
-    project_deployment = kubernetesClient.delete_dev_environment_by_branch(
-        project_name, branch_name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_deployment = kubernetesClient.delete_dev_environment_by_branch(project_name, branch_name)
     return util.success(project_deployment)
 
 
 def get_kubernetes_namespace_services(project_id):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_service = kubernetesClient.list_namespace_services(project_name)
     return util.success(project_service)
 
 
 def delete_kubernetes_namespace_service(project_id, name):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
-    project_service = kubernetesClient.delete_namespace_service(
-        project_name, name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_service = kubernetesClient.delete_namespace_service(project_name, name)
     return util.success(project_service)
 
 
 def get_kubernetes_namespace_secrets(project_id):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_secret = kubernetesClient.list_namespace_secrets(project_name)
     return util.success(project_secret)
 
 
 def read_kubernetes_namespace_secret(project_id, secret_name):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
-    project_secret = kubernetesClient.read_namespace_secret(
-        project_name, secret_name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_secret = kubernetesClient.read_namespace_secret(project_name, secret_name)
     return util.success(project_secret)
 
 
 def create_kubernetes_namespace_secret(project_id, secret_name, secrets):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
-    kubernetesClient.create_namespace_secret(
-        project_name, secret_name, secrets)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    kubernetesClient.create_namespace_secret(project_name, secret_name, secrets)
     return util.success()
 
 
 def put_kubernetes_namespace_secret(project_id, secret_name, secrets):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     kubernetesClient.patch_namespace_secret(project_name, secret_name, secrets)
     return util.success()
 
 
 def delete_kubernetes_namespace_secret(project_id, name):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
-    project_secret = kubernetesClient.delete_namespace_secret(
-        project_name, name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_secret = kubernetesClient.delete_namespace_secret(project_name, name)
     return util.success(project_secret)
 
 
 # ConfigMap
 def get_kubernetes_namespace_configmaps(project_id):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     project_configmap = kubernetesClient.list_namespace_configmap(project_name)
     return util.success(project_configmap)
 
 
 def read_kubernetes_namespace_configmap(project_id, name):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
-    project_configmap = kubernetesClient.read_namespace_configmap(
-        project_name, name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_configmap = kubernetesClient.read_namespace_configmap(project_name, name)
     return util.success(project_configmap)
 
 
 def create_kubernetes_namespace_configmap(project_id, name, configmaps):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
-    project_configmap = kubernetesClient.create_namespace_configmap(
-        project_name, name, configmaps)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_configmap = kubernetesClient.create_namespace_configmap(project_name, name, configmaps)
     return util.success(project_configmap)
 
 
 def put_kubernetes_namespace_configmap(project_id, name, configmaps):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
-    project_configmap = kubernetesClient.put_namespace_configmap(
-        project_name, name, configmaps)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_configmap = kubernetesClient.put_namespace_configmap(project_name, name, configmaps)
     return util.success(project_configmap)
 
 
 def delete_kubernetes_namespace_configmap(project_id, name):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
-    project_configmap = kubernetesClient.delete_namespace_configmap(
-        project_name, name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
+    project_configmap = kubernetesClient.delete_namespace_configmap(project_name, name)
     return util.success(project_configmap)
 
 
 def get_kubernetes_namespace_ingresses(project_id):
-    project_name = str(model.Project.query.filter_by(
-        id=project_id).first().name)
+    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
     ingress_list = kubernetesClient.list_namespace_ingresses(project_name)
     return util.success(ingress_list)
 
 
 def get_plugin_usage(project_id):
-    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(
-        project_id=project_id).first()
+    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
     plugin_info = []
-    plugin_info.append(harbor.get_storage_usage(
-        project_plugin_relation.harbor_project_id))
-    plugin_info.append(gitlab.gl_get_storage_usage(
-        project_plugin_relation.git_repository_id))
+    plugin_info.append(harbor.get_storage_usage(project_plugin_relation.harbor_project_id))
+    plugin_info.append(gitlab.gl_get_storage_usage(project_plugin_relation.git_repository_id))
     return util.success(plugin_info)
 
 
@@ -1446,15 +1460,14 @@ def app_name_find_service_name(project_id, app_name):
     if service_list != []:
         delete_list = []
         for service in service_list:
-            service_app_name = '-'.join(service['name'].split('-')[0:-1])
+            service_app_name = "-".join(service["name"].split("-")[0:-1])
             if service_app_name == app_name:
-                delete_list.append(service['name'])
+                delete_list.append(service["name"])
         return delete_list
 
 
 def app_name_find_pod_name(project_id, app_name):
-    row = model.Project.query.filter_by(
-        id=project_id).first()
+    row = model.Project.query.filter_by(id=project_id).first()
     if row:
         project_name = row.name
         pods_list = kubernetesClient.list_namespace_pods_info(project_name)
@@ -1540,15 +1553,14 @@ def app_name_find_pod_name(project_id, app_name):
         if pods_list != []:
             delete_list = []
             for pod in pods_list:
-                pod_app_name = '-'.join(pod['name'].split('-')[0:-2])
+                pod_app_name = "-".join(pod["name"].split("-")[0:-2])
                 if pod_app_name == app_name:
-                    delete_list.append(pod['name'])
+                    delete_list.append(pod["name"])
             return delete_list
 
 
 def git_repo_id_to_ci_pipe_id(repository_id):
-    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(
-        git_repository_id=int(repository_id)).first()
+    project_plugin_relation = model.ProjectPluginRelation.query.filter_by(git_repository_id=int(repository_id)).first()
     return util.success(project_plugin_relation.ci_pipeline_id)
 
 
@@ -1560,14 +1572,20 @@ def check_project_args_patterns(args):
                 pattern = "&|<"
                 result = re.findall(pattern, args[key])
                 if any(result):
-                    raise apiError.DevOpsError(400, "Error while creating project.",
-                                               error=apiError.invalid_project_content(key, args[key]))
+                    raise apiError.DevOpsError(
+                        400,
+                        "Error while creating project.",
+                        error=apiError.invalid_project_content(key, args[key]),
+                    )
             else:
                 pattern = "^[a-z][a-z0-9-]{0,28}[a-z0-9]$"
                 result = re.findall(pattern, args[key])
                 if result is None:
-                    raise apiError.DevOpsError(400, "Error while creating project.",
-                                               error=apiError.invalid_project_name(args[key]))
+                    raise apiError.DevOpsError(
+                        400,
+                        "Error while creating project.",
+                        error=apiError.invalid_project_name(args[key]),
+                    )
 
 
 def check_project_owner_id(new_owner_id, user_id, project_id):
@@ -1581,11 +1599,14 @@ def check_project_owner_id(new_owner_id, user_id, project_id):
     # 更動 owner_id (由 project 中 owner 的 PM 執行)
     elif origin_owner_id == user_id and new_owner_id != user_id:
         # 檢查 new_owner_id 的 role 是否為 PM
-        if not bool(model.ProjectUserRole.query.filter_by(
-                project_id=project_id, user_id=new_owner_id, role_id=3
-        ).all()):
-            raise apiError.DevOpsError(400, "Error while updating project info.",
-                                       error=apiError.invalid_project_owner(new_owner_id))
+        if not bool(
+            model.ProjectUserRole.query.filter_by(project_id=project_id, user_id=new_owner_id, role_id=3).all()
+        ):
+            raise apiError.DevOpsError(
+                400,
+                "Error while updating project info.",
+                error=apiError.invalid_project_owner(new_owner_id),
+            )
     # 不更動 owner_id，僅修改其他資訊 (由 project 中其他 PM 執行)
     elif origin_owner_id != user_id and new_owner_id == origin_owner_id:
         pass
@@ -1596,17 +1617,20 @@ def check_project_owner_id(new_owner_id, user_id, project_id):
 
 def get_projects_by_user(user_id):
     try:
-        model.ProjectUserRole.query.filter_by(
-            project_id=-1, user_id=user_id).one()
+        model.ProjectUserRole.query.filter_by(project_id=-1, user_id=user_id).one()
     except NoResultFound:
         raise apiError.DevOpsError(
-            404, 'User id {0} does not exist.'.format(user_id),
-            apiError.user_not_found(user_id))
-    projects_id_list = [pj_id[0] for pj_id in 
-        model.ProjectUserRole.query.filter_by(
-            user_id=user_id).with_entities(model.ProjectUserRole.project_id)]
-    projects = [NexusProject().set_project_id(id).to_json()
-                for id in projects_id_list if id != -1]
+            404,
+            "User id {0} does not exist.".format(user_id),
+            apiError.user_not_found(user_id),
+        )
+    projects_id_list = [
+        pj_id[0]
+        for pj_id in model.ProjectUserRole.query.filter_by(user_id=user_id).with_entities(
+            model.ProjectUserRole.project_id
+        )
+    ]
+    projects = [NexusProject().set_project_id(id).to_json() for id in projects_id_list if id != -1]
     return projects
 
 
@@ -1618,9 +1642,13 @@ def sync_project_issue_calculate():
         if plan_id != -1:
             try:
                 project_object = redmine_lib.redmine.project.get(plan_id)
-                rm_project = {"updated_on": project_object.updated_on, "id": project_object.id}
+                rm_project = {
+                    "updated_on": project_object.updated_on,
+                    "id": project_object.id,
+                }
                 project_issue_calculate[pj_id] = json.dumps(
-                    calculate_project_issues(rm_project, username=None, sync=True))
+                    calculate_project_issues(rm_project, username=None, sync=True)
+                )
             except:
                 continue
 
@@ -1630,7 +1658,8 @@ def sync_project_issue_calculate():
 def delete_rancher_app(project_id, branch_name):
     project_info = model.Project.query.filter_by(id=project_id).first()
     project_deployment = kubernetesClient.list_dev_environment_by_branch(
-        str(project_info.name), str(project_info.http_url))
+        str(project_info.name), str(project_info.http_url)
+    )
     for temp in project_deployment:
         if temp.get("branch") == branch_name:
             for pod in temp.get("pods"):
@@ -1638,10 +1667,11 @@ def delete_rancher_app(project_id, branch_name):
                     rancher.rc_del_app(pod.get("app_name"))
     return util.success()
 
+
 # --------------------- Resources ---------------------
 
 
-@doc(tags=['Pending'], description="Get CI pipeline id by git repo id")
+@doc(tags=["Pending"], description="Get CI pipeline id by git repo id")
 class GitRepoIdToCiPipeIdV2(MethodResource):
     @jwt_required()
     def get(self, repository_id):

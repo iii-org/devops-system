@@ -4,7 +4,7 @@ from util import CommonBasicResponse, CommonResponse
 
 
 class ServersAliveSchema(Schema):
-    project_id = fields.Int(doc='project_id', example=-1)
+    project_id = fields.Int(doc="project_id", example=-1)
 
 
 class ServiceListSchema(CommonBasicResponse):

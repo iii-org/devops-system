@@ -13,3 +13,4 @@ pj_edit_pipe_yaml
 deploy-config
 devops-data
 /devops_env
+apis/sync.ffs_db

@@ -8,11 +8,11 @@ import config
 from resources import logger
 import ast
 
-ISSUE_FAMILIES_KEY = 'issue_families'
-PROJECT_ISSUE_CALCULATE_KEY = 'project_issue_calculation'
-SERVER_ALIVE_KEY = 'system_all_alive'
-TEMPLATE_CACHE = 'template_list_cache'
-SHOULD_UPDATE_TEMPLATE = 'should_update_template'
+ISSUE_FAMILIES_KEY = "issue_families"
+PROJECT_ISSUE_CALCULATE_KEY = "project_issue_calculation"
+SERVER_ALIVE_KEY = "system_all_alive"
+TEMPLATE_CACHE = "template_list_cache"
+SHOULD_UPDATE_TEMPLATE = "should_update_template"
 
 
 class RedisOperator:
@@ -22,16 +22,16 @@ class RedisOperator:
         self.pool = redis.ConnectionPool(
             host=self.redis_base_url.split(":")[0],
             port=int(self.redis_base_url.split(":")[1]),
-            decode_responses=True
+            decode_responses=True,
         )
-        '''
+        """
         # local
         self.pool = redis.ConnectionPool(
             host='10.20.0.96', 
             port='31852',
             decode_responses=True
         )
-        '''
+        """
         self.r = redis.Redis(connection_pool=self.pool)
 
     #####################
@@ -65,7 +65,7 @@ class RedisOperator:
         """
         value: Optional[str] = self.r.get(key)
         if value:  # if value is not None or not empty string
-            if value.lower() in ('1', 'true', 'yes'):
+            if value.lower() in ("1", "true", "yes"):
                 return True
         return False
 
@@ -128,9 +128,9 @@ class RedisOperator:
 redis_op = RedisOperator()
 
 # Server Alive
-'''
+"""
 'True': Alive, 'False': Not alive
-'''
+"""
 
 
 def get_server_alive():
@@ -140,6 +140,7 @@ def get_server_alive():
 
 def update_server_alive(alive):
     return redis_op.str_set(SERVER_ALIVE_KEY, alive)
+
 
 # Issue Family Cache
 def get_all_issue_relations():
@@ -184,7 +185,7 @@ def add_issue_relation(parent_issue_id, son_issue_id):
         son_issue_ids = redis_op.dict_get_certain(ISSUE_FAMILIES_KEY, parent_issue_id)
         son_issue_ids = son_issue_ids.split(",")
         if son_issue_id not in son_issue_ids:
-            update_issue_relation(parent_issue_id, ",".join(son_issue_ids+[str(son_issue_id)]))
+            update_issue_relation(parent_issue_id, ",".join(son_issue_ids + [str(son_issue_id)]))
 
 
 # Project issue calculate Cache
@@ -196,12 +197,15 @@ def get_certain_pj_issue_calc(pj_id):
             "overdue_count": 0,
             "total_count": 0,
             "project_status": "not_started",
-            "updated_time": datetime.utcnow().isoformat()
+            "updated_time": datetime.utcnow().isoformat(),
         }
     cal_info_dict = json.loads(cal_info)
-    if 'T' not in cal_info_dict['updated_time']:
-        cal_info_dict['updated_time'] = datetime.strptime(cal_info_dict['updated_time'], "%Y-%m-%d %H:%M:%S").isoformat() if \
-            cal_info_dict['updated_time'] not in ["", None] else datetime.utcnow().isoformat()
+    if "T" not in cal_info_dict["updated_time"]:
+        cal_info_dict["updated_time"] = (
+            datetime.strptime(cal_info_dict["updated_time"], "%Y-%m-%d %H:%M:%S").isoformat()
+            if cal_info_dict["updated_time"] not in ["", None]
+            else datetime.utcnow().isoformat()
+        )
     return cal_info_dict
 
 
@@ -226,7 +230,7 @@ def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):
 
 # Template cache
 def update_template_cache_all(data: dict) -> None:
-    logger.logger.info(f"Before data {redis_op.dict_get_all(TEMPLATE_CACHE)}")  
+    logger.logger.info(f"Before data {redis_op.dict_get_all(TEMPLATE_CACHE)}")
     delete_template_cache()
     if data:
         redis_op.dict_set_all(TEMPLATE_CACHE, data)

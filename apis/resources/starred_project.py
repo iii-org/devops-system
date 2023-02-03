@@ -9,9 +9,7 @@ from resources.apiError import DevOpsError, maximum_error
 
 
 def spj_set(user_id, project_id):
-    row = model.StarredProject.query.filter_by(
-        user_id=user_id, project_id=project_id
-    ).first()
+    row = model.StarredProject.query.filter_by(user_id=user_id, project_id=project_id).first()
     if row:
         # Already has the record
         return
@@ -28,9 +26,7 @@ def spj_set(user_id, project_id):
 
 
 def spj_unset(user_id, project_id):
-    row = model.StarredProject.query.filter_by(
-        user_id=user_id, project_id=project_id
-    ).first()
+    row = model.StarredProject.query.filter_by(user_id=user_id, project_id=project_id).first()
     if not row:
         # Already does not have the record
         return

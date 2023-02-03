@@ -17,8 +17,20 @@ import json
 from typing import Optional
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Enum, JSON, Float, ARRAY, \
-    PickleType
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Date,
+    Enum,
+    JSON,
+    Float,
+    ARRAY,
+    PickleType,
+)
 from sqlalchemy.orm import relationship, backref, validates
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
@@ -46,27 +58,30 @@ class User(db.Model):
     from_ad = Column(Boolean, default=False)
     title = Column(String(45))
     department = Column(String(300))
-    plugin_relation = relationship('UserPluginRelation', uselist=False)
-    project_role = relationship('ProjectUserRole', back_populates='user')
+    plugin_relation = relationship("UserPluginRelation", uselist=False)
+    project_role = relationship("ProjectUserRole", back_populates="user")
     last_login = Column(DateTime)
 
     def __repr__(self):
         fields = {}
-        for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
-            if field in ['starred_project', 'plugin_relation', 'project_role']:
+        for field in [
+            x
+            for x in dir(self)
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
+        ]:
+            if field in ["starred_project", "plugin_relation", "project_role"]:
                 continue
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
                 json.dumps(data)
-                if field == 'password':
+                if field == "password":
                     continue
-                elif field == 'disabled':
+                elif field == "disabled":
                     if data:
-                        fields['status'] = 'disable'
+                        fields["status"] = "disable"
                     else:
-                        fields['status'] = 'enable'
+                        fields["status"] = "enable"
                 else:
                     fields[field] = data
             except TypeError:
@@ -75,7 +90,7 @@ class User(db.Model):
 
 
 class Project(db.Model):
-    __tablename__ = 'projects'
+    __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
@@ -88,31 +103,30 @@ class Project(db.Model):
     update_at = Column(DateTime)
     disabled = Column(Boolean)
     display = Column(String)
-    owner_id = Column(Integer, ForeignKey(
-        User.id, ondelete='SET NULL'), nullable=True)
-    creator_id = Column(Integer, ForeignKey(
-        User.id, ondelete='SET NULL'), nullable=True)
+    owner_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
     is_lock = Column(Boolean, default=False)
     lock_reason = Column(String)
     base_example = Column(String)
     example_tag = Column(String)
     uuid = Column(String)
     is_inheritance_member = Column(Boolean, default=False)
-    is_empty_project = Column(Boolean, server_default='false')
-    starred_by = relationship(
-        User, secondary='starred_project', backref='starred_project')
-    plugin_relation = relationship('ProjectPluginRelation', uselist=False)
-    user_role = relationship('ProjectUserRole', back_populates='project')
+    is_empty_project = Column(Boolean, server_default="false")
+    starred_by = relationship(User, secondary="starred_project", backref="starred_project")
+    plugin_relation = relationship("ProjectPluginRelation", uselist=False)
+    user_role = relationship("ProjectUserRole", back_populates="project")
     alert = Column(Boolean, default=False)
-    trace_order = relationship('TraceOrder', backref='project')
-    excalidraws = relationship('Excalidraw', back_populates='project')
-
+    trace_order = relationship("TraceOrder", backref="project")
+    excalidraws = relationship("Excalidraw", back_populates="project")
 
     def __repr__(self):
         fields = {}
-        for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
-            if field in ['starred_by', 'plugin_relation', 'user_role']:
+        for field in [
+            x
+            for x in dir(self)
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
+        ]:
+            if field in ["starred_by", "plugin_relation", "user_role"]:
                 continue
             data = self.__getattribute__(field)
             try:
@@ -125,9 +139,9 @@ class Project(db.Model):
 
 
 class Release(db.Model):
-    __tablename__ = 'release'
+    __tablename__ = "release"
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     version_id = Column(Integer)
     versions = Column(String)
     issues = Column(String)
@@ -135,8 +149,7 @@ class Release(db.Model):
     commit = Column(String)
     tag_name = Column(String)
     note = Column(String)
-    creator_id = Column(Integer, ForeignKey(
-        User.id, ondelete='SET NULL'), nullable=True)
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
     image_paths = Column(postgresql.ARRAY(String))
@@ -153,7 +166,7 @@ class PluginSoftware(db.Model):
 
 class ProjectPluginRelation(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     plan_project_id = Column(Integer, unique=True)
     git_repository_id = Column(Integer, unique=True)
     ci_project_id = Column(String)
@@ -163,25 +176,23 @@ class ProjectPluginRelation(db.Model):
 
 class PipelineLogsCache(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     ci_pipeline_id = Column(String)
     run = Column(Integer)
     logs = Column(JSON)
 
 
 class ProjectUserRole(db.Model):
-    project_id = Column(Integer, ForeignKey(
-        Project.id, ondelete='CASCADE'), primary_key=True)
-    user_id = Column(Integer, ForeignKey(
-        User.id, ondelete='CASCADE'), primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), primary_key=True)
     role_id = Column(Integer, primary_key=True)
-    user = relationship('User', back_populates='project_role')
-    project = relationship('Project', back_populates='user_role')
+    user = relationship("User", back_populates="project_role")
+    project = relationship("Project", back_populates="user_role")
 
 
 class Requirements(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     issue_id = Column(Integer)
     flow_info = Column(String)
     create_at = Column(DateTime)
@@ -194,7 +205,7 @@ class TestCases(db.Model):
     name = Column(String(255))
     description = Column(String(255))
     issue_id = Column(Integer)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     create_at = Column(DateTime)
     update_at = Column(DateTime)
     disabled = Column(Boolean)
@@ -211,9 +222,8 @@ class TestCases(db.Model):
 
 class TestItems(db.Model):
     id = Column(Integer, primary_key=True)
-    test_case_id = Column(Integer, ForeignKey(
-        TestCases.id, ondelete='CASCADE'))
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    test_case_id = Column(Integer, ForeignKey(TestCases.id, ondelete="CASCADE"))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     issue_id = Column(Integer)
     name = Column(String(255))
     is_passed = Column(Boolean)
@@ -224,9 +234,10 @@ class TestItems(db.Model):
 
 class TestResults(db.Model):
     """Postman test result table"""
+
     id = Column(Integer, primary_key=True)
     status = Column(String)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     branch = Column(String(50))
     commit_id = Column(String)
     report = Column(String)
@@ -242,20 +253,17 @@ class TestValues(db.Model):
     key = Column(String(255))
     value = Column(String)
     location_id = Column(Integer)  # Header = 1, Body = 2
-    test_item_id = Column(Integer, ForeignKey(
-        TestItems.id, ondelete='CASCADE'))
-    test_case_id = Column(Integer, ForeignKey(
-        TestCases.id, ondelete='CASCADE'))
+    test_item_id = Column(Integer, ForeignKey(TestItems.id, ondelete="CASCADE"))
+    test_case_id = Column(Integer, ForeignKey(TestCases.id, ondelete="CASCADE"))
     issue_id = Column(Integer)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     create_at = Column(DateTime)
     update_at = Column(DateTime)
     disabled = Column(Boolean)
 
 
 class UserPluginRelation(db.Model):
-    user_id = Column(Integer, ForeignKey(
-        User.id, ondelete='CASCADE'), primary_key=True)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), primary_key=True)
     plan_user_id = Column(Integer)
     repository_user_id = Column(Integer)
     harbor_user_id = Column(Integer)
@@ -265,8 +273,7 @@ class UserPluginRelation(db.Model):
 class Checkmarx(db.Model):
     scan_id = Column(Integer, primary_key=True)
     cm_project_id = Column(Integer)
-    repo_id = Column(Integer, ForeignKey(
-        ProjectPluginRelation.git_repository_id, ondelete='CASCADE'))
+    repo_id = Column(Integer, ForeignKey(ProjectPluginRelation.git_repository_id, ondelete="CASCADE"))
     branch = Column(String)
     commit_id = Column(String)
     # -1 if report is not registered yet
@@ -286,10 +293,9 @@ class Checkmarx(db.Model):
 
 class Flows(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     issue_id = Column(Integer)
-    requirement_id = Column(Integer, ForeignKey(
-        Requirements.id, ondelete='CASCADE'))
+    requirement_id = Column(Integer, ForeignKey(Requirements.id, ondelete="CASCADE"))
     type_id = Column(Integer)
     name = Column(String)
     description = Column(String)
@@ -302,7 +308,7 @@ class Flows(db.Model):
 class Parameters(db.Model):
     id = Column(Integer, primary_key=True)
     issue_id = Column(Integer)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     parameter_type_id = Column(Integer)
     name = Column(String(50))
     description = Column(String(100))
@@ -315,7 +321,7 @@ class Parameters(db.Model):
 
 class WebInspect(db.Model):
     scan_id = Column(String, primary_key=True)
-    project_name = Column(String, ForeignKey(Project.name, ondelete='CASCADE'))
+    project_name = Column(String, ForeignKey(Project.name, ondelete="CASCADE"))
     branch = Column(String)
     commit_id = Column(String)
     stats = Column(String)
@@ -325,13 +331,16 @@ class WebInspect(db.Model):
 
     def __repr__(self):
         fields = {}
-        for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
+        for field in [
+            x
+            for x in dir(self)
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
+        ]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
                 json.dumps(data)
-                if field == 'stats':
+                if field == "stats":
                     fields[field] = json.loads(data)
                 else:
                     fields[field] = data
@@ -344,16 +353,17 @@ class Activity(db.Model):
     id = Column(Integer, primary_key=True)
     action_type = Column(Enum(ActionType), nullable=False)
     action_parts = Column(String)
-    operator_id = Column(Integer, ForeignKey(
-        User.id, ondelete='SET NULL'), nullable=True)
+    operator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
     operator_name = Column(String)
     object_id = Column(String)
     act_at = Column(DateTime)
 
     def __repr__(self):
-        return f'<{self.id}:{self.action_type.name}>' \
-               f' {self.operator_name}({self.operator_id})' \
-               f' on {self.action_parts} at {str(self.act_at)}.'
+        return (
+            f"<{self.id}:{self.action_type.name}>"
+            f" {self.operator_name}({self.operator_id})"
+            f" on {self.action_parts} at {str(self.act_at)}."
+        )
 
 
 class NexusVersion(db.Model):
@@ -365,14 +375,14 @@ class NexusVersion(db.Model):
 
 class Sonarqube(db.Model):
     id = Column(Integer, primary_key=True)
-    project_name = Column(String, ForeignKey(Project.name, ondelete='CASCADE'))
+    project_name = Column(String, ForeignKey(Project.name, ondelete="CASCADE"))
     date = Column(DateTime, nullable=False)
     measures = Column(String)
 
 
 class Zap(db.Model):
     id = Column(Integer, primary_key=True)
-    project_name = Column(String, ForeignKey(Project.name, ondelete='CASCADE'))
+    project_name = Column(String, ForeignKey(Project.name, ondelete="CASCADE"))
     branch = Column(String)
     commit_id = Column(String)
     status = Column(String)
@@ -384,13 +394,16 @@ class Zap(db.Model):
 
     def __repr__(self):
         fields = {}
-        for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
+        for field in [
+            x
+            for x in dir(self)
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
+        ]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
                 json.dumps(data)
-                if field == 'result':
+                if field == "result":
                     fields[field] = json.loads(data)
                 else:
                     fields[field] = data
@@ -401,7 +414,7 @@ class Zap(db.Model):
 
 class Sideex(db.Model):
     id = Column(Integer, primary_key=True)
-    project_name = Column(String, ForeignKey(Project.name, ondelete='CASCADE'))
+    project_name = Column(String, ForeignKey(Project.name, ondelete="CASCADE"))
     branch = Column(String)
     commit_id = Column(String)
     status = Column(String)
@@ -413,16 +426,19 @@ class Sideex(db.Model):
 
     def __repr__(self):
         fields = {}
-        for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
+        for field in [
+            x
+            for x in dir(self)
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
+        ]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
                 json.dumps(data)
-                if field == 'result':
+                if field == "result":
                     fields[field] = json.loads(data)
-                elif field == 'report':
-                    fields['has_report'] = (data is not None)
+                elif field == "report":
+                    fields["has_report"] = data is not None
                 else:
                     fields[field] = data
             except TypeError:
@@ -496,7 +512,7 @@ class GitCommitNumberEachDays(db.Model):
 
 class IssueCollectionRelation(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     issue_id = Column(Integer)
     software_name = Column(String)
     file_name = Column(String)
@@ -506,7 +522,7 @@ class IssueCollectionRelation(db.Model):
 
 class TestGeneratedIssue(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     issue_id = Column(Integer)
     software_name = Column(String)
     file_name = Column(String)
@@ -518,16 +534,13 @@ class TestGeneratedIssue(db.Model):
 
 class StarredProject(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(
-        Project.id, ondelete='CASCADE'), nullable=False)
-    user_id = Column(Integer, ForeignKey(
-        User.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
 
 
 class RancherPiplineNumberEachDays(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(
-        Project.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     date = Column(Date)
     pipline_number = Column(Integer)
     created_at = Column(DateTime)
@@ -535,34 +548,32 @@ class RancherPiplineNumberEachDays(db.Model):
 
 class Alert(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(
-        Project.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     condition = Column(String)
     days = Column(Integer)
     disabled = Column(Boolean)
 
 
 class Registries(db.Model):
-    __tablename__ = 'registries'
+    __tablename__ = "registries"
     registries_id = Column(Integer, primary_key=True)
     name = Column(String)
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"))
     description = Column(String)
     access_key = Column(String)
     access_secret = Column(String)
     url = Column(String)
     type = Column(String)
-    application = relationship('Application', backref=backref("registries"))
+    application = relationship("Application", backref=backref("registries"))
     disabled = Column(Boolean)
 
 
 class Cluster(db.Model):
-    __tablename__ = 'cluster'
+    __tablename__ = "cluster"
     id = Column(Integer, primary_key=True)
     name = Column(String)
     disabled = Column(Boolean)
-    creator_id = Column(Integer, ForeignKey(
-        User.id, ondelete='SET NULL'), nullable=True)
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
     create_at = Column(DateTime)
     update_at = Column(DateTime)
     cluster_name = Column(String)
@@ -572,9 +583,12 @@ class Cluster(db.Model):
 
     def __repr__(self):
         fields = {}
-        for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
-            if field in ['application']:
+        for field in [
+            x
+            for x in dir(self)
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
+        ]:
+            if field in ["application"]:
                 continue
             data = self.__getattribute__(field)
             try:
@@ -587,10 +601,9 @@ class Cluster(db.Model):
 
 
 class Application(db.Model):
-    __tablename__ = 'application'
+    __tablename__ = "application"
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(
-        Project.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     name = Column(String)
     cluster_id = Column(Integer, ForeignKey(Cluster.id))
     registry_id = Column(Integer, ForeignKey(Registries.registries_id))
@@ -603,9 +616,13 @@ class Application(db.Model):
     release_id = Column(Integer)
     k8s_yaml = Column(String)
     harbor_info = Column(String)
-    project = relationship('Project', backref=backref('projects'))
+    project = relationship("Project", backref=backref("projects"))
     restart_number = Column(Integer, default=0)
     restarted_at = Column(DateTime)
+    # 20230119 為取得 storage class 資訊而新增下列一段程式
+    storage_class_id = Column(Integer)
+    order = Column(Integer, default=0)
+    # 20230119 為取得 storage class 資訊而新增下列一段程式
 
 
 class DefaultAlertDays(db.Model):
@@ -617,14 +634,14 @@ class DefaultAlertDays(db.Model):
 class TraceOrder(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     order = Column(ARRAY(String))
     default = Column(Boolean)
 
 
 class TraceResult(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     current_num = Column(Integer)
     results = Column(String)
     execute_time = Column(DateTime)
@@ -634,7 +651,7 @@ class TraceResult(db.Model):
 
 class AlertUnchangeRecord(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     issue_id = Column(Integer, nullable=False)
     before_update_time = Column(DateTime)
     after_update_time = Column(DateTime)
@@ -649,7 +666,7 @@ class IssueExtensions(db.Model):
 
 class Tag(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     name = Column(String)
 
 
@@ -674,8 +691,8 @@ class Lock(db.Model):
 
 class IssueDisplayField(db.Model):
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     display_field = Column(ARRAY(String))
     type = Column(String)
 
@@ -694,8 +711,8 @@ class ServerType(db.Model):
 
 class ServerDataCollection(db.Model):
     id = Column(Integer, primary_key=True)
-    type_id = Column(Integer, ForeignKey(ServerType.id, ondelete='CASCADE'), nullable=False)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    type_id = Column(Integer, ForeignKey(ServerType.id, ondelete="CASCADE"), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     detail = Column(JSON)
     value = Column(JSON)
     create_at = Column(DateTime)
@@ -713,17 +730,26 @@ class AlertMessage(db.Model):
 
     @validates("resource_type")
     def validate_resource_type(self, key, resource_type):
-        if resource_type is not None and resource_type not in ["system", "kubernetes", "redmine", "gitlab",
-                                                               "harbor", "sonarqube", "rancher", "github"]:
+        if resource_type is not None and resource_type not in [
+            "system",
+            "kubernetes",
+            "redmine",
+            "gitlab",
+            "harbor",
+            "sonarqube",
+            "rancher",
+            "github",
+        ]:
             raise AssertionError(
-                "Resource_type must in system / kubernetes / redmine / gitlab / harbor / sonarqube / rancher / github.")
+                "Resource_type must in system / kubernetes / redmine / gitlab / harbor / sonarqube / rancher / github."
+            )
         return resource_type
 
 
 class CustomIssueFilter(db.Model):
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     name = Column(String)
     type = Column(String)
     custom_filter = Column(JSON)
@@ -731,8 +757,18 @@ class CustomIssueFilter(db.Model):
     @validates("custom_filter")
     def validate_custom_filter(self, key, custom_filter):
         custom_filter_keys = sorted(list(custom_filter.keys()))
-        expected_keys = ['assigned_to_id', 'fixed_version_id', 'focus_tab', 'group_by', 'priority_id',
-                         'show_closed_issues', 'show_closed_versions', 'status_id', 'tags', 'tracker_id']
+        expected_keys = [
+            "assigned_to_id",
+            "fixed_version_id",
+            "focus_tab",
+            "group_by",
+            "priority_id",
+            "show_closed_issues",
+            "show_closed_versions",
+            "status_id",
+            "tags",
+            "tracker_id",
+        ]
         if custom_filter_keys != expected_keys:
             raise AssertionError(f"Custom filter keys must be the same as {expected_keys}.")
         return custom_filter
@@ -746,15 +782,14 @@ class CustomIssueFilter(db.Model):
 
 class CMAS(db.Model):
     task_id = Column(String, primary_key=True)
-    repo_id = Column(Integer, ForeignKey(
-        ProjectPluginRelation.git_repository_id, ondelete='CASCADE'))
+    repo_id = Column(Integer, ForeignKey(ProjectPluginRelation.git_repository_id, ondelete="CASCADE"))
     branch = Column(String)
     commit_id = Column(String)
     run_at = Column(DateTime)  # The time scan registered
-    '''
+    """
     Store if a final status (Finished, Failed, Cancelled) is checked
     Null if scan is in non-final status
-    '''
+    """
     scan_final_status = Column(String, nullable=True)
     stats = Column(String)
     finished_at = Column(DateTime)  # The time report is generated
@@ -763,12 +798,12 @@ class CMAS(db.Model):
     upload_id = Column(Integer)
     size = Column(Integer)
     sha256 = Column(String)
-    '''
+    """
     24 (Android 7.1 Root 版本)
     34 (iOS 11 iPad 越獄版本)
-    '''
+    """
     a_mode = Column(Integer)
-    '''
+    """
     0 (OWASP only)
     1 (工業局行動App規範only)
     2 (OWASP + 工業局規範)
@@ -776,7 +811,7 @@ class CMAS(db.Model):
     5 (OWASP + MSTG)
     6 (MSTG + 工業局基準)
     7 (OWASP + 工業局基準 + MSTG)
-    '''
+    """
     a_report_type = Column(Integer)
     a_ert = Column(Integer)
     logs = Column(String)
@@ -784,7 +819,7 @@ class CMAS(db.Model):
 
 class IssueCommitRelation(db.Model):
     commit_id = Column(String, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     issue_ids = Column(postgresql.ARRAY(Integer))
     author_name = Column(String)
     commit_title = Column(String)
@@ -799,7 +834,7 @@ class IssueCommitRelation(db.Model):
 class ProjectCommitEndpoint(db.Model):
     id = Column(Integer, primary_key=True)
     commit_id = Column(String, unique=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     updated_at = Column(DateTime)
 
 
@@ -810,15 +845,18 @@ class NotificationMessage(db.Model):
     title = Column(String)
     message = Column(String, nullable=False)
     message_parameter = Column(JSON)
-    creator_id = Column(Integer, ForeignKey(User.id, ondelete='SET NULL'), nullable=True)
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     close = Column(Boolean, default=False)
 
     def __repr__(self):
         fields = {}
-        for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
+        for field in [
+            x
+            for x in dir(self)
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
+        ]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
@@ -830,20 +868,31 @@ class NotificationMessage(db.Model):
 
 
 class NotificationMessageReply(db.Model):
-    message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'), primary_key=True)
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
+    message_id = Column(
+        Integer,
+        ForeignKey(NotificationMessage.id, ondelete="CASCADE"),
+        primary_key=True,
+    )
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), primary_key=True)
     created_at = Column(DateTime)
 
 
 class NotificationMessageRecipient(db.Model):
-    message_id = Column(Integer, ForeignKey(NotificationMessage.id, ondelete='CASCADE'), primary_key=True)
+    message_id = Column(
+        Integer,
+        ForeignKey(NotificationMessage.id, ondelete="CASCADE"),
+        primary_key=True,
+    )
     type_id = Column(Integer, nullable=False, primary_key=True)
     type_parameter = Column(JSON)
 
     def __repr__(self):
         fields = {}
-        for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
+        for field in [
+            x
+            for x in dir(self)
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
+        ]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
@@ -856,8 +905,8 @@ class NotificationMessageRecipient(db.Model):
 
 class ProjectParentSonRelation(db.Model):
     id = Column(Integer, primary_key=True)
-    parent_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
-    son_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), nullable=False)
+    parent_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
+    son_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime)
 
 
@@ -955,7 +1004,7 @@ class MonitoringRecord(db.Model):
 
 
 class ProjectIssueCheck(db.Model):
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True)
     enable = Column(Boolean, default=False)
     need_fatherissue_trackers = Column(postgresql.ARRAY(Integer))
     created_at = Column(DateTime)
@@ -964,7 +1013,7 @@ class ProjectIssueCheck(db.Model):
 
 class ReleaseRepoTag(db.Model):
     id = Column(Integer, primary_key=True)
-    release_id = Column(Integer, ForeignKey(Release.id, ondelete='CASCADE'), nullable=False)
+    release_id = Column(Integer, ForeignKey(Release.id, ondelete="CASCADE"), nullable=False)
     tag = Column(String)
     custom_path = Column(String)
 
@@ -981,8 +1030,11 @@ class TemplateProject(db.Model):
 
     def __repr__(self):
         fields = {}
-        for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
+        for field in [
+            x
+            for x in dir(self)
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
+        ]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
@@ -995,7 +1047,7 @@ class TemplateProject(db.Model):
 
 class HarborScan(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     branch = Column(String)
     commit = Column(String)
     fully_commit = Column(String)
@@ -1008,8 +1060,11 @@ class HarborScan(db.Model):
 
     def __repr__(self):
         fields = {}
-        for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
+        for field in [
+            x
+            for x in dir(self)
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
+        ]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
@@ -1022,54 +1077,55 @@ class HarborScan(db.Model):
 
 class Excalidraw(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     name = Column(String)
     room = Column(String, nullable=False)
     key = Column(String, nullable=False)
-    operator_id = Column(Integer, ForeignKey(
-        User.id, ondelete='SET NULL'), nullable=True)
+    operator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     file_key = Column(String)
-    project = relationship('Project', back_populates='excalidraws')
-    excalidraw_histories = relationship('ExcalidrawHistory', back_populates='excalidraw')
+    project = relationship("Project", back_populates="excalidraws")
+    excalidraw_histories = relationship("ExcalidrawHistory", back_populates="excalidraw")
 
 
 class ExcalidrawJson(db.Model):
     id = Column(Integer, primary_key=True)
-    excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete='CASCADE'))
+    excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete="CASCADE"))
     name = Column(String)
     file_value = Column(JSON)
 
 
 class ExcalidrawIssueRelation(db.Model):
     id = Column(Integer, primary_key=True)
-    excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete='CASCADE'))
+    excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete="CASCADE"))
     issue_id = Column(Integer)
 
 
 class ExcalidrawHistory(db.Model):
     id = Column(Integer, primary_key=True)
-    excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete='CASCADE'))
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'))
+    excalidraw_id = Column(Integer, ForeignKey(Excalidraw.id, ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"))
     updated_at = Column(DateTime)
     value = Column(JSON)
-    excalidraw = relationship('Excalidraw', back_populates='excalidraw_histories')
+    excalidraw = relationship("Excalidraw", back_populates="excalidraw_histories")
+
 
 class ProjectResourceStoragelevel(db.Model):
-    '''
+    """
     {
         "limit": integer,
         "comparison": string ("<", ">", "="),
         "percentage": bool
     }
-    '''
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
+    """
+
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True)
     gitlab = Column(JSON)
 
 
 class UserMessageType(db.Model):
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), primary_key=True)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), primary_key=True)
     notification = Column(Boolean)
     mail = Column(Boolean)
     teams = Column(Boolean)
@@ -1078,13 +1134,13 @@ class UserMessageType(db.Model):
 class GitlabSourceCodeLens(db.Model):
     branch = Column(String, primary_key=True)
     commit_id = Column(String)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True)
     source_code_num = Column(Integer)
     updated_at = Column(DateTime)
 
 
 class PipelineUpdateVersion(db.Model):
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'), primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True)
     version = Column(Integer)
     status = Column(String)
     message = Column(String)
@@ -1093,7 +1149,7 @@ class PipelineUpdateVersion(db.Model):
 
 class Sbom(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     branch = Column(String)
     commit = Column(String)
     sequence = Column(Integer)
@@ -1107,8 +1163,11 @@ class Sbom(db.Model):
 
     def __repr__(self):
         fields = {}
-        for field in [x for x in dir(self) if
-                      not x.startswith('query') and not x.startswith('_') and x not in ['metadata', 'registry']]:
+        for field in [
+            x
+            for x in dir(self)
+            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
+        ]:
             data = self.__getattribute__(field)
             try:
                 # this will fail on unencodable values, like other classes
@@ -1121,7 +1180,7 @@ class Sbom(db.Model):
 
 class UpdatePasswordError(db.Model):
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey(User.id, ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
     server = Column(String, nullable=False)
     password = Column(String, nullable=False)
     created_at = Column(DateTime)
@@ -1129,9 +1188,29 @@ class UpdatePasswordError(db.Model):
 
 class Pict(db.Model):
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey(Project.id, ondelete='CASCADE'))
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
     branch = Column(String)
     commit_id = Column(String)
     run_at = Column(DateTime)
     status = Column(String)
-    sideex_id = Column(Integer, ForeignKey(Sideex.id, ondelete='CASCADE'), nullable=False)
+    sideex_id = Column(Integer, ForeignKey(Sideex.id, ondelete="CASCADE"), nullable=False)
+
+
+class PipelineExecution(db.Model):
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
+    del_branch = Column(String)
+    commit_id = Column(String)
+    created_at = Column(DateTime)
+    run_num = Column(Integer)
+
+
+# 20230118 為取得 storage class 資訊而新增下列一段程式
+class StorageClass(db.Model):
+    id = Column(Integer, primary_key=True)
+    cluster_id = Column(Integer, ForeignKey(Cluster.id, ondelete="CASCADE"))
+    name = Column(String)
+    disabled = Column(Boolean)
+
+
+# 20230118 為取得 storage class 資訊而新增下上列一段程式

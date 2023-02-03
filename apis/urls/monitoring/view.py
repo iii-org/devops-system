@@ -14,8 +14,15 @@ from model import Project, db, ServerDataCollection, SystemParameter
 from resources import logger
 from resources import role
 from resources.kubernetesClient import list_namespace_pods_info
-from resources.monitoring import Monitoring, row_to_dict, verify_github_info, docker_image_pull_limit_alert, \
-    k8s_storage_remain_limit, server_alive, plugin_disable_or_not
+from resources.monitoring import (
+    Monitoring,
+    row_to_dict,
+    verify_github_info,
+    docker_image_pull_limit_alert,
+    k8s_storage_remain_limit,
+    server_alive,
+    plugin_disable_or_not,
+)
 from resources.rancher import rancher
 from resources.rancher import remove_extra_executions
 from resources.redis import get_server_alive, update_server_alive
@@ -25,7 +32,7 @@ from urls.monitoring import router_model
 ####################
 # All
 ####################
-@doc(tags=['Monitoring'], description="Get all services list")
+@doc(tags=["Monitoring"], description="Get all services list")
 @marshal_with(router_model.ServiceListSchema)
 class ServicesListV2(MethodResource):
     @jwt_required()
@@ -33,7 +40,7 @@ class ServicesListV2(MethodResource):
         return util.success(plugin_disable_or_not())
 
 
-@doc(tags=['Monitoring'], description="Check all server is alive and update cache.")
+@doc(tags=["Monitoring"], description="Check all server is alive and update cache.")
 @marshal_with(util.CommonResponse)
 class ServersAliveHelper(MethodResource):
     @jwt_required()
@@ -47,7 +54,7 @@ class ServersAliveHelper(MethodResource):
         return util.success()
 
 
-@doc(tags=['Monitoring'], description="Get All plugin servers' status")
+@doc(tags=["Monitoring"], description="Get All plugin servers' status")
 @use_kwargs(router_model.ServersAliveSchema, location="query")
 @marshal_with(router_model.ServersAliveResponse)
 class ServersAliveV2(MethodResource):
@@ -73,7 +80,7 @@ class ServersAlive(Resource):
 ####################
 # redmine
 ####################
-@doc(tags=['Monitoring'], description="Get Redmine server's status")
+@doc(tags=["Monitoring"], description="Get Redmine server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class RedmineAliveV2(MethodResource):
     @jwt_required()
@@ -90,7 +97,7 @@ class RedmineAlive(Resource):
 ####################
 # gitlab
 ####################
-@doc(tags=['Monitoring'], description="Get Gitlab server's status")
+@doc(tags=["Monitoring"], description="Get Gitlab server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class GitlabAliveV2(MethodResource):
     @jwt_required()
@@ -107,7 +114,7 @@ class GitlabAlive(Resource):
 ####################
 # harbor
 ####################
-@doc(tags=['Monitoring'], description="Get Harbor server's status")
+@doc(tags=["Monitoring"], description="Get Harbor server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class HarborAliveV2(MethodResource):
     @jwt_required()
@@ -121,7 +128,10 @@ class HarborAlive(Resource):
         return server_alive("Harbor")
 
 
-@doc(tags=['Monitoring'], description="Get Harbor remain time of pull image from docker hub")
+@doc(
+    tags=["Monitoring"],
+    description="Get Harbor remain time of pull image from docker hub",
+)
 @marshal_with(router_model.HarborProxyResponse)
 class HarborProxyV2(MethodResource):
     @jwt_required()
@@ -135,7 +145,7 @@ class HarborProxy(Resource):
         return docker_image_pull_limit_alert()
 
 
-@doc(tags=['Monitoring'], description="Get Harbor server's status")
+@doc(tags=["Monitoring"], description="Get Harbor server's status")
 @marshal_with(router_model.HarborStorageResponse)
 class HarborStorageV2(MethodResource):
     @jwt_required()
@@ -156,7 +166,7 @@ class HarborStorage(Resource):
 ####################
 # sonarqube
 ####################
-@doc(tags=['Monitoring'], description="Get SonarQube server's status")
+@doc(tags=["Monitoring"], description="Get SonarQube server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class SonarQubeAliveV2(MethodResource):
     @jwt_required()
@@ -173,7 +183,7 @@ class SonarQubeAlive(Resource):
 ####################
 # rancher
 ####################
-@doc(tags=['Monitoring'], description="Get Rancher server's status")
+@doc(tags=["Monitoring"], description="Get Rancher server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class RancherAliveV2(MethodResource):
     @jwt_required()
@@ -187,7 +197,7 @@ class RancherAlive(Resource):
         return server_alive("Rancher")
 
 
-@doc(tags=['Monitoring'], description="Check Rancher name is changed to default or not")
+@doc(tags=["Monitoring"], description="Check Rancher name is changed to default or not")
 @marshal_with(router_model.RancherDefaultNameResponse)
 class RancherDefaultNameV2(MethodResource):
     @jwt_required()
@@ -203,19 +213,19 @@ class RancherDefaultName(Resource):
         return {"default_cluster_name": rancher.cluster_id is not None}
 
 
-@doc(tags=['monitoring'], description="DeleteApprevisions")
+@doc(tags=["monitoring"], description="DeleteApprevisions")
 @marshal_with(util.CommonResponse)
 class DeleteApprevisions(MethodResource):
     def delete(self):
-        os.chmod('./apis/urls/monitoring/apprevisions.sh', 0o777)
-        subprocess.run('./apis/urls/monitoring/apprevisions.sh')
+        os.chmod("./apis/urls/monitoring/apprevisions.sh", 0o777)
+        subprocess.run("./apis/urls/monitoring/apprevisions.sh")
         return util.success()
 
 
 ####################
 # k8s
 ####################
-@doc(tags=['Monitoring'], description="Get Kubernetes server's status")
+@doc(tags=["Monitoring"], description="Get Kubernetes server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class K8sAliveV2(MethodResource):
     @jwt_required()
@@ -230,7 +240,7 @@ class K8sAlive(Resource):
 
 
 class CollectPodRestartTimeV2(MethodResource):
-    @doc(tags=['Monitoring'], description="Collect K8s pods' restart time.")
+    @doc(tags=["Monitoring"], description="Collect K8s pods' restart time.")
     def post(self):
         collect_at = datetime.utcnow().strftime("%Y-%m-%d %H:00:00")
         for pj in Project.query.all():
@@ -248,12 +258,12 @@ class CollectPodRestartTimeV2(MethodResource):
                         },
                         value={"value": container["restart"]},
                         create_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                        collect_at=collect_at
+                        collect_at=collect_at,
                     )
                     db.session.add(row)
                     db.session.commit()
 
-    @doc(tags=['Monitoring'], description="Delete out of time limit pods.")
+    @doc(tags=["Monitoring"], description="Delete out of time limit pods.")
     def delete(self):
         expired_date = datetime.utcnow() - timedelta(days=30)
         ServerDataCollection.query.filter_by(type_id=1).filter(ServerDataCollection.create_at <= expired_date).delete()
@@ -278,7 +288,7 @@ class CollectPodRestartTime(Resource):
                         },
                         value={"value": container["restart"]},
                         create_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                        collect_at=collect_at
+                        collect_at=collect_at,
                     )
                     db.session.add(row)
                     db.session.commit()
@@ -289,7 +299,7 @@ class CollectPodRestartTime(Resource):
         db.session.commit()
 
 
-@doc(tags=['Monitoring'], description="Remove extra k8s executions.")
+@doc(tags=["Monitoring"], description="Remove extra k8s executions.")
 class RemoveExtraExecutionsV2(MethodResource):
     def post(self):
         remove_extra_executions()
@@ -303,7 +313,7 @@ class RemoveExtraExecutions(Resource):
 ####################
 # GitHub
 ####################
-@doc(tags=['Monitoring'], description="Validate Github token.")
+@doc(tags=["Monitoring"], description="Validate Github token.")
 @marshal_with(router_model.GithubTokenVerifyResponse)
 class GithubTokenVerifyV2(MethodResource):
     @jwt_required()
@@ -324,7 +334,7 @@ class GithubTokenVerify(Resource):
 ####################
 # excalidraw
 ####################
-@doc(tags=['Monitoring'], description="Get Excalidraw server's status")
+@doc(tags=["Monitoring"], description="Get Excalidraw server's status")
 @marshal_with(router_model.ServerAliveResponse)
 class ExcalidrawAliveV2(MethodResource):
     @jwt_required()
