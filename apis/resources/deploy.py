@@ -1,4 +1,5 @@
 import base64
+import io
 import json
 import os
 from datetime import datetime, date
@@ -164,6 +165,25 @@ def get_clusters(cluster_id=None):
     output = []
     if cluster_id is not None:
         return get_cluster_application_information(model.Cluster.query.filter_by(id=cluster_id).first())
+    # 20230203 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 cluster ，若不存在則自動新增。] 而新增下列程式段
+    elif role.is_admin():
+        if model.Cluster.query.filter_by(id=0).first() is None:
+            server_name: str = "local-cluster"
+            if model.Cluster.query.filter_by(name=server_name).first() is not None:
+                for i in range(100):
+                    server_name = "local-cluster-" + ("00" + str(i))[-2:]
+                    if model.Cluster.query.filter_by(name=server_name).first() is None:
+                        break
+            user_id: int = get_jwt_identity()["user_id"]
+            args = reqparse.Namespace()
+            args["id"] = 0
+            args["name"] = server_name
+            args["k8s_config_file"] = werkzeug.datastructures.FileStorage(stream=io.BytesIO(
+                                                                                open("/root/.kube/config", "rb").read()),
+                                                                          filename="config")
+            args["disabled"] = False
+            create_local_cluster(args, server_name, user_id)
+    # 20230203 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 cluster ，若不存在則自動新增。] 而新增上列程式段
     for cluster in model.Cluster.query.all():
         output.append(get_cluster_application_information(cluster))
     return output
@@ -213,6 +233,27 @@ def create_cluster(args, server_name, user_id):
     db.session.add(new)
     db.session.commit()
     return new.id
+
+
+# 20230203 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 cluster ，若不存在則自動新增。] 而新增下列程式段
+def create_local_cluster(args, server_name, user_id):
+    k8s_json = save_clusters(args, server_name)
+    now = str(datetime.utcnow())
+    new = model.Cluster(
+        id=0,
+        name=server_name,
+        disabled=args.get("disabled", False),
+        creator_id=user_id,
+        create_at=now,
+        update_at=now,
+        cluster_name=k8s_json["clusters"][0]["name"],
+        cluster_host=k8s_json["clusters"][0]["cluster"]["server"],
+        cluster_user=k8s_json["users"][0]["name"],
+    )
+    db.session.add(new)
+    db.session.commit()
+    return new.id
+# 20230203 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 cluster ，若不存在則自動新增。] 而新增上列程式段
 
 
 def update_cluster(cluster_id, args):
