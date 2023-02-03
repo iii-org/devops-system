@@ -64,7 +64,7 @@ class PostSingleUserV2(MethodResource):
     @jwt_required()
     def post(self, **kwargs):
         role.require_admin("Only admins can create user.")
-        return util.success(create_user(kwargs))
+        return util.success(create_user(kwargs, sso=True))
 
 
 @doc(tags=["User"], description="SingleUser API")
@@ -137,7 +137,7 @@ class SingleUser(Resource):
         parser.add_argument("status", type=str)
         parser.add_argument("force", type=bool)
         args = parser.parse_args()
-        return util.success(create_user(args))
+        return util.success(create_user(args, sso=True))
 
 
 class UserList(Resource):

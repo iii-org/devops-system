@@ -267,7 +267,7 @@ def initialize(db_uri):
         "role_id": role.ADMIN.id,
         "status": "enable",
     }
-    user.create_user(args)
+    user.create_user(args, sso=True)
     logger.logger.info("Initial admin created.")
     migrate.init()
     my_uuid = devops_version.set_deployment_uuid()

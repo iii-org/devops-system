@@ -38,3 +38,6 @@ XlsxWriter==3.0.3
 Markdown==3.4.3
 wheel==0.38.1
 setuptools==65.5.1
+ecdsa==0.18.0 
+python-jose==3.3.0 
+python-keycloak==2.9.0
