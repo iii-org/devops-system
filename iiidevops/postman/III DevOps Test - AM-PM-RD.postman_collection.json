@@ -7797,6 +7797,476 @@
 			"response": []
 		},
 		{
+			"name": "設定子議題",
+			"item": [
+				{
+					"name": "新增測試專案",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"儲存專案各項id\", function () {\r",
+									"    const data = pm.response.json().data;\r",
+									"    pm.environment.set(\"test_project_id\", data.project_id)\r",
+									"    console.log(pm.environment.get(\"test_project_id\"))\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const now = new Date()\r",
+									"now.setTime(now.getTime() + (8 * 60 * 60 * 1000)); // Shift to GMT+8\r",
+									"const project_name = \"pmgen-\" + now.getTime()\r",
+									"const desc = \"此為 Postman 測試腳本自動產生專案。序號：\" + now.getTime()\r",
+									"const date = now.toISOString()\r",
+									"const display = \"PMSC \" + date.slice(date.indexOf('-') + 1, date.indexOf('.') - 3).replace('T', ' ')\r",
+									"pm.variables.set('am_create_pj_name', project_name)\r",
+									"pm.variables.set('am_create_pj_descripiton', desc)\r",
+									"pm.variables.set('am_create_pj_display', display)\r",
+									"\r",
+									"var year = now.getFullYear();\r",
+									"var month = now.getMonth();\r",
+									"var day = now.getDate();\r",
+									"var c = new Date(year + 1, month, day);\r",
+									"pm.variables.set('start_date',date)\r",
+									"pm.variables.set('due_date',c.toISOString())\r",
+									"\r",
+									"\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"{{am_create_pj_name}}\",\n\t\"description\": \"{{am_create_pj_descripiton}}\",\n    \"display\": \"{{am_create_pj_display}}\",\n    \"start_date\": \"{{start_date}}\",\n    \"due_date\": \"{{due_date}}\",\n    \"disabled\": false\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{test_origin}}/project",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"project"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "建立測試用父議題",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"儲存議題 ID\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.data).to.have.property('id');\r",
+									"    pm.environment.set('parent_issue_id',jsonData.data.id)\r",
+									"});\r",
+									"\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "project_id",
+									"value": "{{test_project_id}}",
+									"type": "text"
+								},
+								{
+									"key": "tracker_id",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "status_id",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "priority_id",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "name",
+									"value": "測試用議題",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{test_origin}}/issues",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"issues"
+							]
+						},
+						"description": "只有 PM 和 Admin 可以新增議題，parent_id 若無可以不用放"
+					},
+					"response": []
+				},
+				{
+					"name": "建立測試用子議題",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"儲存議題 ID\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.data).to.have.property('id');\r",
+									"    pm.environment.set('sub_issue_id',jsonData.data.id)\r",
+									"});\r",
+									"\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "project_id",
+									"value": "{{test_project_id}}",
+									"type": "text"
+								},
+								{
+									"key": "tracker_id",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "status_id",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "priority_id",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "name",
+									"value": "測試用議題",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{test_origin}}//issues",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"",
+								"issues"
+							]
+						},
+						"description": "只有 PM 和 Admin 可以新增議題，parent_id 若無可以不用放"
+					},
+					"response": []
+				},
+				{
+					"name": "確認該議題是否存在",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{test_origin}}/v2/issues/{{parent_issue_id}}",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"v2",
+								"issues",
+								"{{parent_issue_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "確認子議題是否存在",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{test_origin}}/v2/issues/{{sub_issue_id}}",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"v2",
+								"issues",
+								"{{sub_issue_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "設定子議題",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "parent_id",
+									"value": "{{parent_issue_id}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{test_origin}}/issues/{{sub_issue_id}}",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"issues",
+								"{{sub_issue_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "刪除專案",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{test_origin}}/project/{{test_project_id}}",
+							"host": [
+								"{{test_origin}}"
+							],
+							"path": [
+								"project",
+								"{{test_project_id}}"
+							]
+						},
+						"description": "只有 Admin 和在指定專案內的 PM 可以刪除專案"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"correctStatus = pm.variables.get('correctStatus') || 200",
+					"pm.test(\"Status code 檢查\", () => {",
+					"    pm.response.to.have.status(correctStatus);",
+					"});"
+				]
+			}
+		},
+		{
 			"name": "刪除 RD 用戶",
 			"request": {
 				"auth": {
