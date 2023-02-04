@@ -296,6 +296,7 @@ stages:
       - master
       - subissue
       - develop
+      - subissue
 - name: Test--SideeX
   iiidevops: sideex
   steps:
