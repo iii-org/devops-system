@@ -1,6 +1,6 @@
 """add_app_header_table
 Revision ID: c6e491604237
-Revises: d22f27fbeaad
+Revises: 7e7ef6a8fc29
 Create Date: 2023-02-16 17:00:40.817595
 """
 from alembic import op
@@ -8,7 +8,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "c6e491604237"
-down_revision = "d22f27fbeaad"
+down_revision = "7e7ef6a8fc29"
 branch_labels = None
 depends_on = None
 

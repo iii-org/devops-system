@@ -200,6 +200,7 @@ class ProjectPluginRelation(db.Model):
     ci_project_id = Column(String)
     ci_pipeline_id = Column(String)
     harbor_project_id = Column(Integer)
+    key_cloak_group_id = Column(String)
 
 
 class PipelineLogsCache(db.Model):
@@ -296,6 +297,7 @@ class UserPluginRelation(db.Model):
     repository_user_id = Column(Integer)
     harbor_user_id = Column(Integer)
     kubernetes_sa_name = Column(String)
+    key_cloak_user_id = Column(String)
 
 
 class Checkmarx(db.Model):
