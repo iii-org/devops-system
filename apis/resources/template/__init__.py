@@ -130,10 +130,10 @@ def tm_read_pipe_set_json(pj, tag_name=None):
         if pj.empty_repo:
             return {"description": "", "name": pj.name}
         if tag_name is None:
-            iiidevops_folder = pj.repository_tree(path="iiidevops")
+            iiidevops_folder = pj.repository_tree(path="iiidevops", all=True)
         else:
             tag_info_dict = __tm_get_tag_info(pj, tag_name)
-            iiidevops_folder = pj.repository_tree(path="iiidevops", ref=tag_info_dict["commit_id"])
+            iiidevops_folder = pj.repository_tree(path="iiidevops", ref=tag_info_dict["commit_id"], all=True)
         for file in iiidevops_folder:
             if file["name"] == "pipeline_settings.json":
                 f_raw = pj.files.raw(file_path="iiidevops/pipeline_settings.json", ref=pj.default_branch)
