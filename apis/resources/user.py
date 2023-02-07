@@ -701,7 +701,7 @@ def try_to_delete(delete_method, obj):
 
 
 @record_activity(ActionType.DELETE_USER)
-def delete_user(user_id):
+def delete_user(user_id, sso=False):
     if user_id == 1:
         raise apiError.NotAllowedError("You cannot delete the system admin.")
     pj_list = get_project_list(user_id)
@@ -731,7 +731,10 @@ def delete_user(user_id):
 
     try_to_delete(gitlab.gl_delete_user, relation.repository_user_id)
     try_to_delete(redmine.rm_delete_user, relation.plan_user_id)
-    try_to_delete(harbor.hb_delete_user, relation.harbor_user_id)
+    if sso:
+        try_to_delete(key_cloak.delete_user, relation.key_cloak_user_id)
+    else:
+        try_to_delete(harbor.hb_delete_user, relation.harbor_user_id)
     try_to_delete(sonarqube.sq_deactivate_user, user_login)
     try:
         for pur_row in pj_ur_rls:

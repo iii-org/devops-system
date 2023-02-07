@@ -195,12 +195,32 @@ def hb_update_user_email(user_id, user_name, new_email):
 
 
 def hb_list_member(project_id, args):
+    """
+    param: args: available keys: entityname
+    """
     return __api_get("/projects/{0}/members".format(project_id), params=args)
 
 
 def hb_add_member(project_id, user_id):
     data = {"role_id": 1, "member_user": {"user_id": user_id}}
     __api_post("/projects/{0}/members".format(project_id), data=data)
+
+
+def hb_add_group(project_id: int, group_name: str) -> None:
+    """
+    param: group_name: same as project_name
+    """
+    data = {"role_id": 1, "member_group": {"group_name": group_name, "group_type": 3}}
+    ret = __api_post("/projects/{0}/members".format(project_id), data=data)
+
+
+def hb_add_group_if_not_exist(project_id: int, group_name: str):
+    hb_pj_memebers_info = hb_list_member(project_id, args={"entityname": group_name}).json()
+    for hb_pj_memeber_info in hb_pj_memebers_info:
+        if hb_pj_memeber_info["entity_type"] == "g" and hb_pj_memeber_info["entity_name"] == group_name:
+            return
+
+    ret = hb_add_group(project_id, group_name)
 
 
 def hb_remove_member(project_id, user_id):

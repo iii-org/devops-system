@@ -97,6 +97,7 @@ class KeyCloak:
         return self.keycloak_admin.assign_realm_roles(user_id=key_cloak_user_id, roles=ad_role_info)
 
     ##### group ######
+    ##### One project one group #####
     def get_group(self, key_cloak_group_id: int):
         try:
             group = self.keycloak_admin.get_group(key_cloak_group_id)
@@ -114,7 +115,7 @@ class KeyCloak:
         """
         :param args: must give keys: name
         """
-        new_group_id = self.keycloak_admin.create_group(paylload={"name": args["name"]})
+        new_group_id = self.keycloak_admin.create_group(payload={"name": args["name"]})
         return new_group_id
 
     def delete_group(self, key_cloak_group_id: int):
@@ -133,7 +134,7 @@ class KeyCloak:
             logger.exception("Can not find the match key_clock group.")
             return
 
-    def assign_group(self, key_cloak_user_id: int, key_cloak_group_id: int):
+    def assign_group(self, key_cloak_group_id: int, key_cloak_user_id: int):
         user_info = self.get_user(key_cloak_user_id)
         group_info = self.get_group(key_cloak_group_id)
         return self.keycloak_admin.group_user_add(key_cloak_user_id, key_cloak_group_id)
