@@ -571,7 +571,6 @@ def create_project_store_in_db(
         ci_pipeline_id=rancher_pipeline_id,
         key_cloak_group_id=key_cloak_group_id,
     )
-    print(new_relation.key_cloak_group_id)
     db.session.add(new_relation)
     db.session.commit()
 
@@ -1156,7 +1155,7 @@ def project_add_member(project_id, user_id):
     # get user name
     ur_row = model.User.query.filter_by(id=user_id).one()
 
-    services = ["redmine", "gitlab", "harbor", "kubernetes_role_binding", "sonarqube"]
+    services = ["key_cloak", "redmine", "gitlab", "harbor", "kubernetes_role_binding", "sonarqube"]
     targets = {
         "key_cloak": key_cloak.assign_group,
         "redmine": redmine.rm_create_memberships,
