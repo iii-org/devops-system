@@ -181,9 +181,9 @@ def check_url_alive(url, is_200=False):
 
     try:
         if is_200:
-            alive = requests.get(url, verify=False).status_code < 400
+            alive = requests.get(url, verify=False, timeout=20).status_code < 400
         else:
-            alive = requests.get(url, verify=False).status_code < 500
+            alive = requests.get(url, verify=False, timeout=20).status_code < 500
     except Exception:
         alive = False
     return alive
