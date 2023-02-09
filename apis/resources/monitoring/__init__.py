@@ -108,9 +108,13 @@ class Monitoring:
             self.ci_pipeline_id = relation.ci_pipeline_id
 
     def __is_server_alive(self, func, *args, **kwargs):
+        # MUST OPTIMIZE IT !!!! #
         try:
-            func(*args, **kwargs)
+            ret = func(*args, **kwargs)
+            if isinstance(ret, bool):
+                return ret
             return True
+
         except Exception as e:
             logger.logger.info(f"{self.server} : {str(e)}")
             self.error_message = str(e)
@@ -278,7 +282,9 @@ class Monitoring:
     def harbor_alive(self, is_project=False):
         self.server = "Harbor"
         self.alert_service_id = 301
-        harbor_alive = self.__check_server_alive(hb_get_project_summary, hb_get_registries, self.hr_pj_id)
+        harbor_alive = self.__check_server_alive(
+            hb_get_project_summary, check_url_alive, self.hr_pj_id, url=config.get("HARBOR_INTERNAL_BASE_URL")
+        )
         if not harbor_alive or is_project:
             return harbor_alive
         harbor_alive = True
@@ -318,6 +324,7 @@ class Monitoring:
                 k8s_alive = False
         return k8s_alive
 
+    # Sonarqube
     def sonarqube_alive(self):
         self.server = "Sonarqube"
         self.alert_service_id = 501
@@ -328,14 +335,15 @@ class Monitoring:
             url=config.get("SONARQUBE_INTERNAL_BASE_URL"),
         )
 
+    # Rancher
     def rancher_alive(self, is_project=False):
         self.server = "Rancher"
         self.alert_service_id = 601
         rancher_alive = self.__check_server_alive(
             rancher.rc_get_pipeline_info,
-            rancher.rc_get_project_pipeline,
+            check_url_alive,
             self.ci_pj_id,
-            self.ci_pipeline_id,
+            url=f"http://{config.get('RANCHER_IP_PORT')}",
         )
         if not rancher_alive or is_project:
             return rancher_alive
