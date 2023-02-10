@@ -1048,6 +1048,7 @@ def create_user_in_k8s(args: dict[str, Any], is_admin: bool) -> int:
 
 def create_user_in_sonarqube(args: dict[str, Any]) -> str:
     sonarqube.sq_create_user(args)
+    sonarqube.sq_update_identity_provider(args)
     logger.info(f"Sonarqube user created.")
     return args["login"]
 

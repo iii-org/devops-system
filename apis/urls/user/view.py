@@ -83,7 +83,7 @@ class GetSingleUserV2(MethodResource):
     @jwt_required()
     def delete(self, user_id):
         role.require_admin("Only admin can delete user.")
-        return util.success(delete_user(user_id))
+        return util.success(delete_user(user_id, sso=True))
 
     @use_kwargs(router_model.PutSingleUserSchema, location="form")
     @marshal_with(router_model.SingleUserResponse)
@@ -122,7 +122,7 @@ class SingleUser(Resource):
     @jwt_required()
     def delete(self, user_id):
         role.require_admin("Only admin can delete user.")
-        return util.success(delete_user(user_id))
+        return util.success(delete_user(user_id, sso=True))
 
     @jwt_required()
     def post(self):

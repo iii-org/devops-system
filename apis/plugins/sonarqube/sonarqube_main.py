@@ -29,6 +29,7 @@ METRICS = (
 PAGE_SIZE = 1000
 SONAR_SCAN_PATH = "sonar-scanner4.7.0/bin"
 # ./sonar-scanner -Dsonar.host.url='{config.get("SONARQUBE_EXTERNAL_BASE_URL")}' -Dsonar.login='{config.get("SONARQUBE_ADMIN_TOKEN")}' -Dsonar.projectKey='projectkey' -Dsonar.projectName='projectnewname'
+SONAR_DEFAULT_EXTERNAL_PROVIDER = "oidc"
 
 
 def __api_request(method, path, headers=None, params=None, data=None):
@@ -83,6 +84,14 @@ def sq_create_user(args):
         "name": args.get("name"),
     }
     return __api_post("/users/create", params=params)
+
+
+def sq_update_identity_provider(args):
+    params = {
+        "login": args.get("login"),
+        "newExternalProvider": args.get("new_external_provider", SONAR_DEFAULT_EXTERNAL_PROVIDER),
+    }
+    return __api_post("/users/update_identity_provider", params=params)
 
 
 def sq_deactivate_user(user_login):
