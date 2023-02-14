@@ -361,7 +361,7 @@ def update_external_passwords(user_id, new_pwd, old_pwd, sso=False):
         service_mapping = {
             "key_cloak": {
                 "args_generator": lambda pwd: (user_relation.key_cloak_user_id, pwd),
-                "update_func": key_cloak.set_user_password,
+                "update_func": key_cloak.update_user_password,
             },
             "redmine": {
                 "args_generator": lambda pwd: (user_relation.plan_user_id, pwd),

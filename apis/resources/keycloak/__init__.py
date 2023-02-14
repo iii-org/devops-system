@@ -79,6 +79,20 @@ class KeyCloak:
     def delete_user(self, key_cloak_user_id: int) -> None:
         return self.keycloak_admin.delete_user(user_id=key_cloak_user_id)
 
+    def logout_user(self, key_cloak_user_id: int) -> None:
+        """
+        Remove all user sessions associated with the user.
+        """
+        return self.keycloak_admin.user_logout(user_id=key_cloak_user_id)
+
+    def update_user_password(self, key_cloak_user_id: int, pwd: str) -> dict[str, Any]:
+        """
+        Add logger maybe.
+        """
+        ret = self.set_user_password(key_cloak_user_id, pwd)
+        self.logout_user(key_cloak_user_id)
+        return ret
+
     ##### role ######
     def get_roles(self, query: dict[str, str] = {}) -> list[dict[str, Any]]:
         """
@@ -105,6 +119,10 @@ class KeyCloak:
             logger.exception(f"Fail to assign role on {key_cloak_user_id}, because role_name {role} has not definded")
             return
         return self.keycloak_admin.assign_realm_roles(user_id=key_cloak_user_id, roles=ad_role_info)
+
+    ##### session ######
+    def get_sessions(self, key_cloak_group_id: int):
+        return self.keycloak_admin.get_sessions(key_cloak_group_id)
 
     ##### group ######
     ##### One project one group #####
