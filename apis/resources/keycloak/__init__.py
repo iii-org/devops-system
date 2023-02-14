@@ -25,7 +25,7 @@ class KeyCloak:
             verify=False,
         )
 
-    ##### User ######
+    ##### user ######
     def create_user(self, args: dict[str, Any], force: bool = False, is_admin: bool = False) -> int:
         """
         should adjust create_user's param 'enable'
@@ -65,6 +65,16 @@ class KeyCloak:
         except KeycloakGetError as e:
             return e
         return user
+
+    def update_user(self, key_cloak_user_id: int, args: dict[str, Any]):
+        """
+        :param args: aviable keys: name, email, enabled(bool)
+        """
+        self.keycloak_admin.update_user(user_id=key_cloak_user_id, payload=args)
+
+    def set_user_password(self, key_cloak_user_id: int, pwd: str) -> dict[str, Any]:
+        ret = self.keycloak_admin.set_user_password(user_id=key_cloak_user_id, password=pwd, temporary=False)
+        return {"status": not ret, "msg": ret.get("msg") or ret}
 
     def delete_user(self, key_cloak_user_id: int) -> None:
         return self.keycloak_admin.delete_user(user_id=key_cloak_user_id)

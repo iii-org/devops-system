@@ -1,6 +1,7 @@
 import datetime
 import json
 import re
+import secrets
 
 import nexus
 import kubernetes
@@ -281,7 +282,7 @@ def update_user(user_id, args, from_ad=False):
     new_email = None
     new_password = None
     # Change Password
-    res = {"error": "did't get password"}
+    res = {}
     if args.get("password") is not None:
         if args["old_password"] == args["password"]:
             return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
@@ -292,7 +293,7 @@ def update_user(user_id, args, from_ad=False):
                 return util.respond(400, "old_password is empty", error=apiError.wrong_password())
             if is_password_verify is False:
                 return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
-        res = update_external_passwords(user_id, args["password"], args["old_password"])
+        res = update_external_passwords(user_id, args["password"], args["old_password"], sso=True)
         h = SHA256.new()
         h.update(args["password"].encode())
         new_password = h.hexdigest()
@@ -308,7 +309,7 @@ def update_user(user_id, args, from_ad=False):
             user.password = new_password
         # Change Email
         if args["email"] is not None:
-            err = update_external_email(user_id, user.name, args["email"])
+            err = update_external_email(user_id, user.name, args["email"], sso=True)
             if err is not None:
                 logger.exception(err)
             new_email = args["email"]
@@ -316,7 +317,7 @@ def update_user(user_id, args, from_ad=False):
             user.email = new_email
         if args["name"] is not None:
             user.name = args["name"]
-            update_external_name(user_id, args["name"], user.login, user.email)
+            update_external_name(user_id, args["name"], user.login, user.email, sso=True)
         if args["phone"] is not None:
             user.phone = args["phone"]
         if args["title"] is not None:
@@ -336,7 +337,7 @@ def update_user(user_id, args, from_ad=False):
         db.session.commit()
         # Putting here to avoid not commit session error
         if args.get("status") is not None:
-            operate_external_user(user_id, status)
+            operate_external_user(user_id, status, sso=True)
     return util.success(res)
 
 
@@ -347,9 +348,83 @@ def update_user_role(user_id, role_id):
     role.update_role(user_id, role_id)
 
 
-def update_external_passwords(user_id, new_pwd, old_pwd):
-    DEFAULT_AD_PASSWORD = f"IIIdevops{secrets.SystemRandom().randrange(10000, 99999)}"
+def generate_random_password() -> str:
+    password = secrets.token_urlsafe(16)
+    return password
+
+
+def update_external_passwords(user_id, new_pwd, old_pwd, sso=False):
+    def update_error_handle(service: str):
+        """
+        In case new_pwd not valid in certain service, setting a default_ad_service as new_pwd in that service and send mail to them.
+        """
+        service_mapping = {
+            "key_cloak": {
+                "args_generator": lambda pwd: (user_relation.key_cloak_user_id, pwd),
+                "update_func": key_cloak.set_user_password,
+            },
+            "redmine": {
+                "args_generator": lambda pwd: (user_relation.plan_user_id, pwd),
+                "update_func": redmine.rm_update_password,
+            },
+            "gitlab": {
+                "args_generator": lambda pwd: (user_relation.repository_user_id, pwd),
+                "update_func": gitlab.gl_update_password,
+            },
+            "sonarqube": {"args_generator": lambda pwd: (user_login, pwd), "update_func": sonarqube.sq_update_password},
+            "harbor": {
+                "args_generator": lambda pwd, org_pwd: (user_relation.harbor_user_id, pwd, org_pwd),
+                "update_func": harbor.hb_update_user_password,
+            },
+        }
+        GERNERATE_CREATE_NOTIFY_MSG = lambda service: {
+            "alert_level": 1,
+            "title": f"{service} password recreate automation",
+            "message": f"password:{default_ad_service}",
+            "type_ids": [3],
+            "type_parameters": {"user_ids": [user_id]},
+        }
+        service_func_info_mapping = service_mapping[service]
+        if service == "harbor":
+            args = service_func_info_mapping["args_generator"](new_pwd, old_pwd)
+            reset_args = service_func_info_mapping["args_generator"](default_ad_service, old_pwd)
+        else:
+            args = service_func_info_mapping["args_generator"](new_pwd)
+            reset_args = service_func_info_mapping["args_generator"](default_ad_service)
+
+        update_pwd_func = service_func_info_mapping["update_func"]
+        ret = update_pwd_func(*args)
+        error = int(ret.status_code / 100) != 2 if service != "key_cloak" else not ret["status"]
+
+        if error:
+            logger.info(f"Update Password error, service: {service}, set to default_ad_pwd, {ret.text}")
+            update_pwd_func(*reset_args)
+            updated_fail_service_pwd_mapping[service] = "default_pwd"
+            create_notification_message(**GERNERATE_CREATE_NOTIFY_MSG(service))
+            update_error_handle_db(service)
+
+    def update_error_handle_db(service: str):
+        row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server=service).first()
+        current_time = datetime.datetime.utcnow()
+        h = SHA256.new()
+        h.update(new_pwd.encode())
+        pwd = h.hexdigest()
+        if row:
+            row.created_at = current_time
+            row.password = pwd
+        else:
+            row = model.UpdatePasswordError(
+                user_id=user_id,
+                server=service,
+                password=pwd,
+                created_at=current_time,
+            )
+            db.session.add(row)
+        db.session.commit()
+
+    default_ad_service = generate_random_password()
     login_account = model.User.query.filter_by(id=user_id).first().login
+    updated_fail_service_pwd_mapping = {}
     try:
         user_login = nx_get_user(id=user_id).login
         user_relation = nx_get_user_plugin_relation(user_id=user_id)
@@ -359,143 +434,14 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
                 "Error when updating password",
                 error=apiError.user_not_found(user_id),
             )
-        reset_dict = {}
-        redmine_user_id = user_relation.plan_user_id
-        a = redmine.rm_update_password(redmine_user_id, new_pwd)
-        if int(a.status_code / 100) != 2:
-            logger.info(a)
-            redmine.rm_update_password(redmine_user_id, DEFAULT_AD_PASSWORD)
-            reset_dict.update({"redmine": "DEFAULT_AD_PASSWORD"})
-            arg = generate_arg(DEFAULT_AD_PASSWORD, user_id, "redmine")
-            create_notification_message(arg, user_id=user_id)
-            # update db
-            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="redmine").first()
-            encode_password = base64.b64encode(f"{DEFAULT_AD_PASSWORD}".encode("UTF-8"))
-            if row:
-                update = {
-                    "user_id": user_id,
-                    "server": "redmine",
-                    "password": encode_password.decode("UTF-8"),
-                    "created_at": datetime.datetime.utcnow(),
-                }
-                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="redmine").update(update)
-                db.session.commit()
-            else:
-                insert = model.UpdatePasswordError(
-                    user_id=user_id,
-                    server="redmine",
-                    password=encode_password.decode("UTF-8"),
-                    created_at=datetime.datetime.utcnow(),
-                )
-                db.session.add(insert)
-                db.session.commit()
-        gitlab_user_id = user_relation.repository_user_id
-        logger.info(f"account:{login_account} update redmine finish.")
-        b = gitlab.gl_update_password(gitlab_user_id, new_pwd)
-        if int(b.status_code / 100) != 2:
-            logger.info(b)
-            gitlab.gl_update_password(gitlab_user_id, DEFAULT_AD_PASSWORD)
-            reset_dict.update({"gitlab": "DEFAULT_AD_PASSWORD"})
-            arg = generate_arg(DEFAULT_AD_PASSWORD, user_id, "gitlab")
-            create_notification_message(arg, user_id=user_id)
-            # update db
-            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="gitlab").first()
-            encode_password = base64.b64encode(f"{DEFAULT_AD_PASSWORD}".encode("UTF-8"))
-            if row:
-                update = {
-                    "user_id": user_id,
-                    "server": "gitlab",
-                    "password": encode_password.decode("UTF-8"),
-                    "created_at": datetime.datetime.utcnow(),
-                }
-                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="gitlab").update(update)
-                db.session.commit()
-            else:
-                insert = model.UpdatePasswordError(
-                    user_id=user_id,
-                    server="gitlab",
-                    password=encode_password.decode("UTF-8"),
-                    created_at=datetime.datetime.utcnow(),
-                )
-                db.session.add(insert)
-                db.session.commit()
-        logger.info(f"account:{login_account} update gitlab finish.")
-        harbor_user_id = user_relation.harbor_user_id
-        c = harbor.hb_update_user_password(harbor_user_id, new_pwd, old_pwd)
-        if int(c.status_code / 100) != 2:
-            logger.info(c)
-            harbor.hb_update_user_password(harbor_user_id, DEFAULT_AD_PASSWORD, old_pwd)
-            reset_dict.update({"harbor": "DEFAULT_AD_PASSWORD"})
-            arg = generate_arg(DEFAULT_AD_PASSWORD, user_id, "harbor")
-            create_notification_message(arg, user_id=user_id)
-            # update db
-            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="harbor").first()
-            encode_password = base64.b64encode(f"{DEFAULT_AD_PASSWORD}".encode("UTF-8"))
-            if row:
-                update = {
-                    "user_id": user_id,
-                    "server": "harbor",
-                    "password": encode_password.decode("UTF-8"),
-                    "created_at": datetime.datetime.utcnow(),
-                }
-                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="harbor").update(update)
-                db.session.commit()
-            else:
-                insert = model.UpdatePasswordError(
-                    user_id=user_id,
-                    server="harbor",
-                    password=encode_password.decode("UTF-8"),
-                    created_at=datetime.datetime.utcnow(),
-                )
-                db.session.add(insert)
-                db.session.commit()
-        logger.info(f"account:{login_account} update harbor finish.")
-        d = sonarqube.sq_update_password(user_login, new_pwd)
-        if int(d.status_code / 100) != 2:
-            logger.info(d)
-            sonarqube.sq_update_password(user_login, DEFAULT_AD_PASSWORD)
-            reset_dict.update({"sonarqube": "DEFAULT_AD_PASSWORD"})
-            arg = generate_arg(DEFAULT_AD_PASSWORD, user_id, "sonarqube")
-            create_notification_message(arg, user_id=user_id)
-            # update db
-            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="sonarqube").first()
-            encode_password = base64.b64encode(f"{DEFAULT_AD_PASSWORD}".encode("UTF-8"))
-            if row:
-                update = {
-                    "user_id": user_id,
-                    "server": "sonarqube",
-                    "password": encode_password.decode("UTF-8"),
-                    "created_at": datetime.datetime.utcnow(),
-                }
-                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="sonarqube").update(
-                    update
-                )
-                db.session.commit()
-            else:
-                insert = model.UpdatePasswordError(
-                    user_id=user_id,
-                    server="sonarqube",
-                    password=encode_password.decode("UTF-8"),
-                    created_at=datetime.datetime.utcnow(),
-                )
-                db.session.add(insert)
-                db.session.commit()
-        logger.info(f"account:{login_account} update sonarqube finish.")
-        return reset_dict
+        services = ["key_cloak", "redmine"] if sso else ["redmine", "gitlab", "sonarqube", "harbor"]
+        for service in services:
+            update_error_handle(service)
+            logger.info(f"Account:{login_account} update {service} finish.")
+        return updated_fail_service_pwd_mapping
     except Exception as e:
         logger.exception(f"user:{user_id} update failed, reason: {e}.")
         return e
-
-
-def generate_arg(DEFAULT_AD_PASSWORD, user_id, server):
-    args = {
-        "alert_level": 1,
-        "title": f"{server} password recreate automation",
-        "message": f"password:{DEFAULT_AD_PASSWORD}",
-        "type_ids": [3],
-        "type_parameters": {"user_ids": [user_id]},
-    }
-    return args
 
 
 def is_json(string):
@@ -646,38 +592,50 @@ def update_newpassword(user_id, kwargs):
         return e
 
 
-def update_external_email(user_id, user_name, new_email):
+def update_external_email(user_id, user_name, new_email, sso=False):
     user_relation = nx_get_user_plugin_relation(user_id=user_id)
     if user_relation is None:
         return util.respond(400, "Error when updating email", error=apiError.user_not_found(user_id))
     redmine_user_id = user_relation.plan_user_id
     redmine.rm_update_email(redmine_user_id, new_email)
 
-    gitlab_user_id = user_relation.repository_user_id
-    gitlab.gl_update_email(gitlab_user_id, new_email)
+    if sso:
+        key_cloak_id = user_relation.key_cloak_user_id
+        key_cloak.update_user(key_cloak_id, {"email": new_email})
+    else:
+        gitlab_user_id = user_relation.repository_user_id
+        gitlab.gl_update_email(gitlab_user_id, new_email)
 
-    gitlab_user_email_list = gitlab.gl_get_user_email(gitlab_user_id).json()
-    need_to_delete_email = [email["id"] for email in gitlab_user_email_list if email["email"] != new_email]
-    for gitlab_email_id in need_to_delete_email:
-        gitlab.gl_delete_user_email(gitlab_user_id, gitlab_email_id)
+        gitlab_user_email_list = gitlab.gl_get_user_email(gitlab_user_id).json()
+        need_to_delete_email = [email["id"] for email in gitlab_user_email_list if email["email"] != new_email]
+        for gitlab_email_id in need_to_delete_email:
+            gitlab.gl_delete_user_email(gitlab_user_id, gitlab_email_id)
 
-    harbor_user_id = user_relation.harbor_user_id
-    harbor.hb_update_user_email(harbor_user_id, user_name, new_email)
+        harbor_user_id = user_relation.harbor_user_id
+        harbor.hb_update_user_email(harbor_user_id, user_name, new_email)
 
 
-def update_external_name(user_id, new_name, login, email):
+def update_external_name(user_id, new_name, login, email, sso=False):
     relation = nx_get_user_plugin_relation(user_id=user_id)
     redmine.rm_update_user_name(relation.plan_user_id, new_name)
-    gitlab.gl_update_user_name(relation.repository_user_id, new_name)
-    harbor.hb_update_user_email(relation.harbor_user_id, new_name, email)
-    sonarqube.sq_update_user_name(login, new_name)
+    if sso:
+        key_cloak_id = relation.key_cloak_user_id
+        key_cloak.update_user(key_cloak_id, {"lastName": new_name})
+    else:
+        gitlab.gl_update_user_name(relation.repository_user_id, new_name)
+        harbor.hb_update_user_email(relation.harbor_user_id, new_name, email)
+        sonarqube.sq_update_user_name(login, new_name)
 
 
-def operate_external_user(user_id, status):
+def operate_external_user(user_id, status, sso=False):
     active_id = 3 if status else 1
     relation = nx_get_user_plugin_relation(user_id=user_id)
     redmine.rm_update_user_active(relation.plan_user_id, active_id)
-    gitlab.gl_update_user_state(relation.repository_user_id, status)
+    if sso:
+        key_cloak_id = relation.key_cloak_user_id
+        key_cloak.update_user(key_cloak_id, {"enabled": status})
+    else:
+        gitlab.gl_update_user_state(relation.repository_user_id, status)
 
 
 # def block_external_user(user_id):

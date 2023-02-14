@@ -105,22 +105,7 @@ class GitLab(object):
             cmd = f'echo "$(sed /$GITLAB_DOMAIN_NAME/d /etc/hosts)" > /etc/hosts; echo "{cluster_ip} $GITLAB_DOMAIN_NAME" >> /etc/hosts'
             os.system(cmd)
 
-        if config.get("GITLAB_API_VERSION") == "v3":
-            # get gitlab admin token
-            url = f'{config.get("GITLAB_BASE_URL")}/api/v3/session'
-            param = {
-                "login": config.get("GITLAB_ADMIN_ACCOUNT"),
-                "password": config.get("GITLAB_ADMIN_PASSWORD"),
-            }
-            output = requests.post(
-                url,
-                data=json.dumps(param),
-                headers={"Content-Type": "application/json"},
-                verify=False,
-            )
-            self.private_token = output.json()["private_token"]
-        else:
-            self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
+        self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
         logger.info(config.get("GITLAB_BASE_URL"))
         self.gl = Gitlab(
             config.get("GITLAB_BASE_URL"),
