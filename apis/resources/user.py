@@ -627,15 +627,15 @@ def update_external_name(user_id, new_name, login, email, sso=False):
         sonarqube.sq_update_user_name(login, new_name)
 
 
-def operate_external_user(user_id, status, sso=False):
-    active_id = 3 if status else 1
+def operate_external_user(user_id, disabled, sso=False):
+    active_id = 3 if disabled else 1
     relation = nx_get_user_plugin_relation(user_id=user_id)
     redmine.rm_update_user_active(relation.plan_user_id, active_id)
     if sso:
         key_cloak_id = relation.key_cloak_user_id
-        key_cloak.update_user(key_cloak_id, {"enabled": status})
+        key_cloak.update_user(key_cloak_id, {"enabled": not disabled})
     else:
-        gitlab.gl_update_user_state(relation.repository_user_id, status)
+        gitlab.gl_update_user_state(relation.repository_user_id, disabled)
 
 
 # def block_external_user(user_id):
