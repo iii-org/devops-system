@@ -141,7 +141,7 @@ def project_url(api, add_resource):
     api.add_resource(view.ProjectFileV2, "/v2/project/<sint:project_id>/file")
     add_resource(view.ProjectFileV2, "private")
 
-    # Project pulgin(k8s)
+    # Project plugin(k8s)
     api.add_resource(view.ProjectPluginUsage, "/project/<sint:project_id>/plugin/resource")
     api.add_resource(view.ProjectPluginUsageV2, "/v2/project/<sint:project_id>/plugin/resource")
     add_resource(view.ProjectPluginUsageV2, "private")
@@ -333,6 +333,6 @@ def project_url(api, add_resource):
     api.add_resource(view.IssueForceTrackerV2, "/v2/project/<sint:project_id>/force_trackers")
     add_resource(view.IssueForceTrackerV2, "private")
 
-    # project resouce info
+    # project resource info
     api.add_resource(view.ProjectResourceStorage, "/v2/project/<sint:project_id>/resoure_info")
     add_resource(view.ProjectResourceStorage, "private")
