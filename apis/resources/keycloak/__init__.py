@@ -68,7 +68,7 @@ class KeyCloak:
 
     def update_user(self, key_cloak_user_id: int, args: dict[str, Any]):
         """
-        :param args: aviable keys: name, email, enabled(bool)
+        :param args: available keys: name, email, enabled(bool)
         """
         self.keycloak_admin.update_user(user_id=key_cloak_user_id, payload=args)
 
@@ -90,7 +90,12 @@ class KeyCloak:
         Add logger maybe.
         """
         ret = self.set_user_password(key_cloak_user_id, pwd)
-        self.logout_user(key_cloak_user_id)
+        user_sessions = self.get_sessions(key_cloak_user_id)
+        if not user_sessions:
+            logger.info(f"Key cloak user:{key_cloak_user_id} has not session. Don't need to log out.")
+        else:
+            logger.info(f"Log out all sessions of Key cloak user:{key_cloak_user_id}.")
+            self.logout_user(key_cloak_user_id)
         return ret
 
     ##### role ######
@@ -116,7 +121,7 @@ class KeyCloak:
         if role == "admin":
             ad_role_info = self.get_roles({"name": AM_REALM_ROLE_NAME})
         else:
-            logger.exception(f"Fail to assign role on {key_cloak_user_id}, because role_name {role} has not definded")
+            logger.exception(f"Fail to assign role on {key_cloak_user_id}, because role_name {role} has not defined")
             return
         return self.keycloak_admin.assign_realm_roles(user_id=key_cloak_user_id, roles=ad_role_info)
 

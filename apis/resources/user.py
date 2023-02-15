@@ -286,7 +286,7 @@ def update_user(user_id, args, from_ad=False):
     if args.get("password") is not None:
         if args["old_password"] == args["password"]:
             return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
-        # Only Update password from ad trigger or syadmin can skip verify password
+        # Only Update password from ad trigger or sysadmin can skip verify password
         if role.ADMIN.id != user_role_id and not from_ad:
             is_password_verify, hex_login_password = verify_password(user.password, args["old_password"])
             if args["old_password"] is None:
@@ -377,7 +377,7 @@ def update_external_passwords(user_id, new_pwd, old_pwd, sso=False):
                 "update_func": harbor.hb_update_user_password,
             },
         }
-        GERNERATE_CREATE_NOTIFY_MSG = lambda service: {
+        GENERATE_CREATE_NOTIFY_MSG = lambda service: {
             "alert_level": 1,
             "title": f"{service} password recreate automation",
             "message": f"password:{default_ad_service}",
@@ -400,7 +400,7 @@ def update_external_passwords(user_id, new_pwd, old_pwd, sso=False):
             logger.info(f"Update Password error, service: {service}, set to default_ad_pwd, {ret.text}")
             update_pwd_func(*reset_args)
             updated_fail_service_pwd_mapping[service] = "default_pwd"
-            create_notification_message(**GERNERATE_CREATE_NOTIFY_MSG(service))
+            create_notification_message(**GENERATE_CREATE_NOTIFY_MSG(service))
             update_error_handle_db(service)
 
     def update_error_handle_db(service: str):
@@ -506,20 +506,20 @@ def checker(kwargs):
             if re.search("[A-Za-z]%s{3,}" % i, kwargs.get("new_pwd")) or re.search(
                 "%s{3,}[A-Za-z]" % i, kwargs.get("new_pwd")
             ):
-                valid_dict.update({"continuouslly_check": True})
+                valid_dict.update({"continuously_check": True})
             else:
-                valid_dict.update({"continuouslly_check": False})
-                msg = "exist only 3 continuouslly letter"
+                valid_dict.update({"continuously_check": False})
+                msg = "exist only 3 continuously letter"
     for i in string.ascii_uppercase:
         if re.search("%s{3,}" % i, kwargs.get("new_pwd")):
             if re.search("[A-Za-z]%s{3,}" % i, kwargs.get("new_pwd")) or re.search(
                 "%s{3,}[A-Za-z]" % i, kwargs.get("new_pwd")
             ):
-                valid_dict.update({"continuouslly_check": True})
+                valid_dict.update({"continuously_check": True})
                 break
             else:
-                valid_dict.update({"continuouslly_check": False})
-                msg = "exist only 3 continuouslly letter"
+                valid_dict.update({"continuously_check": False})
+                msg = "exist only 3 continuously letter"
     if len(kwargs.get("new_pwd")) >= 8:
         valid_dict.update({"nine_word_check": True})
     else:
@@ -1245,7 +1245,7 @@ def update_user_message_types(user_id, args):
             if not mail_server_is_open() and mail:
                 raise DevOpsError(
                     400,
-                    "Mail notificaiton setting can not be opened, when mail server is disable.",
+                    "Mail notification setting can not be opened, when mail server is disable.",
                     error=apiError.argument_error("mail"),
                 )
             users_message_type.mail = mail
