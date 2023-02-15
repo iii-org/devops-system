@@ -399,12 +399,61 @@ def get_registries_application_information(registry):
     return output
 
 
+ # 20230213 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 registry ，若不存在則自動新增。] 而新增下列程式段
+def create_local_registry(args):
+    user_id = get_jwt_identity()["user_id"]
+    # args["credential"] = {
+    #     "access_key": args["access_key"],
+    #     "access_secret": args["access_secret"],
+    #     "type": "basic",
+    # }
+    if args["type"] == "harbor":
+        args["access_secret"] = util.base64encode(args["access_secret"])
+    registries_id = args["id"]
+    new_registries = model.Registries(
+        registries_id=registries_id,
+        name=args["name"],
+        user_id=user_id,
+        description=args["description"],
+        access_key=args["access_key"],
+        access_secret=args["access_secret"],
+        url=args["login_server"],
+        type=args["type"],
+        disabled=False,
+    )
+    model.db.session.add(new_registries)
+    model.db.session.commit()
+    return registries_id
+ # 20230213 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 registry ，若不存在則自動新增。] 而新增上列程式段
+
+
 def get_registries(registry_id=None):
     output = []
     if registry_id is not None:
         return get_registries_application_information(
             model.Registries.query.filter_by(registries_id=registry_id).first()
         )
+    # 20230213 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 registry ，若不存在則自動新增。] 而新增下列程式段
+    elif role.is_admin():
+        if model.Registries.query.filter_by(registries_id=0).first() is None:
+            server_name: str = "local-registry"
+            if model.Registries.query.filter_by(name=server_name).first() is not None:
+                for i in range(100):
+                    server_name = "local-registry-" + ("00" + str(i))[-2:]
+                    if model.Registries.query.filter_by(name=server_name).first() is None:
+                        break
+            args = reqparse.Namespace()
+            args["id"] = 0
+            args["name"] = server_name
+            args["type"] = "harbor"
+            args["access_key"] = config.get("HARBOR_ACCOUNT")
+            args["access_secret"] = config.get("HARBOR_PASSWORD")
+            args["location"] = ""
+            args["login_server"] = config.get("HARBOR_EXTERNAL_BASE_URL")
+            args["description"] = ""
+            args["insecure"] = True
+            create_local_registry(args)
+    # 20230213 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 registry ，若不存在則自動新增。] 而新增上列程式段
     for registry in model.Registries.query.filter().all():
         output.append(get_registries_application_information(registry))
 
