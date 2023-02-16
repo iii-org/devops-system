@@ -25,6 +25,7 @@ VERSIONS = [
     "1.25.0.5",
     "1.25.0.6",
     "1.25.0.7",
+    "1.26.0.1",
 ]
 ONLY_UPDATE_DB_MODELS = [
     "1.22.0.1",
@@ -38,6 +39,7 @@ ONLY_UPDATE_DB_MODELS = [
     "1.25.0.5",
     "1.25.0.6",
     "1.25.0.7",
+    "1.26.0.1",
 ]
 
 
@@ -131,7 +133,7 @@ def current_version():
     else:
         # Backward compatibility
         if os.path.exists(".api_version"):
-            with (open(".api_version", "r")) as f:
+            with open(".api_version", "r") as f:
                 current = f.read()
         else:
             current = "1.22.9.9"

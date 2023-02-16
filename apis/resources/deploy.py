@@ -46,6 +46,14 @@ _ERROR_APPLICATION_EXISTS = "Deploy application had been deployed"
 _ERROR_RESTART_DEPLOY_APPLICATION = "Deploy application had reached retry number limit"
 _ERROR_RELEASE_APPLICATION = "Deploy application not found at gitlab"
 
+# 20230215 為新增 application_header table 而新增下列一段程式
+_ERROR_GET_APPLICATION_HEADER = "Get application header failed"
+_ERROR_CREATE_APPLICATION_HEADER = "Create application header failed"
+_ERROR_UPDATE_APPLICATION_HEADER = "Update application header failed"
+_ERROR_DELETE_APPLICATION_HEADER = "Delete application header failed"
+_ERROR_APPLICATION_HEADER_EXISTS = "Deploy application header had been deployed"
+# 20230215 為新增 application_header table 而新增下列一段程式
+
 # 20230119 新增下列程式，因新增取得DEPLOYMENT的API而新增下列錯誤訊息的程式
 _ERROR_GET_DEPLOYMENT = "Get deployment failed"
 # 202301198 新增上列程式，因新增取得DEPLOYMENT的API而新增上列錯誤訊息的程式
@@ -2351,3 +2359,266 @@ class PersistentVolumeClaim(Resource):
                                 _ERROR_GET_PERSISTENT_VOLUME_CLAIM,
                                 error=apiError.get_persistent_volume_claim_failed(storage_class_id=storage_class_id))
 # 20230202 為取得 storage class 所擁有的 PVC 而新增上列一段程式
+
+
+# 20230215 為新增 application_header table 而新增下列一段程式
+def update_app_header(app_header_id, args):
+    app_header = model.ApplicationHeader.query.filter_by(id=app_header_id).first()
+    app_ids = json.loads(app_header.applications_id)
+    cur_app_ids = []
+    for key in args.keys():
+        if not hasattr(app_header, key):
+            continue
+        elif args[key] is not None:
+            setattr(app_header, key, args[key])
+    for app_args in args.get("applications"):
+        app_args["name"] = args.get("name")
+        app_args["cluster_id"] = args.get("cluster_id")
+        app_args["registry"] = args.get("registry_id")
+        app_args["namespace"] = args.get("namespace")
+        if "id" in app_args:
+            app_id = update_application(app_args["id"], app_args)
+        else:
+            app_id = create_application_header(app_args)
+        if app_id not in app_ids:
+            cur_app_ids.append(app_id)
+    #  Delete Application
+    for app_id in app_ids:
+        if app_id not in cur_app_ids:
+            delete_app_header(app_id, True)
+    app_header.applications_id = "[" + ",".join(str(i) for i in cur_app_ids) + "]"
+    db.session.commit()
+    return app_header.id
+
+
+def delete_app_header(app_header_id, delete_db=False):
+    app_header = model.ApplicationHeader.query.filter_by(id=app_header_id).first()
+    if app_header is None:
+        return {}
+    elif delete_db is True:
+        for app_id in json.loads(app_header.applications_id):
+            print(type(app_id), app_id)
+            delete_application(app_id, delete_db)
+        db.session.delete(app_header)
+        db.session.commit()
+    return app_header.id
+
+
+def patch_app_header(app_header_id, args) -> int:
+    app_header = model.ApplicationHeader.query.filter_by(id=app_header_id).first()
+    if "disabled" in args:
+        app_header.disabled = args.get("disabled")
+        app_header.updated_at = datetime.utcnow()
+        db.session.commit()
+    app_id_list = json.loads(app_header.applications_id)
+    for app_id in app_id_list:
+        patch_application(app_id, args)
+    return app_header_id
+
+
+def get_app_header_information(app_header):
+    if app_header is None:
+        return []
+
+    output = row_to_dict(app_header)
+    applications = []
+    output["total_pods"] = 0
+    output["available_pods"] = 0
+    for app_id in output["applications_id"]:
+        try:
+            app_json = get_application_information(model.Application.query.filter_by(id=app_id).first())
+        except Exception as ex:
+            app_json = {"id": app_id, "error": ex.args[2]}
+            # continue
+        applications.append(app_json)
+        if "deployment" in app_json:
+            deployment = app_json["deployment"]
+            if "total_pod_number" in deployment:
+                if deployment.get("total_pod_number", 0) is not None:
+                    output["total_pods"] += deployment.get("total_pod_number", 0)
+            if "available_pods" in deployment:
+                if deployment.get("available_pods", 0) is not None:
+                    output["available_pods"] += deployment.get("available_pod_number", 0)
+    output["applications"] = applications
+    return output
+
+
+def get_application_headers(args=None):
+    output = []
+    app_header = None
+    if args is None:
+        app_header = model.ApplicationHeader.query.filter().order_by(model.ApplicationHeader.id.desc()).all()
+    elif "app_header_id" in args:
+        app_header = (
+            model.ApplicationHeader.query.filter_by(id=args.get("app_header_id"))
+            .order_by(model.ApplicationHeader.id.desc())
+            .first()
+        )
+    if app_header is None:
+        return output
+    elif isinstance(app_header, list):
+        for app in app_header:
+            output.append(get_app_header_information(app))
+    else:
+        output = get_app_header_information(app_header)
+    return output
+
+
+def check_application_header_exists(name, namespace, cluster_id, registry_id) -> model.ApplicationHeader:
+    return model.ApplicationHeader.query.filter_by(name=name, namespace=namespace, cluster_id=cluster_id,
+                                                   registry_id=registry_id
+                                                   ).first()
+
+
+def create_application_header(args) -> int:
+    if not args.get("remote"):
+        args["cluster_id"] = 0
+        args["registry_id"] = 0
+    cluster = model.Cluster.query.filter_by(id=args.get("cluster_id")).first()
+    registry = model.Cluster.query.filter_by(id=args.get("registry_id")).first()
+    application_list = args.get("applications")
+    if len(application_list) <= 0:
+        raise apiError.DevOpsError(
+            404,
+            _ERROR_APPLICATION_HEADER_EXISTS,
+            error=apiError.create_application_header_failed(cluster.name, registry.name,
+                                                            args.get("namespace"), args.get("name")),
+        )
+    if not args.get("remote"):
+        args["namespace"] = None
+        project_name = model.Project.query.filter_by(id=application_list[0]["project_id"]).first().name
+        for i in range(100):
+            temp_namespace = project_name + "-dpy" + ("00" + str(i))[-2:]
+            if check_application_header_exists(args.get("name"), temp_namespace, 0, 0) is None:
+                args["namespace"] = temp_namespace
+                break
+        if args.get("namespace") is None:
+            raise apiError.DevOpsError(
+                404,
+                _ERROR_APPLICATION_HEADER_EXISTS,
+                error=apiError.create_application_header_failed(cluster.name, registry.name,
+                                                                args.get("namespace"), args.get("name")),
+            )
+    else:
+        if check_application_header_exists(args.get("name"), args.get("namespace"), args.get("cluster_id"),
+                                           args.get("registry_id")) is not None:
+            raise apiError.DevOpsError(
+                404,
+                _ERROR_APPLICATION_HEADER_EXISTS,
+                error=apiError.create_application_header_failed(cluster.name, args.get("namespace"), args.get("name")),
+            )
+    applications_id = []
+    for proj in application_list:
+        app_args = reqparse.Namespace(**proj)
+        app_args["name"] = args.get("name")
+        app_args["cluster_id"] = args.get("cluster_id")
+        app_args["registry_id"] = args.get("registry_id")
+        app_args["namespace"] = args.get("namespace")
+        applications_id.append(create_application(app_args))
+    now = str(datetime.utcnow())
+    app_header = model.ApplicationHeader(
+        name=args.get("name"),
+        remote=args.get("remote"),
+        registry_id=args.get("registry_id"),
+        cluster_id=args.get("cluster_id"),
+        namespace=args.get("namespace"),
+        applications_id="[" + ",".join(str(i) for i in applications_id) + "]",
+        disabled=False,
+        created_at=now,
+        updated_at=now,
+    )
+    db.session.add(app_header)
+    db.session.commit()
+    return app_header.id
+
+
+class ApplicationHeaders(Resource):
+    @jwt_required()
+    def get(self):
+        try:
+            return util.success({"app_headers": get_application_headers()})
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_GET_APPLICATION_HEADER,
+                error=apiError.get_application_header_failed(app_header_id=None),
+            )
+
+    @jwt_required()
+    def post(self):
+        try:
+            parser = reqparse.RequestParser()
+            parser.add_argument("name", type=str)
+            parser.add_argument("remote", type=inputs.boolean)
+            parser.add_argument("registry_id", type=int)
+            parser.add_argument("cluster_id", type=int)
+            parser.add_argument("namespace", type=str)
+            parser.add_argument("applications", type=dict, action="append")
+            parser.add_argument("disabled", type=inputs.boolean)
+            args = parser.parse_args()
+            # output = create_application_header(args)
+            return util.success({"application_headers": {"id": create_application_header(args)}})
+        except NoResultFound:
+            return util.respond(404, _ERROR_CREATE_APPLICATION_HEADER)
+
+
+class ApplicationHeader(Resource):
+    @jwt_required()
+    def get(self, app_header_id):
+        try:
+            args = {"app_header_id": app_header_id}
+            output = get_application_headers(args)
+            return util.success({"app_header": output})
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_GET_APPLICATION_HEADER,
+                error=apiError.get_application_header_failed(app_header_id=args.get("app_header_id")),
+            )
+
+    @jwt_required()
+    def patch(self, app_header_id):
+        try:
+            parser = reqparse.RequestParser()
+            parser.add_argument("disabled", type=inputs.boolean)
+            args = parser.parse_args()
+            return util.success({"app_headers": patch_app_header(app_header_id, args)})
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_UPDATE_APPLICATION_HEADER,
+                error=apiError.update_deploy_application_failed(app_header_id=app_header_id),
+            )
+
+    @jwt_required()
+    def delete(self, app_header_id):
+        try:
+            return util.success(delete_app_header(app_header_id, True))
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_DELETE_APPLICATION_HEADER,
+                error=apiError.delete_application_header_failed(app_header_id),
+            )
+
+    @jwt_required()
+    def put(self, app_header_id):
+        try:
+            parser = reqparse.RequestParser()
+            parser.add_argument("name", type=str)
+            parser.add_argument("remote", type=inputs.boolean)
+            parser.add_argument("registry_id", type=int)
+            parser.add_argument("cluster_id", type=int)
+            parser.add_argument("namespace", type=str)
+            parser.add_argument("applications", type=dict, action="append")
+            parser.add_argument("disabled", type=inputs.boolean)
+            args = parser.parse_args()
+            output = update_app_header(app_header_id, args)
+            return util.success({"app_header": {"id": output}})
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_UPDATE_APPLICATION_HEADER,
+                error=apiError.update_application_header_failed(app_header_id=app_header_id),
+            )
+# 20230215 為新增 application_header table 而新增上列一段程式

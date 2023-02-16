@@ -600,6 +600,22 @@ class Cluster(db.Model):
         return json.dumps(fields)
 
 
+# 20230215 為實現多專案部署新增 application_header 資料表而新增下列一段程式
+class ApplicationHeader(db.Model):
+    __tablename__ = "application_header"
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    remote = Column(Boolean)
+    cluster_id = Column(Integer, ForeignKey(Cluster.id))
+    registry_id = Column(Integer, ForeignKey(Registries.registries_id))
+    namespace = Column(String)
+    applications_id = Column(String, default="[]")
+    disabled = Column(Boolean, default=False)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+# 20230215 為實現多專案部署新增 application_header 資料表而新增上列一段程式
+
+
 class Application(db.Model):
     __tablename__ = "application"
     id = Column(Integer, primary_key=True)
@@ -1211,6 +1227,4 @@ class StorageClass(db.Model):
     cluster_id = Column(Integer, ForeignKey(Cluster.id, ondelete="CASCADE"))
     name = Column(String)
     disabled = Column(Boolean)
-
-
 # 20230118 為取得 storage class 資訊而新增下上列一段程式
