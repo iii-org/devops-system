@@ -764,20 +764,33 @@ def create_pvc_object(pvc_dict):
 
 
 def create_service_port(network):
-    if network.get("expose_port") is not None:
-        service_port = k8s_client.V1ServicePort(
-            protocol=network.get("protocol"),
-            port=network.get("port"),
-            node_port=network.get("expose_port"),
-            target_port=network.get("port"),
-        )
+    """
+    20230218 因為舊的 network 只有一組 protocol、port 及 expose_port。
+    為了改成多組的 protocol、port 及 expose_port 增加了 ports 這個 key 來存放。
+    但因為原本的資料庫中存放的是舊的 network 只有一組 protocol、port 及 expose_port，
+    所以程式修改如下，讓其新舊格式皆可處理。
+    """
+    service_ports: list = []
+    if "ports" in network:
+        ports = network.get("ports", [])
     else:
-        service_port = k8s_client.V1ServicePort(
-            protocol=network.get("protocol"),
-            port=network.get("port"),
-            target_port=network.get("port"),
-        )
-    return [service_port]
+        ports = [network]
+    for port in ports:
+        if port.get("expose_port") is not None:
+            service_port = k8s_client.V1ServicePort(
+                protocol=port.get("protocol"),
+                port=port.get("port"),
+                node_port=port.get("expose_port"),
+                target_port=port.get("port"),
+            )
+        else:
+            service_port = k8s_client.V1ServicePort(
+                protocol=port.get("protocol"),
+                port=port.get("port"),
+                target_port=port.get("port"),
+            )
+        service_ports.append(service_port)
+    return service_ports
 
 
 def create_service_object(app_name, service_name, network):
@@ -1551,8 +1564,12 @@ def get_deployment_info(cluster_name, k8s_yaml):
 def get_application_information(application, need_update=True, cluster_info=None):
     if application is None:
         return []
+    error_message = None
     if application.status_id in _NEED_UPDATE_APPLICATION_STATUS and need_update:
-        check_application_status(application)
+        try:
+            check_application_status(application)
+        except Exception as ex:
+            error_message = str(ex.args)
         app = model.Application.query.filter_by(id=application.id).first()
     else:
         app = application
@@ -1603,6 +1620,8 @@ def get_application_information(application, need_update=True, cluster_info=None
     output["network"] = k8s_yaml.get("network")
     output["environments"] = k8s_yaml.get("environments")
     output["volumes"] = k8s_yaml.get("volumes")
+    if error_message is not None:
+        output["error_message"] = error_message
     return output
 
 
@@ -2397,7 +2416,6 @@ def delete_app_header(app_header_id, delete_db=False):
         return {}
     elif delete_db is True:
         for app_id in json.loads(app_header.applications_id):
-            print(type(app_id), app_id)
             delete_application(app_id, delete_db)
         db.session.delete(app_header)
         db.session.commit()
@@ -2425,11 +2443,7 @@ def get_app_header_information(app_header):
     output["total_pods"] = 0
     output["available_pods"] = 0
     for app_id in output["applications_id"]:
-        try:
-            app_json = get_application_information(model.Application.query.filter_by(id=app_id).first())
-        except Exception as ex:
-            app_json = {"id": app_id, "error": ex.args[2]}
-            # continue
+        app_json = get_application_information(model.Application.query.filter_by(id=app_id).first())
         applications.append(app_json)
         if "deployment" in app_json:
             deployment = app_json["deployment"]
