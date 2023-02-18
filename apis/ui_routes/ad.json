@@ -867,7 +867,20 @@
           "roles": [
             "Administrator"
           ]
-        }
+        },
+        "children": [
+          {
+            "path": "applicationSetting",
+            "name": "ApplicationSetting",
+            "component": "views/Project/Deploy/components/ApplicationSetting",
+            "meta": {
+              "title": "ApplicationSetting",
+              "roles": [
+                "Administrator"
+              ]
+            }
+          }
+        ]
       },
       {
         "path": "template-manage",

@@ -264,7 +264,20 @@
           "roles": [
             "Engineer"
           ]
-        }
+        },
+        "children": [
+          {
+            "path": "applicationSetting",
+            "name": "ApplicationSetting",
+            "component": "views/Project/Deploy/components/ApplicationSetting",
+            "meta": {
+              "title": "ApplicationSetting",
+              "roles": [
+                "Engineer"
+              ]
+            }
+          }
+        ]
       }
     ]
   },

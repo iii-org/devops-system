@@ -26,6 +26,7 @@ VERSIONS = [
     "1.25.0.6",
     "1.25.0.7",
     "1.26.0.1",
+    "1.26.0.2",
 ]
 ONLY_UPDATE_DB_MODELS = [
     "1.22.0.1",
@@ -63,6 +64,8 @@ def upgrade(version):
     elif version == "1.25.0.1":
         model.NotificationMessage.query.filter_by(alert_service_id=303, close=False).delete()
         db.session.commit()
+    elif version == "1.26.0.2":
+        recreate_ui_route()
 
 
 def recreate_ui_route():

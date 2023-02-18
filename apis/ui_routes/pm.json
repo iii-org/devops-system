@@ -882,7 +882,20 @@
           "roles": [
             "Project Manager"
           ]
-        }
+        },
+        "children": [
+          {
+            "path": "applicationSetting",
+            "name": "ApplicationSetting",
+            "component": "views/Project/Deploy/components/ApplicationSetting",
+            "meta": {
+              "title": "ApplicationSetting",
+              "roles": [
+                "Project Manager"
+              ]
+            }
+          }
+        ]
       },
       {
         "path": "template-manage",
