@@ -19,6 +19,8 @@ def user_url(api, add_resource):
     add_resource(view.PostSingleUserV2, "public")
     api.add_resource(view.GetSingleUserV2, "/v2/user/<int:user_id>")
     add_resource(view.GetSingleUserV2, "public")
+    api.add_resource(view.UserInfoV2, "/v2/user_info")
+    add_resource(view.UserInfoV2, "public")
 
     api.add_resource(view.UserList, "/user/list")
     api.add_resource(view.UserListV2, "/v2/user/list")

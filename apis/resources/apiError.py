@@ -342,6 +342,18 @@ custom_errors = {
     },
 }
 
+# 31: Authorization validation
+def authorization_not_found():
+    return build(3101, "Missing Authorization Header")
+
+
+def invalid_token(token: str):
+    return build(3102, "Invalid token", {"token": token})
+
+
+def decode_token_user_not_found(token: str, user: str):
+    return build(3103, "User from decode token not found", {"token": token, "user": user})
+
 
 # 4: Redmine Issue/Wiki/... errors
 def issue_not_found(issue_id):

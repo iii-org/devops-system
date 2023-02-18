@@ -1,13 +1,13 @@
 from typing import Any
-from keycloak import KeycloakAdmin
+from keycloak import KeycloakAdmin, KeycloakOpenID
 from keycloak.exceptions import KeycloakGetError
 from resources.logger import logger
 
 
 KEYCLOAK_URL = "https://10.20.0.75:32110"
 REALM_NAME = "IIIdevops"
-CLIENT_ID = "IIIdevops"
-CLIENT_SECRET_KEY = "OPkQ6b2pm9BhWG3EUUIhH4uK4Hg9G88O"
+CLIENT_ID = "iiidevops"
+CLIENT_SECRET_KEY = "0cxoXRmuAS19545kJ0UWersLMM5IQh70"
 AM_REALM_ROLE_NAME = "admin"
 
 # Root url: change to dev4
@@ -22,6 +22,13 @@ class KeyCloak:
             realm_name=REALM_NAME,
             user_realm_name="master",
             auto_refresh_token=["get", "put", "post", "delete"],
+            verify=False,
+        )
+        self.keycloak_openid = KeycloakOpenID(
+            server_url=KEYCLOAK_URL,
+            client_id=CLIENT_ID,
+            realm_name=REALM_NAME,
+            client_secret_key=CLIENT_SECRET_KEY,
             verify=False,
         )
 
@@ -90,13 +97,30 @@ class KeyCloak:
         Add logger maybe.
         """
         ret = self.set_user_password(key_cloak_user_id, pwd)
-        user_sessions = self.get_sessions(key_cloak_user_id)
-        if not user_sessions:
-            logger.info(f"Key cloak user:{key_cloak_user_id} has not session. Don't need to log out.")
-        else:
-            logger.info(f"Log out all sessions of Key cloak user:{key_cloak_user_id}.")
-            self.logout_user(key_cloak_user_id)
+        # user_sessions = self.get_sessions(key_cloak_user_id)
+        # if not user_sessions:
+        #     logger.info(f"Key cloak user:{key_cloak_user_id} has not session. Don't need to log out.")
+        # else:
+        #     logger.info(f"Log out all sessions of Key cloak user:{key_cloak_user_id}.")
+        #     self.logout_user(key_cloak_user_id)
         return ret
+
+    ##### validation ######
+    def get_user_info_by_token(self, access_token: str) -> dict[str:Any]:
+        try:
+            ret = self.keycloak_openid.introspect(access_token)
+        except Exception as e:
+            logger.exception("Fail to authorize token, error_msg: {str(e)}")
+            ret = {}
+        return ret
+
+    def get_token_by_refresh_token(self, refresh_token: str) -> dict[str:Any]:
+        try:
+            token = self.keycloak_openid.refresh_token(refresh_token)
+        except Exception as e:
+            logger.exception("Fail to refresh token, error_msg: {str(e)}")
+            token = {}
+        return token
 
     ##### role ######
     def get_roles(self, query: dict[str, str] = {}) -> list[dict[str, Any]]:
