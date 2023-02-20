@@ -1,13 +1,12 @@
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 
-# from flask_jwt_extended import jwt_required
+# from resources.handler.jwt import jwt_required
 from resources.handler.jwt import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 import util
 from urls.user import router_model
 from resources.user import (
-    login,
     change_user_status,
     create_user,
     NexusUser,
@@ -30,13 +29,13 @@ security_params = [{"bearer": []}]
 # --------------------- Resources ---------------------
 
 
-@doc(tags=["User"], description="Login API", security=security_params)
-@use_kwargs(router_model.LoginSchema, location=("json"))
-@marshal_with(router_model.LoginResponse)  # marshalling
-class LoginV2(MethodResource):
-    # noinspection PyMethodMayBeStatic
-    def post(self, **kwargs):
-        return login(kwargs)
+# @doc(tags=["User"], description="Login API", security=security_params)
+# @use_kwargs(router_model.LoginSchema, location=("json"))
+# @marshal_with(router_model.LoginResponse)  # marshalling
+# class LoginV2(MethodResource):
+#     # noinspection PyMethodMayBeStatic
+#     def post(self, **kwargs):
+#         return login(kwargs)
 
 
 class UserInfoV2(MethodResource):

@@ -70,5 +70,5 @@ def calculate_expired_datetime(sec: int):
 def get_jwt_identity():
     decoded_jwt = getattr(_request_ctx_stack.top, "jwt", None)
     if decoded_jwt is None:
-        raise RuntimeError("You must call `@jwt_required()` before using this method")
+        raise RuntimeError("You must call `@jwt_required` before using this method")
     return decoded_jwt

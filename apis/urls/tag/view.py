@@ -1,8 +1,7 @@
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
-from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from resources.handler.jwt import jwt_required, get_jwt_identity
 import util
 from urls.tag import router_model
 from resources.tag import (
@@ -27,7 +26,7 @@ error_tag_name_is_exists = "Tag Name was Created"
 
 
 class UserTags(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         try:
             identity = get_jwt_identity()
@@ -39,7 +38,7 @@ class UserTags(Resource):
 
 
 class Tags(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         try:
             parser = reqparse.RequestParser()
@@ -53,7 +52,7 @@ class Tags(Resource):
         except NoResultFound:
             return util.respond(404)
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         try:
             parser = reqparse.RequestParser()
@@ -73,7 +72,7 @@ class Tags(Resource):
 class TagsV2(MethodResource):
     @use_kwargs(router_model.TagsSchema, location="query")
     @marshal_with(router_model.GetTagsResponse)
-    @jwt_required()
+    @jwt_required
     def get(self, **kwargs):
         try:
             if kwargs.get("project_id", None) is None:
@@ -85,7 +84,7 @@ class TagsV2(MethodResource):
 
     @use_kwargs(router_model.TagsSchema, location="form")
     @marshal_with(router_model.TagResponse)
-    @jwt_required()
+    @jwt_required
     def post(self, **kwargs):
         try:
             tag_name = kwargs.get("name")
@@ -98,14 +97,14 @@ class TagsV2(MethodResource):
 
 
 class Tag(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, tag_id):
         try:
             return util.success({"tag": get_tag(tag_id)})
         except NoResultFound:
             return util.respond(404)
 
-    @jwt_required()
+    @jwt_required
     def put(self, tag_id):
         try:
             parser = reqparse.RequestParser()
@@ -115,7 +114,7 @@ class Tag(Resource):
         except NoResultFound:
             return util.respond(404)
 
-    @jwt_required()
+    @jwt_required
     def delete(self, tag_id):
         try:
             return util.success({"tag": delete_tag(tag_id)})
@@ -126,7 +125,7 @@ class Tag(Resource):
 @doc(tags=["Issue"], description="Tag API")
 class TagV2(MethodResource):
     @marshal_with(router_model.TagResponse)
-    @jwt_required()
+    @jwt_required
     def get(self, tag_id):
         try:
             return util.success({"tag": get_tag(tag_id)})
@@ -135,7 +134,7 @@ class TagV2(MethodResource):
 
     @use_kwargs(router_model.TagsSchema, location="form")
     @marshal_with(router_model.PutTagResponse)
-    @jwt_required()
+    @jwt_required
     def put(self, tag_id, **kwargs):
         try:
             return util.success({"tag": update_tag(tag_id, kwargs["name"])})
@@ -143,7 +142,7 @@ class TagV2(MethodResource):
             return util.respond(404)
 
     @marshal_with(router_model.PutTagResponse)
-    @jwt_required()
+    @jwt_required
     def delete(self, tag_id):
         try:
             return util.success({"tag": delete_tag(tag_id)})

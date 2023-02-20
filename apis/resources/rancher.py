@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from datetime import time as d_time
 
 import websocket
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import abort, Resource, reqparse
 from flask_socketio import Namespace, emit, disconnect
 
@@ -829,12 +829,12 @@ def check_pipeline_need_remove(repo_name: str, branch: str, commit_id: str = "")
 
 # --------------------- Resources ---------------------
 class Catalogs(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         catalgos_list = rancher.rc_get_catalogs_all()
         return util.success(catalgos_list)
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("name", type=str, required=True)
@@ -847,7 +847,7 @@ class Catalogs(Resource):
         output = rancher.rc_add_catalogs(args)
         return util.success(output)
 
-    @jwt_required()
+    @jwt_required
     def put(self, catalog_name):
         parser = reqparse.RequestParser()
         parser.add_argument("branch", type=str)
@@ -858,14 +858,14 @@ class Catalogs(Resource):
         output = rancher.rc_edit_catalogs(args, catalog_name)
         return util.success(output)
 
-    @jwt_required()
+    @jwt_required
     def delete(self, catalog_name):
         rancher.rc_delete_catalogs(catalog_name)
         return util.success()
 
 
 class Catalogs_Refresh(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self):
         return util.success(rancher.rc_refresh_catalogs())
 

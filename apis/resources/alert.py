@@ -1,4 +1,4 @@
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from resources.handler.jwt import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 
 import model
@@ -91,11 +91,11 @@ def update_default_alert_days(args):
 
 
 class ProjectAlert(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         return util.success(get_alert_by_project(project_id))
 
-    @jwt_required()
+    @jwt_required
     def post(self, project_id):
         check_alert_permission(get_jwt_identity()["role_id"], get_jwt_identity()["user_id"], project_id)
         parser = reqparse.RequestParser()
@@ -105,7 +105,7 @@ class ProjectAlert(Resource):
 
 
 class ProjectAlertUpdate(Resource):
-    @jwt_required()
+    @jwt_required
     def patch(self, alert_id):
         check_alert_permission(
             get_jwt_identity()["role_id"],
@@ -121,7 +121,7 @@ class ProjectAlertUpdate(Resource):
 
 
 class DefaultAlertDaysUpdate(Resource):
-    @jwt_required()
+    @jwt_required
     def patch(self):
         parser = reqparse.RequestParser()
         parser.add_argument("unchange_days", type=int)

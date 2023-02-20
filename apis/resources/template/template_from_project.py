@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 import config
 
-from flask_jwt_extended import get_jwt_identity
+from resources.handler.jwt import get_jwt_identity
 from model import Project, ProjectUserRole, TemplateProject, db, User
 from nexus import (
     nx_get_project,

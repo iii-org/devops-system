@@ -1,4 +1,4 @@
-from flask_jwt_extended import get_jwt_identity
+from resources.handler.jwt import get_jwt_identity
 from flask_socketio import emit
 from sqlalchemy.sql import and_, or_
 from sqlalchemy import desc

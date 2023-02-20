@@ -4,7 +4,7 @@ from sqlalchemy.sql.operators import exists
 
 import werkzeug
 import yaml
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import Resource, reqparse
 from flask import send_file
 
@@ -339,7 +339,7 @@ def delete_rest_pipelines(project_name, branch_name):
 
 
 class PipelineExec(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument("limit", type=int, location="args")
@@ -350,7 +350,7 @@ class PipelineExec(Resource):
 
 
 class PipelineExecAction(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument("pipelines_exec_run", type=int, required=True)
@@ -360,7 +360,7 @@ class PipelineExecAction(Resource):
 
 
 class PipelineExecLogs(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("repository_id", type=int, required=True, location="args")
@@ -370,11 +370,11 @@ class PipelineExecLogs(Resource):
 
 
 class PipelineYaml(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id, branch_name):
         return get_ci_yaml(repository_id, branch_name)
 
-    @jwt_required()
+    @jwt_required
     def post(self, repository_id, branch_name):
         parser = reqparse.RequestParser()
         parser.add_argument("detail")
@@ -383,13 +383,13 @@ class PipelineYaml(Resource):
 
 
 class PipelinePhaseYaml(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id, branch_name):
         return get_phase_yaml(repository_id, branch_name)
 
 
 class PipelineConfig(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument("pipelines_exec_run", type=int, required=True, location="args")
@@ -398,7 +398,7 @@ class PipelineConfig(Resource):
 
 
 class Pipeline(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self, repository_id):
         role.require_in_project(repository_id=repository_id)
         parser = reqparse.RequestParser()
@@ -409,12 +409,12 @@ class Pipeline(Resource):
 
 
 class PipelineFile(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_name):
         return util.success(list_pipeline_file(project_name))
 
     # Upload
-    @jwt_required()
+    @jwt_required
     def post(self, project_name):
         parser = reqparse.RequestParser()
         parser.add_argument("commit_short_id", type=str, required=True, location="form")
@@ -426,7 +426,7 @@ class PipelineFile(Resource):
         return util.success()
 
     # Download
-    @jwt_required()
+    @jwt_required
     def patch(self, project_name):
         parser = reqparse.RequestParser()
         parser.add_argument("commit_short_id", type=str, required=True)
@@ -436,7 +436,7 @@ class PipelineFile(Resource):
         folder_name = f'{args["commit_short_id"]}-{args["sequence"]}'
         return download_pipeline_file(project_name, folder_name, args["file_name"])
 
-    @jwt_required()
+    @jwt_required
     def delete(self, project_name):
         parser = reqparse.RequestParser()
         parser.add_argument("folder_name", type=str, required=True, location="args")

@@ -11,7 +11,7 @@ from typing import Optional
 
 from accessories import redmine_lib
 from flask import send_file
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from resources.handler.jwt import jwt_required, get_jwt_identity
 from flask_restful import Resource
 from kubernetes.client import ApiException
 from sqlalchemy import desc, or_
@@ -2026,18 +2026,18 @@ def delete_rancher_app(project_id, branch_name):
 
 @doc(tags=["Pending"], description="Get CI pipeline id by git repo id")
 class GitRepoIdToCiPipeIdV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id):
         return git_repo_id_to_ci_pipe_id(repository_id)
 
 
 class GitRepoIdToCiPipeId(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id):
         return git_repo_id_to_ci_pipe_id(repository_id)
 
 
 class AllPodsAndServicesUnderApp(Resource):
-    @jwt_required()
+    @jwt_required
     def delete(self, project_id, app_name):
         return util.success(delete_all_pods_and_services_by_app(project_id, app_name))

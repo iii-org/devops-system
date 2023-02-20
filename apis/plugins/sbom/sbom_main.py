@@ -2,7 +2,7 @@ import resources.apiError as apiError
 from resources import logger
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 import util
 from model import Sbom, db, Project
 import tarfile
@@ -322,7 +322,7 @@ def download_report_file(file_path, file_name):
 @use_kwargs(router_model.SbomGetSbomsResponse, location="query")
 @marshal_with(router_model.SbomGetRes)
 class SbomGetV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id, **kwargs):
         return util.success(get_sboms(project_id, kwargs))
 
@@ -331,7 +331,7 @@ class SbomGetV2(MethodResource):
 @use_kwargs(router_model.SbomDetailResponse, location="query")
 @marshal_with(router_model.SbomGetRiskDetailRes)
 class SbomRiskDetailV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def get(self, sbom_id, **kwargs):
         sbom = Sbom.query.filter_by(id=sbom_id).first()
         commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
@@ -354,7 +354,7 @@ class SbomRiskDetailV2(MethodResource):
 class SbomGetScanFileListV2(MethodResource):
     @doc(tags=["Sbom"], description="Get available file list.")
     @marshal_with(router_model.SbomGetFileList)
-    @jwt_required()
+    @jwt_required
     def get(self, sbom_id):
         return util.success(get_sbom_scan_file_list(sbom_id))
 
@@ -363,7 +363,7 @@ class SbomGetScanFileListV2(MethodResource):
 @marshal_with(router_model.SbomGetSbonListRes)
 @use_kwargs(router_model.SbomListResponse, location="query")
 class SbomListV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id, **kwargs):
         page_dict = {}
         query = Sbom.query.filter_by(project_id=project_id).order_by(Sbom.created_at.desc())
@@ -404,7 +404,7 @@ class SbomListV2(MethodResource):
 @doc(tags=["Sbom"], description="Get risk overview")
 @marshal_with(router_model.SbomGetRiskOverviewRes)
 class SbomGetRiskOverviewV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def get(self, sbom_id):
         sbom = Sbom.query.filter_by(id=sbom_id).first()
         commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
@@ -421,7 +421,7 @@ class SbomGetRiskOverviewV2(MethodResource):
 @use_kwargs(router_model.SbomDownloadReportRes, location="query")
 @marshal_with(util.CommonResponse)
 class SbomDownloadReportV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def get(self, sbom_id, **kwargs):
         sbom = Sbom.query.filter_by(id=sbom_id).first()
         commit, project_id, sequence = sbom.commit, sbom.project_id, sbom.sequence
@@ -451,7 +451,7 @@ def check_status(sbom_id):
 @doc(tags=["Sbom"], description="update status")
 @marshal_with(util.CommonResponse)
 class SbomCheckStatusV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def patch(self, sbom_id):
         check_status(sbom_id)
         return util.success()
@@ -462,7 +462,7 @@ class SbomCheckStatusV2(MethodResource):
 @use_kwargs(router_model.SbomPostSchema, location="json")
 @marshal_with(router_model.SbomPostRes)
 class SbomPostV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def post(self, **kwargs):
         return create_sbom(kwargs)
 
@@ -471,7 +471,7 @@ class SbomPostV2(MethodResource):
 @use_kwargs(router_model.SbomPatchSchema, location="json")
 @marshal_with(util.CommonResponse)
 class SbomPatchV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def patch(self, sbom_id, **kwargs):
         return util.success(update_sboms(sbom_id, kwargs))
 
@@ -479,7 +479,7 @@ class SbomPatchV2(MethodResource):
 @doc(tags=["Sbom"], description="Parsing Sbom")
 @marshal_with(util.CommonResponse)
 class SbomParseV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def patch(self, sbom_id):
         return util.success(parse_sbom_file(sbom_id))
 
@@ -488,7 +488,7 @@ class SbomParseV2(MethodResource):
 @doc(tags=["Sbom"], description="Remove more more than 5 commits")
 @marshal_with(util.CommonResponse)
 class SbomRemoveExtra(MethodResource):
-    @jwt_required()
+    @jwt_required
     def patch(self):
         return util.success(remove_parsing_data())
 

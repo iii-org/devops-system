@@ -1,6 +1,6 @@
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from resources.handler.jwt import jwt_required, get_jwt_identity
 from accessories import redmine_lib
 from resources.apiError import DevOpsError
 from flask_restful import Resource, reqparse
@@ -43,7 +43,7 @@ from resources import role
 class SingleIssueV2(MethodResource):
     @doc(tags=["Issue"], description="Get single issue")
     # @marshal_with(router_model.SingleIssueGetResponse)
-    @jwt_required()
+    @jwt_required
     def get(self, issue_id):
         issue_info = get_issue(issue_id, operator_id=get_jwt_identity()["user_id"])
         require_issue_visible(issue_id, issue_info)
@@ -74,7 +74,7 @@ class SingleIssueV2(MethodResource):
     @use_kwargs(router_model.SingleIssuePutSchema, location="form")
     @use_kwargs(router_model.FileSchema, location="files")
     @marshal_with(router_model.SingleIssuePutResponse)
-    @jwt_required()
+    @jwt_required
     def put(self, issue_id, **kwargs):
         require_issue_visible(issue_id)
 
@@ -146,7 +146,7 @@ class SingleIssueV2(MethodResource):
     @doc(tags=["Issue"], description="Delete single issue")
     @use_kwargs(router_model.SingleIssueDeleteSchema, location="form")
     @marshal_with(router_model.SingleIssueDeleteResponse)
-    @jwt_required()
+    @jwt_required
     def delete(self, issue_id, **kwargs):
         if kwargs.get("force") is None or not kwargs.get("force"):
             redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=["children"])
@@ -165,7 +165,7 @@ class SingleIssueV2(MethodResource):
 @use_kwargs(router_model.FileSchema, location="files")
 @marshal_with(router_model.SingleIssuePostResponse)
 class CreateSingleIssueV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def post(self, **kwargs):
         # Check due_date is greater than start_date
         if (
@@ -200,7 +200,7 @@ class CreateSingleIssueV2(MethodResource):
 
 
 class SingleIssue(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, issue_id):
         issue_info = get_issue(issue_id, operator_id=get_jwt_identity()["user_id"])
         require_issue_visible(issue_id, issue_info)
@@ -222,7 +222,7 @@ class SingleIssue(Resource):
 
         return util.success(issue_info)
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("project_id", type=int, required=True, location="form")
@@ -291,7 +291,7 @@ class SingleIssue(Resource):
         args["subject"] = args.pop("name")
         return util.success(create_issue(args, creator_id))
 
-    @jwt_required()
+    @jwt_required
     def put(self, issue_id):
         require_issue_visible(issue_id)
         parser = reqparse.RequestParser()
@@ -395,7 +395,7 @@ class SingleIssue(Resource):
         output = update_issue(issue_id, args, operator_id)
         return util.success(output)
 
-    @jwt_required()
+    @jwt_required
     def delete(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument("force", type=bool, location="args")
@@ -420,7 +420,7 @@ class SingleIssue(Resource):
 @use_kwargs(router_model.IssueIssueFamilySchema, location="query")
 @marshal_with(router_model.IssueFamilyResponse)
 class IssueFamilyV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def get(self, issue_id, **kwargs):
         user_account = get_jwt_identity()["user_account"]
         redmine_issue = redmine_lib.rm_impersonate(user_account).issue.get(issue_id, include=["children", "relations"])
@@ -433,7 +433,7 @@ class IssueFamilyV2(MethodResource):
 
 
 class IssueFamily(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument("with_point", type=bool, location="args")
@@ -453,7 +453,7 @@ class IssueFamily(Resource):
 
 @doc(tags=["Pending"], description="Get issue Statistics")
 class MyIssueStatisticsV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("from_time", type=str, required=True, location="args")
@@ -465,7 +465,7 @@ class MyIssueStatisticsV2(MethodResource):
 
 
 class MyIssueStatistics(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("from_time", type=str, required=True, location="args")
@@ -479,13 +479,13 @@ class MyIssueStatistics(Resource):
 @doc(tags=["Issue"], description="Get my active issue number")
 @marshal_with(router_model.MyOpenIssueStatisticsResponse)
 class MyOpenIssueStatisticsV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         return get_open_issue_statistics(get_jwt_identity()["user_id"])
 
 
 class MyOpenIssueStatistics(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         return get_open_issue_statistics(get_jwt_identity()["user_id"])
 
@@ -493,13 +493,13 @@ class MyOpenIssueStatistics(Resource):
 @doc(tags=["Issue"], description="Get my weekly active issue number")
 @marshal_with(router_model.MyIssueWeekStatisticsResponse)
 class MyIssueWeekStatisticsV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         return get_issue_statistics_in_period("week", get_jwt_identity()["user_id"])
 
 
 class MyIssueWeekStatistics(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         return get_issue_statistics_in_period("week", get_jwt_identity()["user_id"])
 
@@ -507,13 +507,13 @@ class MyIssueWeekStatistics(Resource):
 @doc(tags=["Issue"], description="Get my monthly active issue number")
 @marshal_with(router_model.MyIssueMonthStatisticsResponse)
 class MyIssueMonthStatisticsV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         return get_issue_statistics_in_period("month", get_jwt_identity()["user_id"])
 
 
 class MyIssueMonthStatistics(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         return get_issue_statistics_in_period("month", get_jwt_identity()["user_id"])
 
@@ -523,7 +523,7 @@ class MyIssueMonthStatistics(Resource):
 
 class RelationV2(MethodResource):
     @doc(tags=["Pending"], description="Create issue's relation.")
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("issue_id", type=int, required=True)
@@ -535,7 +535,7 @@ class RelationV2(MethodResource):
     @doc(tags=["Issue"], description="Update issue's relation.")
     @use_kwargs(router_model.RelationSchema, location="form")
     @marshal_with(util.CommonResponse)
-    @jwt_required()
+    @jwt_required
     def put(self, **kwargs):
         put_issue_relation(
             kwargs["issue_id"],
@@ -547,14 +547,14 @@ class RelationV2(MethodResource):
 
 @doc(tags=["Pending"], description="Delete issue's relation.")
 class RelationDeleteV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def delete(self, relation_id):
         output = delete_issue_relation(relation_id, get_jwt_identity()["user_account"])
         return util.success(output)
 
 
 class Relation(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("issue_id", type=int, required=True)
@@ -563,7 +563,7 @@ class Relation(Resource):
         output = post_issue_relation(args["issue_id"], args["issue_to_id"], get_jwt_identity()["user_account"])
         return util.success(output)
 
-    @jwt_required()
+    @jwt_required
     def put(self):
         parser = reqparse.RequestParser()
         parser.add_argument("issue_id", type=int, required=True)
@@ -572,7 +572,7 @@ class Relation(Resource):
         put_issue_relation(args["issue_id"], args["issue_to_ids"], get_jwt_identity()["user_account"])
         return util.success()
 
-    @jwt_required()
+    @jwt_required
     def delete(self, relation_id):
         output = delete_issue_relation(relation_id, get_jwt_identity()["user_account"])
         return util.success(output)
@@ -584,14 +584,14 @@ class Relation(Resource):
 @doc(tags=["Issue"], description="Check issue is closable or not.")
 @marshal_with(router_model.CheckIssueClosableResponse)
 class CheckIssueClosableV2(MethodResource):
-    @jwt_required()
+    @jwt_required
     def get(self, issue_id):
         output = check_issue_closable(issue_id)
         return util.success(output)
 
 
 class CheckIssueClosable(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, issue_id):
         output = check_issue_closable(issue_id)
         return util.success(output)
@@ -601,7 +601,7 @@ class IssueSonsV2(MethodResource):
     @doc(tags=["Issue"], description="Check issue is closable or not.")
     @use_kwargs(router_model.IssueSonsSchema, location="query")
     # @marshal_with(router_model.CheckIssueClosableResponse)
-    @jwt_required()
+    @jwt_required
     def get(self, project_id, **kwargs):
         return util.success(get_all_sons(project_id, kwargs["fixed_version_ids"]))
 
@@ -610,7 +610,7 @@ class ClosableAllV2(MethodResource):
     @doc(tags=["Issue"], description="Close multi issues")
     @use_kwargs(router_model.ClosableAllSchema)
     @marshal_with(util.CommonResponse)
-    @jwt_required()
+    @jwt_required
     def delete(self, **kwargs):
         return util.success(find_head_and_close_issues([str(issue_id) for issue_id in kwargs["issue_ids"]]))
 
@@ -622,28 +622,28 @@ class IssueCommitRelationV2(MethodResource):
     @doc(tags=["Issue"], description="Get issue relation by commit_id.")
     @use_kwargs(router_model.IssueCommitRelationGetSchema, location="query")
     @marshal_with(router_model.IssueCommitRelationResponse)
-    @jwt_required()
+    @jwt_required
     def get(self, **kwargs):
         return util.success(get_commit_hook_issues(commit_id=kwargs["commit_id"]))
 
     @doc(tags=["Issue"], description="Update issue relation by commit_id.")
     @use_kwargs(router_model.IssueCommitRelationPatchSchema, location="form")
     @marshal_with(util.CommonResponse)
-    @jwt_required()
+    @jwt_required
     def patch(self, **kwargs):
         print(kwargs)
         return util.success(modify_hook(kwargs))
 
 
 class IssueCommitRelation(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("commit_id", type=str, required=True, location="args")
         args = parser.parse_args()
         return util.success(get_commit_hook_issues(commit_id=args["commit_id"]))
 
-    @jwt_required()
+    @jwt_required
     def patch(self):
         parser = reqparse.RequestParser()
         parser.add_argument("commit_id", type=str, required=True)
@@ -654,6 +654,6 @@ class IssueCommitRelation(Resource):
 
 class SyncIssueFamiliesV2(MethodResource):
     @doc(tags=["System"], description="Sync issues' family.")
-    @jwt_required()
+    @jwt_required
     def post(self):
         return util.success(sync_issue_relation())

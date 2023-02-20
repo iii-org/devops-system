@@ -1,7 +1,7 @@
 from typing import Any, Optional, Union
 
 from flask_restful import Resource, reqparse
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 import config
 import json
 import time
@@ -366,18 +366,18 @@ def check_upload_type(file):
 
 
 class SystemParameters(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         return util.success(get_system_parameter())
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("name", type=str)
         args = parser.parse_args()
         return util.success(ex_system_parameter(args["name"]))
 
-    @jwt_required()
+    @jwt_required
     def put(self, param_id):
         parser = reqparse.RequestParser()
         parser.add_argument("value", type=dict, location="json")
@@ -393,7 +393,7 @@ class SystemParameters(Resource):
 
 
 class ParameterGithubVerifyExecuteStatus(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         ret: dict[str, Union[str, bool, datetime, dict[str, bool]]] = get_github_verify_execute_status()
         if ret.get("sync_date"):

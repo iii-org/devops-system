@@ -1,4 +1,4 @@
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import Resource, reqparse
 
 import config
@@ -156,14 +156,14 @@ def delete_project_issue_check(project_id):
 
 
 class AdminProjects(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         all_projects = get_admin_projects()
         return util.success(all_projects)
 
 
 class SubadminProjects(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("id", type=str, required=True, location="args")
@@ -173,14 +173,14 @@ class SubadminProjects(Resource):
 
 
 class Subadmins(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         all_subadmin = get_subadmin()
         return util.success(all_subadmin)
 
 
 class SetPermission(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("user_id", type=int)
@@ -189,7 +189,7 @@ class SetPermission(Resource):
         set_permission(args)
         return util.success()
 
-    @jwt_required()
+    @jwt_required
     def delete(self):
         parser = reqparse.RequestParser()
         parser.add_argument("user_id", type=int, location="json")

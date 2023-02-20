@@ -10,7 +10,7 @@ from resources.user import user_list_by_project
 from resources.issue import get_issue_by_project
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from resources.handler.jwt import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from model import db, Lock
 from sqlalchemy.exc import IntegrityError
@@ -549,7 +549,7 @@ def get_postman_passing_rate(detail, own_project):
 
 
 class SyncRedmine(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         init_data()
         return util.success()
@@ -569,7 +569,7 @@ class SyncRedmineNow(Resource):
 
 
 class ProjectMembersCount(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         project_members_count = get_project_members_count(own_project=own_project)
@@ -577,7 +577,7 @@ class ProjectMembersCount(Resource):
 
 
 class ProjectMembersDetail(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         project_members_detail = get_project_members_detail(own_project=own_project)
@@ -585,14 +585,14 @@ class ProjectMembersDetail(Resource):
 
 
 class ProjectMembers(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         project_members = get_project_members(project_id)
         return util.success(project_members)
 
 
 class ProjectOverview(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         project_overview = get_project_overview(own_project=own_project)
@@ -600,7 +600,7 @@ class ProjectOverview(Resource):
 
 
 class RedmineProjects(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         redmine_projects = get_redmine_projects(detail=False, own_project=own_project)
@@ -608,7 +608,7 @@ class RedmineProjects(Resource):
 
 
 class RedminProjectDetail(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         redmine_project_detail = get_redmine_projects(detail=True, own_project=own_project)
@@ -616,7 +616,7 @@ class RedminProjectDetail(Resource):
 
 
 class RedmineIssueRank(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("all", type=bool, location="args")
@@ -628,14 +628,14 @@ class RedmineIssueRank(Resource):
 
 
 class UnclosedIssues(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, user_id):
         unclosed_issues = get_unclosed_issues_by_user(user_id)
         return util.success(unclosed_issues)
 
 
 class PassingRate(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         passing_rate = get_postman_passing_rate(detail=False, own_project=own_project)
@@ -643,7 +643,7 @@ class PassingRate(Resource):
 
 
 class PassingRateDetail(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         own_project = get_current_sync_date_project_id_by_user()
         passing_rate_detail = get_postman_passing_rate(detail=True, own_project=own_project)

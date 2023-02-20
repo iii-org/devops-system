@@ -1,5 +1,5 @@
 import model
-from flask_jwt_extended import get_jwt_identity
+from resources.handler.jwt import get_jwt_identity
 from datetime import datetime
 from accessories import redmine_lib
 from sqlalchemy.orm import joinedload

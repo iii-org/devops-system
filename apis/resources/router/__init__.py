@@ -1,7 +1,7 @@
 from typing import Any, Optional
 from xmlrpc.client import Boolean
 
-from flask_jwt_extended import get_jwt_identity
+from resources.handler.jwt import get_jwt_identity
 from sqlalchemy.engine import Row
 
 from model import PluginSoftware, UIRouteData, db

@@ -5,7 +5,7 @@ from io import BytesIO
 import os
 import requests
 from flask import send_file
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.exc import NoResultFound
@@ -320,12 +320,12 @@ def remove_apk():
 
 class CMASTask(Resource):
     # Get all tasks
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id):
         return util.success(get_tasks(repository_id))
 
     # Create new tasks
-    @jwt_required()
+    @jwt_required
     def post(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument("task_id", type=str, required=True)
@@ -352,14 +352,14 @@ class CMASTask(Resource):
 
 class CMASRemote(Resource):
     # get task status
-    @jwt_required()
+    @jwt_required
     def get(self, task_id):
         return util.success(CMAS(task_id).query_report_task())
 
 
 class CMASDonwload(Resource):
     # Download reports
-    @jwt_required()
+    @jwt_required
     def get(self, task_id, file_type):
         if file_type == "pdf":
             return CMAS(task_id).download_report()
@@ -368,12 +368,12 @@ class CMASDonwload(Resource):
 
 
 class CMASSecret(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         return get_secrets()
 
 
 class CMASAPKREmove(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self):
         return remove_apk()

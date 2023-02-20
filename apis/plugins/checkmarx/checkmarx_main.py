@@ -5,7 +5,7 @@ from io import BytesIO
 
 import requests
 from flask import send_file
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc, or_
 from sqlalchemy.exc import NoResultFound
@@ -356,14 +356,14 @@ checkmarx = CheckMarx()
 
 # --------------------- Resources ---------------------
 class GetCheckmarxProject(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         cm_project_id = checkmarx.get_latest("cm_project_id", project_id)
         return util.success({"cm_project_id": cm_project_id})
 
 
 class CreateCheckmarxScan(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("cm_project_id", type=int, required=True)
@@ -376,13 +376,13 @@ class CreateCheckmarxScan(Resource):
 
 
 class GetCheckmarxScans(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         return util.success(checkmarx.list_scans(project_id))
 
 
 class GetCheckmarxLatestScan(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         scan_id = checkmarx.get_latest("scan_id", project_id)
         if scan_id >= 0:
@@ -392,7 +392,7 @@ class GetCheckmarxLatestScan(Resource):
 
 
 class GetCheckmarxLatestScanStats(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         scan_id = checkmarx.get_latest("scan_id", project_id)
         if scan_id < 0:
@@ -405,7 +405,7 @@ class GetCheckmarxLatestScanStats(Resource):
 
 
 class GetCheckmarxLatestReport(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         report_id = checkmarx.get_latest("report_id", project_id)
         if report_id < 0:
@@ -414,13 +414,13 @@ class GetCheckmarxLatestReport(Resource):
 
 
 class GetCheckmarxReport(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, report_id):
         return checkmarx.get_report(report_id)
 
 
 class GetCheckmarxScanStatus(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, scan_id):
         status_id, name = checkmarx.get_scan_status(scan_id)
 
@@ -435,20 +435,20 @@ class GetCheckmarxScanStatus(Resource):
 
 
 class RegisterCheckmarxReport(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self, scan_id):
         return checkmarx.register_report(scan_id)
 
 
 class GetCheckmarxReportStatus(Resource):
-    @jwt_required()
-    def get(self, report_id):
-        status_id, value = checkmarx.get_report_status(report_id)
+    @jwt_required
+    def get(self, scan_id):
+        status_id, value = checkmarx.get_report_status(scan_id)
         return util.success({"id": status_id, "value": value})
 
 
 class GetCheckmarxScanStatistics(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, scan_id):
         stats = checkmarx.get_scan_statistics(scan_id)
         if "statisticsCalculationDate" in stats:
@@ -458,7 +458,7 @@ class GetCheckmarxScanStatistics(Resource):
 
 
 class CancelCheckmarxScan(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self, scan_id):
         status_code = checkmarx.cancel_scan(scan_id)
         status = "success" if status_code == 200 else "failure"
@@ -490,11 +490,13 @@ def row_to_dict(row):
 
 class CronjobScan(Resource):
     def get(self):
-        querys_all = Model.query.with_entities(Model.repo_id
-                                               ).filter(Model.repo_id is not None
-                                                        ).group_by(Model.repo_id
-                                                                   ).order_by(Model.repo_id
-                                                                              ).all()
+        querys_all = (
+            Model.query.with_entities(Model.repo_id)
+            .filter(Model.repo_id is not None)
+            .group_by(Model.repo_id)
+            .order_by(Model.repo_id)
+            .all()
+        )
         rec_no = 0
         for query in querys_all:
             rec_no += 1
@@ -503,12 +505,12 @@ class CronjobScan(Resource):
         return util.success()
 
 
-def checkamrx_keep_report(repo_id, keep_record:int = 5):
+def checkamrx_keep_report(repo_id, keep_record: int = 5):
     rows = Model.query.filter_by(repo_id=repo_id).order_by(desc(Model.run_at)).all()
     utcnow = datetime.datetime.utcnow()
     if rows:
         report_count = 0
-        scan_list =[row.scan_id for row in rows]
+        scan_list = [row.scan_id for row in rows]
         for scan_id in scan_list:
             row = Model.query.filter_by(scan_id=scan_id).one()
             if row not in db.session:
@@ -533,8 +535,10 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                         if status_id == 9:  # Failed
                             row.logs = json.dumps(details)
                         row.scan_final_status = status_name
-                    logger.logger.info(f"scan_id: {row.scan_id}, status_id: {status_id}, ststus_name: {status_name}" +
-                                       f", details: {details}")
+                    logger.logger.info(
+                        f"scan_id: {row.scan_id}, status_id: {status_id}, ststus_name: {status_name}"
+                        + f", details: {details}"
+                    )
                     if row.report_id is None:
                         row.report_id = -1
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report_id {row.report_id}")
@@ -552,7 +556,8 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                             row.scan_final_status = None
                             row.report_id = -1
                             logger.logger.info(
-                                f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status} and report_id {row.report_id}")
+                                f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status} and report_id {row.report_id}"
+                            )
                         report_count += 1
                 except Exception as e:
                     logger.logger.exception(str(e))

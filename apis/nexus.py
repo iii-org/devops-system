@@ -1,7 +1,6 @@
 # Module to store methods related to nexus database, i.e. the database used by API Server.
 from datetime import datetime
 
-from flask_jwt_extended import get_jwt_identity
 from sqlalchemy.exc import NoResultFound
 
 import model
@@ -143,4 +142,6 @@ def nx_get_redmine_id(project_id):
 
 
 def nx_get_current_user_id():
+    from resources.handler.jwt import get_jwt_identity
+
     return get_jwt_identity()["user_id"]

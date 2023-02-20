@@ -12,7 +12,7 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 from flask import Flask
 from flask_apispec.extension import FlaskApiSpec
 from flask_cors import CORS
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import Resource, Api, reqparse
 from flask_socketio import SocketIO
 from sqlalchemy.exc import NoResultFound
@@ -31,7 +31,8 @@ import resources.pipeline as pipeline
 import resources.rancher as rancher
 import routine_job
 import util
-from jsonwebtoken import jsonwebtoken
+
+# from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import (
@@ -182,12 +183,12 @@ def internal_error(exception):
 
 
 class NexusVersion(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         row = model.NexusVersion.query.one()
         return util.success({"api_version": row.api_version, "deploy_version": row.deploy_version})
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         role.require_admin()
         keys = ["api_version", "deploy_version"]
@@ -689,31 +690,35 @@ api.add_resource(policy.DBPSWDPolicy, "/db/pswd/policy/check")
 api.add_resource(policy.DBPSWDPolicyTypeList, "/db/pswd/policy/type_list")
 
 
-@app.route("/user/login", methods=["POST"])
-def login():
-    from flask import request
-    from resources.user import login
+# @app.route("/user/login", methods=["POST"])
+# def login():
+#     from flask import request
+#     from resources.user import login
 
-    try:
-        args = request.get_json()
-    except Exception:
-        args = {
-            "username": request.form.get("username"),
-            "password": request.form.get("password"),
-        }
-    return login(args)
+#     try:
+#         args = request.get_json()
+#     except Exception:
+#         args = {
+#             "username": request.form.get("username"),
+#             "password": request.form.get("password"),
+#         }
+#     return login(args)
 
 
 def start_prod():
     try:
         db.init_app(app)
         db.app = app
-        jsonwebtoken.init_app(app)
+        # jsonwebtoken.init_app(app)
         initialize(config.get("SQLALCHEMY_DATABASE_URI"))
         migrate.run()
         kubernetesClient.create_iiidevops_env_secret_namespace()
-        with app.app_context():  # Prevent error appear(Working outside of application context.)
-            kubernetesClient.create_cron_secret()
+        """
+        !!!!!!Temporary Remove !!!!!!!!
+        !!!!!! Offline token !!!!!!!!
+        """
+        # with app.app_context():  # Prevent error appear(Working outside of application context.)
+        #     kubernetesClient.create_cron_secret()
 
         threading.Thread(target=kubernetesClient.apply_cronjob_yamls).start()
         logger.logger.info("Apply k8s-yaml cronjob.")
@@ -753,4 +758,5 @@ def start_prod_extra_funcs():
 
 if __name__ == "__main__":
     start_prod()
-    socketio.run(app, host="0.0.0.0", port=10009, debug=config.get("DEBUG"), use_reloader=config.get("USE_RELOADER"))
+    app.run(host="0.0.0.0", port=10009)
+    # socketio.run(app, host="0.0.0.0", port=10009, debug=config.get("DEBUG"), use_reloader=config.get("USE_RELOADER"))

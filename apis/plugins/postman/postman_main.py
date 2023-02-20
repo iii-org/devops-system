@@ -1,7 +1,7 @@
 from datetime import datetime
 from urllib.parse import urlparse
 
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import Resource, reqparse
 
 import model
@@ -134,7 +134,7 @@ def pm_save_result(args):
 
 # --------------------- Resources ---------------------
 class ExportToPostman(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id, "You don't have permission to create collection.")
         parser = reqparse.RequestParser()
@@ -145,17 +145,17 @@ class ExportToPostman(Resource):
 
 
 class PostmanResults(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         return util.success(apiTest.list_results(project_id))
 
 
 class PostmanReport(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, id):
         return apiTest.get_test_result(id)
 
-    @jwt_required()
+    @jwt_required
     def put(self):
         parser = reqparse.RequestParser()
         parser.add_argument("scan_id", type=int, required=True)
@@ -170,7 +170,7 @@ class PostmanReport(Resource):
         pm_save_result(args)
         return util.success()
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("project_id", type=int, required=True)

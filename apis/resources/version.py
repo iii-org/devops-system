@@ -1,14 +1,11 @@
-from flask_jwt_extended import jwt_required
-from flask_restful import reqparse, Resource
 from sqlalchemy.exc import NoResultFound
 
 import resources.apiError as apiError
 import resources.project as project
 import util as util
-from resources import role
 from resources.redmine import redmine
 from resources import logger
-from flask_jwt_extended import get_jwt_identity
+from resources.handler.jwt import get_jwt_identity
 from model import db, ProjectUserRole
 
 EMPTY_VERSIONS = {"versions": [], "total_count": 0}

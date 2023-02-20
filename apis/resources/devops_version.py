@@ -1,6 +1,6 @@
 import uuid
 
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import Resource
 from sqlalchemy.sql import and_
 
@@ -193,20 +193,20 @@ def register_in_vc(force_update: bool = False) -> None:
 
 # ------------------ Resources ------------------
 class DevOpsVersion(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         return util.success(get_deployment_info())
 
 
 class DevOpsVersionCheck(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         role.require_admin()
         return util.success(has_devops_update())
 
 
 class DevOpsVersionUpdate(Resource):
-    @jwt_required()
+    @jwt_required
     def patch(self):
         role.require_admin()
         versions = has_devops_update()["latest_version"]

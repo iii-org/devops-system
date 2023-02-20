@@ -5,7 +5,7 @@ from time import strptime, mktime
 from accessories.redmine_lib import redmine
 
 from flask import has_request_context
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from resources.handler.jwt import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc, or_
 
@@ -18,7 +18,7 @@ from resources import role
 
 
 def record_activity(action_type):
-    # Must be used after @jwt_required() decorator!
+    # Must be used after @jwt_required decorator!
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
@@ -262,7 +262,7 @@ class Activity(model.Activity):
 
 # --------------------- Resources ---------------------
 class AllActivities(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         role.require_admin()
         parser = reqparse.RequestParser()
@@ -277,7 +277,7 @@ class AllActivities(Resource):
 
 
 class ProjectActivities(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         role.require_pm()
         role.require_in_project(project_id)

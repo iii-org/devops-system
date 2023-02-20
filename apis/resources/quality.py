@@ -25,7 +25,7 @@ from resources.redmine import redmine
 from resources.issue import get_issue_tags
 from data.nexus_project import NexusProject
 from accessories import redmine_lib
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 
 from . import issue
 from .gitlab import gitlab
@@ -471,7 +471,7 @@ def get_the_execl_report(project_id):
 
 
 class TestPlanList(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         out = qu_get_testplan_list(project_id)
         return util.success(out)
@@ -490,21 +490,21 @@ class TestPlanList(Resource):
 
 
 class TestFileByTestPlan(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id, testplan_id):
         out = qu_get_testfile_by_testplan(project_id, testplan_id)
         return util.success(out)
 
 
 class TestFileList(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         out = qu_get_testfile_list(project_id)
         return util.success(out)
 
 
 class TestFile(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self, project_id, software_name):
         parser = reqparse.RequestParser()
         parser.add_argument(
@@ -516,14 +516,14 @@ class TestFile(Resource):
         args = parser.parse_args()
         return util.success(qu_upload_testfile(project_id, args["test_file"], software_name))
 
-    @jwt_required()
+    @jwt_required
     def delete(self, project_id, software_name, test_file_name):
         qu_del_testfile(project_id, software_name, test_file_name)
         return util.success()
 
 
 class TestPlanWithTestFile(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self, project_id):
         parser = reqparse.RequestParser()
         parser.add_argument("issue_id", type=int, required=True)
@@ -533,7 +533,7 @@ class TestPlanWithTestFile(Resource):
         out = qu_create_testplan_testfile_relate(project_id, args["issue_id"], args["software_name"], args["file_name"])
         return util.success(out)
 
-    @jwt_required()
+    @jwt_required
     def put(self, project_id):
         parser = reqparse.RequestParser()
         parser.add_argument("issue_id", type=int, required=True)
@@ -546,13 +546,13 @@ class TestPlanWithTestFile(Resource):
     #     out = qu_get_testplan_testfile_relate_list(project_id)
     #     return util.success(out)
 
-    @jwt_required()
+    @jwt_required
     def delete(self, project_id, item_id):
         qu_del_testplan_testfile_relate_list(project_id, item_id)
         return util.success()
 
 
 class Report(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         return get_the_execl_report(project_id)

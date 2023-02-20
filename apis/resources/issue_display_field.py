@@ -1,5 +1,5 @@
 from flask_restful import Resource, reqparse
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from resources.handler.jwt import jwt_required, get_jwt_identity
 from model import IssueDisplayField, db
 import util
 
@@ -33,7 +33,7 @@ def put_issue_display_field(user_id, pj_id, field_type, display_field):
 
 # --------------------- Resources ---------------------
 class IssueFieldDisplay(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         user_id = get_jwt_identity()["user_id"]
         parser = reqparse.RequestParser()
@@ -43,7 +43,7 @@ class IssueFieldDisplay(Resource):
 
         return util.success(get_issue_display_field(user_id, args["project_id"], args["type"]))
 
-    @jwt_required()
+    @jwt_required
     def put(self):
         user_id = get_jwt_identity()["user_id"]
         parser = reqparse.RequestParser()

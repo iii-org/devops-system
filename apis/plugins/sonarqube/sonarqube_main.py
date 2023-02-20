@@ -4,7 +4,7 @@ from datetime import timedelta
 from flask_apispec import MethodResource
 from flask_apispec import marshal_with, doc, use_kwargs
 
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import Resource
 from requests.auth import HTTPBasicAuth
 from sqlalchemy import desc
@@ -255,7 +255,7 @@ def get_code_length(project_name):
 
 # --------------------- Resources ---------------------
 class SonarqubeHistory(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_name):
         return util.success(
             {
@@ -268,7 +268,7 @@ class SonarqubeHistory(Resource):
 class SonarqubeHistoryV2(MethodResource):
     @doc(tags=["Plugin"], description="Get Sonarqube testing history.")
     @marshal_with(router_model.SonarqubeHistoryResponse)
-    @jwt_required()
+    @jwt_required
     def get(self, project_name):
         return util.success(
             {
@@ -279,7 +279,7 @@ class SonarqubeHistoryV2(MethodResource):
 
 
 class SonarqubeCodelen(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_name):
         result = get_code_length(project_name)
         return util.success({"code_length": result.json()["component"]["measures"][0]["value"]})

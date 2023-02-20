@@ -3,7 +3,7 @@ import json
 import util
 from flask_apispec import doc, marshal_with
 from flask_apispec.views import MethodResource
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import Resource, reqparse
 from flask_socketio import Namespace, join_room, leave_room
 from resources import role
@@ -87,7 +87,7 @@ class MessageV2(MethodResource):
     )
     # @use_kwargs(router_model.CreateNotificationMessageSchema, location="form")
     @marshal_with(util.CommonResponse)
-    @jwt_required()
+    @jwt_required
     def post(self):
         # role.require_admin()
         parser = reqparse.RequestParser()
@@ -113,7 +113,7 @@ class MessageIdV2(MethodResource):
         description="Delete the notification message. Only for administrator",
     )
     @marshal_with(util.CommonResponse)
-    @jwt_required()
+    @jwt_required
     def delete(self, message_id):
         role.require_admin()
         return util.success(delete_notification_message(message_id))
@@ -124,7 +124,7 @@ class MessageListV2(MethodResource):
         tags=["Notification Message"],
         description="User get notification message history.",
     )
-    @jwt_required()
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("limit", type=int, default=10, location="args")
@@ -145,7 +145,7 @@ class MessageListForAdminV2(MethodResource):
         tags=["Notification Message"],
         description="Administrator get all notification message. Only for administrator.",
     )
-    @jwt_required()
+    @jwt_required
     def get(self):
         role.require_admin()
         parser = reqparse.RequestParser()
@@ -164,7 +164,7 @@ class MessageListForAdminV2(MethodResource):
 
 class MessageReplyV2(MethodResource):
     @doc(tags=["Notification Message"], description="Send back after user read message.")
-    @jwt_required()
+    @jwt_required
     def post(self, user_id):
         role.require_user_himself(user_id, even_admin=True)
         parser = reqparse.RequestParser()
@@ -178,7 +178,7 @@ class MessageCloseV2(MethodResource):
         tags=["Notification Message"],
         description="Close message (mean all user read message). Only for administrator.",
     )
-    @jwt_required()
+    @jwt_required
     def post(self, message_id):
         role.require_admin()
         return util.success(close_notification_message(message_id))

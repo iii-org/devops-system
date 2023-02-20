@@ -12,7 +12,8 @@ from kubernetes import config as k8s_config
 from kubernetes import utils as k8s_utils
 from kubernetes.client import ApiException
 from kubernetes.stream import stream as k8s_stream
-from flask_jwt_extended import create_access_token
+
+# from resources.handler.jwt import create_access_token
 from datetime import timedelta
 from util import read_json_file
 
@@ -1773,20 +1774,20 @@ class KubernetesPodExec(Namespace):
 # Only run it when server is redeployed
 
 
-def create_cron_secret():
-    from resources.user import jwt_response_data
+# def create_cron_secret():
+#     from resources.user import jwt_response_data
 
-    """
-    If we do not replace the old token when server is being redeployed, 
-        token sometime can not be used.
-    """
-    if read_namespace_secret("default", "cornjob-bot"):
-        delete_namespace_secret("default", "cornjob-bot")
-    token = create_access_token(
-        identity=jwt_response_data(None, None, None, None),
-        expires_delta=timedelta(days=36500),
-    )
-    create_namespace_secret("default", "cornjob-bot", {"cornjob-token": token})
+#     """
+#     If we do not replace the old token when server is being redeployed,
+#         token sometime can not be used.
+#     """
+#     if read_namespace_secret("default", "cornjob-bot"):
+#         delete_namespace_secret("default", "cornjob-bot")
+#     token = create_access_token(
+#         identity=jwt_response_data(None, None, None, None),
+#         expires_delta=timedelta(days=36500),
+#     )
+#     create_namespace_secret("default", "cornjob-bot", {"cornjob-token": token})
 
 
 # gitlab ingress body

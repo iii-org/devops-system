@@ -12,7 +12,7 @@ from typing import Any, Union
 import pytz
 import requests
 from dateutil import tz
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from resources.handler.jwt import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 from gitlab import Gitlab, exceptions
 from gitlab.v4 import objects
@@ -1141,7 +1141,7 @@ gitlab = GitLab()
 
 
 class GitRelease:
-    @jwt_required()
+    @jwt_required
     def check_gitlab_release(self, repository_id, tag_name, branch_name, commit):
         output = {"check": True, "info": "", "errors": ""}
         branch = gitlab.gl_get_commits(str(repository_id), branch_name)
@@ -1162,11 +1162,11 @@ gl_release = GitRelease()
 
 
 class GitProjectBranches(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id):
         return util.success({"branch_list": gitlab.gl_get_branches(repository_id)})
 
-    @jwt_required()
+    @jwt_required
     def post(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument("branch", type=str, required=True)
@@ -1177,13 +1177,13 @@ class GitProjectBranches(Resource):
 
 class GitProjectBranchesV2(MethodResource):
     @doc(tags=["Gitlab"], description="get all branches in project")
-    @jwt_required()
+    @jwt_required
     @marshal_with(route_model.GitlabGetProjectBranchesRes)
     def get(self, repository_id):
         return util.success({"branch_list": gitlab.gl_get_branches(repository_id)})
 
     @doc(tags=["Gitlab"], description="add branch for the project")
-    @jwt_required()
+    @jwt_required
     @use_kwargs(route_model.GitlabPostProjectBranchesSch, location="json")
     @marshal_with(route_model.GitlabPostProjectBranchesRes)
     def post(self, repository_id, **kwargs):
@@ -1191,13 +1191,13 @@ class GitProjectBranchesV2(MethodResource):
 
 
 class GitProjectBranch(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id, branch_name):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         return util.success(gitlab.gl_get_branch(repository_id, branch_name))
 
-    @jwt_required()
+    @jwt_required
     def delete(self, repository_id, branch_name):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1207,7 +1207,7 @@ class GitProjectBranch(Resource):
 
 class GitProjectBranchV2(MethodResource):
     @doc(tags=["Gitlab"], description="get project branch info")
-    @jwt_required()
+    @jwt_required
     @marshal_with(route_model.GitlabGetProjectBranchRes)
     def get(self, repository_id, branch_name):
         project_id = get_nexus_project_id(repository_id)
@@ -1215,7 +1215,7 @@ class GitProjectBranchV2(MethodResource):
         return util.success(gitlab.gl_get_branch(repository_id, branch_name))
 
     @doc(tags=["Gitlab"], description="delete project branch")
-    @jwt_required()
+    @jwt_required
     @marshal_with(util.CommonResponse)
     def delete(self, repository_id, branch_name):
         project_id = get_nexus_project_id(repository_id)
@@ -1225,7 +1225,7 @@ class GitProjectBranchV2(MethodResource):
 
 
 class GitProjectRepositories(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id, branch_name):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1234,7 +1234,7 @@ class GitProjectRepositories(Resource):
 
 class GitProjectRepositoriesV2(MethodResource):
     @doc(tags=["Gitlab"], description="get branch file type")
-    @jwt_required()
+    @jwt_required
     @marshal_with(route_model.GitGetProjectRepositoriesRes)
     def get(self, repository_id, branch_name):
         project_id = get_nexus_project_id(repository_id)
@@ -1243,7 +1243,7 @@ class GitProjectRepositoriesV2(MethodResource):
 
 
 class GitProjectFile(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1259,7 +1259,7 @@ class GitProjectFile(Resource):
         args = parser.parse_args()
         return gitlab.gl_add_file(repository_id, args)
 
-    @jwt_required()
+    @jwt_required
     def put(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1275,13 +1275,13 @@ class GitProjectFile(Resource):
         args = parser.parse_args()
         return gitlab.gl_update_file(repository_id, args)
 
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id, branch_name, file_path):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         return gitlab.gl_get_file(repository_id, branch_name, file_path)
 
-    @jwt_required()
+    @jwt_required
     def delete(self, repository_id, branch_name, file_path):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1293,14 +1293,14 @@ class GitProjectFile(Resource):
 
 
 class GitProjectTag(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
         res = gitlab.get_tags(repository_id)
         return util.success({"tag_list": res})
 
-    @jwt_required()
+    @jwt_required
     def post(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1320,7 +1320,7 @@ class GitProjectTag(Resource):
             )
         )
 
-    @jwt_required()
+    @jwt_required
     def delete(self, repository_id, tag_name):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1330,7 +1330,7 @@ class GitProjectTag(Resource):
 
 class GitProjectTagV2(MethodResource):
     @doc(tags=["Gitlab"], description="get project tags")
-    @jwt_required()
+    @jwt_required
     @marshal_with(route_model.GitGetProjectTagRes)
     def get(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
@@ -1340,7 +1340,7 @@ class GitProjectTagV2(MethodResource):
 
     @doc(tags=["Gitlab"], description="add project tags")
     @use_kwargs(route_model.GitPostProjectTagSch, location="form")
-    @jwt_required()
+    @jwt_required
     @marshal_with(route_model.GitPostProjectTagRes)
     def post(self, repository_id, **kwargs):
         project_id = get_nexus_project_id(repository_id)
@@ -1348,7 +1348,7 @@ class GitProjectTagV2(MethodResource):
         return util.success(gitlab.create_tag(repository_id, kwargs))
 
     @doc(tags=["Gitlab"], description="delete project tags")
-    @jwt_required()
+    @jwt_required
     @marshal_with(util.CommonResponse)
     def delete(self, repository_id, tag_name):
         project_id = get_nexus_project_id(repository_id)
@@ -1358,7 +1358,7 @@ class GitProjectTagV2(MethodResource):
 
 
 class GitProjectBranchCommits(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1371,7 +1371,7 @@ class GitProjectBranchCommits(Resource):
 
 class GitProjectBranchCommitsV2(MethodResource):
     @doc(tags=["Gitlab"], description="get commits of one branch")
-    @jwt_required()
+    @jwt_required
     @use_kwargs(route_model.GitGetBranchCommitsSch, location="query")
     @marshal_with(route_model.GitGetBranchCommitsRes)
     def get(self, repository_id, **kwargs):
@@ -1381,7 +1381,7 @@ class GitProjectBranchCommitsV2(MethodResource):
 
 
 class GitProjectMembersCommits(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
@@ -1393,7 +1393,7 @@ class GitProjectMembersCommits(Resource):
 
 class GitProjectMembersCommitsV2(MethodResource):
     @doc(tags=["Gitlab"], description="get commits of the pj_members ")
-    @jwt_required()
+    @jwt_required
     @use_kwargs(route_model.GitGetMembersCommitsSch, location="query")
     @marshal_with(route_model.GitGetMembersCommitsRes)
     def get(self, repository_id, **kwargs):
@@ -1403,35 +1403,35 @@ class GitProjectMembersCommitsV2(MethodResource):
 
 
 class GitProjectNetwork(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id):
         return gitlab.gl_get_network(repository_id)
 
 
 class GitProjectNetworkV2(MethodResource):
     @doc(tags=["Gitlab"], description="get repositories overview")
-    @jwt_required()
+    @jwt_required
     @marshal_with(route_model.GitGetRepositoriesOverviewRes)
     def get(self, repository_id):
         return gitlab.gl_get_network(repository_id)
 
 
 class GitProjectId(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repository_id):
         return GitLab.gl_get_nexus_project_id(repository_id)
 
 
 class GitProjectIdV2(MethodResource):
     @doc(tags=["Gitlab"], description="get project id")
-    @jwt_required()
+    @jwt_required
     @marshal_with(route_model.GitGetProjectIdRes)
     def get(self, repository_id):
         return GitLab.gl_get_nexus_project_id(repository_id)
 
 
 class GitProjectIdFromURL(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("repository_url", type=str, required=True, location="args")
@@ -1449,7 +1449,7 @@ class GitProjectIdFromURL(Resource):
 class GitProjectIdFromURLV2(MethodResource):
     @doc(tags=["Gitlab"], description="get project id form URI")
     @use_kwargs(route_model.GitGetProjectIdFromURISch, location="query")
-    @jwt_required()
+    @jwt_required
     @marshal_with(route_model.GitGetProjectIdFromURIRes)
     def get(self, **kwargs):
         try:
@@ -1463,7 +1463,7 @@ class GitProjectIdFromURLV2(MethodResource):
 
 
 class GitProjectURLFromId(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("project_id", type=int, location="args")
@@ -1485,7 +1485,7 @@ class GitProjectURLFromId(Resource):
 class GitProjectURLFromIdV2(MethodResource):
     @doc(tags=["Gitlab"], description="get project url form id")
     @use_kwargs(route_model.GitGetProjectURLFromIdSch, location="query")
-    @jwt_required()
+    @jwt_required
     @marshal_with(route_model.GitGetProjectURLFromIdRes)
     def get(self, **kwargs):
         project_id = kwargs["project_id"]
@@ -1502,7 +1502,7 @@ class GitProjectURLFromIdV2(MethodResource):
 
 
 class GitTheLastHoursCommits(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("the_last_hours", type=int, location="args")
@@ -1530,14 +1530,14 @@ class GitCountEachPjCommitsByDays(Resource):
 
 
 class SyncGitCommitIssueRelation(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id, issue_id):
         parser = reqparse.RequestParser()
         parser.add_argument("limit", type=int, default=10, location="args")
         args = parser.parse_args()
         return util.success(get_commit_issues_relation(project_id, issue_id, args["limit"]))
 
-    @jwt_required()
+    @jwt_required
     def post(self, project_id):
         sync_commit_issues_relation(project_id)
         return util.success()
@@ -1562,7 +1562,7 @@ class SyncGitCommitIssueRelationByPjName(Resource):
 
 
 class GetCommitIssueHookByBranch(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         parser = reqparse.RequestParser()
         parser.add_argument("limit", type=int, default=10, location="args")
@@ -1572,7 +1572,7 @@ class GetCommitIssueHookByBranch(Resource):
 
 
 class GitlabDomainConnection(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         if config.get("GITLAB_DOMAIN_NAME") is None or config.get("GITLAB_DOMAIN_NAME") == "":
             return {"is_ip": True}
@@ -1583,7 +1583,7 @@ class GitlabDomainConnection(Resource):
             is_ip = False
         return {"is_ip": is_ip}
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("action", type=str)
@@ -1592,28 +1592,28 @@ class GitlabDomainConnection(Resource):
 
 
 class GitlabDomainStatus(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         return util.success(gitlab_status_connection())
 
 
 class GitlabDomainStatusV2(MethodResource):
     @doc(tags=["Gitlab"], description="get domain status")
-    @jwt_required()
+    @jwt_required
     @marshal_with(route_model.GitGetDomainStatusRes)
     def get(self):
         return util.success(gitlab_status_connection())
 
 
 class GitlabSingleCommit(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repo_id, commit_id):
         return util.success(gitlab.single_commit(repo_id, commit_id))
 
 
 class GitlabSingleCommitV2(MethodResource):
     @doc(tags=["Gitlab"], description="get single commit")
-    @jwt_required()
+    @jwt_required
     @marshal_with(route_model.GitGetSingleCommitRes)
     def get(self, repo_id, commit_id):
         return util.success(gitlab.single_commit(repo_id, commit_id))

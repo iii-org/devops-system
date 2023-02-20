@@ -1,4 +1,4 @@
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import Resource
 
 import model
@@ -36,13 +36,13 @@ def spj_unset(user_id, project_id):
 
 # --------------------- Resources ---------------------
 class StarredProject(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self, project_id):
         role.require_in_project(project_id)
         spj_set(nexus.nx_get_current_user_id(), project_id)
         return util.success()
 
-    @jwt_required()
+    @jwt_required
     def delete(self, project_id):
         spj_unset(nexus.nx_get_current_user_id(), project_id)
         return util.success()

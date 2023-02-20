@@ -2,7 +2,7 @@ import json
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from resources.handler.jwt import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 from gitlab.v4 import objects
 from sqlalchemy import desc
@@ -800,7 +800,7 @@ class Releases(Resource):
             else:
                 raise apiError.DevOpsError(500, str(e), error=apiError.uncaught_exception(str(e)))
 
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         self.plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
         role.require_in_project(project_id, "Error to get release")
@@ -814,7 +814,7 @@ class Releases(Resource):
 
 
 class Release(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, project_id, release_name):
         plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
         try:

@@ -2,7 +2,7 @@ import re
 from typing import Any
 from urllib.parse import quote, quote_plus
 
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from resources.handler.jwt import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse
 from requests.auth import HTTPBasicAuth
 from time import sleep
@@ -735,7 +735,7 @@ def hb_ping_registries(args):
 
 
 class HarborRelease:
-    @jwt_required()
+    @jwt_required
     def get_list_artifacts(self, project_name, repository_name):
         return hb_list_artifacts(project_name, repository_name)
 

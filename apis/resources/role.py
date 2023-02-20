@@ -1,5 +1,4 @@
-# from flask_jwt_extended import get_jwt_identity, jwt_required
-from resources.handler.jwt import get_jwt_identity, jwt_required
+# from resources.handler.jwt import get_jwt_identity, jwt_required
 from flask_restful import Resource
 
 import nexus
@@ -23,8 +22,17 @@ QA = Role(7, "QA")
 ALL_ROLES = [RD, PM, ADMIN, BOT, QA]
 
 
+def get_role_jwt_identity():
+    """
+    Avoid circular import
+    """
+    from resources.handler.jwt import get_jwt_identity
+
+    return get_jwt_identity()
+
+
 def is_role(role):
-    return get_jwt_identity()["role_id"] == role.id
+    return get_role_jwt_identity()["role_id"] == role.id
 
 
 def get_role_name(role_id):
@@ -41,7 +49,7 @@ def require_role(
     if type(allowed_roles) is int:
         allowed_roles = [allowed_roles]
     for allowed_role in allowed_roles:
-        if allowed_role == get_jwt_identity()["role_id"]:
+        if allowed_role == get_role_jwt_identity()["role_id"]:
             return
     raise apiError.NotAllowedError(err_message)
 
@@ -74,7 +82,7 @@ def require_in_project(
         project_id = nexus.nx_get_project_plugin_relation(repo_id=repository_id).project_id
     if project_id is None and project_name is not None:
         project_id = nexus.nx_get_project(name=project_name).id
-    identity = get_jwt_identity()
+    identity = get_role_jwt_identity()
     user_id = identity["user_id"]
     if not even_admin and identity["role_id"] == ADMIN.id:
         return
@@ -86,7 +94,7 @@ def require_in_project(
 
 
 def require_user_himself(user_id, err_message=None, even_pm=True, even_admin=False):
-    identity = get_jwt_identity()
+    identity = get_role_jwt_identity()
     my_user_id = identity["user_id"]
     role_id = identity["role_id"]
     if my_user_id == int(user_id):
@@ -142,7 +150,7 @@ def update_role(user_id, new_role_id):
 
 
 def is_admin():
-    if get_jwt_identity()["role_id"] == ADMIN.id:
+    if get_role_jwt_identity()["role_id"] == ADMIN.id:
         return True
     else:
         return False
@@ -156,6 +164,6 @@ def require_project_owner(user_id, project_id):
 # --------------------- Resources ---------------------
 class RoleList(Resource):
     # noinspection PyMethodMayBeStatic
-    @jwt_required()
+    # @jwt_required
     def get(self):
         return get_role_list()

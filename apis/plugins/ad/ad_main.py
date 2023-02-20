@@ -1,7 +1,7 @@
 import json
 import ssl
 
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import Resource, reqparse, inputs
 import ldap3
 from ldap3 import Server, ServerPool, Connection, ALL_ATTRIBUTES, FIRST, Tls
@@ -497,7 +497,7 @@ class AD(object):
 
 
 class SingleADUser(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         try:
             role.require_admin("Only admins can get ad user information.")
@@ -524,7 +524,7 @@ class SingleADUser(Resource):
                 error=apiError.invalid_plugin_name(invalid_ad_server),
             )
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         try:
             role.require_admin("Only admins can Add ad user.")
@@ -555,7 +555,7 @@ class SingleADUser(Resource):
 
 
 class ADUsers(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         try:
             res = None
@@ -633,7 +633,7 @@ class ADUsers(Resource):
 
 
 class ADOrganizations(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         try:
             res = None
@@ -692,39 +692,39 @@ class LDAP(object):
                 error=apiError.invalid_plugin_name(invalid_ad_server),
             )
 
-    def login_by_ad(self, db_user, db_info, ad_info, login_account, login_password):
-        status = "Direct login by AD pass, DB pass"
-        ad_info_data = ad_info.get("data")
-        token = None
-        # 'Direct Login AD pass, DB create User'
-        if db_info["connect"] is False and ad_info_data.get("iii") is True:
-            status = "Direct Login AD pass, DB create User"
-            new_user = create_user(ad_info_data, login_password)
-            if new_user is None:
-                status = "Direct login AD pass, Create User Fail"
-                return status, token
-            user_id = new_user["user_id"]
-            user_login = login_account
-            user_role_id = default_role_id
-            token = user_function.get_access_token(user_id, user_login, user_role_id, True)
-        # 'Direct login AD pass,'
-        elif ad_info_data.get("iii") is True and ad_info_data.get("userPrincipalName") == db_user.email:
-            db_info["User"] = row_to_dictionary(db_user)
-            user_id = db_user.id
-            user_login = db_user.login
-            user_role_id = db_info.get("role_id")
-            # login Password not Change
-            if db_info.get("is_password_verify"):
-                login_password = None
-            is_update, update_data = check_update_info_by_ad(ad_info_data, db_info.get("User"), login_password)
-            # 'Direct login AD pass, DB Need Update Info'
-            if is_update:
-                status = "Direct login AD pass, DB Need Update Info"
-                user_function.update_user(db_info.get("User").get("id"), update_data, True)
-            token = user_function.get_access_token(user_id, user_login, user_role_id, True)
-        else:
-            status = "Not allow ad Account"
-        return status, token
+    # def login_by_ad(self, db_user, db_info, ad_info, login_account, login_password):
+    #     status = "Direct login by AD pass, DB pass"
+    #     ad_info_data = ad_info.get("data")
+    #     token = None
+    #     # 'Direct Login AD pass, DB create User'
+    #     if db_info["connect"] is False and ad_info_data.get("iii") is True:
+    #         status = "Direct Login AD pass, DB create User"
+    #         new_user = create_user(ad_info_data, login_password)
+    #         if new_user is None:
+    #             status = "Direct login AD pass, Create User Fail"
+    #             return status, token
+    #         user_id = new_user["user_id"]
+    #         user_login = login_account
+    #         user_role_id = default_role_id
+    #         token = user_function.get_access_token(user_id, user_login, user_role_id, True)
+    #     # 'Direct login AD pass,'
+    #     elif ad_info_data.get("iii") is True and ad_info_data.get("userPrincipalName") == db_user.email:
+    #         db_info["User"] = row_to_dictionary(db_user)
+    #         user_id = db_user.id
+    #         user_login = db_user.login
+    #         user_role_id = db_info.get("role_id")
+    #         # login Password not Change
+    #         if db_info.get("is_password_verify"):
+    #             login_password = None
+    #         is_update, update_data = check_update_info_by_ad(ad_info_data, db_info.get("User"), login_password)
+    #         # 'Direct login AD pass, DB Need Update Info'
+    #         if is_update:
+    #             status = "Direct login AD pass, DB Need Update Info"
+    #             user_function.update_user(db_info.get("User").get("id"), update_data, True)
+    #         token = user_function.get_access_token(user_id, user_login, user_role_id, True)
+    #     else:
+    #         status = "Not allow ad Account"
+    #     return status, token
 
 
 ldap_api = LDAP()

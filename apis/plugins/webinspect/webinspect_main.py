@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 from time import sleep
 from pathlib import Path
 
-from flask_jwt_extended import jwt_required
-from flask_restful import Resource, reqparse
+from resources.handler.jwt import jwt_required
+from flask_restful import Resource
 from sqlalchemy import desc
 from flask_apispec import doc, use_kwargs
 import base64

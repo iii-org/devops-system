@@ -4,7 +4,7 @@ import util
 import resources.apiError as apiError
 from resources.apiError import DevOpsError
 from flask_restful import Resource, reqparse
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from resources.rancher import rancher
 from resources.gitlab import gitlab
 import util
@@ -76,7 +76,7 @@ def update_pj_httpurl():
 
 
 class UpdateDbRcProjectPipelineId(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         role.require_admin()
         parser = reqparse.RequestParser()
@@ -87,7 +87,7 @@ class UpdateDbRcProjectPipelineId(Resource):
 
 
 class SecretesIntoRcAll(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         secret_list = rancher.rc_get_secrets_all_list()
         registry_list = rancher.rc_get_registry_into_rc_all()
@@ -102,7 +102,7 @@ class SecretesIntoRcAll(Resource):
         add_system_tag(secret_list, "secret")
         return util.success(secret_list)
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("name", type=str, required=True)
@@ -115,7 +115,7 @@ class SecretesIntoRcAll(Resource):
         rancher.rc_add_secrets_into_rc_all(args)
         return util.success()
 
-    @jwt_required()
+    @jwt_required
     def put(self, secret_name):
         parser = reqparse.RequestParser()
         parser.add_argument("type", type=str, required=True)
@@ -124,19 +124,19 @@ class SecretesIntoRcAll(Resource):
         rancher.rc_put_secrets_into_rc_all(secret_name, args)
         return util.success()
 
-    @jwt_required()
+    @jwt_required
     def delete(self, secret_name):
         return util.success(rancher.rc_delete_secrets_into_rc_all(secret_name))
 
 
 class RegistryIntoRcAll(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         registry_list = rancher.rc_get_registry_into_rc_all()
         add_system_tag(registry_list, "registry")
         return util.success(registry_list)
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("name")
@@ -149,13 +149,13 @@ class RegistryIntoRcAll(Resource):
         rancher.rc_add_registry_into_rc_all(args)
         return util.success()
 
-    @jwt_required()
+    @jwt_required
     def delete(self, registry_name):
         return util.success(rancher.rc_delete_registry_into_rc_all(registry_name))
 
 
 class UpdatePjHttpUrl(Resource):
-    @jwt_required()
+    @jwt_required
     def put(self):
         role.require_admin()
         update_pj_httpurl()

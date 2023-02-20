@@ -4,7 +4,7 @@ from io import BytesIO
 import requests
 import yaml
 from flask import send_file
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from resources.handler.jwt import jwt_required, get_jwt_identity
 from flask_restful import reqparse, Resource
 
 import config
@@ -648,7 +648,7 @@ def update_user_mail_mail_notification_option(user_id: int, active: bool) -> Non
 
 
 class RedmineFile(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("id", type=int, location="args")
@@ -658,19 +658,19 @@ class RedmineFile(Resource):
         role.require_in_project(args["project_id"], "Error while download redmine file.")
         return redmine.rm_download_attachment(args)
 
-    @jwt_required()
+    @jwt_required
     def delete(self, file_id):
         personal_redmine_obj = get_redmine_obj(operator_id=get_jwt_identity()["user_id"])
         return personal_redmine_obj.rm_delete_attachment(file_id)
 
 
 class RedmineMail(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         role.require_admin()
         return util.success(get_mail_config())
 
-    @jwt_required()
+    @jwt_required
     def put(self):
         role.require_admin()
         parser = reqparse.RequestParser()
@@ -684,13 +684,13 @@ class RedmineMail(Resource):
 
 
 class RedmineMailActive(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         return util.success(get_mail_config().get("active", False))
 
 
 class RedmineRelease:
-    @jwt_required()
+    @jwt_required
     def check_redemine_release(self, targets, versions, main_version=None):
         output = {
             "check": True,

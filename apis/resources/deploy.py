@@ -7,7 +7,7 @@ from pathlib import Path
 
 import werkzeug
 import yaml
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from resources.handler.jwt import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse, inputs
 from kubernetes import client as k8s_client
 from sqlalchemy.exc import NoResultFound
@@ -298,7 +298,7 @@ def delete_cluster(cluster_id):
 
 
 class Clusters(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         try:
             output = get_clusters()
@@ -306,7 +306,7 @@ class Clusters(Resource):
         except NoResultFound:
             return util.respond(404, _ERROR_GET_CLUSTERS, error=apiError.get_clusters_failed())
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         try:
             user_id = get_jwt_identity()["user_id"]
@@ -341,7 +341,7 @@ class Clusters(Resource):
 
 
 class Cluster(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, cluster_id):
         try:
             output = get_clusters(cluster_id)
@@ -351,7 +351,7 @@ class Cluster(Resource):
         except NoResultFound:
             return util.respond(404, _ERROR_GET_CLUSTERS, error=apiError.get_clusters_failed())
 
-    @jwt_required()
+    @jwt_required
     def put(self, cluster_id):
         try:
             role.require_admin()
@@ -377,7 +377,7 @@ class Cluster(Resource):
         except NoResultFound:
             return util.respond(404, _ERROR_UPDATE_CLUSTERS, error=apiError.update_cluster_failed())
 
-    @jwt_required()
+    @jwt_required
     def delete(self, cluster_id):
         try:
             role.require_admin()
@@ -501,7 +501,7 @@ def get_registries(registry_id=None):
 
 
 class Registries(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         try:
             output = get_registries()
@@ -511,7 +511,7 @@ class Registries(Resource):
 
 
 class Registry(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, registry_id):
         try:
             output = get_registries(registry_id)
@@ -2114,7 +2114,7 @@ def delete_k8s_application(app):
 
 
 class Applications(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         try:
             parser = reqparse.RequestParser()
@@ -2135,7 +2135,7 @@ class Applications(Resource):
                 error=apiError.get_deploy_application_failed(project_id=args.get("project_id")),
             )
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         try:
             parser = reqparse.RequestParser()
@@ -2159,7 +2159,7 @@ class Applications(Resource):
 
 
 class Application(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, application_id):
         try:
             args = {"application_id": application_id}
@@ -2172,7 +2172,7 @@ class Application(Resource):
                 error=apiError.get_deploy_application_failed(project_id=args.get("project_id")),
             )
 
-    @jwt_required()
+    @jwt_required
     def patch(self, application_id):
         try:
             parser = reqparse.RequestParser()
@@ -2187,7 +2187,7 @@ class Application(Resource):
                 error=apiError.update_deploy_application_failed(application_id=application_id),
             )
 
-    @jwt_required()
+    @jwt_required
     def delete(self, application_id):
         try:
             output = delete_application(application_id, True)
@@ -2199,7 +2199,7 @@ class Application(Resource):
                 error=apiError.delete_deploy_application_failed(application_id),
             )
 
-    @jwt_required()
+    @jwt_required
     def put(self, application_id):
         try:
             parser = reqparse.RequestParser()
@@ -2227,7 +2227,7 @@ class Application(Resource):
 
 
 class RedeployApplication(Resource):
-    @jwt_required()
+    @jwt_required
     def patch(self, application_id):
         try:
             output = redeploy_application(application_id)
@@ -2241,7 +2241,7 @@ class RedeployApplication(Resource):
 
 
 class UpdateApplication(Resource):
-    @jwt_required()
+    @jwt_required
     def patch(self, application_id):
         try:
             app = model.Application.query.filter_by(id=application_id).first()
@@ -2262,7 +2262,7 @@ class UpdateApplication(Resource):
 
 
 class ReleaseApplication(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, release_id):
         try:
             release_file = release.ReleaseFile(release_id)
@@ -2334,7 +2334,7 @@ def get_deployments(args=None) -> dict:
 
 
 class Deployment(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, application_id):
         args = {"application_id": application_id}
         try:
@@ -2461,7 +2461,7 @@ def get_storage_classes_info(args=None) -> list:
 
 
 class StorageClass(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, cluster_id):
         args = {"cluster_id": cluster_id}
         try:
@@ -2474,7 +2474,7 @@ class StorageClass(Resource):
                 error=apiError.get_storage_class_failed(cluster_id=args.get("cluster_id")),
             )
 
-    @jwt_required()
+    @jwt_required
     def post(self, cluster_id):
         args = {"cluster_id": cluster_id}
         try:
@@ -2504,7 +2504,7 @@ def patch_storage_class(storage_class_id, args):
 
 
 class UpdateStorageClass(Resource):
-    @jwt_required()
+    @jwt_required
     def patch(self, storage_class_id):
         try:
             parser = reqparse.RequestParser()

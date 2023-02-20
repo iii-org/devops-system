@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timedelta
 
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 
@@ -99,7 +99,7 @@ def process_row(row, project_id):
 
 
 class Zap(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("project_name", type=str)
@@ -109,7 +109,7 @@ class Zap(Resource):
         role.require_in_project(project_name=args["project_name"])
         return util.success({"test_id": zap_start_scan(args)})
 
-    @jwt_required()
+    @jwt_required
     def put(self):
         parser = reqparse.RequestParser()
         parser.add_argument("test_id", type=int)
@@ -122,7 +122,7 @@ class Zap(Resource):
         zap_finish_scan(args)
         return util.success()
 
-    @jwt_required()
+    @jwt_required
     def get(self, project_id):
         role.require_in_project(project_id=project_id)
         return util.success(zap_get_tests(project_id))

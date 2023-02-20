@@ -2,7 +2,7 @@ import nexus
 import util
 from flask_apispec import doc, marshal_with, use_kwargs
 from flask_apispec.views import MethodResource
-from flask_jwt_extended import jwt_required
+from resources.handler.jwt import jwt_required
 from flask_restful import Resource, reqparse
 from resources import role
 from resources.harbor import (
@@ -43,13 +43,13 @@ def extract_names(location="args"):
 
 
 class HarborRepository(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, nexus_project_id):
         role.require_in_project(nexus_project_id)
         project_name = nexus.nx_get_project(id=nexus_project_id).name
         return util.success(hb_list_repositories(project_name))
 
-    @jwt_required()
+    @jwt_required
     def put(self):
         project_name, repository_name = extract_names(location="json")
         role.require_in_project(project_name=project_name)
@@ -59,7 +59,7 @@ class HarborRepository(Resource):
         hb_update_repository(project_name, repository_name, args)
         return util.success()
 
-    @jwt_required()
+    @jwt_required
     def delete(self):
         project_name, repository_name = extract_names()
         role.require_in_project(project_name=project_name)
@@ -78,7 +78,7 @@ def check_tag_name(artifacts, tag_name):
 
 
 class HarborArtifact(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         project_name, repository_name = extract_names()
         role.require_in_project(project_name=project_name)
@@ -92,7 +92,7 @@ class HarborArtifact(Resource):
         else:
             return util.success(artifacts)
 
-    @jwt_required()
+    @jwt_required
     def delete(self):
         project_name, repository_name = extract_names()
         role.require_in_project(project_name=project_name)
@@ -105,7 +105,7 @@ class HarborArtifact(Resource):
 
 
 class HarborProject(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, nexus_project_id):
         role.require_in_project(nexus_project_id)
         project_id = nexus.nx_get_project_plugin_relation(nexus_project_id=nexus_project_id).harbor_project_id
@@ -113,12 +113,12 @@ class HarborProject(Resource):
 
 
 class HarborRegistry(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, registry_id):
         role.require_admin()
         return util.success(hb_get_registries(registry_id))
 
-    @jwt_required()
+    @jwt_required
     def put(self, registry_id):
         role.require_admin()
         parser = reqparse.RequestParser()
@@ -134,7 +134,7 @@ class HarborRegistry(Resource):
         args = parser.parse_args()
         return util.success({"registry_id": hb_put_registries(registry_id, args)})
 
-    @jwt_required()
+    @jwt_required
     def delete(self, registry_id):
         role.require_admin()
         hb_delete_registries(registry_id)
@@ -142,11 +142,11 @@ class HarborRegistry(Resource):
 
 
 class HarborRegistries(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         return util.success(hb_get_registries())
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         role.require_admin()
         parser = reqparse.RequestParser()
@@ -163,7 +163,7 @@ class HarborRegistries(Resource):
 
 
 class HarborRegistriesPing(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("registries_id", type=str, required=True)
@@ -173,12 +173,12 @@ class HarborRegistriesPing(Resource):
 
 
 class HarborReplicationPolicy(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, replication_policy_id):
         policies = hb_get_replication_policy(replication_policy_id)
         return util.success(policies)
 
-    @jwt_required()
+    @jwt_required
     def put(self, replication_policy_id):
         parser = reqparse.RequestParser()
         parser.add_argument("policy_name", type=str, required=True)
@@ -191,13 +191,13 @@ class HarborReplicationPolicy(Resource):
         args = parser.parse_args()
         return util.success({"replication_policy_id": hb_put_replication_policy(args, replication_policy_id)})
 
-    @jwt_required()
+    @jwt_required
     def delete(self, replication_policy_id):
         return util.success({"replication_policy_id": hb_delete_replication_policy(replication_policy_id)})
 
 
 class HarborReplicationPolices(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("name", type=str, location="args")
@@ -205,7 +205,7 @@ class HarborReplicationPolices(Resource):
         policies = hb_get_replication_policies(args)
         return util.success(policies)
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("policy_name", type=str, required=True)
@@ -220,7 +220,7 @@ class HarborReplicationPolices(Resource):
 
 
 class HarborReplicationExecution(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("policy_id", type=int)
@@ -228,7 +228,7 @@ class HarborReplicationExecution(Resource):
         output = hb_execute_replication_policy(args.get("policy_id"))
         return util.success({"image_uri": output})
 
-    @jwt_required()
+    @jwt_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("policy_id", type=int, location="args")
@@ -238,7 +238,7 @@ class HarborReplicationExecution(Resource):
 
 
 class HarborReplicationExecutionTasks(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, execution_id):
         print(execution_id)
         output = hb_get_replication_execution_task(execution_id)
@@ -246,14 +246,14 @@ class HarborReplicationExecutionTasks(Resource):
 
 
 class HarborReplicationExecutionTaskLog(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, execution_id, task_id):
         output = hb_get_replication_executions_tasks_log(execution_id, task_id)
         return util.success({"logs": output.text.splitlines()})
 
 
 class HarborCopyImageReTag(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("project_name", type=str, required=True, location="form")
@@ -297,6 +297,6 @@ class HarborScanReport(MethodResource):
 @doc(tags=["Harbor Scan"], description="List harbor image scan by project")
 class HarborScanList(MethodResource):
     @use_kwargs(router_model.HarborScanList, location="query")
-    @jwt_required()
+    @jwt_required
     def get(self, project_id, **kwargs):
         return util.success(harbor_scan.harbor_scan_list(project_id, kwargs))
