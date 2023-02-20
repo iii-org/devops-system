@@ -142,43 +142,6 @@ def to_redmine_role_id(role_id):
         return 4
 
 
-# def get_token_expires(role_id):
-#     expires = datetime.timedelta(days=1)
-#     if role_id == 5:
-#         expires = datetime.timedelta(days=36500)
-#     return expires
-
-
-# def check_ad_login(account, password, ad_info=None):
-#     if ad_info is None:
-#         ad_info = {}
-#     try:
-#         ad_info_data = ldap_api.get_user_info(account, password)
-#         if ad_info_data is not None:
-#             ad_info["is_pass"] = True
-#             ad_info["data"] = ad_info_data
-#         return ad_info
-#     except Exception as e:
-#         raise DevOpsError(500, "Error when AD Login ", error=apiError.uncaught_exception(e))
-
-
-# @jwt.additional_claims_loader
-# def jwt_response_data(id, login, role_id, from_ad):
-#     return {
-#         "user_id": id,
-#         "user_account": login,
-#         "role_id": role_id,
-#         "role_name": role.get_role_name(role_id),
-#         "from_ad": from_ad,
-#     }
-
-
-# def get_access_token(id, login, role_id, from_ad=True):
-#     expires = get_token_expires(role_id)
-#     token = create_access_token(identity=jwt_response_data(id, login, role_id, from_ad), expires_delta=expires)
-#     return token
-
-
 def verify_password(db_password, login_password):
     is_verify = True
     h = SHA256.new()
@@ -189,72 +152,17 @@ def verify_password(db_password, login_password):
     return is_verify, hex_login_password
 
 
-def check_db_login(user, password, output):
-    project_user_role = db.session.query(model.ProjectUserRole).filter(model.ProjectUserRole.user_id == user.id).first()
-    is_password_verify, hex_login_password = verify_password(user.password, password)
-    output["hex_password"] = hex_login_password
-    output["from_ad"] = user.from_ad
-    output["role_id"] = project_user_role.role_id
-    output["is_password_verify"] = is_password_verify
-    if is_password_verify and user.disabled is False:
-        output["is_pass"] = True
-        logger.info("User Login success by DB user_id: {0}".format(user.id))
-    else:
-        logger.info("User Login failed by DB user_id: {0}".format(user.id))
-    return output, user, project_user_role
+def login(username: str, password: str) -> dict[str, Any]:
+    wrong_pwd_or_username_error_res = util.respond(401, "Error when logging in.", error=apiError.wrong_password())
+    user_query = model.User.query.filter_by(login=username).first()
 
-
-# def login(args):
-#     login_account = args["username"]
-#     login_password = args["password"]
-#     user = db.session.query(model.User).filter(model.User.login == login_account).first()
-#     try:
-#         ad_info = {"is_pass": False, "login": login_account, "data": {}}
-
-#         # Check Ad server exists
-#         if (user is not None and user.from_ad is True) or user is None:
-#             ad_server = ldap_api.check_ad_info()
-#             if ad_server["disabled"] is False:
-#                 ad_info = check_ad_login(login_account, login_password, ad_info)
-
-#         db_info = {
-#             "connect": False,
-#             "login": login_account,
-#             "is_pass": False,
-#             "is_password_verify": False,
-#             "User": {},
-#             "ProjectUserRole": {},
-#         }
-#         # Check User in DB
-#         if user is not None:
-#             db_info["connect"] = True
-#             db_info, user, project_user_role = check_db_login(user, login_password, db_info)
-#         # Login By AD
-#         if ad_info["is_pass"] is True:
-#             status, token = ldap_api.login_by_ad(user, db_info, ad_info, login_account, login_password)
-#             if token is None:
-#                 return util.respond(
-#                     401,
-#                     "Error when logging in. Please contact system administrator",
-#                     error=apiError.ad_account_not_allow(),
-#                 )
-#             # User First Login
-#             elif user is None:
-#                 return util.success({"status": status, "token": token, "ad_info": ad_info})
-#             else:
-#                 save_last_login(user)
-#                 return util.success({"status": status, "token": token, "ad_info": ad_info})
-
-#         # Login By Database
-#         elif db_info["is_pass"] is True and db_info["from_ad"] is False:
-#             status = "DB Login"
-#             token = get_access_token(user.id, user.login, project_user_role.role_id, user.from_ad)
-#             save_last_login(user)
-#             return util.success({"status": status, "token": token, "ad_info": ad_info})
-#         else:
-#             return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
-#     except Exception as e:
-#         raise DevOpsError(500, "Error when user login.", error=apiError.uncaught_exception(e))
+    if user_query is None:
+        return wrong_pwd_or_username_error_res
+    token_info = key_cloak.get_token_by_account_pwd(username, password)
+    access_token = token_info.get("access_token")
+    if access_token is None:
+        return wrong_pwd_or_username_error_res
+    return util.success({"token": access_token})
 
 
 def user_forgot_password(args):

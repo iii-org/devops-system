@@ -690,21 +690,6 @@ api.add_resource(policy.DBPSWDPolicy, "/db/pswd/policy/check")
 api.add_resource(policy.DBPSWDPolicyTypeList, "/db/pswd/policy/type_list")
 
 
-# @app.route("/user/login", methods=["POST"])
-# def login():
-#     from flask import request
-#     from resources.user import login
-
-#     try:
-#         args = request.get_json()
-#     except Exception:
-#         args = {
-#             "username": request.form.get("username"),
-#             "password": request.form.get("password"),
-#         }
-#     return login(args)
-
-
 def start_prod():
     try:
         db.init_app(app)
@@ -758,5 +743,5 @@ def start_prod_extra_funcs():
 
 if __name__ == "__main__":
     start_prod()
-    app.run(host="0.0.0.0", port=10009)
-    # socketio.run(app, host="0.0.0.0", port=10009, debug=config.get("DEBUG"), use_reloader=config.get("USE_RELOADER"))
+    # app.run(host="0.0.0.0", port=10009)
+    socketio.run(app, host="0.0.0.0", port=10009, debug=config.get("DEBUG"), use_reloader=config.get("USE_RELOADER"))

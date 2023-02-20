@@ -1,6 +1,6 @@
 from typing import Any
 from keycloak import KeycloakAdmin, KeycloakOpenID
-from keycloak.exceptions import KeycloakGetError
+from keycloak.exceptions import KeycloakGetError, KeycloakAuthenticationError
 from resources.logger import logger
 
 
@@ -105,7 +105,15 @@ class KeyCloak:
         #     self.logout_user(key_cloak_user_id)
         return ret
 
-    ##### validation ######
+    ##### token ######
+    def get_token_by_account_pwd(self, account: str, pwd: str) -> dict[str, Any]:
+        try:
+            token = self.keycloak_openid.token(account, pwd)
+        except KeycloakAuthenticationError as e:
+            logger.exception("Fail to authorize token, error_msg: {str(e)}")
+            token = {}
+        return token
+
     def get_user_info_by_token(self, access_token: str) -> dict[str:Any]:
         try:
             ret = self.keycloak_openid.introspect(access_token)
