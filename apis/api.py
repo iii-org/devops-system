@@ -12,7 +12,6 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 from flask import Flask
 from flask_apispec.extension import FlaskApiSpec
 from flask_cors import CORS
-from resources.handler.jwt import jwt_required
 from flask_restful import Resource, Api, reqparse
 from flask_socketio import SocketIO
 from sqlalchemy.exc import NoResultFound
@@ -29,6 +28,7 @@ import plugins
 import resources.apiError as apiError
 import resources.pipeline as pipeline
 import resources.rancher as rancher
+from resources.handler.jwt import jwt_required
 import routine_job
 import util
 
