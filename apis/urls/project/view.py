@@ -1,6 +1,6 @@
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
-from resources.handler.jwt import jwt_required, get_jwt_identity
+from resources.handler.jwt import jwt_required, get_jwt_identity, jwt_required_cronjob
 from flask_restful import Resource, reqparse
 import util
 import ast
@@ -116,14 +116,14 @@ class GetProjectRootID(Resource):
 @doc(tags=["Sync"], description="Sync IIIDevops project's relationship with Redmine")
 @marshal_with(util.CommonResponse)
 class SyncProjectRelationV2(MethodResource):
-    @jwt_required
+    @jwt_required_cronjob
     def post(self):
         Thread(target=sync_project_relation).start()
         return util.success()
 
 
 class SyncProjectRelation(Resource):
-    @jwt_required
+    @jwt_required_cronjob
     def post(self):
         Thread(target=sync_project_relation).start()
         return util.success()
@@ -648,6 +648,18 @@ class ListProjectsByUser(Resource):
 class SyncProjectIssueCalculateV2(MethodResource):
     @doc(tags=["System"], description="Sync project's issue calculate.")
     @jwt_required
+    def post(self):
+        return util.success(project.sync_project_issue_calculate())
+
+
+class SyncProjectIssueCalculateNowV2(MethodResource):
+    """
+    !!!!!Temperaroy use same function on /now API!!!!!
+    it has to add another Lock value. (refer to sync_redmine)
+    """
+
+    @doc(tags=["System"], description="Sync project's issue calculate now.")
+    @jwt_required_cronjob
     def post(self):
         return util.success(project.sync_project_issue_calculate())
 

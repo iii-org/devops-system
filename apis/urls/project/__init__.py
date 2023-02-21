@@ -100,6 +100,7 @@ def project_url(api, add_resource):
     add_resource(view.ListProjectsByUserV2, "public")
 
     api.add_resource(view.SyncProjectIssueCalculateV2, "/v2/project/sync_project_issue_calculate")
+    api.add_resource(view.SyncProjectIssueCalculateNowV2, "/v2/project/sync_project_issue_calculate/now")
     add_resource(view.SyncProjectIssueCalculateV2, "public")
 
     # Single project

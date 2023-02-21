@@ -1,7 +1,7 @@
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 from datetime import datetime
-from resources.handler.jwt import jwt_required
+from resources.handler.jwt import jwt_required, jwt_required_cronjob
 from . import router_model
 import util
 from resources import excalidraw
@@ -48,7 +48,7 @@ class ExcalidrawV2(MethodResource):
 class SyncExcalidrawDBV2(MethodResource):
     @doc(tags=["Sync"], description="Remove unused data in excalidraw's DB.")
     @handle_plugin("excalidraw")
-    @jwt_required
+    @jwt_required_cronjob
     def post(self):
         return util.success(excalidraw.sync_excalidraw_db())
 

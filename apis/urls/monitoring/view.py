@@ -6,7 +6,7 @@ from datetime import timedelta
 
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
-from resources.handler.jwt import jwt_required
+from resources.handler.jwt import jwt_required, jwt_required_cronjob
 from flask_restful import Resource
 
 import util
@@ -43,7 +43,7 @@ class ServicesListV2(MethodResource):
 @doc(tags=["Monitoring"], description="Check all server is alive and update cache.")
 @marshal_with(util.CommonResponse)
 class ServersAliveHelper(MethodResource):
-    @jwt_required
+    @jwt_required_cronjob
     def post(self):
         try:
             all_alive = Monitoring().check_project_alive()["all_alive"]

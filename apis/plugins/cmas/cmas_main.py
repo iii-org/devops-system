@@ -5,7 +5,7 @@ from io import BytesIO
 import os
 import requests
 from flask import send_file
-from resources.handler.jwt import jwt_required
+from resources.handler.jwt import jwt_required, jwt_required_cronjob
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from sqlalchemy.exc import NoResultFound
@@ -374,6 +374,6 @@ class CMASSecret(Resource):
 
 
 class CMASAPKREmove(Resource):
-    @jwt_required
+    @jwt_required_cronjob
     def post(self):
         return remove_apk()

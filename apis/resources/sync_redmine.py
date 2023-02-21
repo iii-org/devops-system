@@ -10,7 +10,7 @@ from resources.user import user_list_by_project
 from resources.issue import get_issue_by_project
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
-from resources.handler.jwt import jwt_required, get_jwt_identity
+from resources.handler.jwt import jwt_required, get_jwt_identity, jwt_required_cronjob
 from flask_restful import Resource, reqparse
 from model import db, Lock
 from sqlalchemy.exc import IntegrityError
@@ -549,7 +549,7 @@ def get_postman_passing_rate(detail, own_project):
 
 
 class SyncRedmine(Resource):
-    @jwt_required
+    @jwt_required_cronjob
     def get(self):
         init_data()
         return util.success()

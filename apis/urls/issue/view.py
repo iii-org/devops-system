@@ -1,6 +1,6 @@
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
-from resources.handler.jwt import jwt_required, get_jwt_identity
+from resources.handler.jwt import jwt_required, get_jwt_identity, jwt_required_cronjob
 from accessories import redmine_lib
 from resources.apiError import DevOpsError
 from flask_restful import Resource, reqparse
@@ -654,6 +654,6 @@ class IssueCommitRelation(Resource):
 
 class SyncIssueFamiliesV2(MethodResource):
     @doc(tags=["System"], description="Sync issues' family.")
-    @jwt_required
+    @jwt_required_cronjob
     def post(self):
         return util.success(sync_issue_relation())

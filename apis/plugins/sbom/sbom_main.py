@@ -2,7 +2,7 @@ import resources.apiError as apiError
 from resources import logger
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
-from resources.handler.jwt import jwt_required
+from resources.handler.jwt import jwt_required, jwt_required_cronjob
 import util
 from model import Sbom, db, Project
 import tarfile
@@ -488,7 +488,7 @@ class SbomParseV2(MethodResource):
 @doc(tags=["Sbom"], description="Remove more more than 5 commits")
 @marshal_with(util.CommonResponse)
 class SbomRemoveExtra(MethodResource):
-    @jwt_required
+    @jwt_required_cronjob
     def patch(self):
         return util.success(remove_parsing_data())
 

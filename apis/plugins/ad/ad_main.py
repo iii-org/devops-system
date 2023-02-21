@@ -1,7 +1,7 @@
 import json
 import ssl
 
-from resources.handler.jwt import jwt_required
+from resources.handler.jwt import jwt_required, jwt_required_cronjob
 from flask_restful import Resource, reqparse, inputs
 import ldap3
 from ldap3 import Server, ServerPool, Connection, ALL_ATTRIBUTES, FIRST, Tls
@@ -555,7 +555,7 @@ class SingleADUser(Resource):
 
 
 class ADUsers(Resource):
-    @jwt_required
+    @jwt_required_cronjob
     def get(self):
         try:
             res = None
