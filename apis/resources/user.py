@@ -165,6 +165,17 @@ def login(username: str, password: str) -> dict[str, Any]:
     return util.success({"token": access_token})
 
 
+def logout() -> None:
+    user_id = get_jwt_identity()["user_id"]
+    user_plugin_relation_query = model.UserPluginRelation.query.filter_by(user_id=user_id).first()
+    if user_plugin_relation_query is None:
+        logger.info(f"User id {user_id} not found")
+        return
+
+    key_cloak_user_id = user_plugin_relation_query.key_cloak_user_id
+    key_cloak.logout_user(key_cloak_user_id)
+
+
 def user_forgot_password(args):
     return "dummy_response", 200
 

@@ -8,6 +8,7 @@ import util
 from urls.user import router_model
 from resources.user import (
     login,
+    logout,
     change_user_status,
     create_user,
     NexusUser,
@@ -36,6 +37,14 @@ security_params = [{"bearer": []}]
 class LoginV2(MethodResource):
     def post(self, **kwargs):
         return login(kwargs["username"], kwargs["password"])
+
+
+class LogoutV2(MethodResource):
+    @doc(tags=["User"], description="Logout API", security=security_params)
+    @marshal_with(util.CommonResponse)
+    @jwt_required
+    def post(self):
+        return util.success(logout())
 
 
 class UserInfoV2(MethodResource):
