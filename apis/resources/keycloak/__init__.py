@@ -106,9 +106,9 @@ class KeyCloak:
         return ret
 
     ##### token ######
-    def get_token_by_account_pwd(self, account: str, pwd: str) -> dict[str, Any]:
+    def get_token_by_account_pwd(self, account: str, pwd: str, scope="openid") -> dict[str, Any]:
         try:
-            token = self.keycloak_openid.token(account, pwd)
+            token = self.keycloak_openid.token(account, pwd, scope=scope)
         except KeycloakAuthenticationError as e:
             logger.exception("Fail to authorize token, error_msg: {str(e)}")
             token = {}

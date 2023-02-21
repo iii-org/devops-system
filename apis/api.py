@@ -698,12 +698,8 @@ def start_prod():
         initialize(config.get("SQLALCHEMY_DATABASE_URI"))
         migrate.run()
         kubernetesClient.create_iiidevops_env_secret_namespace()
-        """
-        !!!!!!Temporary Remove !!!!!!!!
-        !!!!!! Offline token !!!!!!!!
-        """
-        # with app.app_context():  # Prevent error appear(Working outside of application context.)
-        #     kubernetesClient.create_cron_secret()
+        with app.app_context():  # Prevent error appear(Working outside of application context.)
+            kubernetesClient.create_cron_job_token_in_secret()
 
         threading.Thread(target=kubernetesClient.apply_cronjob_yamls).start()
         logger.logger.info("Apply k8s-yaml cronjob.")
@@ -743,5 +739,4 @@ def start_prod_extra_funcs():
 
 if __name__ == "__main__":
     start_prod()
-    # app.run(host="0.0.0.0", port=10009)
     socketio.run(app, host="0.0.0.0", port=10009, debug=config.get("DEBUG"), use_reloader=config.get("USE_RELOADER"))

@@ -20,6 +20,7 @@ from util import read_json_file
 import config
 import resources.apiError as apiError
 from resources.logger import logger
+from resources.keycloak import key_cloak
 
 # kubernetes 抓取 III 定義 annotations 標籤
 iii_template = {
@@ -1774,20 +1775,18 @@ class KubernetesPodExec(Namespace):
 # Only run it when server is redeployed
 
 
-# def create_cron_secret():
-#     from resources.user import jwt_response_data
+def create_cron_job_token_in_secret():
+    """
+    If we do not replace the old token when server is being redeployed,
+        token sometime can not be used.
+    """
+    if read_namespace_secret("default", "cornjob-bot"):
+        delete_namespace_secret("default", "cornjob-bot")
+    token = key_cloak.get_token_by_account_pwd(
+        config.get("ADMIN_INIT_LOGIN"), config.get("ADMIN_INIT_PASSWORD"), scope="openid offline_access"
+    )
 
-#     """
-#     If we do not replace the old token when server is being redeployed,
-#         token sometime can not be used.
-#     """
-#     if read_namespace_secret("default", "cornjob-bot"):
-#         delete_namespace_secret("default", "cornjob-bot")
-#     token = create_access_token(
-#         identity=jwt_response_data(None, None, None, None),
-#         expires_delta=timedelta(days=36500),
-#     )
-#     create_namespace_secret("default", "cornjob-bot", {"cornjob-token": token})
+    create_namespace_secret("default", "cornjob-bot", {"cornjob-token": token["refresh_token"]})
 
 
 # gitlab ingress body
