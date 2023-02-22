@@ -6,7 +6,7 @@ def user_url(api, add_resource):
     # User
     # api.add_resource(view.Login, '/user/login')
     # input api in swagger (for swagger)
-    api.add_resource(view.LoginV2, "/v2/user/login")
+    api.add_resource(view.LoginV2, "/user/login")
     add_resource(view.LoginV2, "public")
     api.add_resource(view.LogoutV2, "/v2/user/logout")
     add_resource(view.LogoutV2, "public")
