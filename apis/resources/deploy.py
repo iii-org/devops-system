@@ -63,7 +63,7 @@ _ERROR_GET_STORAGE_CLASS = "Get storage class failed"
 _ERROR_CREATE_STORAGE_CLASS = "Create storage class failed"
 # 20230119 為取得 storage class 資訊而新增上列一段程式
 # 20230201 為變更 storage class disabled 布林值而新增下列一段程式
-_ERROR_DISABLED_STORAGE_CLASS = 'Change storage class disabled failed'
+_ERROR_DISABLED_STORAGE_CLASS = "Change storage class disabled failed"
 # 20230201 為變更 storage class disabled 布林值而新增上列一段程式
 # 20230202 為取得 persistent volume claim 資訊而新增下列一段程式
 _ERROR_GET_PERSISTENT_VOLUME_CLAIM = "Get persistent volume claim failed"
@@ -186,9 +186,9 @@ def get_clusters(cluster_id=None):
             args = reqparse.Namespace()
             args["id"] = 0
             args["name"] = server_name
-            args["k8s_config_file"] = werkzeug.datastructures.FileStorage(stream=io.BytesIO(
-                                                                                open("/root/.kube/config", "rb").read()),
-                                                                          filename="config")
+            args["k8s_config_file"] = werkzeug.datastructures.FileStorage(
+                stream=io.BytesIO(open("/root/.kube/config", "rb").read()), filename="config"
+            )
             args["disabled"] = False
             create_local_cluster(args, server_name, user_id)
     # 20230203 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 cluster ，若不存在則自動新增。] 而新增上列程式段
@@ -261,6 +261,8 @@ def create_local_cluster(args, server_name, user_id):
     db.session.add(new)
     db.session.commit()
     return new.id
+
+
 # 20230203 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 cluster ，若不存在則自動新增。] 而新增上列程式段
 
 
@@ -407,7 +409,7 @@ def get_registries_application_information(registry):
     return output
 
 
- # 20230213 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 registry ，若不存在則自動新增。] 而新增下列程式段
+# 20230213 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 registry ，若不存在則自動新增。] 而新增下列程式段
 def create_local_registry(args):
     user_id = get_jwt_identity()["user_id"]
     # args["credential"] = {
@@ -432,7 +434,9 @@ def create_local_registry(args):
     model.db.session.add(new_registries)
     model.db.session.commit()
     return registries_id
- # 20230213 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 registry ，若不存在則自動新增。] 而新增上列程式段
+
+
+# 20230213 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 registry ，若不存在則自動新增。] 而新增上列程式段
 
 
 def get_registries(registry_id=None):
@@ -525,13 +529,19 @@ def remove_object_key_by_value(items, target=None):
 
 
 def create_default_k8s_data(db_project, db_release, args):
+    if db_release is None:
+        image_name = None
+        tag_name = None
+    else:
+        image_name = db_release.branch
+        tag_name = db_release.tag_name
     k8s_data = {
         "app_name": args.get("name"),
         "project": db_project.display,
         "project_id": db_project.name,
         "repo_name": db_project.name,
-        "image_name": db_release.branch,
-        "tag_name": db_release.tag_name,
+        "image_name": image_name,
+        "tag_name": tag_name,
         "namespace": args.get("namespace"),
         "image": args.get("image", {"policy": "Always"}),
         "status_id": 1,
@@ -542,6 +552,11 @@ def create_default_k8s_data(db_project, db_release, args):
         k8s_data["resources"] = resources
 
     network = remove_object_key_by_value(args.get("network", {}), "")
+    if "ports" in args.get("network", {}):
+        ports: list = []
+        for port in args.get("network", {}).get("ports"):
+            ports.append(remove_object_key_by_value(port))
+        network["ports"] = ports
     if network != {}:
         k8s_data["network"] = network
 
@@ -754,7 +769,8 @@ def create_pvc_object(pvc_dict):
                 kind="PersistentVolumeClaim",
                 metadata=k8s_client.V1ObjectMeta(name=pvc.get("pvc_name")),
                 spec=k8s_client.V1PersistentVolumeClaimSpec(
-                    storage_class_name="deploy-local-sc",
+                    # storage_class_name="deploy-local-sc",
+                    storage_class_name=pvc.get("sc_name"),
                     access_modes=["ReadWriteMany"],
                     resources=k8s_client.V1ResourceRequirements(requests={"storage": "5Gi"}),
                 ),
@@ -819,7 +835,7 @@ def create_deployment_object(
     app_name,
     deployment_name,
     image_uri,
-    port,
+    ports: list,
     registry_secret_name,
     resource=None,
     image=None,
@@ -828,8 +844,9 @@ def create_deployment_object(
 ):
     # Configured Pod template container
     default_image_policy = "Always"
-    if image is not None and image.get("policy", None) is not None:
-        default_image_policy = image.get("policy", None)
+    if "type" not in image or image.get("type") == "harbor":
+        if image is not None and image.get("policy", None) is not None:
+            default_image_policy = image.get("policy", None)
     vm_list: list = []
     v_list: list = []
     for vd in volume_devices:
@@ -840,10 +857,13 @@ def create_deployment_object(
                 persistent_volume_claim=k8s_client.V1PersistentVolumeClaimVolumeSource(claim_name=vd.get("pvc_name")),
             )
         )
+    container_ports: list = []
+    for port in ports:
+        container_ports.append(k8s_client.V1ContainerPort(container_port=port))
     container = k8s_client.V1Container(
         name=app_name,
         image=image_uri,
-        ports=[k8s_client.V1ContainerPort(container_port=port)],
+        ports=container_ports,
         resources=init_resource_requirements(resource),
         image_pull_policy=default_image_policy,
         volume_mounts=vm_list,
@@ -1041,11 +1061,12 @@ class DeployK8sClient:
         return pvc_list
 
     # 20230102 為取得 persistent volume claim 資訊而新增下列一段程式
-    def list_persistent_volume_claim(self, namespace:str):
+    def list_persistent_volume_claim(self, namespace: str):
         return self.client.list_namespace_pvc(namespace)
 
     def read_persistent_volume(self, name: str):
         return self.client.read_persistent_volume(name)
+
     # 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
 
     def delete_namespace_pvc(self, name, namespace):
@@ -1061,6 +1082,7 @@ class DeployK8sClient:
 
     def check_storage_class(self, name):
         return k8s_resource_exist(name, self.client.list_storage_class())
+
     # 20230118 為取得 storage class 資訊而新增上列一段程式
 
 
@@ -1096,16 +1118,17 @@ class DeployPVC:
     def __init__(self, app, project):
         self.app = app
         self.project = project
+        self.sc_name = None
         self.pvc_name = None
         self.device_path = None
         self.pvc_dict = None
         self.set_pvc_data()
 
     def get_pvc_info(self):
-        list_len: int = min(len(self.pvc_name), len(self.device_path))
+        list_len: int = min(len(self.sc_name), len(self.pvc_name), len(self.device_path))
         info: list = []
         for i in range(list_len):
-            info.append({"pvc_name": self.pvc_name[i], "device_path": self.device_path[i]})
+            info.append({"sc_name": self.sc_name[i], "pvc_name": self.pvc_name[i], "device_path": self.device_path[i]})
         return info
 
     def set_pvc_data(self):
@@ -1115,9 +1138,11 @@ class DeployPVC:
             pvc_list = self.pvc_dict
         else:
             pvc_list.append(self.pvc_dict)
+        self.sc_name = []
         self.pvc_name = []
         self.device_path = []
         for i in range(len(pvc_list)):
+            self.sc_name.append(pvc_list[i].get("sc_name"))
             if pvc_list[i].get("pvc_name", None) is None:
                 self.pvc_name.append(self.project.name + "-pvc-" + str(i))
             else:
@@ -1180,21 +1205,33 @@ class DeployRegistrySecret:
 
 class DeployService:
     def __init__(self, app, project):
+        k8s_info = json.loads(app.k8s_yaml)
         release_id = str(app.release_id)
+        if "type" in k8s_info.get("image") and k8s_info.get("image").get("type") != "harbor":
+            release_id = k8s_info.get("image").get("type")
         self.app = app
         self.project = project
-        self.k8s_info = json.loads(app.k8s_yaml)
+        self.k8s_info = k8s_info
         self.name = f"{project.name}-release-{release_id}-{app.name}"
         self.service_name = f"{self.project.name}-service-{release_id}-{app.name}"
 
     def get_service_info(self):
+        network = self.k8s_info.get("network")
+        container_port: list = []
+        expose_port: list = []
+        if "ports" in network:
+            for port in network.get("ports"):
+                container_port.append(port.get("port"))
+                expose_port.append(port.get("expose_port"))
+        else:
+            container_port.append(network.get("port"))
+            expose_port.append(network.get("expose_port"))
         output = {
             "service_name": self.service_name,
-            "port": self.k8s_info.get("network").get("port"),
-            "container_port": self.k8s_info.get("network").get("port"),
+            "port": container_port,
+            "container_port": container_port,
+            "expose_port": expose_port,
         }
-        if self.k8s_info.get("network").get("expose_port") is not None:
-            output["expose_port"] = self.k8s_info.get("network").get("expose_port")
         return output
 
     def service_body(self):
@@ -1228,16 +1265,25 @@ class DeployIngress:
 
 
 class DeployDeployment:
-    def __init__(self, app, project, service_info, registry_secret_info):
-
+    def __init__(self, app, project, service_info, registry_secret_info: dict = {}):
+        harbor_info = json.loads(app.harbor_info)
+        k8s_info = json.loads(app.k8s_yaml)
+        image = k8s_info.get("image")
+        release_id: str = str(app.release_id)
+        if "type" not in image or image.get("type") == "harbor":
+            image_uri = harbor_info.get("image_uri")
+        else:
+            image_uri = image.get("uri")
+            release_id = image.get("type")
         self.app = app
         self.namespace = self.app.namespace
-        self.name = f"{project.name}-release-{str(app.release_id)}-{app.name}"
-        self.harbor_info = json.loads(app.harbor_info)
-        self.k8s_info = json.loads(app.k8s_yaml)
+        self.name = f"{project.name}-release-{release_id}-{app.name}"
+        self.harbor_info = harbor_info
+        self.k8s_info = k8s_info
         self.deployment_name = f"{project.name}-dep-{app.name}"
         self.service_info = service_info
         self.registry_secret_info = registry_secret_info
+        self.image_uri = image_uri
 
     def get_deployment_info(self):
         return {"deployment_name": self.deployment_name}
@@ -1253,7 +1299,7 @@ class DeployDeployment:
         return create_deployment_object(
             self.name,
             self.deployment_name,
-            self.harbor_info.get("image_uri"),
+            self.image_uri,
             self.service_info.get("container_port"),
             self.registry_secret_info.get("registry_secret_name"),
             self.k8s_info.get("resources"),
@@ -1271,6 +1317,11 @@ class K8sDeployment:
         self.registry = model.Registries.query.filter_by(registries_id=app.registry_id).first()
         self.k8s_client = DeployK8sClient(self.cluster.name)
         self.k8s_info = json.loads(app.k8s_yaml)
+        image = self.k8s_info.get("image")
+        if "type" not in image:
+            self.image_type = "harbor"
+        else:
+            self.image_type = image.get("type")
         self.volumes = self.k8s_info.get("volumes")
         self.namespace = None
         self.registry_secret = None
@@ -1333,13 +1384,20 @@ class K8sDeployment:
     def check_deployment(self):
         if self.deployment is None:
             self.check_service()
-            self.check_registry_secret()
-            self.deployment = DeployDeployment(
-                self.app,
-                self.project,
-                self.service.get_service_info(),
-                self.registry_secret.get_registry_secret_info(),
-            )
+            if self.image_type == "harbor":
+                self.check_registry_secret()
+                self.deployment = DeployDeployment(
+                    self.app,
+                    self.project,
+                    self.service.get_service_info(),
+                    self.registry_secret.get_registry_secret_info(),
+                )
+            else:
+                self.deployment = DeployDeployment(
+                    self.app,
+                    self.project,
+                    self.service.get_service_info(),
+                )
 
     def execute_deployment(self):
         self.check_deployment()
@@ -1383,7 +1441,8 @@ class K8sDeployment:
 def execute_k8s_deployment(app):
     k8s_deployment = K8sDeployment(app)
     k8s_deployment.check_namespace()
-    k8s_deployment.execute_registry_secret()
+    if k8s_deployment.image_type == "harbor":
+        k8s_deployment.execute_registry_secret()
     k8s_deployment.execute_service()
     k8s_info = json.loads(app.k8s_yaml)
     if k8s_info.get("volumes", None) is not None:
@@ -1455,21 +1514,27 @@ def check_application_status(app):
     app = model.Application.query.filter_by(id=application_id).first()
     # Check Harbor Replication execution
     if app.status_id == 1:
-        output = execute_image_replication(app)
-        harbor_info = json.loads(app.harbor_info)
-        harbor_info.update(output)
-        app.harbor_info = json.dumps(harbor_info)
-        app.status_id = harbor_info.get("status_id", app.status_id)
+        if app.harbor_info == "{}":
+            app.status_id = 2
+        else:
+            output = execute_image_replication(app)
+            harbor_info = json.loads(app.harbor_info)
+            harbor_info.update(output)
+            app.harbor_info = json.dumps(harbor_info)
+            app.status_id = harbor_info.get("status_id", app.status_id)
         app = reset_restart_number(app)
         db.session.commit()
     # Restart Execution Replication
     elif app.status_id == 11 or app.status_id == 2:
-        harbor_info = json.loads(app.harbor_info)
-        output = execute_image_replication(app, True)
-        harbor_info.update(output)
-        app.status_id = harbor_info.get("status_id", app.status_id)
-        app.harbor_info = json.dumps(harbor_info)
-        if harbor_info.get("status_id") == 3:
+        if app.harbor_info == "{}":
+            app.status_id = 3
+        else:
+            harbor_info = json.loads(app.harbor_info)
+            output = execute_image_replication(app, True)
+            harbor_info.update(output)
+            app.status_id = harbor_info.get("status_id", app.status_id)
+            app.harbor_info = json.dumps(harbor_info)
+        if app.status_id == 3:
             app = reset_restart_number(app)
         db.session.commit()
     elif app.status_id == 3:
@@ -1569,7 +1634,7 @@ def get_application_information(application, need_update=True, cluster_info=None
         try:
             check_application_status(application)
         except Exception as ex:
-            error_message = str(ex.args)
+            error_message = str(ex)
         app = model.Application.query.filter_by(id=application.id).first()
     else:
         app = application
@@ -1620,6 +1685,10 @@ def get_application_information(application, need_update=True, cluster_info=None
     output["network"] = k8s_yaml.get("network")
     output["environments"] = k8s_yaml.get("environments")
     output["volumes"] = k8s_yaml.get("volumes")
+    if output["volumes"] is not None:
+        for i in range(len(output["volumes"])):
+            if "sc_name" not in output["volumes"][i]:
+                output["volumes"][i]["sc_name"] = "deploy-local-sc"
     if error_message is not None:
         output["error_message"] = error_message
     return output
@@ -1690,23 +1759,31 @@ def create_application(args):
             _ERROR_APPLICATION_EXISTS,
             error=apiError.create_deploy_application_failed(cluster.name, args.get("namespace"), args.get("name")),
         )
-
-    db_release, db_project = (
-        db.session.query(model.Release, model.Project)
-        .join(model.Project)
+    db_project = (
+        db.session.query(model.Project)
         .filter(
-            model.Release.id == args.get("release_id"),
-            model.Release.project_id == model.Project.id,
+            model.Project.id == args.get("project_id"),
         )
         .one()
     )
-    harbor_info = create_default_harbor_data(
-        db_project,
-        db_release,
-        args.get("registry_id"),
-        args.get("namespace"),
-        args.get("name"),
-    )
+    image = args.get("image")
+    db_release = None
+    harbor_info: dict = {}
+    if "type" not in image or image.get("type") == "harbor":
+        db_release = (
+            db.session.query(model.Release)
+            .filter(
+                model.Release.id == args.get("release_id"),
+            )
+            .one()
+        )
+        harbor_info = create_default_harbor_data(
+            db_project,
+            db_release,
+            args.get("registry_id"),
+            args.get("namespace"),
+            args.get("name"),
+        )
     k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
     deploy_k8s_client = DeployK8sClient(cluster.name)
@@ -1745,37 +1822,41 @@ def check_update_application_status(app, args):
 
 def update_application(application_id, args):
     app = model.Application.query.filter_by(id=application_id).first()
-    db_release, db_project = (
-        db.session.query(model.Release, model.Project)
-        .join(model.Project)
+    db_project = (
+        db.session.query(model.Project)
         .filter(
-            model.Release.id == args.get("release_id"),
-            model.Release.project_id == model.Project.id,
+            model.Project.id == args.get("project_id"),
         )
         .one()
     )
-    for key in args.keys():
-        if not hasattr(app, key):
-            continue
-        elif args[key] is not None:
-            setattr(app, key, args[key])
-    #  Change Harbor Info
-    db_harbor_info = json.loads(app.harbor_info)
-    delete_image_replication_policy(db_harbor_info.get("policy_id"))
+    image = args.get("image")
+    db_release = None
+    harbor_info: dict = {}
+    if "type" not in image or image.get("type") == "harbor":
+        db_release = (
+            db.session.query(model.Release)
+            .filter(
+                model.Release.id == args.get("release_id"),
+            )
+            .one()
+        )
+        #  Change Harbor Info
+        harbor_info = json.loads(app.harbor_info)
+        delete_image_replication_policy(harbor_info.get("policy_id"))
 
-    db_harbor_info = create_default_harbor_data(
-        db_project,
-        db_release,
-        args.get("registry_id"),
-        args.get("namespace"),
-        args.get("name"),
-    )
+        harbor_info = create_default_harbor_data(
+            db_project,
+            db_release,
+            args.get("registry_id"),
+            args.get("namespace"),
+            args.get("name"),
+        )
     #  Change k8s Info
     # db_k8s_yaml = json.loads(app.k8s_yaml)
     db_k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
     app.status_id = disable_application(args.get("disabled"), app)
-    app.harbor_info = json.dumps(db_harbor_info)
+    app.harbor_info = json.dumps(harbor_info)
     app.k8s_yaml = json.dumps(db_k8s_yaml)
     app.updated_at = datetime.utcnow()
     db.session.commit()
@@ -2296,6 +2377,8 @@ class StorageClass(Resource):
                 _ERROR_CREATE_STORAGE_CLASS,
                 error=apiError.create_storage_class_failed(cluster_id=args.get("cluster_id")),
             )
+
+
 # 20230118 為取得 storage class 資訊而新增上列一段程式
 
 
@@ -2316,14 +2399,18 @@ class UpdateStorageClass(Resource):
     def patch(self, storage_class_id):
         try:
             parser = reqparse.RequestParser()
-            parser.add_argument('disabled', type=inputs.boolean)
+            parser.add_argument("disabled", type=inputs.boolean)
             args = parser.parse_args()
             output = patch_storage_class(storage_class_id, args)
             return util.success({"storage_class": output})
         except NoResultFound:
-            return util.respond(404,
-                                _ERROR_DISABLED_STORAGE_CLASS,
-                                error=apiError.change_storage_class_disabled_failed(storage_class_id=storage_class_id))
+            return util.respond(
+                404,
+                _ERROR_DISABLED_STORAGE_CLASS,
+                error=apiError.change_storage_class_disabled_failed(storage_class_id=storage_class_id),
+            )
+
+
 # 20230201 為變更 storage class disabled 而新增上列一段程式
 
 
@@ -2374,9 +2461,13 @@ class PersistentVolumeClaim(Resource):
             output = get_persistent_volume_claim_json(storage_class_id, cluster_name)
             return util.success({"pvc_list": output})
         except NoResultFound:
-            return util.respond(404,
-                                _ERROR_GET_PERSISTENT_VOLUME_CLAIM,
-                                error=apiError.get_persistent_volume_claim_failed(storage_class_id=storage_class_id))
+            return util.respond(
+                404,
+                _ERROR_GET_PERSISTENT_VOLUME_CLAIM,
+                error=apiError.get_persistent_volume_claim_failed(storage_class_id=storage_class_id),
+            )
+
+
 # 20230202 為取得 storage class 所擁有的 PVC 而新增上列一段程式
 
 
@@ -2398,8 +2489,8 @@ def update_app_header(app_header_id, args):
         if "id" in app_args:
             app_id = update_application(app_args["id"], app_args)
         else:
-            app_id = create_application_header(app_args)
-        if app_id not in app_ids:
+            app_id = create_application(app_args)
+        if app_id not in cur_app_ids:
             cur_app_ids.append(app_id)
     #  Delete Application
     for app_id in app_ids:
@@ -2479,9 +2570,9 @@ def get_application_headers(args=None):
 
 
 def check_application_header_exists(name, namespace, cluster_id, registry_id) -> model.ApplicationHeader:
-    return model.ApplicationHeader.query.filter_by(name=name, namespace=namespace, cluster_id=cluster_id,
-                                                   registry_id=registry_id
-                                                   ).first()
+    return model.ApplicationHeader.query.filter_by(
+        name=name, namespace=namespace, cluster_id=cluster_id, registry_id=registry_id
+    ).first()
 
 
 def create_application_header(args) -> int:
@@ -2495,8 +2586,9 @@ def create_application_header(args) -> int:
         raise apiError.DevOpsError(
             404,
             _ERROR_APPLICATION_HEADER_EXISTS,
-            error=apiError.create_application_header_failed(cluster.name, registry.name,
-                                                            args.get("namespace"), args.get("name")),
+            error=apiError.create_application_header_failed(
+                cluster.name, registry.name, args.get("namespace"), args.get("name")
+            ),
         )
     if not args.get("remote"):
         args["namespace"] = None
@@ -2510,12 +2602,17 @@ def create_application_header(args) -> int:
             raise apiError.DevOpsError(
                 404,
                 _ERROR_APPLICATION_HEADER_EXISTS,
-                error=apiError.create_application_header_failed(cluster.name, registry.name,
-                                                                args.get("namespace"), args.get("name")),
+                error=apiError.create_application_header_failed(
+                    cluster.name, registry.name, args.get("namespace"), args.get("name")
+                ),
             )
     else:
-        if check_application_header_exists(args.get("name"), args.get("namespace"), args.get("cluster_id"),
-                                           args.get("registry_id")) is not None:
+        if (
+            check_application_header_exists(
+                args.get("name"), args.get("namespace"), args.get("cluster_id"), args.get("registry_id")
+            )
+            is not None
+        ):
             raise apiError.DevOpsError(
                 404,
                 _ERROR_APPLICATION_HEADER_EXISTS,
@@ -2635,4 +2732,6 @@ class ApplicationHeader(Resource):
                 _ERROR_UPDATE_APPLICATION_HEADER,
                 error=apiError.update_application_header_failed(app_header_id=app_header_id),
             )
+
+
 # 20230215 為新增 application_header table 而新增上列一段程式

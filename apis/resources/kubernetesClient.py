@@ -531,6 +531,7 @@ class ApiK8sClient:
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
+
     # 20230118 為取得 storage class 資訊而新增上列一段程式
 
     # 20230202 為取得 persistent volume claim 資訊而新增下列一段程式
@@ -540,6 +541,7 @@ class ApiK8sClient:
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
+
     # 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
 
 
@@ -554,6 +556,8 @@ def get_storage_class_info(storage_class):
     output["reclaim_policy"] = storage_class.reclaim_policy
     output["volume_binding_mode"] = storage_class.volume_binding_mode
     return output
+
+
 # 20230118 為取得 storage class 資訊而新增上列一段程式
 
 
@@ -576,6 +580,8 @@ def get_persistent_volume_info(persistent_volume):
     # 可以依不同的 VolumeSource 取得對應的實體路徑(path)，以下為取得 nfs 的實體路徑。
     output["nfs"] = persistent_volume.spec.nfs.path
     return output
+
+
 # 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
 
 
@@ -1234,7 +1240,6 @@ def put_namespace_configmap(namespace, name, configmaps):
 
 def delete_namespace_configmap(namespace, name):
     try:
-
         configmap = ApiK8sClient().delete_namespaced_configmap(name, namespace)
         return configmap.details.name
     except apiError.DevOpsError as e:
