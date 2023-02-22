@@ -848,7 +848,7 @@
     "component": "layout",
     "name": "Activities",
     "redirect": {
-      "name": "Deploy"
+      "name": "Deploys"
     },
     "meta": {
       "title": "Activities",
@@ -860,8 +860,11 @@
     "children": [
       {
         "path": "deploy",
-        "name": "Deploy",
-        "component": "views/Project/Deploy",
+        "name": "Deploys",
+        "component": "layout/components/parentBlank",
+        "redirect": {
+          "name": "Deploy"
+        },
         "meta": {
           "title": "Deploy",
           "roles": [
@@ -870,8 +873,20 @@
         },
         "children": [
           {
-            "path": "applicationSetting",
+            "path": "",
+            "name": "Deploy",
+            "component": "views/Project/Deploy",
+            "meta": {
+              "title": "Deploy",
+              "roles": [
+                "Administrator"
+              ]
+            }
+          },
+          {
+            "path": "applicationSetting/:applicationId?",
             "name": "ApplicationSetting",
+            "hidden": true,
             "component": "views/Project/Deploy/components/ApplicationSetting",
             "meta": {
               "title": "ApplicationSetting",
