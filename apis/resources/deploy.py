@@ -2501,16 +2501,29 @@ def update_app_header(app_header_id, args):
     return app_header.id
 
 
-def delete_app_header(app_header_id, delete_db=False):
+def delete_app_header(app_header_id, delete_db=False, application_id=None):
     app_header = model.ApplicationHeader.query.filter_by(id=app_header_id).first()
     if app_header is None:
         return {}
     elif delete_db is True:
-        for app_id in json.loads(app_header.applications_id):
-            delete_application(app_id, delete_db)
-        db.session.delete(app_header)
-        db.session.commit()
-    return app_header.id
+        app_ids: list = json.loads(app_header.applications_id)
+        if application_id is None:
+            for app_id in app_ids:
+                delete_application(app_id, delete_db)
+            db.session.delete(app_header)
+            db.session.commit()
+            return {"app_hrader_id": app_header.id, "applications_id": app_ids}
+        else:
+            if application_id in app_ids:
+                id_index = app_ids.index(application_id)
+                delete_application(application_id, delete_db)
+                del app_ids[id_index]
+                app_header.applications_id = json.dumps(app_ids)
+                # db.session.delete(app_header)
+                db.session.commit()
+                return {"app_hrader_id": app_header.id, "application_id": application_id}
+            else:
+                return {}
 
 
 def patch_app_header(app_header_id, args) -> int:
@@ -2740,4 +2753,16 @@ class ApplicationHeader(Resource):
             )
 
 
+class DeleteApplicationHeader(Resource):
+    @jwt_required()
+    def delete(self, app_header_id, application_id):
+        try:
+            return util.success(delete_app_header(app_header_id, True, application_id))
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_DELETE_APPLICATION_HEADER,
+                error=apiError.delete_application_header_failed(app_header_id=app_header_id,
+                                                                application_id=application_id),
+            )
 # 20230215 為新增 application_header table 而新增上列一段程式

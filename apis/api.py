@@ -618,6 +618,7 @@ api.add_resource(deploy.Application, "/deploy/applications/<int:application_id>"
 # 20230215 為新增 application_header table 而新增下列一段程式
 api.add_resource(deploy.ApplicationHeaders, "/deploy/app_headers")
 api.add_resource(deploy.ApplicationHeader, "/deploy/app_headers/<int:app_header_id>")
+api.add_resource(deploy.DeleteApplicationHeader, "/deploy/app_headers/<int:app_header_id>/<int:application_id>")
 # 20230215 為新增 application_header table 而新增上列一段程式
 
 api.add_resource(deploy.RedeployApplication, "/deploy/applications/<int:application_id>/redeploy")
