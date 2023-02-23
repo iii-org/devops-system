@@ -2533,6 +2533,12 @@ def get_app_header_information(app_header):
     applications = []
     output["total_pods"] = 0
     output["available_pods"] = 0
+    output["cluster"] = {}
+    output["cluster"]["id"] = app_header.cluster_id
+    output["cluster"]["name"] = get_clusters_name(app_header.cluster_id)[str(app_header.cluster_id)]
+    output["registry"] = {}
+    output["registry"]["id"] = app_header.registry_id
+
     for app_id in output["applications_id"]:
         app_json = get_application_information(model.Application.query.filter_by(id=app_id).first())
         applications.append(app_json)
