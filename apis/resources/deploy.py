@@ -2560,8 +2560,8 @@ def get_app_header_information(app_header, detail: bool = False):
                 if "total_pod_number" in deployment:
                     if deployment.get("total_pod_number", 0) is not None:
                         output["total_pods"] += deployment.get("total_pod_number", 0)
-                if "available_pods" in deployment:
-                    if deployment.get("available_pods", 0) is not None:
+                if "available_pod_number" in deployment:
+                    if deployment.get("available_pod_number", 0) is not None:
                         output["available_pods"] += deployment.get("available_pod_number", 0)
         output["applications"] = applications
     return output
