@@ -1661,15 +1661,15 @@ def get_application_information(application, need_update=True, cluster_info=None
         "created_time": None,
         "containers": None,
     }
-    # 20230118 將下段程式分離，獨立成一個 API
-    # if k8s_yaml.get('deploy_finish') and app.status_id == 5:
-    #     try:
-    #         deployment_info, url = get_deployment_info(
-    #             cluster_info[cluster_id], k8s_yaml)
-    #     except MaxRetryError as ex:
-    #         logger.info(f'No Route To Host {cluster_id}!')
-    #         logger.error(ex)
-    # 20230118 將上段程式分離，獨立成一個 API
+    if k8s_yaml.get("deploy_finish") and app.status_id == 5:
+        try:
+            deployment_info, url = get_deployment_info(cluster_info[cluster_id], k8s_yaml)
+        except MaxRetryError as ex:
+            logger.info(f"No Route To Host {cluster_id}!")
+            logger.error(ex)
+            error_message = str(ex)
+        except Exception as ex:
+            error_message = str(ex)
     output["deployment"] = deployment_info
     output["public_endpoint"] = url
     output["cluster"] = {}
