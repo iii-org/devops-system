@@ -2538,12 +2538,11 @@ def patch_app_header(app_header_id, args) -> int:
     return app_header_id
 
 
-def get_app_header_information(app_header):
+def get_app_header_information(app_header, detail: bool = False):
     if app_header is None:
         return []
 
     output = row_to_dict(app_header)
-    applications = []
     output["total_pods"] = 0
     output["available_pods"] = 0
     output["cluster"] = {}
@@ -2551,19 +2550,20 @@ def get_app_header_information(app_header):
     output["cluster"]["name"] = get_clusters_name(app_header.cluster_id)[str(app_header.cluster_id)]
     output["registry"] = {}
     output["registry"]["id"] = app_header.registry_id
-
-    for app_id in output["applications_id"]:
-        app_json = get_application_information(model.Application.query.filter_by(id=app_id).first())
-        applications.append(app_json)
-        if "deployment" in app_json:
-            deployment = app_json["deployment"]
-            if "total_pod_number" in deployment:
-                if deployment.get("total_pod_number", 0) is not None:
-                    output["total_pods"] += deployment.get("total_pod_number", 0)
-            if "available_pods" in deployment:
-                if deployment.get("available_pods", 0) is not None:
-                    output["available_pods"] += deployment.get("available_pod_number", 0)
-    output["applications"] = applications
+    if detail:
+        applications = []
+        for app_id in output["applications_id"]:
+            app_json = get_application_information(model.Application.query.filter_by(id=app_id).first())
+            applications.append(app_json)
+            if "deployment" in app_json:
+                deployment = app_json["deployment"]
+                if "total_pod_number" in deployment:
+                    if deployment.get("total_pod_number", 0) is not None:
+                        output["total_pods"] += deployment.get("total_pod_number", 0)
+                if "available_pods" in deployment:
+                    if deployment.get("available_pods", 0) is not None:
+                        output["available_pods"] += deployment.get("available_pod_number", 0)
+        output["applications"] = applications
     return output
 
 
@@ -2584,7 +2584,7 @@ def get_application_headers(args=None):
         for app in app_header:
             output.append(get_app_header_information(app))
     else:
-        output = get_app_header_information(app_header)
+        output = get_app_header_information(app_header, True)
     return output
 
 
@@ -2762,7 +2762,10 @@ class DeleteApplicationHeader(Resource):
             return util.respond(
                 404,
                 _ERROR_DELETE_APPLICATION_HEADER,
-                error=apiError.delete_application_header_failed(app_header_id=app_header_id,
-                                                                application_id=application_id),
+                error=apiError.delete_application_header_failed(
+                    app_header_id=app_header_id, application_id=application_id
+                ),
             )
+
+
 # 20230215 為新增 application_header table 而新增上列一段程式
