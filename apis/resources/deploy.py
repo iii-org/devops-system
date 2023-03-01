@@ -549,13 +549,13 @@ def create_default_k8s_data(db_project, db_release, args):
     }
     resources = remove_object_key_by_value(args.get("resources", {}), "")
     if resources != {}:
-        k8s_data["resources"] = resources
+        k8s_data["resources"] = check_object_int(resources, ["cpu", "memory", "replicas"])
 
     network = remove_object_key_by_value(args.get("network", {}), "")
     if "ports" in args.get("network", {}):
         ports: list = []
         for port in args.get("network", {}).get("ports"):
-            ports.append(remove_object_key_by_value(port))
+            ports.append(check_object_int(remove_object_key_by_value(port)), ["port", "expose_port"])
         network["ports"] = ports
     if network != {}:
         k8s_data["network"] = network
@@ -1626,7 +1626,7 @@ def get_deployment_info(cluster_name, k8s_yaml):
     return deployment_info, url
 
 
-def check_resources(resources: dict, keys: list):
+def check_object_int(resources: dict, keys: list):
     if resources is None:
         resources: dict = {}
     for key in keys:
@@ -1663,7 +1663,15 @@ def get_application_information(application, need_update=True, cluster_info=None
         return output
     harbor_info = json.loads(app.harbor_info)
     k8s_yaml = json.loads(app.k8s_yaml)
-    resources = check_resources(k8s_yaml.get("resources"), ["cpu", "memory", "replicas"])
+    resources = check_object_int(k8s_yaml.get("resources"), ["cpu", "memory", "replicas"])
+    network = k8s_yaml.get("network")
+    if "ports" in network:
+        ports: list = []
+        for port in network.get("ports"):
+            ports.append(check_object_int(port, ["port", "expose_port"]))
+        network["ports"] = ports
+    else:
+        network = check_object_int(network, ["port", "expose_port"])
     cluster_id = str(app.cluster_id)
     # single cluster get single cluster name
     if cluster_info is None:
@@ -1698,7 +1706,7 @@ def get_application_information(application, need_update=True, cluster_info=None
     output["tag_name"] = harbor_info.get("tag_name")
     output["k8s_status"] = k8s_yaml.get("deploy_finish")
     output["resources"] = resources
-    output["network"] = k8s_yaml.get("network")
+    output["network"] = network
     output["environments"] = k8s_yaml.get("environments")
     output["volumes"] = k8s_yaml.get("volumes")
     if output["volumes"] is not None:
