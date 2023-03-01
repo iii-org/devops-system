@@ -1626,6 +1626,21 @@ def get_deployment_info(cluster_name, k8s_yaml):
     return deployment_info, url
 
 
+def check_resources(resources: dict, keys: list):
+    if resources is None:
+        resources: dict = {}
+    for key in keys:
+        if key in resources:
+            if isinstance(resources.get(key), str):
+                if str(resources.get(key)).upper() == "NONE":
+                    resources[key] = None
+                else:
+                    resources[key] = int(resources.get(key))
+        else:
+            resources[key] = None
+    return resources
+
+
 def get_application_information(application, need_update=True, cluster_info=None):
     if application is None:
         return []
@@ -1648,6 +1663,7 @@ def get_application_information(application, need_update=True, cluster_info=None
         return output
     harbor_info = json.loads(app.harbor_info)
     k8s_yaml = json.loads(app.k8s_yaml)
+    resources = check_resources(k8s_yaml.get("resources"), ["cpu", "memory", "replicas"])
     cluster_id = str(app.cluster_id)
     # single cluster get single cluster name
     if cluster_info is None:
@@ -1681,7 +1697,7 @@ def get_application_information(application, need_update=True, cluster_info=None
     output["project_name"] = harbor_info.get("project")
     output["tag_name"] = harbor_info.get("tag_name")
     output["k8s_status"] = k8s_yaml.get("deploy_finish")
-    output["resources"] = k8s_yaml.get("resources")
+    output["resources"] = resources
     output["network"] = k8s_yaml.get("network")
     output["environments"] = k8s_yaml.get("environments")
     output["volumes"] = k8s_yaml.get("volumes")
