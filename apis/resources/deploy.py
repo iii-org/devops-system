@@ -555,7 +555,7 @@ def create_default_k8s_data(db_project, db_release, args):
     if "ports" in args.get("network", {}):
         ports: list = []
         for port in args.get("network", {}).get("ports"):
-            ports.append(check_object_int(remove_object_key_by_value(port)), ["port", "expose_port"])
+            ports.append(check_object_int(remove_object_key_by_value(port), ["port", "expose_port"]))
         network["ports"] = ports
     if network != {}:
         k8s_data["network"] = network
