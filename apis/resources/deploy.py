@@ -2506,13 +2506,13 @@ def update_app_header(app_header_id, args):
         elif args[key] is not None:
             setattr(app_header, key, args[key])
     for app_args in args.get("applications"):
-        app_args["name"] = args.get("name")
         app_args["cluster_id"] = args.get("cluster_id")
         app_args["registry"] = args.get("registry_id")
         app_args["namespace"] = args.get("namespace")
         if "id" in app_args:
             app_id = update_application(app_args["id"], app_args)
         else:
+            app_args["name"] = app_args.get("name") + "-" + str(app_args.get("project_id"))
             app_id = create_application(app_args)
         if app_id not in cur_app_ids:
             cur_app_ids.append(app_id)
@@ -2664,7 +2664,7 @@ def create_application_header(args) -> int:
     applications_id = []
     for proj in application_list:
         app_args = reqparse.Namespace(**proj)
-        app_args["name"] = args.get("name")
+        app_args["name"] = args.get("name") + "-" + str(app_args.get("project_id"))
         app_args["cluster_id"] = args.get("cluster_id")
         app_args["registry_id"] = args.get("registry_id")
         app_args["namespace"] = args.get("namespace")
