@@ -1627,7 +1627,7 @@ def get_deployment_info(cluster_name, k8s_yaml):
 
 
 def check_object_int(dict_object: dict, keys: list):
-    if isinstance(dict_object, dict):
+    if dict_object is None:
         dict_object: dict = {}
     for key in keys:
         if key in dict_object:
