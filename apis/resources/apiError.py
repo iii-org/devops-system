@@ -460,6 +460,7 @@ def login_email_error():
 
 # Third party service errors
 
+
 # 8: Redmine
 def redmine_error(response):
     try:
@@ -580,26 +581,32 @@ def create_storage_class_failed(**kwargs):
         return build(2040, _FAILED_CREATE_STORAGE_CLASS, kwargs)
     else:
         return build(2040, _FAILED_CREATE_STORAGE_CLASS)
+
+
 # 20230119 為取得 storage class 資訊而新增上列一段程式
 
 
 # 20230201 為變更 storage class disabled 布林值而新增上列一段程式
 def change_storage_class_disabled_failed(**kwargs):
-    _FAILED_DISABLED_STORAGE_CLASS = 'Change storage class disabled failed'
+    _FAILED_DISABLED_STORAGE_CLASS = "Change storage class disabled failed"
     if len(kwargs) != 0:
         return build(2040, _FAILED_DISABLED_STORAGE_CLASS, kwargs)
     else:
         return build(2040, _FAILED_DISABLED_STORAGE_CLASS)
+
+
 # 20230201 為變更 storage class disabled 布林值而新增上列一段程式
 
 
 # 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
 def get_persistent_volume_claim_failed(**kwargs):
-    _FAILED_GET_PERSISTENT_VOLUME_CLAIM = 'Get persistent volume claim failed'
+    _FAILED_GET_PERSISTENT_VOLUME_CLAIM = "Get persistent volume claim failed"
     if len(kwargs) != 0:
         return build(2040, _FAILED_GET_PERSISTENT_VOLUME_CLAIM, kwargs)
     else:
         return build(2040, _FAILED_GET_PERSISTENT_VOLUME_CLAIM)
+
+
 # 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
 
 
@@ -637,6 +644,13 @@ def update_application_header_failed(**kwargs):
         return build(2043, _FAILED_UPDATE_APPLICATION_HEADER)
 
 
-def delete_application_header_failed(app_header_id):
-    return build(2044, "Delete application header failed", {"app_header_id", app_header_id})
+def delete_application_header_failed(app_header_id, application_id=None):
+    if application_id:
+        return build(
+            2044, "Delete application header failed", {"app_header_id": app_header_id, "application_id": application_id}
+        )
+    else:
+        return build(2044, "Delete application header failed", {"app_header_id": app_header_id})
+
+
 # 20230215 為新增 application_header table 而新增上列一段程式

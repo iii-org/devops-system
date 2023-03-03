@@ -613,7 +613,12 @@ class ApplicationHeader(db.Model):
     disabled = Column(Boolean, default=False)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
-# 20230215 為實現多專案部署新增 application_header 資料表而新增上列一段程式
+    # 20230215 為實現多專案部署新增 application_header 資料表而新增上列一段程式
+    # 20230303 為實現多專案部署控管新增 application_header 資料表的欄位而新增下列一段程式
+    total_pods = Column(Integer)
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True, server_default="0")
+    modifier_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True, server_default="0")
+    # 20230303 為實現多專案部署控管新增 application_header 資料表的欄位而新增上列一段程式
 
 
 class Application(db.Model):
@@ -1227,4 +1232,6 @@ class StorageClass(db.Model):
     cluster_id = Column(Integer, ForeignKey(Cluster.id, ondelete="CASCADE"))
     name = Column(String)
     disabled = Column(Boolean)
+
+
 # 20230118 為取得 storage class 資訊而新增下上列一段程式

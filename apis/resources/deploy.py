@@ -1626,19 +1626,19 @@ def get_deployment_info(cluster_name, k8s_yaml):
     return deployment_info, url
 
 
-def check_object_int(resources: dict, keys: list):
-    if resources is None:
-        resources: dict = {}
+def check_object_int(dict_object: dict, keys: list):
+    if isinstance(dict_object, dict):
+        dict_object: dict = {}
     for key in keys:
-        if key in resources:
-            if isinstance(resources.get(key), str):
-                if str(resources.get(key)).upper() == "NONE":
-                    resources[key] = None
+        if key in dict_object:
+            if isinstance(dict_object.get(key), str):
+                if str(dict_object.get(key)).upper() == "NONE":
+                    dict_object[key] = None
                 else:
-                    resources[key] = int(resources.get(key))
+                    dict_object[key] = int(dict_object.get(key))
         else:
-            resources[key] = None
-    return resources
+            dict_object[key] = None
+    return dict_object
 
 
 def get_application_information(application, need_update=True, cluster_info=None):
@@ -1828,6 +1828,7 @@ def create_application(args):
         harbor_info=json.dumps(harbor_info),
         k8s_yaml=json.dumps(k8s_yaml),
         status="Initial Creating",
+        order=args.get("order"),
     )
     db.session.add(new)
     db.session.commit()
@@ -1883,6 +1884,7 @@ def update_application(application_id, args):
     app.harbor_info = json.dumps(harbor_info)
     app.k8s_yaml = json.dumps(db_k8s_yaml)
     app.updated_at = datetime.utcnow()
+    app.order = args.get("order")
     db.session.commit()
     return app.id
 
@@ -2505,14 +2507,21 @@ def update_app_header(app_header_id, args):
             continue
         elif args[key] is not None:
             setattr(app_header, key, args[key])
+    total_pods: int = 0
+    order: int = 0
     for app_args in args.get("applications"):
         app_args["cluster_id"] = args.get("cluster_id")
         app_args["registry"] = args.get("registry_id")
         app_args["namespace"] = args.get("namespace")
+        app_args["order"] = order
+        order += 1
+        resources = check_object_int(app_args.get("resources"), ["cpu", "memory", "replicas"])
+        if resources.get("replicas") is not None:
+            total_pods += resources.get("replicas")
         if "id" in app_args:
             app_id = update_application(app_args["id"], app_args)
         else:
-            app_args["name"] = app_args.get("name") + "-" + str(app_args.get("project_id"))
+            app_args["name"] = args.get("name") + "-" + str(app_args.get("project_id"))
             app_id = create_application(app_args)
         if app_id not in cur_app_ids:
             cur_app_ids.append(app_id)
@@ -2521,6 +2530,7 @@ def update_app_header(app_header_id, args):
         if app_id not in cur_app_ids:
             delete_app_header(app_id, True)
     app_header.applications_id = "[" + ",".join(str(i) for i in cur_app_ids) + "]"
+    app_header.total_pods = total_pods
     db.session.commit()
     return app_header.id
 
@@ -2540,9 +2550,12 @@ def delete_app_header(app_header_id, delete_db=False, application_id=None):
         else:
             if application_id in app_ids:
                 id_index = app_ids.index(application_id)
+                app_json = get_applications({"application_id": application_id})
                 delete_application(application_id, delete_db)
                 del app_ids[id_index]
                 app_header.applications_id = json.dumps(app_ids)
+                if app_json.get("resources").get("replicas"):
+                    app_header.total_pods -= app_json.get("resources").get("replicas")
                 # db.session.delete(app_header)
                 db.session.commit()
                 return {"app_hrader_id": app_header.id, "application_id": application_id}
@@ -2553,8 +2566,11 @@ def delete_app_header(app_header_id, delete_db=False, application_id=None):
 def patch_app_header(app_header_id, args) -> int:
     app_header = model.ApplicationHeader.query.filter_by(id=app_header_id).first()
     if "disabled" in args:
+        identity = get_jwt_identity()
+        user_id = identity["user_id"]
         app_header.disabled = args.get("disabled")
         app_header.updated_at = datetime.utcnow()
+        app_header.modifier_id = user_id
         db.session.commit()
     app_id_list = json.loads(app_header.applications_id)
     for app_id in app_id_list:
@@ -2567,7 +2583,7 @@ def get_app_header_information(app_header, detail: bool = False):
         return []
 
     output = row_to_dict(app_header)
-    output["total_pods"] = 0
+    # output["total_pods"] = 0
     output["available_pods"] = 0
     output["cluster"] = {}
     output["cluster"]["id"] = app_header.cluster_id
@@ -2595,7 +2611,16 @@ def get_application_headers(args=None):
     output = []
     app_header = None
     if args is None:
-        app_header = model.ApplicationHeader.query.filter().order_by(model.ApplicationHeader.id.desc()).all()
+        if role.is_admin():
+            app_header = model.ApplicationHeader.query.filter().order_by(model.ApplicationHeader.id.desc()).all()
+        else:
+            identity = get_jwt_identity()
+            user_id = identity["user_id"]
+            app_header = (
+                model.ApplicationHeader.query.filter_by(creator_id=user_id)
+                .order_by(model.ApplicationHeader.id.desc())
+                .all()
+            )
     elif "app_header_id" in args:
         app_header = (
             model.ApplicationHeader.query.filter_by(id=args.get("app_header_id"))
@@ -2662,14 +2687,22 @@ def create_application_header(args) -> int:
                 error=apiError.create_application_header_failed(cluster.name, args.get("namespace"), args.get("name")),
             )
     applications_id = []
+    total_pods: int = 0
     for proj in application_list:
         app_args = reqparse.Namespace(**proj)
         app_args["name"] = args.get("name") + "-" + str(app_args.get("project_id"))
         app_args["cluster_id"] = args.get("cluster_id")
         app_args["registry_id"] = args.get("registry_id")
         app_args["namespace"] = args.get("namespace")
+        if "resources" in app_args:
+            resources = app_args.get("resources")
+            resources = check_object_int(resources, ["cpu", "memory", "replicas"])
+            if resources.get("replicas"):
+                total_pods += resources.get("replicas")
         applications_id.append(create_application(app_args))
     now = str(datetime.utcnow())
+    identity = get_jwt_identity()
+    user_id = identity["user_id"]
     app_header = model.ApplicationHeader(
         name=args.get("name"),
         remote=args.get("remote"),
@@ -2680,6 +2713,9 @@ def create_application_header(args) -> int:
         disabled=False,
         created_at=now,
         updated_at=now,
+        total_pods=total_pods,
+        creator_id=user_id,
+        modifier_id=user_id,
     )
     db.session.add(app_header)
     db.session.commit()
