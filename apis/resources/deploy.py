@@ -2511,7 +2511,7 @@ def update_app_header(app_header_id, args):
     order: int = 0
     for app_args in args.get("applications"):
         app_args["cluster_id"] = args.get("cluster_id")
-        app_args["registry"] = args.get("registry_id")
+        app_args["registry_id"] = args.get("registry_id")
         app_args["namespace"] = args.get("namespace")
         app_args["order"] = order
         order += 1
@@ -2528,7 +2528,7 @@ def update_app_header(app_header_id, args):
     #  Delete Application
     for app_id in app_ids:
         if app_id not in cur_app_ids:
-            delete_app_header(app_id, True)
+            delete_application(app_id, True)
     app_header.applications_id = "[" + ",".join(str(i) for i in cur_app_ids) + "]"
     app_header.total_pods = total_pods
     db.session.commit()
