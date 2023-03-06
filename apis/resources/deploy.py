@@ -1808,6 +1808,8 @@ def create_application(args):
             args.get("namespace"),
             args.get("name"),
         )
+    else:
+        args["release_id"] = None
     k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
     deploy_k8s_client = DeployK8sClient(cluster.name)
