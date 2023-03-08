@@ -497,14 +497,21 @@ class Registry(Resource):
 
 
 def create_default_harbor_data(project, db_release, registry_id, namespace, app_name):
-    db_release_id = str(db_release.id)
+    if db_release is None:
+        db_release_id = "null"
+        release_branch = None
+        release_tag_name = None
+    else:
+        db_release_id = str(db_release.id)
+        release_branch = db_release.branch
+        release_tag_name = db_release.tag_name
     harbor_data = {
         "project": project.display,
         "project_id": project.name,
         "policy_name": f"{project.name}-release-{db_release_id}-at-{namespace}-{app_name}",
         "repo_name": project.name,
-        "image_name": db_release.branch,
-        "tag_name": db_release.tag_name,
+        "image_name": release_branch,
+        "tag_name": release_tag_name,
         "description": "Automate create replication policy " + project.name + " release ID " + db_release_id,
         "registry_id": registry_id,
         "dest_repo_name": namespace,
@@ -1275,6 +1282,12 @@ class DeployDeployment:
         else:
             image_uri = image.get("uri")
             release_id = image.get("type")
+        if registry_secret_info == {}:
+            print(k8s_info.get("deployment"))
+            registry_secret_info = {
+                "registry_secret_url": image.get("uri"),
+                "registry_secret_name": f"{project.name}-release-{release_id}-at-{app.namespace}-{app.name}",
+            }
         self.app = app
         self.namespace = self.app.namespace
         self.name = f"{project.name}-release-{release_id}-{app.name}"
@@ -1632,7 +1645,7 @@ def check_object_int(dict_object: dict, keys: list):
     for key in keys:
         if key in dict_object:
             if isinstance(dict_object.get(key), str):
-                if str(dict_object.get(key)).upper() == "NONE":
+                if str(dict_object.get(key)).upper() == "NONE" or str(dict_object.get(key)).strip(" ") == "":
                     dict_object[key] = None
                 else:
                     dict_object[key] = int(dict_object.get(key))
@@ -1801,6 +1814,7 @@ def create_application(args):
             )
             .one()
         )
+
         harbor_info = create_default_harbor_data(
             db_project,
             db_release,
@@ -1810,6 +1824,7 @@ def create_application(args):
         )
     else:
         args["release_id"] = None
+
     k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
     deploy_k8s_client = DeployK8sClient(cluster.name)
@@ -2502,6 +2517,8 @@ class PersistentVolumeClaim(Resource):
 # 20230215 為新增 application_header table 而新增下列一段程式
 def update_app_header(app_header_id, args):
     app_header = model.ApplicationHeader.query.filter_by(id=app_header_id).first()
+    if args.get("namespace") is None:
+        args["namespace"] = app_header.namespace
     app_ids = json.loads(app_header.applications_id)
     cur_app_ids = []
     for key in args.keys():
