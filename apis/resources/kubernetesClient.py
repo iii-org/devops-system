@@ -254,8 +254,6 @@ class ApiK8sClient:
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
-        except Exception as ex:
-            print(ex)
 
     def delete_namespaced_deployment(self, name, namespace):
         try:

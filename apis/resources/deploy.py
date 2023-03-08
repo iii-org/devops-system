@@ -1283,7 +1283,6 @@ class DeployDeployment:
             image_uri = image.get("uri")
             release_id = image.get("type")
         if registry_secret_info == {}:
-            print(k8s_info.get("deployment"))
             registry_secret_info = {
                 "registry_secret_url": image.get("uri"),
                 "registry_secret_name": f"{project.name}-release-{release_id}-at-{app.namespace}-{app.name}",
