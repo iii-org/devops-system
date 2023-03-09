@@ -692,7 +692,8 @@ def hb_execute_replication_policy(policy_id):
         dest_server = dest_registry.get("url")[8:]
         dest_repo = policies.get("dest_namespace")
         project_name = name[(name.find("/") + 1) :]
-        image_uri = f"{dest_server}/{dest_repo}/{project_name}:{tag}"
+        # image_uri = f"{dest_server}/{dest_repo}/{project_name}:{tag}"
+        image_uri = f"{dest_server}/{dest_repo}/{name}:{tag}"
     else:
         image_uri = None
     return image_uri
