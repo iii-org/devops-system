@@ -621,10 +621,7 @@ def hb_get_replication_policy_data(args):
         "override": True,
         "dest_namespace": args.get("dest_repo_name"),
         "filters": [
-            {
-                "type": "name",
-                "value": args.get("repo_name") + "/" + args.get("image_name"),
-            },
+            {"type": "name", "value": args.get("repo_name") + "/" + args.get("repo_name")},
             {"type": "resource", "value": "image"},
             {"type": "tag", "value": args.get("tag_name")},
         ],
@@ -692,8 +689,7 @@ def hb_execute_replication_policy(policy_id):
         dest_server = dest_registry.get("url")[8:]
         dest_repo = policies.get("dest_namespace")
         project_name = name[(name.find("/") + 1) :]
-        # image_uri = f"{dest_server}/{dest_repo}/{project_name}:{tag}"
-        image_uri = f"{dest_server}/{dest_repo}/{name}:{tag}"
+        image_uri = f"{dest_server}/{dest_repo}/{project_name}:{tag}"
     else:
         image_uri = None
     return image_uri
