@@ -1151,10 +1151,13 @@ class DeployPVC:
         for i in range(len(pvc_list)):
             self.sc_name.append(pvc_list[i].get("sc_name"))
             if pvc_list[i].get("pvc_name", None) is None:
-                self.pvc_name.append(self.project.name + "-pvc-" + str(i))
+                pvc_name = self.project.name + "-pvc-" + str(i)
+                self.pvc_name.append(pvc_name)
+                pvc_list[i]["pvc_name"] = pvc_name
             else:
                 self.pvc_name.append(pvc_list[i].get("pvc_name"))
             self.device_path.append(pvc_list[i].get("device_path"))
+        self.pvc_dict = pvc_list
 
     def pvc_body(self):
         return create_pvc_object(self.pvc_dict)
@@ -1272,7 +1275,7 @@ class DeployIngress:
 
 
 class DeployDeployment:
-    def __init__(self, app, project, service_info, registry_secret_info: dict = {}):
+    def __init__(self, app, project, service_info, volumes_info, registry_secret_info: dict = {}):
         harbor_info = json.loads(app.harbor_info)
         k8s_info = json.loads(app.k8s_yaml)
         image = k8s_info.get("image")
@@ -1296,6 +1299,7 @@ class DeployDeployment:
         self.service_info = service_info
         self.registry_secret_info = registry_secret_info
         self.image_uri = image_uri
+        self.volumes_info = volumes_info
 
     def get_deployment_info(self):
         return {"deployment_name": self.deployment_name}
@@ -1317,7 +1321,7 @@ class DeployDeployment:
             self.k8s_info.get("resources"),
             self.k8s_info.get("image"),
             self.get_env(),
-            json.loads(self.app.k8s_yaml).get("volumes", []),
+            self.volumes_info,
         )
 
 
@@ -1402,6 +1406,7 @@ class K8sDeployment:
                     self.app,
                     self.project,
                     self.service.get_service_info(),
+                    self.pvc.get_pvc_info(),
                     self.registry_secret.get_registry_secret_info(),
                 )
             else:
@@ -1409,6 +1414,7 @@ class K8sDeployment:
                     self.app,
                     self.project,
                     self.service.get_service_info(),
+                    self.pvc.get_pvc_info(),
                 )
 
     def execute_deployment(self):
