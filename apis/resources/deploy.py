@@ -1675,6 +1675,9 @@ def get_application_information(application, need_update=True, cluster_info=None
         return output
     harbor_info = json.loads(app.harbor_info)
     k8s_yaml = json.loads(app.k8s_yaml)
+    project_name = harbor_info.get("project")
+    if project_name is None:
+        project_name = k8s_yaml.get("project")
     resources = check_object_int(k8s_yaml.get("resources"), ["cpu", "memory", "replicas"])
     network = k8s_yaml.get("network")
     if "ports" in network:
@@ -1714,7 +1717,7 @@ def get_application_information(application, need_update=True, cluster_info=None
     output["registry"] = {}
     output["registry"]["id"] = app.registry_id
     output["image"] = k8s_yaml.get("image")
-    output["project_name"] = harbor_info.get("project")
+    output["project_name"] = project_name
     output["tag_name"] = harbor_info.get("tag_name")
     output["k8s_status"] = k8s_yaml.get("deploy_finish")
     output["resources"] = resources
