@@ -809,12 +809,14 @@ def create_service_port(network):
                 port=port.get("port"),
                 node_port=port.get("expose_port"),
                 target_port=port.get("port"),
+                name=str(port.get("port")),
             )
         else:
             service_port = k8s_client.V1ServicePort(
                 protocol=port.get("protocol"),
                 port=port.get("port"),
                 target_port=port.get("port"),
+                name=str(port.get("port")),
             )
         service_ports.append(service_port)
     return service_ports
