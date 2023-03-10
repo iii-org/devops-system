@@ -1906,6 +1906,7 @@ def update_application(application_id, args):
     db_k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
     app.status_id = disable_application(args.get("disabled"), app)
+    app.release_id = args.get("release_id")
     app.harbor_info = json.dumps(harbor_info)
     app.k8s_yaml = json.dumps(db_k8s_yaml)
     app.updated_at = datetime.utcnow()
