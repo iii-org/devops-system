@@ -27,6 +27,7 @@ from enums.action_type import ActionType
 from resources.activity import record_activity
 from resources.logger import logger
 
+
 _DEFAULT_RESTART_NUMBER = 30
 _DEFAULT_PROJECT_ID = "-1"
 
@@ -496,7 +497,7 @@ class Registry(Resource):
             )
 
 
-def create_default_harbor_data(project, db_release, registry_id, namespace, app_name):
+def create_default_harbor_data(project, db_release, registry_id, namespace, app_name, registry_url):
     if db_release is None:
         db_release_id = "null"
         release_branch = None
@@ -517,6 +518,9 @@ def create_default_harbor_data(project, db_release, registry_id, namespace, app_
         "dest_repo_name": namespace,
         "status": "initial",
     }
+    if registry_id == 0 or registry_url is not None:
+        dest_server = registry_url[registry_url.find("://") + 3 :].rstrip("/")
+        harbor_data["image_uri"] = f"{dest_server}/{project.name}/{project.name}:{release_tag_name}"
     return harbor_data
 
 
@@ -1275,7 +1279,7 @@ class DeployIngress:
 
 
 class DeployDeployment:
-    def __init__(self, app, project, service_info, volumes_info, registry_secret_info: dict = {}):
+    def __init__(self, app, project, service_info, pvc, registry_secret_info: dict = {}):
         harbor_info = json.loads(app.harbor_info)
         k8s_info = json.loads(app.k8s_yaml)
         image = k8s_info.get("image")
@@ -1290,6 +1294,9 @@ class DeployDeployment:
                 "registry_secret_url": image.get("uri"),
                 "registry_secret_name": f"{project.name}-release-{release_id}-at-{app.namespace}-{app.name}",
             }
+        volumes_info = []
+        if pvc is not None:
+            volumes_info = pvc.get_pvc_info()
         self.app = app
         self.namespace = self.app.namespace
         self.name = f"{project.name}-release-{release_id}-{app.name}"
@@ -1406,7 +1413,7 @@ class K8sDeployment:
                     self.app,
                     self.project,
                     self.service.get_service_info(),
-                    self.pvc.get_pvc_info(),
+                    self.pvc,
                     self.registry_secret.get_registry_secret_info(),
                 )
             else:
@@ -1414,7 +1421,7 @@ class K8sDeployment:
                     self.app,
                     self.project,
                     self.service.get_service_info(),
-                    self.pvc.get_pvc_info(),
+                    self.pvc,
                 )
 
     def execute_deployment(self):
@@ -1532,7 +1539,7 @@ def check_application_status(app):
     app = model.Application.query.filter_by(id=application_id).first()
     # Check Harbor Replication execution
     if app.status_id == 1:
-        if app.harbor_info == "{}":
+        if app.harbor_info == "{}" or app.registry_id == 0:
             app.status_id = 2
         else:
             output = execute_image_replication(app)
@@ -1544,7 +1551,7 @@ def check_application_status(app):
         db.session.commit()
     # Restart Execution Replication
     elif app.status_id == 11 or app.status_id == 2:
-        if app.harbor_info == "{}":
+        if app.harbor_info == "{}" or app.registry_id == 0:
             app.status_id = 3
         else:
             harbor_info = json.loads(app.harbor_info)
@@ -1823,12 +1830,17 @@ def create_application(args):
             .one()
         )
 
+        registry_url = None
+        if args.get("registry_id") == 0:
+            registry = model.Registries.query.filter_by(registries_id=args.get("registry_id")).first()
+            registry_url = registry.url
         harbor_info = create_default_harbor_data(
             db_project,
             db_release,
             args.get("registry_id"),
             args.get("namespace"),
             args.get("name"),
+            registry_url,
         )
     else:
         args["release_id"] = None
@@ -1892,14 +1904,20 @@ def update_application(application_id, args):
         )
         #  Change Harbor Info
         harbor_info = json.loads(app.harbor_info)
-        delete_image_replication_policy(harbor_info.get("policy_id"))
+        if harbor_info.get("policy_id") is not None:
+            delete_image_replication_policy(harbor_info.get("policy_id"))
 
+        registry_url = None
+        if args.get("registry_id") == 0:
+            registry = model.Registries.query.filter_by(registries_id=args.get("registry_id")).first()
+            registry_url = registry.url
         harbor_info = create_default_harbor_data(
             db_project,
             db_release,
             args.get("registry_id"),
             args.get("namespace"),
             args.get("name"),
+            registry_url,
         )
     #  Change k8s Info
     # db_k8s_yaml = json.loads(app.k8s_yaml)
@@ -1961,6 +1979,11 @@ def patch_application(application_id, args):
             )
             .one()
         )
+
+        registry_url = None
+        if args.get("registry_id") == 0:
+            registry = model.Registries.query.filter_by(registries_id=args.get("registry_id")).first()
+            registry_url = registry.url
         db_harbor_info.update(
             create_default_harbor_data(
                 db_project,
@@ -1968,6 +1991,7 @@ def patch_application(application_id, args):
                 args.get("registry_id", app.registry_id),
                 args.get("namespace", app.namespace),
                 args.get("name", app.name),
+                registry_url,
             )
         )
     app.status = _APPLICATION_STATUS.get(app.status_id, _DEFAULT__APPLICATION_STATUS)
@@ -2525,6 +2549,9 @@ class PersistentVolumeClaim(Resource):
 
 # 20230215 為新增 application_header table 而新增下列一段程式
 def update_app_header(app_header_id, args):
+    if not args.get("remote"):
+        args["cluster_id"] = 0
+        args["registry_id"] = 0
     app_header = model.ApplicationHeader.query.filter_by(id=app_header_id).first()
     if args.get("namespace") is None:
         args["namespace"] = app_header.namespace
