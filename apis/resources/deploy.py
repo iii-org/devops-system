@@ -1923,6 +1923,10 @@ def update_application(application_id, args):
     # db_k8s_yaml = json.loads(app.k8s_yaml)
     db_k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
+    if app.cluster_id != args.get("cluster_id"):
+        app.cluster_id = args.get("cluster_id")
+    if app.registry_id != args.get("registry_id"):
+        app.registry_id = args.get("registry_id")
     app.status_id = disable_application(args.get("disabled"), app)
     app.release_id = args.get("release_id")
     app.harbor_info = json.dumps(harbor_info)
