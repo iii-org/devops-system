@@ -2553,31 +2553,61 @@ class PersistentVolumeClaim(Resource):
 # 20230202 為取得 storage class 所擁有的 PVC 而新增上列一段程式
 
 
-# 20230313 為取得 service list 資料而新增下列一段程式
-def get_service_list_info(cluster_name: str):
-    return DeployK8sClient(cluster_name).client.list_service_for_all_namespaces().items
+# 20230313 為檢查 expose port 是否可使用而新增下列一段程式
+def get_service_list_info(k8s_client: DeployK8sClient, namespace: str = "", service_name: str = ""):
+    if namespace != "":
+        if service_name != "":
+            return [k8s_client.client.read_namespaced_service(service_name, namespace)]
+        else:
+            return k8s_client.client.list_namespaced_service(service_name).items
+    return k8s_client.client.list_service_for_all_namespaces().items
 
 
-def get_inuse_port_list(cluster_name: str) -> list:
+def get_inuse_port_list(k8s_client: DeployK8sClient, namespace: str = "", service_name: str = "") -> list:
     port_list: list = []
-    if cluster_name != "":
-        for service in get_service_list_info(cluster_name):
-            for port in service.spec.ports:
-                if port.node_port is not None:
-                    port_list.append(port.node_port)
+    for service in get_service_list_info(k8s_client, namespace, service_name):
+        for port in service.spec.ports:
+            if port.node_port is not None:
+                port_list.append(port.node_port)
     return port_list
 
 
-def check_port_inuse(cluster_name: str, check_port: int) -> bool:
-    return check_port in get_inuse_port_list(cluster_name)
+def check_port_can_use(args) -> bool:
+    cluster_name = args.get("cluster_name", None)
+    check_port = args.get("expose_port")
+    namespace = args.get("namespace", "")
+    app_name = args.get("name", "")
+    k8s_client = DeployK8sClient(cluster_name)
+    if namespace != "" and app_name != "":
+        app = model.Application.query.filter_by(name=app_name).first()
+        if app is not None:
+            release_id = app.release_id
+            k8s_info = json.loads(app.k8s_yaml)
+            if "service" in k8s_info:
+                service_name = k8s_info.get("service").get("service_name")
+            else:
+                service_name = f'{k8s_info.get("repo_name")}-service-'
+                if release_id is None:
+                    service_name += f'dockerhub-'
+                else:
+                    service_name += f'{str(release_id)}-'
+                service_name += f'{app_name}'
+            if check_port in get_inuse_port_list(k8s_client, namespace, service_name):
+                return True
+    return not (check_port in get_inuse_port_list(k8s_client))
 
 
-class CheckPortInuse(Resource):
+class CheckPortCanUse(Resource):
     @jwt_required()
-    def get(self, cluster_name: str, check_port: int):
+    def post(self, cluster_name: str, expose_port: int):
         try:
-            output = check_port_inuse(cluster_name, check_port)
-            return util.success({"port_exist": output})
+            parser = reqparse.RequestParser()
+            parser.add_argument("name", type=str)
+            parser.add_argument("namespace", type=str)
+            args = parser.parse_args()
+            args["cluster_name"] = cluster_name
+            args["expose_port"] = expose_port
+            return util.success({"port_can_use": check_port_can_use(args)})
         except NoResultFound:
             return util.respond(
                 404,
@@ -2586,7 +2616,7 @@ class CheckPortInuse(Resource):
             )
 
 
-# 20230313 為取得 service list 資料而新增上列一段程式
+# 20230313 為檢查 expose port 是否可使用而新增上列一段程式
 
 
 # 20230215 為新增 application_header table 而新增下列一段程式

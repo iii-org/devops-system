@@ -639,9 +639,9 @@ api.add_resource(deploy.UpdateStorageClass, "/deploy/storage/<int:storage_class_
 # 20230202 為取得 persistent volume claim 資訊而新增下列API
 api.add_resource(deploy.PersistentVolumeClaim, "/deploy/clusters/storage/pvc/<int:storage_class_id>")
 # 20230202 為取得 persistent volume claim 資訊而新增上列API
-# 20230313 為取得 service list  資訊而新增下列API
-api.add_resource(deploy.CheckPortInuse, "/deploy/clusters/<cluster_name>/port/<int:check_port>/inuse")
-# 20230313 為取得 service list  資訊而新增上列API
+# 20230313 為檢查 expose port 是否可使用而新增下列API
+api.add_resource(deploy.CheckPortCanUse, "/deploy/clusters/<cluster_name>/outer_port/<int:expose_port>/can_use")
+# 20230313 為檢查 expose port 是否可使用新增上列API
 
 # Alert
 api.add_resource(alert.ProjectAlert, "/project/<sint:project_id>/alert")
