@@ -2569,10 +2569,7 @@ def get_inuse_port_list(cluster_name: str) -> list:
 
 
 def check_port_inuse(cluster_name: str, check_port: int) -> bool:
-    port_list: list = get_inuse_port_list(cluster_name)
-    if check_port in port_list:
-        return True
-    return False
+    return check_port in get_inuse_port_list(cluster_name)
 
 
 class CheckPortInuse(Resource):
