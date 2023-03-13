@@ -2553,6 +2553,45 @@ class PersistentVolumeClaim(Resource):
 # 20230202 為取得 storage class 所擁有的 PVC 而新增上列一段程式
 
 
+# 20230313 為取得 service list 資料而新增下列一段程式
+def get_service_list_info(cluster_name: str):
+    return DeployK8sClient(cluster_name).client.list_service_for_all_namespaces().items
+
+
+def get_inuse_port_list(cluster_name: str) -> list:
+    port_list: list = []
+    if cluster_name != "":
+        for service in get_service_list_info(cluster_name):
+            for port in service.spec.ports:
+                if port.node_port is not None:
+                    port_list.append(port.node_port)
+    return port_list
+
+
+def check_port_inuse(cluster_name: str, check_port: int) -> bool:
+    port_list: list = get_inuse_port_list(cluster_name)
+    if check_port in port_list:
+        return True
+    return False
+
+
+class CheckPortInuse(Resource):
+    @jwt_required()
+    def get(self, cluster_name: str, check_port: int):
+        try:
+            output = check_port_inuse(cluster_name, check_port)
+            return util.success({"port_exist": output})
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_GET_CLUSTERS,
+                error=apiError.get_clusters_failed(server_name=cluster_name),
+            )
+
+
+# 20230313 為取得 service list 資料而新增上列一段程式
+
+
 # 20230215 為新增 application_header table 而新增下列一段程式
 def update_app_header(app_header_id, args):
     if not args.get("remote"):
