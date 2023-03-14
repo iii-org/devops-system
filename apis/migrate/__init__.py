@@ -25,6 +25,9 @@ VERSIONS = [
     "1.25.0.5",
     "1.25.0.6",
     "1.25.0.7",
+    "1.26.0.1",
+    "1.26.0.2",
+    "1.26.0.3",
 ]
 ONLY_UPDATE_DB_MODELS = [
     "1.22.0.1",
@@ -38,6 +41,8 @@ ONLY_UPDATE_DB_MODELS = [
     "1.25.0.5",
     "1.25.0.6",
     "1.25.0.7",
+    "1.26.0.1",
+    "1.26.0.3",
 ]
 
 
@@ -61,6 +66,8 @@ def upgrade(version):
     elif version == "1.25.0.1":
         model.NotificationMessage.query.filter_by(alert_service_id=303, close=False).delete()
         db.session.commit()
+    elif version == "1.26.0.2":
+        recreate_ui_route()
 
 
 def recreate_ui_route():
@@ -131,7 +138,7 @@ def current_version():
     else:
         # Backward compatibility
         if os.path.exists(".api_version"):
-            with (open(".api_version", "r")) as f:
+            with open(".api_version", "r") as f:
                 current = f.read()
         else:
             current = "1.22.9.9"

@@ -215,8 +215,21 @@ def hb_remove_member(project_id, user_id):
     __api_delete("/projects/{0}/members/{1}".format(project_id, member_id))
 
 
-def hb_list_repositories(project_name):
-    repositories = __api_get("/projects/{0}/repositories".format(project_name)).json()
+def hb_list_repositories(project_name: str) -> list[dict[str:Any]]:
+    rets = []
+    page = 1
+    while True:
+        hb_repos = hb_list_repo_by_page(project_name, page=page)
+        if not hb_repos:
+            break
+        rets += hb_repos
+        page += 1
+    return rets
+
+
+def hb_list_repo_by_page(project_name: str, page: int = 1, page_size: int = 15) -> list[dict[str:Any]]:
+    args = {"page": page, "page_size": page_size}
+    repositories = __api_get("/projects/{0}/repositories".format(project_name), params=args).json()
     ret = []
     for repo in repositories:
         repo["harbor_link"] = hb_build_external_link(
@@ -608,10 +621,7 @@ def hb_get_replication_policy_data(args):
         "override": True,
         "dest_namespace": args.get("dest_repo_name"),
         "filters": [
-            {
-                "type": "name",
-                "value": args.get("repo_name") + "/" + args.get("image_name"),
-            },
+            {"type": "name", "value": args.get("repo_name") + "/" + args.get("repo_name")},
             {"type": "resource", "value": "image"},
             {"type": "tag", "value": args.get("tag_name")},
         ],

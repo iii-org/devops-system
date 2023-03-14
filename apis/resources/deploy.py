@@ -1,4 +1,5 @@
 import base64
+import io
 import json
 import os
 from datetime import datetime, date
@@ -26,6 +27,7 @@ from enums.action_type import ActionType
 from resources.activity import record_activity
 from resources.logger import logger
 
+
 _DEFAULT_RESTART_NUMBER = 30
 _DEFAULT_PROJECT_ID = "-1"
 
@@ -45,6 +47,14 @@ _ERROR_APPLICATION_EXISTS = "Deploy application had been deployed"
 _ERROR_RESTART_DEPLOY_APPLICATION = "Deploy application had reached retry number limit"
 _ERROR_RELEASE_APPLICATION = "Deploy application not found at gitlab"
 
+# 20230215 為新增 application_header table 而新增下列一段程式
+_ERROR_GET_APPLICATION_HEADER = "Get application header failed"
+_ERROR_CREATE_APPLICATION_HEADER = "Create application header failed"
+_ERROR_UPDATE_APPLICATION_HEADER = "Update application header failed"
+_ERROR_DELETE_APPLICATION_HEADER = "Delete application header failed"
+_ERROR_APPLICATION_HEADER_EXISTS = "Deploy application header had been deployed"
+# 20230215 為新增 application_header table 而新增下列一段程式
+
 # 20230119 新增下列程式，因新增取得DEPLOYMENT的API而新增下列錯誤訊息的程式
 _ERROR_GET_DEPLOYMENT = "Get deployment failed"
 # 202301198 新增上列程式，因新增取得DEPLOYMENT的API而新增上列錯誤訊息的程式
@@ -54,7 +64,7 @@ _ERROR_GET_STORAGE_CLASS = "Get storage class failed"
 _ERROR_CREATE_STORAGE_CLASS = "Create storage class failed"
 # 20230119 為取得 storage class 資訊而新增上列一段程式
 # 20230201 為變更 storage class disabled 布林值而新增下列一段程式
-_ERROR_DISABLED_STORAGE_CLASS = 'Change storage class disabled failed'
+_ERROR_DISABLED_STORAGE_CLASS = "Change storage class disabled failed"
 # 20230201 為變更 storage class disabled 布林值而新增上列一段程式
 # 20230202 為取得 persistent volume claim 資訊而新增下列一段程式
 _ERROR_GET_PERSISTENT_VOLUME_CLAIM = "Get persistent volume claim failed"
@@ -164,6 +174,25 @@ def get_clusters(cluster_id=None):
     output = []
     if cluster_id is not None:
         return get_cluster_application_information(model.Cluster.query.filter_by(id=cluster_id).first())
+    # 20230203 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 cluster ，若不存在則自動新增。] 而新增下列程式段
+    elif role.is_admin():
+        if model.Cluster.query.filter_by(id=0).first() is None:
+            server_name: str = "local-cluster"
+            if model.Cluster.query.filter_by(name=server_name).first() is not None:
+                for i in range(100):
+                    server_name = "local-cluster-" + ("00" + str(i))[-2:]
+                    if model.Cluster.query.filter_by(name=server_name).first() is None:
+                        break
+            user_id: int = get_jwt_identity()["user_id"]
+            args = reqparse.Namespace()
+            args["id"] = 0
+            args["name"] = server_name
+            args["k8s_config_file"] = werkzeug.datastructures.FileStorage(
+                stream=io.BytesIO(open("/root/.kube/config", "rb").read()), filename="config"
+            )
+            args["disabled"] = False
+            create_local_cluster(args, server_name, user_id)
+    # 20230203 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 cluster ，若不存在則自動新增。] 而新增上列程式段
     for cluster in model.Cluster.query.all():
         output.append(get_cluster_application_information(cluster))
     return output
@@ -213,6 +242,29 @@ def create_cluster(args, server_name, user_id):
     db.session.add(new)
     db.session.commit()
     return new.id
+
+
+# 20230203 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 cluster ，若不存在則自動新增。] 而新增下列程式段
+def create_local_cluster(args, server_name, user_id):
+    k8s_json = save_clusters(args, server_name)
+    now = str(datetime.utcnow())
+    new = model.Cluster(
+        id=0,
+        name=server_name,
+        disabled=args.get("disabled", False),
+        creator_id=user_id,
+        create_at=now,
+        update_at=now,
+        cluster_name=k8s_json["clusters"][0]["name"],
+        cluster_host=k8s_json["clusters"][0]["cluster"]["server"],
+        cluster_user=k8s_json["users"][0]["name"],
+    )
+    db.session.add(new)
+    db.session.commit()
+    return new.id
+
+
+# 20230203 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 cluster ，若不存在則自動新增。] 而新增上列程式段
 
 
 def update_cluster(cluster_id, args):
@@ -358,12 +410,63 @@ def get_registries_application_information(registry):
     return output
 
 
+# 20230213 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 registry ，若不存在則自動新增。] 而新增下列程式段
+def create_local_registry(args):
+    user_id = get_jwt_identity()["user_id"]
+    # args["credential"] = {
+    #     "access_key": args["access_key"],
+    #     "access_secret": args["access_secret"],
+    #     "type": "basic",
+    # }
+    if args["type"] == "harbor":
+        args["access_secret"] = util.base64encode(args["access_secret"])
+    registries_id = args["id"]
+    new_registries = model.Registries(
+        registries_id=registries_id,
+        name=args["name"],
+        user_id=user_id,
+        description=args["description"],
+        access_key=args["access_key"],
+        access_secret=args["access_secret"],
+        url=args["login_server"],
+        type=args["type"],
+        disabled=False,
+    )
+    model.db.session.add(new_registries)
+    model.db.session.commit()
+    return registries_id
+
+
+# 20230213 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 registry ，若不存在則自動新增。] 而新增上列程式段
+
+
 def get_registries(registry_id=None):
     output = []
     if registry_id is not None:
         return get_registries_application_information(
             model.Registries.query.filter_by(registries_id=registry_id).first()
         )
+    # 20230213 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 registry ，若不存在則自動新增。] 而新增下列程式段
+    elif role.is_admin():
+        if model.Registries.query.filter_by(registries_id=0).first() is None:
+            server_name: str = "local-registry"
+            if model.Registries.query.filter_by(name=server_name).first() is not None:
+                for i in range(100):
+                    server_name = "local-registry-" + ("00" + str(i))[-2:]
+                    if model.Registries.query.filter_by(name=server_name).first() is None:
+                        break
+            args = reqparse.Namespace()
+            args["id"] = 0
+            args["name"] = server_name
+            args["type"] = "harbor"
+            args["access_key"] = config.get("HARBOR_ACCOUNT")
+            args["access_secret"] = config.get("HARBOR_PASSWORD")
+            args["location"] = ""
+            args["login_server"] = config.get("HARBOR_EXTERNAL_BASE_URL")
+            args["description"] = ""
+            args["insecure"] = True
+            create_local_registry(args)
+    # 20230213 為了 [當使用者為系統管理員時自動判斷 id 為 0 的 registry ，若不存在則自動新增。] 而新增上列程式段
     for registry in model.Registries.query.filter().all():
         output.append(get_registries_application_information(registry))
 
@@ -394,20 +497,30 @@ class Registry(Resource):
             )
 
 
-def create_default_harbor_data(project, db_release, registry_id, namespace, app_name):
-    db_release_id = str(db_release.id)
+def create_default_harbor_data(project, db_release, registry_id, namespace, app_name, registry_url):
+    if db_release is None:
+        db_release_id = "null"
+        release_branch = None
+        release_tag_name = None
+    else:
+        db_release_id = str(db_release.id)
+        release_branch = db_release.branch
+        release_tag_name = db_release.tag_name
     harbor_data = {
         "project": project.display,
         "project_id": project.name,
         "policy_name": f"{project.name}-release-{db_release_id}-at-{namespace}-{app_name}",
         "repo_name": project.name,
-        "image_name": db_release.branch,
-        "tag_name": db_release.tag_name,
+        "image_name": release_branch,
+        "tag_name": release_tag_name,
         "description": "Automate create replication policy " + project.name + " release ID " + db_release_id,
         "registry_id": registry_id,
         "dest_repo_name": namespace,
         "status": "initial",
     }
+    if registry_id == 0 or registry_url is not None:
+        dest_server = registry_url[registry_url.find("://") + 3 :].rstrip("/")
+        harbor_data["image_uri"] = f"{dest_server}/{project.name}/{project.name}:{release_tag_name}"
     return harbor_data
 
 
@@ -427,13 +540,19 @@ def remove_object_key_by_value(items, target=None):
 
 
 def create_default_k8s_data(db_project, db_release, args):
+    if db_release is None:
+        image_name = None
+        tag_name = None
+    else:
+        image_name = db_release.branch
+        tag_name = db_release.tag_name
     k8s_data = {
         "app_name": args.get("name"),
         "project": db_project.display,
         "project_id": db_project.name,
         "repo_name": db_project.name,
-        "image_name": db_release.branch,
-        "tag_name": db_release.tag_name,
+        "image_name": image_name,
+        "tag_name": tag_name,
         "namespace": args.get("namespace"),
         "image": args.get("image", {"policy": "Always"}),
         "status_id": 1,
@@ -441,9 +560,14 @@ def create_default_k8s_data(db_project, db_release, args):
     }
     resources = remove_object_key_by_value(args.get("resources", {}), "")
     if resources != {}:
-        k8s_data["resources"] = resources
+        k8s_data["resources"] = check_object_int(resources, ["cpu", "memory", "replicas"])
 
     network = remove_object_key_by_value(args.get("network", {}), "")
+    if "ports" in args.get("network", {}):
+        ports: list = []
+        for port in args.get("network", {}).get("ports"):
+            ports.append(check_object_int(remove_object_key_by_value(port), ["port", "expose_port"]))
+        network["ports"] = ports
     if network != {}:
         k8s_data["network"] = network
 
@@ -656,7 +780,8 @@ def create_pvc_object(pvc_dict):
                 kind="PersistentVolumeClaim",
                 metadata=k8s_client.V1ObjectMeta(name=pvc.get("pvc_name")),
                 spec=k8s_client.V1PersistentVolumeClaimSpec(
-                    storage_class_name="deploy-local-sc",
+                    # storage_class_name="deploy-local-sc",
+                    storage_class_name=pvc.get("sc_name"),
                     access_modes=["ReadWriteMany"],
                     resources=k8s_client.V1ResourceRequirements(requests={"storage": "5Gi"}),
                 ),
@@ -666,20 +791,35 @@ def create_pvc_object(pvc_dict):
 
 
 def create_service_port(network):
-    if network.get("expose_port") is not None:
-        service_port = k8s_client.V1ServicePort(
-            protocol=network.get("protocol"),
-            port=network.get("port"),
-            node_port=network.get("expose_port"),
-            target_port=network.get("port"),
-        )
+    """
+    20230218 因為舊的 network 只有一組 protocol、port 及 expose_port。
+    為了改成多組的 protocol、port 及 expose_port 增加了 ports 這個 key 來存放。
+    但因為原本的資料庫中存放的是舊的 network 只有一組 protocol、port 及 expose_port，
+    所以程式修改如下，讓其新舊格式皆可處理。
+    """
+    service_ports: list = []
+    if "ports" in network:
+        ports = network.get("ports", [])
     else:
-        service_port = k8s_client.V1ServicePort(
-            protocol=network.get("protocol"),
-            port=network.get("port"),
-            target_port=network.get("port"),
-        )
-    return [service_port]
+        ports = [network]
+    for port in ports:
+        if port.get("expose_port") is not None:
+            service_port = k8s_client.V1ServicePort(
+                protocol=port.get("protocol"),
+                port=port.get("port"),
+                node_port=port.get("expose_port"),
+                target_port=port.get("port"),
+                name=str(port.get("port")),
+            )
+        else:
+            service_port = k8s_client.V1ServicePort(
+                protocol=port.get("protocol"),
+                port=port.get("port"),
+                target_port=port.get("port"),
+                name=str(port.get("port")),
+            )
+        service_ports.append(service_port)
+    return service_ports
 
 
 def create_service_object(app_name, service_name, network):
@@ -708,7 +848,7 @@ def create_deployment_object(
     app_name,
     deployment_name,
     image_uri,
-    port,
+    ports: list,
     registry_secret_name,
     resource=None,
     image=None,
@@ -717,8 +857,9 @@ def create_deployment_object(
 ):
     # Configured Pod template container
     default_image_policy = "Always"
-    if image is not None and image.get("policy", None) is not None:
-        default_image_policy = image.get("policy", None)
+    if "type" not in image or image.get("type") == "harbor":
+        if image is not None and image.get("policy", None) is not None:
+            default_image_policy = image.get("policy", None)
     vm_list: list = []
     v_list: list = []
     for vd in volume_devices:
@@ -729,10 +870,13 @@ def create_deployment_object(
                 persistent_volume_claim=k8s_client.V1PersistentVolumeClaimVolumeSource(claim_name=vd.get("pvc_name")),
             )
         )
+    container_ports: list = []
+    for port in ports:
+        container_ports.append(k8s_client.V1ContainerPort(container_port=port))
     container = k8s_client.V1Container(
         name=app_name,
         image=image_uri,
-        ports=[k8s_client.V1ContainerPort(container_port=port)],
+        ports=container_ports,
         resources=init_resource_requirements(resource),
         image_pull_policy=default_image_policy,
         volume_mounts=vm_list,
@@ -930,11 +1074,12 @@ class DeployK8sClient:
         return pvc_list
 
     # 20230102 為取得 persistent volume claim 資訊而新增下列一段程式
-    def list_persistent_volume_claim(self, namespace:str):
+    def list_persistent_volume_claim(self, namespace: str):
         return self.client.list_namespace_pvc(namespace)
 
     def read_persistent_volume(self, name: str):
         return self.client.read_persistent_volume(name)
+
     # 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
 
     def delete_namespace_pvc(self, name, namespace):
@@ -950,6 +1095,7 @@ class DeployK8sClient:
 
     def check_storage_class(self, name):
         return k8s_resource_exist(name, self.client.list_storage_class())
+
     # 20230118 為取得 storage class 資訊而新增上列一段程式
 
 
@@ -985,16 +1131,17 @@ class DeployPVC:
     def __init__(self, app, project):
         self.app = app
         self.project = project
+        self.sc_name = None
         self.pvc_name = None
         self.device_path = None
         self.pvc_dict = None
         self.set_pvc_data()
 
     def get_pvc_info(self):
-        list_len: int = min(len(self.pvc_name), len(self.device_path))
+        list_len: int = min(len(self.sc_name), len(self.pvc_name), len(self.device_path))
         info: list = []
         for i in range(list_len):
-            info.append({"pvc_name": self.pvc_name[i], "device_path": self.device_path[i]})
+            info.append({"sc_name": self.sc_name[i], "pvc_name": self.pvc_name[i], "device_path": self.device_path[i]})
         return info
 
     def set_pvc_data(self):
@@ -1004,14 +1151,19 @@ class DeployPVC:
             pvc_list = self.pvc_dict
         else:
             pvc_list.append(self.pvc_dict)
+        self.sc_name = []
         self.pvc_name = []
         self.device_path = []
         for i in range(len(pvc_list)):
+            self.sc_name.append(pvc_list[i].get("sc_name"))
             if pvc_list[i].get("pvc_name", None) is None:
-                self.pvc_name.append(self.project.name + "-pvc-" + str(i))
+                pvc_name = self.project.name + "-pvc-" + str(i)
+                self.pvc_name.append(pvc_name)
+                pvc_list[i]["pvc_name"] = pvc_name
             else:
                 self.pvc_name.append(pvc_list[i].get("pvc_name"))
             self.device_path.append(pvc_list[i].get("device_path"))
+        self.pvc_dict = pvc_list
 
     def pvc_body(self):
         return create_pvc_object(self.pvc_dict)
@@ -1069,21 +1221,33 @@ class DeployRegistrySecret:
 
 class DeployService:
     def __init__(self, app, project):
+        k8s_info = json.loads(app.k8s_yaml)
         release_id = str(app.release_id)
+        if "type" in k8s_info.get("image") and k8s_info.get("image").get("type") != "harbor":
+            release_id = k8s_info.get("image").get("type")
         self.app = app
         self.project = project
-        self.k8s_info = json.loads(app.k8s_yaml)
+        self.k8s_info = k8s_info
         self.name = f"{project.name}-release-{release_id}-{app.name}"
         self.service_name = f"{self.project.name}-service-{release_id}-{app.name}"
 
     def get_service_info(self):
+        network = self.k8s_info.get("network")
+        container_port: list = []
+        expose_port: list = []
+        if "ports" in network:
+            for port in network.get("ports"):
+                container_port.append(port.get("port"))
+                expose_port.append(port.get("expose_port"))
+        else:
+            container_port.append(network.get("port"))
+            expose_port.append(network.get("expose_port"))
         output = {
             "service_name": self.service_name,
-            "port": self.k8s_info.get("network").get("port"),
-            "container_port": self.k8s_info.get("network").get("port"),
+            "port": container_port,
+            "container_port": container_port,
+            "expose_port": expose_port,
         }
-        if self.k8s_info.get("network").get("expose_port") is not None:
-            output["expose_port"] = self.k8s_info.get("network").get("expose_port")
         return output
 
     def service_body(self):
@@ -1117,16 +1281,34 @@ class DeployIngress:
 
 
 class DeployDeployment:
-    def __init__(self, app, project, service_info, registry_secret_info):
-
+    def __init__(self, app, project, service_info, pvc, registry_secret_info: dict = {}):
+        harbor_info = json.loads(app.harbor_info)
+        k8s_info = json.loads(app.k8s_yaml)
+        image = k8s_info.get("image")
+        release_id: str = str(app.release_id)
+        if "type" not in image or image.get("type") == "harbor":
+            image_uri = harbor_info.get("image_uri")
+        else:
+            image_uri = image.get("uri")
+            release_id = image.get("type")
+        if registry_secret_info == {}:
+            registry_secret_info = {
+                "registry_secret_url": image.get("uri"),
+                "registry_secret_name": f"{project.name}-release-{release_id}-at-{app.namespace}-{app.name}",
+            }
+        volumes_info = []
+        if pvc is not None:
+            volumes_info = pvc.get_pvc_info()
         self.app = app
         self.namespace = self.app.namespace
-        self.name = f"{project.name}-release-{str(app.release_id)}-{app.name}"
-        self.harbor_info = json.loads(app.harbor_info)
-        self.k8s_info = json.loads(app.k8s_yaml)
+        self.name = f"{project.name}-release-{release_id}-{app.name}"
+        self.harbor_info = harbor_info
+        self.k8s_info = k8s_info
         self.deployment_name = f"{project.name}-dep-{app.name}"
         self.service_info = service_info
         self.registry_secret_info = registry_secret_info
+        self.image_uri = image_uri
+        self.volumes_info = volumes_info
 
     def get_deployment_info(self):
         return {"deployment_name": self.deployment_name}
@@ -1142,13 +1324,13 @@ class DeployDeployment:
         return create_deployment_object(
             self.name,
             self.deployment_name,
-            self.harbor_info.get("image_uri"),
+            self.image_uri,
             self.service_info.get("container_port"),
             self.registry_secret_info.get("registry_secret_name"),
             self.k8s_info.get("resources"),
             self.k8s_info.get("image"),
             self.get_env(),
-            json.loads(self.app.k8s_yaml).get("volumes", []),
+            self.volumes_info,
         )
 
 
@@ -1160,6 +1342,11 @@ class K8sDeployment:
         self.registry = model.Registries.query.filter_by(registries_id=app.registry_id).first()
         self.k8s_client = DeployK8sClient(self.cluster.name)
         self.k8s_info = json.loads(app.k8s_yaml)
+        image = self.k8s_info.get("image")
+        if "type" not in image:
+            self.image_type = "harbor"
+        else:
+            self.image_type = image.get("type")
         self.volumes = self.k8s_info.get("volumes")
         self.namespace = None
         self.registry_secret = None
@@ -1222,13 +1409,22 @@ class K8sDeployment:
     def check_deployment(self):
         if self.deployment is None:
             self.check_service()
-            self.check_registry_secret()
-            self.deployment = DeployDeployment(
-                self.app,
-                self.project,
-                self.service.get_service_info(),
-                self.registry_secret.get_registry_secret_info(),
-            )
+            if self.image_type == "harbor":
+                self.check_registry_secret()
+                self.deployment = DeployDeployment(
+                    self.app,
+                    self.project,
+                    self.service.get_service_info(),
+                    self.pvc,
+                    self.registry_secret.get_registry_secret_info(),
+                )
+            else:
+                self.deployment = DeployDeployment(
+                    self.app,
+                    self.project,
+                    self.service.get_service_info(),
+                    self.pvc,
+                )
 
     def execute_deployment(self):
         self.check_deployment()
@@ -1272,7 +1468,8 @@ class K8sDeployment:
 def execute_k8s_deployment(app):
     k8s_deployment = K8sDeployment(app)
     k8s_deployment.check_namespace()
-    k8s_deployment.execute_registry_secret()
+    if k8s_deployment.image_type == "harbor":
+        k8s_deployment.execute_registry_secret()
     k8s_deployment.execute_service()
     k8s_info = json.loads(app.k8s_yaml)
     if k8s_info.get("volumes", None) is not None:
@@ -1344,21 +1541,27 @@ def check_application_status(app):
     app = model.Application.query.filter_by(id=application_id).first()
     # Check Harbor Replication execution
     if app.status_id == 1:
-        output = execute_image_replication(app)
-        harbor_info = json.loads(app.harbor_info)
-        harbor_info.update(output)
-        app.harbor_info = json.dumps(harbor_info)
-        app.status_id = harbor_info.get("status_id", app.status_id)
+        if app.harbor_info == "{}" or app.registry_id == 0:
+            app.status_id = 2
+        else:
+            output = execute_image_replication(app)
+            harbor_info = json.loads(app.harbor_info)
+            harbor_info.update(output)
+            app.harbor_info = json.dumps(harbor_info)
+            app.status_id = harbor_info.get("status_id", app.status_id)
         app = reset_restart_number(app)
         db.session.commit()
     # Restart Execution Replication
     elif app.status_id == 11 or app.status_id == 2:
-        harbor_info = json.loads(app.harbor_info)
-        output = execute_image_replication(app, True)
-        harbor_info.update(output)
-        app.status_id = harbor_info.get("status_id", app.status_id)
-        app.harbor_info = json.dumps(harbor_info)
-        if harbor_info.get("status_id") == 3:
+        if app.harbor_info == "{}" or app.registry_id == 0:
+            app.status_id = 3
+        else:
+            harbor_info = json.loads(app.harbor_info)
+            output = execute_image_replication(app, True)
+            harbor_info.update(output)
+            app.status_id = harbor_info.get("status_id", app.status_id)
+            app.harbor_info = json.dumps(harbor_info)
+        if app.status_id == 3:
             app = reset_restart_number(app)
         db.session.commit()
     elif app.status_id == 3:
@@ -1450,11 +1653,30 @@ def get_deployment_info(cluster_name, k8s_yaml):
     return deployment_info, url
 
 
+def check_object_int(dict_object: dict, keys: list):
+    if dict_object is None:
+        dict_object: dict = {}
+    for key in keys:
+        if key in dict_object:
+            if isinstance(dict_object.get(key), str):
+                if str(dict_object.get(key)).upper() == "NONE" or str(dict_object.get(key)).strip(" ") == "":
+                    dict_object[key] = None
+                else:
+                    dict_object[key] = int(dict_object.get(key))
+        else:
+            dict_object[key] = None
+    return dict_object
+
+
 def get_application_information(application, need_update=True, cluster_info=None):
     if application is None:
         return []
+    error_message = None
     if application.status_id in _NEED_UPDATE_APPLICATION_STATUS and need_update:
-        check_application_status(application)
+        try:
+            check_application_status(application)
+        except Exception as ex:
+            error_message = str(ex)
         app = model.Application.query.filter_by(id=application.id).first()
     else:
         app = application
@@ -1468,6 +1690,18 @@ def get_application_information(application, need_update=True, cluster_info=None
         return output
     harbor_info = json.loads(app.harbor_info)
     k8s_yaml = json.loads(app.k8s_yaml)
+    project_name = harbor_info.get("project")
+    if project_name is None:
+        project_name = k8s_yaml.get("project")
+    resources = check_object_int(k8s_yaml.get("resources"), ["cpu", "memory", "replicas"])
+    network = k8s_yaml.get("network")
+    if "ports" in network:
+        ports: list = []
+        for port in network.get("ports"):
+            ports.append(check_object_int(port, ["port", "expose_port"]))
+        network["ports"] = ports
+    else:
+        network = check_object_int(network, ["port", "expose_port"])
     cluster_id = str(app.cluster_id)
     # single cluster get single cluster name
     if cluster_info is None:
@@ -1481,15 +1715,15 @@ def get_application_information(application, need_update=True, cluster_info=None
         "created_time": None,
         "containers": None,
     }
-    # 20230118 將下段程式分離，獨立成一個 API
-    # if k8s_yaml.get('deploy_finish') and app.status_id == 5:
-    #     try:
-    #         deployment_info, url = get_deployment_info(
-    #             cluster_info[cluster_id], k8s_yaml)
-    #     except MaxRetryError as ex:
-    #         logger.info(f'No Route To Host {cluster_id}!')
-    #         logger.error(ex)
-    # 20230118 將上段程式分離，獨立成一個 API
+    if k8s_yaml.get("deploy_finish") and app.status_id == 5:
+        try:
+            deployment_info, url = get_deployment_info(cluster_info[cluster_id], k8s_yaml)
+        except MaxRetryError as ex:
+            logger.info(f"No Route To Host {cluster_id}!")
+            logger.error(ex)
+            error_message = str(ex)
+        except Exception as ex:
+            error_message = str(ex)
     output["deployment"] = deployment_info
     output["public_endpoint"] = url
     output["cluster"] = {}
@@ -1498,13 +1732,19 @@ def get_application_information(application, need_update=True, cluster_info=None
     output["registry"] = {}
     output["registry"]["id"] = app.registry_id
     output["image"] = k8s_yaml.get("image")
-    output["project_name"] = harbor_info.get("project")
+    output["project_name"] = project_name
     output["tag_name"] = harbor_info.get("tag_name")
     output["k8s_status"] = k8s_yaml.get("deploy_finish")
-    output["resources"] = k8s_yaml.get("resources")
-    output["network"] = k8s_yaml.get("network")
+    output["resources"] = resources
+    output["network"] = network
     output["environments"] = k8s_yaml.get("environments")
     output["volumes"] = k8s_yaml.get("volumes")
+    if output["volumes"] is not None:
+        for i in range(len(output["volumes"])):
+            if "sc_name" not in output["volumes"][i]:
+                output["volumes"][i]["sc_name"] = "deploy-local-sc"
+    if error_message is not None:
+        output["error_message"] = error_message
     return output
 
 
@@ -1573,23 +1813,40 @@ def create_application(args):
             _ERROR_APPLICATION_EXISTS,
             error=apiError.create_deploy_application_failed(cluster.name, args.get("namespace"), args.get("name")),
         )
-
-    db_release, db_project = (
-        db.session.query(model.Release, model.Project)
-        .join(model.Project)
+    db_project = (
+        db.session.query(model.Project)
         .filter(
-            model.Release.id == args.get("release_id"),
-            model.Release.project_id == model.Project.id,
+            model.Project.id == args.get("project_id"),
         )
         .one()
     )
-    harbor_info = create_default_harbor_data(
-        db_project,
-        db_release,
-        args.get("registry_id"),
-        args.get("namespace"),
-        args.get("name"),
-    )
+    image = args.get("image")
+    db_release = None
+    harbor_info: dict = {}
+    if "type" not in image or image.get("type") == "harbor":
+        db_release = (
+            db.session.query(model.Release)
+            .filter(
+                model.Release.id == args.get("release_id"),
+            )
+            .one()
+        )
+
+        registry_url = None
+        if args.get("registry_id") == 0:
+            registry = model.Registries.query.filter_by(registries_id=args.get("registry_id")).first()
+            registry_url = registry.url
+        harbor_info = create_default_harbor_data(
+            db_project,
+            db_release,
+            args.get("registry_id"),
+            args.get("namespace"),
+            args.get("name"),
+            registry_url,
+        )
+    else:
+        args["release_id"] = None
+
     k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
     deploy_k8s_client = DeployK8sClient(cluster.name)
@@ -1610,6 +1867,7 @@ def create_application(args):
         harbor_info=json.dumps(harbor_info),
         k8s_yaml=json.dumps(k8s_yaml),
         status="Initial Creating",
+        order=args.get("order"),
     )
     db.session.add(new)
     db.session.commit()
@@ -1628,39 +1886,55 @@ def check_update_application_status(app, args):
 
 def update_application(application_id, args):
     app = model.Application.query.filter_by(id=application_id).first()
-    db_release, db_project = (
-        db.session.query(model.Release, model.Project)
-        .join(model.Project)
+    db_project = (
+        db.session.query(model.Project)
         .filter(
-            model.Release.id == args.get("release_id"),
-            model.Release.project_id == model.Project.id,
+            model.Project.id == args.get("project_id"),
         )
         .one()
     )
-    for key in args.keys():
-        if not hasattr(app, key):
-            continue
-        elif args[key] is not None:
-            setattr(app, key, args[key])
-    #  Change Harbor Info
-    db_harbor_info = json.loads(app.harbor_info)
-    delete_image_replication_policy(db_harbor_info.get("policy_id"))
+    image = args.get("image")
+    db_release = None
+    harbor_info: dict = {}
+    if "type" not in image or image.get("type") == "harbor":
+        db_release = (
+            db.session.query(model.Release)
+            .filter(
+                model.Release.id == args.get("release_id"),
+            )
+            .one()
+        )
+        #  Change Harbor Info
+        harbor_info = json.loads(app.harbor_info)
+        if harbor_info.get("policy_id") is not None:
+            delete_image_replication_policy(harbor_info.get("policy_id"))
 
-    db_harbor_info = create_default_harbor_data(
-        db_project,
-        db_release,
-        args.get("registry_id"),
-        args.get("namespace"),
-        args.get("name"),
-    )
+        registry_url = None
+        if args.get("registry_id") == 0:
+            registry = model.Registries.query.filter_by(registries_id=args.get("registry_id")).first()
+            registry_url = registry.url
+        harbor_info = create_default_harbor_data(
+            db_project,
+            db_release,
+            args.get("registry_id"),
+            args.get("namespace"),
+            args.get("name"),
+            registry_url,
+        )
     #  Change k8s Info
     # db_k8s_yaml = json.loads(app.k8s_yaml)
     db_k8s_yaml = create_default_k8s_data(db_project, db_release, args)
     # check namespace
+    if app.cluster_id != args.get("cluster_id"):
+        app.cluster_id = args.get("cluster_id")
+    if app.registry_id != args.get("registry_id"):
+        app.registry_id = args.get("registry_id")
     app.status_id = disable_application(args.get("disabled"), app)
-    app.harbor_info = json.dumps(db_harbor_info)
+    app.release_id = args.get("release_id")
+    app.harbor_info = json.dumps(harbor_info)
     app.k8s_yaml = json.dumps(db_k8s_yaml)
     app.updated_at = datetime.utcnow()
+    app.order = args.get("order")
     db.session.commit()
     return app.id
 
@@ -1711,6 +1985,11 @@ def patch_application(application_id, args):
             )
             .one()
         )
+
+        registry_url = None
+        if args.get("registry_id") == 0:
+            registry = model.Registries.query.filter_by(registries_id=args.get("registry_id")).first()
+            registry_url = registry.url
         db_harbor_info.update(
             create_default_harbor_data(
                 db_project,
@@ -1718,6 +1997,7 @@ def patch_application(application_id, args):
                 args.get("registry_id", app.registry_id),
                 args.get("namespace", app.namespace),
                 args.get("name", app.name),
+                registry_url,
             )
         )
     app.status = _APPLICATION_STATUS.get(app.status_id, _DEFAULT__APPLICATION_STATUS)
@@ -2179,6 +2459,8 @@ class StorageClass(Resource):
                 _ERROR_CREATE_STORAGE_CLASS,
                 error=apiError.create_storage_class_failed(cluster_id=args.get("cluster_id")),
             )
+
+
 # 20230118 為取得 storage class 資訊而新增上列一段程式
 
 
@@ -2199,14 +2481,18 @@ class UpdateStorageClass(Resource):
     def patch(self, storage_class_id):
         try:
             parser = reqparse.RequestParser()
-            parser.add_argument('disabled', type=inputs.boolean)
+            parser.add_argument("disabled", type=inputs.boolean)
             args = parser.parse_args()
             output = patch_storage_class(storage_class_id, args)
             return util.success({"storage_class": output})
         except NoResultFound:
-            return util.respond(404,
-                                _ERROR_DISABLED_STORAGE_CLASS,
-                                error=apiError.change_storage_class_disabled_failed(storage_class_id=storage_class_id))
+            return util.respond(
+                404,
+                _ERROR_DISABLED_STORAGE_CLASS,
+                error=apiError.change_storage_class_disabled_failed(storage_class_id=storage_class_id),
+            )
+
+
 # 20230201 為變更 storage class disabled 而新增上列一段程式
 
 
@@ -2221,16 +2507,15 @@ def get_cluster_name_by_storage_class_id(storage_class_id: int) -> str:
     return cluster_name
 
 
-def get_persistent_volume_claim_info(cluster_name: str, namespace: str) -> list:
+def get_persistent_volume_claim_info(cluster_name: str, namespace: str, pvc_list: list):
     deploy_k8s_client = DeployK8sClient(cluster_name)
-    pvc_info = []
     for pvc in deploy_k8s_client.list_persistent_volume_claim(namespace).items:
         pvc_json = kubernetesClient.get_persistent_volume_claim_info(pvc)
         # pvc_json["volume_path"] = kubernetesClient.get_persistent_volume_info(
         #     deploy_k8s_client.read_persistent_volume(pvc_json["volume"])
         # )
-        pvc_info.append(pvc_json)
-    return pvc_info
+        pvc_list.append(pvc_json)
+    # return pvc_info
 
 
 def get_persistent_volume_claim_json(storage_class_id: int, cluster_name: str) -> list:
@@ -2245,7 +2530,8 @@ def get_persistent_volume_claim_json(storage_class_id: int, cluster_name: str) -
                 continue
             namespace_list.append(app.namespace)
         for namespace in namespace_list:
-            pvc_list.append(get_persistent_volume_claim_info(cluster_name, namespace))
+            get_persistent_volume_claim_info(cluster_name, namespace, pvc_list)
+            # pvc_list.append()
     return pvc_list
 
 
@@ -2257,7 +2543,416 @@ class PersistentVolumeClaim(Resource):
             output = get_persistent_volume_claim_json(storage_class_id, cluster_name)
             return util.success({"pvc_list": output})
         except NoResultFound:
-            return util.respond(404,
-                                _ERROR_GET_PERSISTENT_VOLUME_CLAIM,
-                                error=apiError.get_persistent_volume_claim_failed(storage_class_id=storage_class_id))
+            return util.respond(
+                404,
+                _ERROR_GET_PERSISTENT_VOLUME_CLAIM,
+                error=apiError.get_persistent_volume_claim_failed(storage_class_id=storage_class_id),
+            )
+
+
 # 20230202 為取得 storage class 所擁有的 PVC 而新增上列一段程式
+
+
+# 20230313 為檢查 expose port 是否可使用而新增下列一段程式
+def get_service_list_info(k8s_client: DeployK8sClient, namespace: str = "", service_name: str = ""):
+    if namespace != "":
+        if service_name != "":
+            return [k8s_client.client.read_namespaced_service(service_name, namespace)]
+        else:
+            return k8s_client.client.list_namespaced_service(service_name).items
+    return k8s_client.client.list_service_for_all_namespaces().items
+
+
+def get_inuse_port_list(k8s_client: DeployK8sClient, namespace: str = "", service_name: str = "") -> list:
+    port_list: list = []
+    for service in get_service_list_info(k8s_client, namespace, service_name):
+        for port in service.spec.ports:
+            if port.node_port is not None:
+                port_list.append(port.node_port)
+    return port_list
+
+
+def check_port_can_use(args) -> bool:
+    cluster_name = args.get("cluster_name", None)
+    check_port = args.get("expose_port")
+    namespace = args.get("namespace", "")
+    app_name = args.get("name", "")
+    k8s_client = DeployK8sClient(cluster_name)
+    if namespace != "" and app_name != "":
+        app = model.Application.query.filter_by(name=app_name).first()
+        if app is not None:
+            release_id = app.release_id
+            k8s_info = json.loads(app.k8s_yaml)
+            if "service" in k8s_info:
+                service_name = k8s_info.get("service").get("service_name")
+            else:
+                service_name = f'{k8s_info.get("repo_name")}-service-'
+                if release_id is None:
+                    service_name += f'dockerhub-'
+                else:
+                    service_name += f'{str(release_id)}-'
+                service_name += f'{app_name}'
+            if check_port in get_inuse_port_list(k8s_client, namespace, service_name):
+                return True
+    return not (check_port in get_inuse_port_list(k8s_client))
+
+
+class CheckPortCanUse(Resource):
+    @jwt_required()
+    def post(self, cluster_name: str, expose_port: int):
+        try:
+            parser = reqparse.RequestParser()
+            parser.add_argument("name", type=str)
+            parser.add_argument("namespace", type=str)
+            args = parser.parse_args()
+            args["cluster_name"] = cluster_name
+            args["expose_port"] = expose_port
+            return util.success({"port_can_use": check_port_can_use(args)})
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_GET_CLUSTERS,
+                error=apiError.get_clusters_failed(server_name=cluster_name),
+            )
+
+
+# 20230313 為檢查 expose port 是否可使用而新增上列一段程式
+
+
+# 20230215 為新增 application_header table 而新增下列一段程式
+def update_app_header(app_header_id, args):
+    if not args.get("remote"):
+        args["cluster_id"] = 0
+        args["registry_id"] = 0
+    app_header = model.ApplicationHeader.query.filter_by(id=app_header_id).first()
+    if args.get("namespace") is None:
+        args["namespace"] = app_header.namespace
+    app_ids = json.loads(app_header.applications_id)
+    cur_app_ids = []
+    for key in args.keys():
+        if not hasattr(app_header, key):
+            continue
+        elif args[key] is not None:
+            setattr(app_header, key, args[key])
+    total_pods: int = 0
+    order: int = 0
+    for app_args in args.get("applications"):
+        app_args["cluster_id"] = args.get("cluster_id")
+        app_args["registry_id"] = args.get("registry_id")
+        app_args["namespace"] = args.get("namespace")
+        app_args["order"] = order
+        order += 1
+        resources = check_object_int(app_args.get("resources"), ["cpu", "memory", "replicas"])
+        if resources.get("replicas") is not None:
+            total_pods += resources.get("replicas")
+        if "id" in app_args:
+            app_id = update_application(app_args["id"], app_args)
+        else:
+            app_args["name"] = args.get("name") + "-" + str(app_args.get("project_id"))
+            app_id = create_application(app_args)
+        if app_id not in cur_app_ids:
+            cur_app_ids.append(app_id)
+    #  Delete Application
+    for app_id in app_ids:
+        if app_id not in cur_app_ids:
+            delete_application(app_id, True)
+    app_header.applications_id = "[" + ",".join(str(i) for i in cur_app_ids) + "]"
+    app_header.total_pods = total_pods
+    db.session.commit()
+    return app_header.id
+
+
+def delete_app_header(app_header_id, delete_db=False, application_id=None):
+    app_header = model.ApplicationHeader.query.filter_by(id=app_header_id).first()
+    if app_header is None:
+        return {}
+    elif delete_db is True:
+        app_ids: list = json.loads(app_header.applications_id)
+        if application_id is None:
+            for app_id in app_ids:
+                delete_application(app_id, delete_db)
+            db.session.delete(app_header)
+            db.session.commit()
+            return {"app_hrader_id": app_header.id, "applications_id": app_ids}
+        else:
+            if application_id in app_ids:
+                id_index = app_ids.index(application_id)
+                app_json = get_applications({"application_id": application_id})
+                delete_application(application_id, delete_db)
+                del app_ids[id_index]
+                app_header.applications_id = json.dumps(app_ids)
+                if app_json.get("resources").get("replicas"):
+                    app_header.total_pods -= app_json.get("resources").get("replicas")
+                # db.session.delete(app_header)
+                db.session.commit()
+                return {"app_hrader_id": app_header.id, "application_id": application_id}
+            else:
+                return {}
+
+
+def patch_app_header(app_header_id, args) -> int:
+    app_header = model.ApplicationHeader.query.filter_by(id=app_header_id).first()
+    if "disabled" in args:
+        identity = get_jwt_identity()
+        user_id = identity["user_id"]
+        app_header.disabled = args.get("disabled")
+        app_header.updated_at = datetime.utcnow()
+        app_header.modifier_id = user_id
+        db.session.commit()
+    app_id_list = json.loads(app_header.applications_id)
+    for app_id in app_id_list:
+        patch_application(app_id, args)
+    return app_header_id
+
+
+def get_app_header_information(app_header, detail: bool = False):
+    if app_header is None:
+        return []
+
+    output = row_to_dict(app_header)
+    # output["total_pods"] = 0
+    output["available_pods"] = 0
+    output["cluster"] = {}
+    output["cluster"]["id"] = app_header.cluster_id
+    output["cluster"]["name"] = get_clusters_name(app_header.cluster_id)[str(app_header.cluster_id)]
+    output["registry"] = {}
+    output["registry"]["id"] = app_header.registry_id
+    if detail:
+        applications = []
+        for app_id in output["applications_id"]:
+            app_json = get_application_information(model.Application.query.filter_by(id=app_id).first())
+            applications.append(app_json)
+            if "deployment" in app_json:
+                deployment = app_json["deployment"]
+                if "total_pod_number" in deployment:
+                    if deployment.get("total_pod_number", 0) is not None:
+                        output["total_pods"] += deployment.get("total_pod_number", 0)
+                if "available_pod_number" in deployment:
+                    if deployment.get("available_pod_number", 0) is not None:
+                        output["available_pods"] += deployment.get("available_pod_number", 0)
+        output["applications"] = applications
+    return output
+
+
+def get_application_headers(args=None):
+    output = []
+    app_header = None
+    if args is None:
+        if role.is_admin():
+            app_header = model.ApplicationHeader.query.filter().order_by(model.ApplicationHeader.id.desc()).all()
+        else:
+            identity = get_jwt_identity()
+            user_id = identity["user_id"]
+            app_header = (
+                model.ApplicationHeader.query.filter_by(creator_id=user_id)
+                .order_by(model.ApplicationHeader.id.desc())
+                .all()
+            )
+    elif "app_header_id" in args:
+        app_header = (
+            model.ApplicationHeader.query.filter_by(id=args.get("app_header_id"))
+            .order_by(model.ApplicationHeader.id.desc())
+            .first()
+        )
+    if app_header is None:
+        return output
+    elif isinstance(app_header, list):
+        for app in app_header:
+            output.append(get_app_header_information(app))
+    else:
+        output = get_app_header_information(app_header, True)
+    return output
+
+
+def check_application_header_exists(name, namespace, cluster_id, registry_id) -> model.ApplicationHeader:
+    return model.ApplicationHeader.query.filter_by(
+        name=name, namespace=namespace, cluster_id=cluster_id, registry_id=registry_id
+    ).first()
+
+
+def create_application_header(args) -> int:
+    if not args.get("remote"):
+        args["cluster_id"] = 0
+        args["registry_id"] = 0
+    cluster = model.Cluster.query.filter_by(id=args.get("cluster_id")).first()
+    registry = model.Cluster.query.filter_by(id=args.get("registry_id")).first()
+    application_list = args.get("applications")
+    if len(application_list) <= 0:
+        raise apiError.DevOpsError(
+            404,
+            _ERROR_APPLICATION_HEADER_EXISTS,
+            error=apiError.create_application_header_failed(
+                cluster.name, registry.name, args.get("namespace"), args.get("name")
+            ),
+        )
+    if not args.get("remote"):
+        args["namespace"] = None
+        project_name = model.Project.query.filter_by(id=application_list[0]["project_id"]).first().name
+        for i in range(100):
+            temp_namespace = project_name + "-dpy" + ("00" + str(i))[-2:]
+            if check_application_header_exists(args.get("name"), temp_namespace, 0, 0) is None:
+                args["namespace"] = temp_namespace
+                break
+        if args.get("namespace") is None:
+            raise apiError.DevOpsError(
+                404,
+                _ERROR_APPLICATION_HEADER_EXISTS,
+                error=apiError.create_application_header_failed(
+                    cluster.name, registry.name, args.get("namespace"), args.get("name")
+                ),
+            )
+    else:
+        if (
+            check_application_header_exists(
+                args.get("name"), args.get("namespace"), args.get("cluster_id"), args.get("registry_id")
+            )
+            is not None
+        ):
+            raise apiError.DevOpsError(
+                404,
+                _ERROR_APPLICATION_HEADER_EXISTS,
+                error=apiError.create_application_header_failed(cluster.name, args.get("namespace"), args.get("name")),
+            )
+    applications_id = []
+    total_pods: int = 0
+    for proj in application_list:
+        app_args = reqparse.Namespace(**proj)
+        app_args["name"] = args.get("name") + "-" + str(app_args.get("project_id"))
+        app_args["cluster_id"] = args.get("cluster_id")
+        app_args["registry_id"] = args.get("registry_id")
+        app_args["namespace"] = args.get("namespace")
+        if "resources" in app_args:
+            resources = app_args.get("resources")
+            resources = check_object_int(resources, ["cpu", "memory", "replicas"])
+            if resources.get("replicas"):
+                total_pods += resources.get("replicas")
+        applications_id.append(create_application(app_args))
+    now = str(datetime.utcnow())
+    identity = get_jwt_identity()
+    user_id = identity["user_id"]
+    app_header = model.ApplicationHeader(
+        name=args.get("name"),
+        remote=args.get("remote"),
+        registry_id=args.get("registry_id"),
+        cluster_id=args.get("cluster_id"),
+        namespace=args.get("namespace"),
+        applications_id="[" + ",".join(str(i) for i in applications_id) + "]",
+        disabled=False,
+        created_at=now,
+        updated_at=now,
+        total_pods=total_pods,
+        creator_id=user_id,
+        modifier_id=user_id,
+    )
+    db.session.add(app_header)
+    db.session.commit()
+    return app_header.id
+
+
+class ApplicationHeaders(Resource):
+    @jwt_required()
+    def get(self):
+        try:
+            return util.success({"app_headers": get_application_headers()})
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_GET_APPLICATION_HEADER,
+                error=apiError.get_application_header_failed(app_header_id=None),
+            )
+
+    @jwt_required()
+    def post(self):
+        try:
+            parser = reqparse.RequestParser()
+            parser.add_argument("name", type=str)
+            parser.add_argument("remote", type=inputs.boolean)
+            parser.add_argument("registry_id", type=int)
+            parser.add_argument("cluster_id", type=int)
+            parser.add_argument("namespace", type=str)
+            parser.add_argument("applications", type=dict, action="append")
+            parser.add_argument("disabled", type=inputs.boolean)
+            args = parser.parse_args()
+            # output = create_application_header(args)
+            return util.success({"application_headers": {"id": create_application_header(args)}})
+        except NoResultFound:
+            return util.respond(404, _ERROR_CREATE_APPLICATION_HEADER)
+
+
+class ApplicationHeader(Resource):
+    @jwt_required()
+    def get(self, app_header_id):
+        try:
+            args = {"app_header_id": app_header_id}
+            output = get_application_headers(args)
+            return util.success({"app_header": output})
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_GET_APPLICATION_HEADER,
+                error=apiError.get_application_header_failed(app_header_id=args.get("app_header_id")),
+            )
+
+    @jwt_required()
+    def patch(self, app_header_id):
+        try:
+            parser = reqparse.RequestParser()
+            parser.add_argument("disabled", type=inputs.boolean)
+            args = parser.parse_args()
+            return util.success({"app_headers": patch_app_header(app_header_id, args)})
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_UPDATE_APPLICATION_HEADER,
+                error=apiError.update_deploy_application_failed(app_header_id=app_header_id),
+            )
+
+    @jwt_required()
+    def delete(self, app_header_id):
+        try:
+            return util.success(delete_app_header(app_header_id, True))
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_DELETE_APPLICATION_HEADER,
+                error=apiError.delete_application_header_failed(app_header_id),
+            )
+
+    @jwt_required()
+    def put(self, app_header_id):
+        try:
+            parser = reqparse.RequestParser()
+            parser.add_argument("name", type=str)
+            parser.add_argument("remote", type=inputs.boolean)
+            parser.add_argument("registry_id", type=int)
+            parser.add_argument("cluster_id", type=int)
+            parser.add_argument("namespace", type=str)
+            parser.add_argument("applications", type=dict, action="append")
+            parser.add_argument("disabled", type=inputs.boolean)
+            args = parser.parse_args()
+            output = update_app_header(app_header_id, args)
+            return util.success({"app_header": {"id": output}})
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_UPDATE_APPLICATION_HEADER,
+                error=apiError.update_application_header_failed(app_header_id=app_header_id),
+            )
+
+
+class DeleteApplicationHeader(Resource):
+    @jwt_required()
+    def delete(self, app_header_id, application_id):
+        try:
+            return util.success(delete_app_header(app_header_id, True, application_id))
+        except NoResultFound:
+            return util.respond(
+                404,
+                _ERROR_DELETE_APPLICATION_HEADER,
+                error=apiError.delete_application_header_failed(
+                    app_header_id=app_header_id, application_id=application_id
+                ),
+            )
+
+
+# 20230215 為新增 application_header table 而新增上列一段程式

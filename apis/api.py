@@ -615,6 +615,11 @@ api.add_resource(deploy.ReleaseApplication, "/deploy/release/<int:release_id>")
 
 api.add_resource(deploy.Applications, "/deploy/applications")
 api.add_resource(deploy.Application, "/deploy/applications/<int:application_id>")
+# 20230215 為新增 application_header table 而新增下列一段程式
+api.add_resource(deploy.ApplicationHeaders, "/deploy/app_headers")
+api.add_resource(deploy.ApplicationHeader, "/deploy/app_headers/<int:app_header_id>")
+api.add_resource(deploy.DeleteApplicationHeader, "/deploy/app_headers/<int:app_header_id>/<int:application_id>")
+# 20230215 為新增 application_header table 而新增上列一段程式
 
 api.add_resource(deploy.RedeployApplication, "/deploy/applications/<int:application_id>/redeploy")
 
@@ -629,11 +634,14 @@ api.add_resource(deploy.Deployment, "/deploy/applications/deployment/<int:applic
 api.add_resource(deploy.StorageClass, "/deploy/clusters/storage/<int:cluster_id>")
 # 20230118 為取得 storage class 資訊而新增上列API
 # 20230201 為變更 storage class disabled 布林值而新增下列API
-api.add_resource(deploy.UpdateStorageClass, '/deploy/storage/<int:storage_class_id>')
+api.add_resource(deploy.UpdateStorageClass, "/deploy/storage/<int:storage_class_id>")
 # 20230201 為變更 storage class disabled 布林值而新增上列API
 # 20230202 為取得 persistent volume claim 資訊而新增下列API
 api.add_resource(deploy.PersistentVolumeClaim, "/deploy/clusters/storage/pvc/<int:storage_class_id>")
 # 20230202 為取得 persistent volume claim 資訊而新增上列API
+# 20230313 為檢查 expose port 是否可使用而新增下列API
+api.add_resource(deploy.CheckPortCanUse, "/deploy/clusters/<cluster_name>/outer_port/<int:expose_port>/can_use")
+# 20230313 為檢查 expose port 是否可使用新增上列API
 
 # Alert
 api.add_resource(alert.ProjectAlert, "/project/<sint:project_id>/alert")

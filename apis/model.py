@@ -600,6 +600,27 @@ class Cluster(db.Model):
         return json.dumps(fields)
 
 
+# 20230215 為實現多專案部署新增 application_header 資料表而新增下列一段程式
+class ApplicationHeader(db.Model):
+    __tablename__ = "application_header"
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    remote = Column(Boolean)
+    cluster_id = Column(Integer, ForeignKey(Cluster.id))
+    registry_id = Column(Integer, ForeignKey(Registries.registries_id))
+    namespace = Column(String)
+    applications_id = Column(String, default="[]")
+    disabled = Column(Boolean, default=False)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+    # 20230215 為實現多專案部署新增 application_header 資料表而新增上列一段程式
+    # 20230303 為實現多專案部署控管新增 application_header 資料表的欄位而新增下列一段程式
+    total_pods = Column(Integer)
+    creator_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True, server_default="0")
+    modifier_id = Column(Integer, ForeignKey(User.id, ondelete="SET NULL"), nullable=True, server_default="0")
+    # 20230303 為實現多專案部署控管新增 application_header 資料表的欄位而新增上列一段程式
+
+
 class Application(db.Model):
     __tablename__ = "application"
     id = Column(Integer, primary_key=True)

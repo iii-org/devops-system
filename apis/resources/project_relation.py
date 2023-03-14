@@ -89,12 +89,27 @@ def get_root_project_id(project_id, force=False):
     return get_root_project_id(parent_id, force)
 
 
+def __check_project_relation(relation_pj_ids: list[int]):
+    try:
+        user_id = get_jwt_identity()["user_id"]
+        role_id = get_jwt_identity()["role_id"]
+    except Exception as e:
+        user_id, role_id = 1, role.ADMIN.id
+
+    query = model.ProjectUserRole.query.filter(model.ProjectUserRole.project_id.in_(relation_pj_ids))
+    if role_id != role.ADMIN.id:
+        query = query.filter_by(user_id=user_id)
+    return query.first() is not None
+
+
 def project_has_child(project_id):
-    return model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).first() is not None
+    relation_pj_ids = [row.son_id for row in model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).all()]
+    return __check_project_relation(relation_pj_ids)
 
 
 def project_has_parent(project_id):
-    return model.ProjectParentSonRelation.query.filter_by(son_id=project_id).first() is not None
+    relation_pj_ids = [row.parent_id for row in model.ProjectParentSonRelation.query.filter_by(son_id=project_id).all()]
+    return __check_project_relation(relation_pj_ids)
 
 
 def get_relation_list(project_id, ret):

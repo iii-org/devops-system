@@ -590,7 +590,7 @@ def pm_update_project(project_id, args):
     nexus.nx_update_project(project_id, args)
 
     # 如果有disable, 調整專案在gitlab archive狀態
-    if args.get("disabled"):
+    if args.get("disabled") is not None:
         disabled = args["disabled"]
         gitlab.gl_archive_project(plugin_relation.git_repository_id, disabled)
         rancher.rc_del_app_with_prefix(f"{project_name}-")
