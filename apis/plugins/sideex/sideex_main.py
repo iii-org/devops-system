@@ -296,16 +296,7 @@ def save_to_txt(project_id, kwargs):
             data.write(f"\n{i}")
 
 
-def check_variable_not_null(kwargs):
-    for variable in kwargs["var"]:
-        for key, value in variable.items():
-            if key == "value":
-                if not value or value == "":
-                    raise apiError.DevOpsError(404, "value can't be null")
-
-
 def update_config_file(project_id, kwargs):
-    # check_variable_not_null(kwargs)
     project_name = nexus.nx_get_project(id=project_id).name
     if not os.path.isdir(f"devops-data/project-data/{project_name}/pict"):
         Path(f"devops-data/project-data/{project_name}/pict").mkdir(parents=True, exist_ok=True)
@@ -337,7 +328,6 @@ def pict_convert_result(project_id) -> list[str]:
     if os.path.isfile(file):
         # Get pict from https://github.com/microsoft/pict
         std_output: bytes = subprocess.check_output(["pict", file])
-        # std_output = b'abc\tdef\txx2\nx5\txyz\t56\nx5\t\xe6\xb8\xac\xe8\xa9\xa6\t99\nb1\txyz\t12\n\xe7\xb5\x84\xe5\x90\x88\txyz\t99\nw10\ta54\t99\nw10\t\xe6\xb8\xac\xe8\xa9\xa6\t56\n\xe7\xb5\x84\xe5\x90\x88\ta54\t12\nb1\t\xe6\xb8\xac\xe8\xa9\xa6\t12\nc3\ta54\t99\nc3\txyz\tab\n\xe7\xb5\x84\xe5\x90\x88\tabc\t56\nx5\ta54\t12\nb1\ta54\t99\nb1\ta54\t56\nc3\t\xe6\xb8\xac\xe8\xa9\xa6\tab\n\xe7\xb5\x84\xe5\x90\x88\tabc\t12\nc3\txyz\t56\nc3\ta54\t12\nw10\txyz\t12\n\xe7\xb5\x84\xe5\x90\x88\tabc\t99\n\xe7\xb5\x84\xe5\x90\x88\t\xe6\xb8\xac\xe8\xa9\xa6\t99\nc3\ta54\tab\n'
         decoded: str = std_output.decode("utf-8")
         concat: str = decoded.replace("\t", "\n").replace("\r\n", "\n")
         result: list[str] = concat.split("\n")

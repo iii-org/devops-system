@@ -381,7 +381,7 @@ def insert_excalidraw_in_excalidraw_db(key: str, value: str) -> bool:
         ret = False
     finally:
         conn.close()
-        return ret
+    return ret
 
 
 def update_excalidraw_in_excalidraw_db(key: str, value: str) -> bool:
@@ -402,7 +402,7 @@ def update_excalidraw_in_excalidraw_db(key: str, value: str) -> bool:
         ret = False
     finally:
         conn.close()
-        return ret
+    return ret
 
 
 def restore_excalidraw_db(element: str, key: str, value: str, force_update: bool = False) -> None:

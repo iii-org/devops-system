@@ -706,7 +706,7 @@ def get_issue_assign_to_detail(issue):
 
 
 def create_issue(args, operator_id):
-    changeUrl = args.get("changeUrl")
+    change_url = args.get("changeUrl")
     update_cache_issue_family = False
     project_id = args["project_id"]
     plan_operator_id = None
@@ -789,11 +789,11 @@ def create_issue(args, operator_id):
     attachment_list = personal_redmine_obj.rm_upload(args)
     if attachment_list is not None:
         args["uploads"] = attachment_list
-    if changeUrl:
+    if change_url:
         if args.get("description") is not None:
-            args["description"] += f",changeUrl:{changeUrl}"
+            args["description"] += f",changeUrl:{change_url}"
         else:
-            args["description"] = changeUrl
+            args["description"] = change_url
     created_issue = personal_redmine_obj.rm_create_issue(args)
     created_issue_id = created_issue["issue"]["id"]
     create_issue_extensions(created_issue_id, extension_args)
@@ -1047,15 +1047,13 @@ def update_issue(issue_id, args, operator_id=None):
     if "fixed_version_id" in args:
         if len(args["fixed_version_id"]) > 0:
             version = redmine_lib.redmine.version.get(args["fixed_version_id"])
-            if hasattr(issue, "fixed_version") and issue.fixed_version.id == version.id:
-                pass
-            elif version.status in ["locked", "closed"]:
+            if version.status in ["locked", "closed"]:
                 raise DevOpsError(
                     400,
                     "Error while updating issue",
                     error=apiError.invalid_fixed_version_id(version.name, version.status),
                 )
-            else:
+            elif not (hasattr(issue, "fixed_version") and issue.fixed_version.id == version.id):
                 origin_fixed_version_id = None if not hasattr(issue, "fixed_version") else issue.fixed_version.id
         else:
             args["fixed_version_id"] = None
@@ -1373,10 +1371,10 @@ def get_issue_list_by_user(user_id, args):
         default_filters = get_custom_filters_by_args(args, project_id=plan_id, user_id=nx_user.plan_user_id)
     else:
         default_filters = get_custom_filters_by_args(args, user_id=nx_user.plan_user_id)
-    if args.get("from") not in ["author_id", "assigned_to_id"]:
-        return []
     # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    elif (args.get("search") and default_filters.get("issue_id") is None) or args.get("has_tag_issue", False):
+    if (args.get("from") not in ["author_id", "assigned_to_id"]) or (
+        (args.get("search") and default_filters.get("issue_id") is None) or args.get("has_tag_issue", False)
+    ):
         return []
 
     if len(default_filters.get("issue_id", "").split(",")) > 200:

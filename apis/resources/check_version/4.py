@@ -42,8 +42,8 @@ def extra_func(pipe_stages, change):
 
     pipe_stages_copy = deepcopy(pipe_stages)
 
-    add_anchore: bool = True
-    env_index: int = None
+    add_anchore = True
+    env_index = None
     for pipe_stage in pipe_stages_copy:
         if pipe_stage.get("iiidevops") == "anchore":
             add_anchore = False

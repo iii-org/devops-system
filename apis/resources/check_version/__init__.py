@@ -45,9 +45,6 @@ def update_project_pipeline_version(pj_id, version=None, status=None, message=No
 
 
 def check_project_list_file_exist():
-    """
-    ret = {"white_list": [{repo_name}, {repo_name}], "black_list": []}
-    """
     path = "devops-data/config/black_white_projects.json"
     if not os.path.isfile(path):
         Path("devops-data/config").mkdir(parents=True, exist_ok=True)
