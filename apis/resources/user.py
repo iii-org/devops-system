@@ -31,7 +31,7 @@ from sqlalchemy import desc, nullslast
 import gitlab as gitlab_pack
 from resources.mail import mail_server_is_open
 from resources.notification_message import create_notification_message
-import random
+import secrets
 import base64
 
 # Make a regular expression
@@ -345,7 +345,7 @@ def update_user_role(user_id, role_id):
 
 
 def update_external_passwords(user_id, new_pwd, old_pwd):
-    DEFAULT_AD_PASSWORD = f"IIIdevops{random.randrange(10000, 99999)}"
+    DEFAULT_AD_PASSWORD = f"IIIdevops{secrets.SystemRandom().randrange(10000, 99999)}"
     login_account = model.User.query.filter_by(id=user_id).first().login
     try:
         user_login = nx_get_user(id=user_id).login
