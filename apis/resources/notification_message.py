@@ -242,13 +242,11 @@ def get_notification_message_list(args, admin=False):
     if admin and args.get("include_system_message") is not True:
         base_query = base_query.filter(NotificationMessage.alert_level <= 100)
     rows = base_query.order_by(desc(NotificationMessage.id)).all()
-
     if admin is False:
         rows = filter_by_user(rows, get_jwt_identity()["user_id"], get_jwt_identity()["role_id"])
     out = combine_message_and_recipient(rows)
     if admin:
         out = count_must_receiver_number(out)
-    # print(out)
     out, page_dict = util.list_pagination(out, args["limit"], args["offset"])
     out_dict = {"notification_message_list": out}
 

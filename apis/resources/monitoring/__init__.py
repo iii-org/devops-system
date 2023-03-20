@@ -6,7 +6,7 @@ from typing import Any, Callable
 
 from github import Github
 from github.GithubException import BadCredentialsException
-from sqlalchemy import desc
+from sqlalchemy import desc, func, Integer, Text
 
 import config
 import util
@@ -172,8 +172,11 @@ class Monitoring:
         self.__update_all_alive(server_alive["alive"])
         return server_alive["alive"]
 
-    def __check_server_element_alive(self, func):
-        element_ret = func()
+    def __check_server_element_alive(self, func, is_check=None):
+        if is_check is not None:
+            element_ret = func(is_check)
+        else:
+            element_ret = func()
         element_alive = element_ret["status"]
         self.error_title = str(element_ret["error_title"])
         self.alert_service_id = AlertServiceIDMapping[self.error_title]
@@ -336,7 +339,7 @@ class Monitoring:
         )
 
     # Rancher
-    def rancher_alive(self, is_project=False):
+    def rancher_alive(self, is_project=False, is_check: bool = True):
         self.server = "Rancher"
         self.alert_service_id = 601
         rancher_alive = self.__check_server_alive(
@@ -347,13 +350,10 @@ class Monitoring:
         )
         if not rancher_alive or is_project:
             return rancher_alive
-
-        for check_element in [
-            rancher_projects_limit_num,
-            rancher_pod_restart_times_outoflimits,
-        ]:
-            if not self.__check_server_element_alive(check_element):
-                rancher_alive = False
+        if not self.__check_server_element_alive(rancher_projects_limit_num):
+            rancher_alive = False
+        if not self.__check_server_element_alive(rancher_pod_restart_times_outoflimits, is_check):
+            rancher_alive = False
         return rancher_alive
 
     # Plugins
@@ -417,7 +417,7 @@ class Monitoring:
                 "Harbor": self.harbor_alive(is_project),
                 "K8s": self.kubernetes_alive(is_project),
                 "Sonarqube": self.sonarqube_alive(),
-                "Rancher": self.rancher_alive(is_project),
+                "Rancher": self.rancher_alive(is_project, False),
             },
             "all_alive": self.all_alive,
         }
@@ -679,11 +679,11 @@ def rancher_projects_limit_num():
         }
 
 
-def rancher_pod_restart_times_outoflimits():
+def rancher_pod_restart_times_outoflimits(is_check: bool = False):
     # 取得目前TUC時間
     utcnow = datetime.utcnow()
     # 檢查 utcnow 的分 >= 5 and < 10 才做 pod 重啟上限值檢查
-    if 5 <= utcnow.minute < 10:
+    if 5 <= utcnow.minute < 10 or is_check:
         # 獲取restart上限值
         condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
         if not condition.active or condition.active is None:
@@ -696,9 +696,11 @@ def rancher_pod_restart_times_outoflimits():
         last_hour = utcnow - timedelta(hours=1)
         limit_hour = last_hour.strftime("%Y-%m-%d %H:00:00")
         data_collections = (
-            ServerDataCollection.query.filter_by(type_id=1)
-            .filter(ServerDataCollection.collect_at >= limit_hour)
-            .distinct(ServerDataCollection.project_id)
+            ServerDataCollection.query.filter_by(type_id=1).filter(
+                ServerDataCollection.collect_at >= limit_hour,
+                func.cast(func.cast(ServerDataCollection.value["value"], Text), Integer) >= limit_times,
+            )
+            # .fudistinct(ServerDataCollection.project_id)
         )
         # 進行監控並回傳結果
         message = []
