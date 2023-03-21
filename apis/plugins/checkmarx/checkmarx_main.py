@@ -511,5 +511,7 @@ class CronjobScan(Resource):
                     else:
                         # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
                         rows[i].report_id = -1
+                        if rows[i].finished is None:
+                            rows[i].finished = True
                 db.session.commit()
         return util.success()
