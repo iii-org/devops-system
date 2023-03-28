@@ -695,12 +695,9 @@ def rancher_pod_restart_times_outoflimits(is_check: bool = False):
         # 獲取過去一小時內重啟次數資料
         last_hour = utcnow - timedelta(hours=1)
         limit_hour = last_hour.strftime("%Y-%m-%d %H:00:00")
-        data_collections = (
-            ServerDataCollection.query.filter_by(type_id=1).filter(
-                ServerDataCollection.collect_at >= limit_hour,
-                func.cast(func.cast(ServerDataCollection.value["value"], Text), Integer) >= limit_times,
-            )
-            # .fudistinct(ServerDataCollection.project_id)
+        data_collections = ServerDataCollection.query.filter_by(type_id=1).filter(
+            ServerDataCollection.collect_at > limit_hour,
+            func.cast(func.cast(ServerDataCollection.value["value"], Text), Integer) >= limit_times,
         )
         # 進行監控並回傳結果
         message = []
