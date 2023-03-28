@@ -12,7 +12,7 @@ from typing import Optional
 from accessories import redmine_lib
 from flask import send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource, reqparse
+from flask_restful import Resource
 from kubernetes.client import ApiException
 from sqlalchemy import desc, or_
 from sqlalchemy.orm import Query, joinedload
