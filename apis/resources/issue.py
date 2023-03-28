@@ -2519,10 +2519,7 @@ class DownloadIssueAsExcel:
         self.deploy_column = args.pop("deploy_column")
         self.args = args
         self.project_id = priority_id
-        self.__get_operator_id(user_id)
-
-    def __get_operator_id(self, user_id):
-        self.operator_id = model.UserPluginRelation.query.filter_by(user_id=user_id).one().plan_user_id
+        self.operator_id = user_id
         self.user_name = model.User.query.get(int(user_id)).login
 
     def execute(self):
