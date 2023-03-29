@@ -5,12 +5,12 @@
   "is_pipeline": true,
   "keys": [
     {
-      "key": "wi-type",
+      "key": "wi_scc_url",
       "type": "string",
       "store": "secret_all"
     },
     {
-      "key": "wi-base-url",
+      "key": "wi_dast_url",
       "type": "string",
       "store": "secret_all"
     },
