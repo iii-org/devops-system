@@ -14,7 +14,7 @@ from model import ProjectPluginRelation, db, PipelineLogsCache, Project
 from nexus import nx_get_project_plugin_relation
 from resources import role
 from .gitlab import GitLab, commit_id_to_url
-from .rancher import rancher
+from .rancher import rancher, turn_project_push_off, turn_project_push_on
 from os import listdir, makedirs
 from shutil import rmtree
 
@@ -174,6 +174,22 @@ def get_pipeline_next_run(repository_id):
     relation = nx_get_project_plugin_relation(repo_id=repository_id)
     info_json = rancher.rc_get_pipeline_info(relation.ci_project_id, relation.ci_pipeline_id)
     return info_json["nextRun"]
+
+
+def get_pipeline_trigger_webhook_push(repository_id):
+    relation = nx_get_project_plugin_relation(repo_id=repository_id)
+    info_json = rancher.rc_get_pipeline_info(relation.ci_project_id, relation.ci_pipeline_id)
+    return info_json["triggerWebhookPush"]
+
+
+def turn_push_off(repository_id):
+    relation = nx_get_project_plugin_relation(repo_id=repository_id)
+    turn_project_push_off(relation.ci_project_id, relation.ci_pipeline_id)
+
+
+def turn_push_on(repository_id):
+    relation = nx_get_project_plugin_relation(repo_id=repository_id)
+    turn_project_push_on(relation.ci_project_id, relation.ci_pipeline_id)
 
 
 def generate_ci_yaml(args, repository_id, branch_name):

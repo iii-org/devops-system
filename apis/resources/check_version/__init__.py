@@ -175,8 +175,12 @@ def update_pipieline_file(pj_id, version):
                         change = True
 
             if change:
-                next_run = pipeline.get_pipeline_next_run(gl_pj_id)
-                create_pipeline_execution(gl_pj_id, branch, next_run)
+                # next_run = pipeline.get_pipeline_next_run(gl_pj_id)
+                # create_pipeline_execution(gl_pj_id, branch, next_run)
+                is_turn_off_push = False
+                if pipeline.get_pipeline_trigger_webhook_push(gl_pj_id):
+                    pipeline.turn_push_off(gl_pj_id)
+                    is_turn_off_push = True
                 pipe_dict["stages"] = pipe_stages
                 f.content = yaml.dump(pipe_dict, sort_keys=False)
                 f.save(
@@ -185,8 +189,10 @@ def update_pipieline_file(pj_id, version):
                     author_name="iiidevops",
                     commit_message=f"Upgrade rancher-pipeline.yml's tools and images(API Version: {api_version}).",
                 )
-                pipeline.stop_and_delete_pipeline(gl_pj_id, next_run, branch=branch)
-                sleep(30)
+                # pipeline.stop_and_delete_pipeline(gl_pj_id, next_run, branch=branch)
+                # sleep(30)
+                if is_turn_off_push:
+                    pipeline.turn_push_on(gl_pj_id)
 
             logger.logger.info(f"Change: {change}")
             logger.logger.info(f"Updating {gl_pj_id} tool version in branch({branch}) done.")
