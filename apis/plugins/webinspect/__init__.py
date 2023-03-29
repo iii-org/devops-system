@@ -8,8 +8,8 @@ ui_route = ["WebInspect"]
 def router(api, add_resource):
     # WebInspect
     api.add_resource(webinspect_main.WebInspectPostScan, "/webinspect/scan")
-    add_resource(webinspect_main.WebInspectPostScan, "private")
+    # add_resource(webinspect_main.WebInspectPostScan, "public")
     api.add_resource(webinspect_main.WebInspectListScan, "/project/<sint:project_id>/webinspect/scan")
-    add_resource(webinspect_main.WebInspectListScan, "private")
+    # add_resource(webinspect_main.WebInspectListScan, "public")
     api.add_resource(webinspect_main.WebInspectScan, "/webinspect/scan/<s_id>")
-    add_resource(webinspect_main.WebInspectScan, "private")
+    # add_resource(webinspect_main.WebInspectScan, "public")
