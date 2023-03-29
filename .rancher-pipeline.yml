@@ -34,7 +34,6 @@ stages:
       - develop
       - jonathan
       - project_issue
-      - SSO
 - name: Test--Checkmarx source code scan
   iiidevops: checkmarx
   steps:
