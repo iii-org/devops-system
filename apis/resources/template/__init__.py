@@ -744,10 +744,14 @@ def sync_branch(
     had_update_branche = pipe_json != updated_pipe_json
     pipe_json = updated_pipe_json
     if had_update_branche:
+        is_turn_off_push = False
         if not_run:
-            next_run = pipeline.get_pipeline_next_run(repository_id)
-            print(f"next_run: {next_run}")
-            create_pipeline_execution(repository_id, br_name, next_run)
+            # next_run = pipeline.get_pipeline_next_run(repository_id)
+            # print(f"next_run: {next_run}")
+            # create_pipeline_execution(repository_id, br_name, next_run)
+            if pipeline.get_pipeline_trigger_webhook_push(repository_id):
+                pipeline.turn_push_off(repository_id)
+                is_turn_off_push = True
 
         f.content = yaml.dump(pipe_json, sort_keys=False)
         f.save(
@@ -757,8 +761,10 @@ def sync_branch(
             commit_message=f"{user_account} 編輯 {br_name} 分支 .rancher-pipeline.yaml",
         )
         if not_run:
-            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br_name)
-            print(f"stop_and_delete: {next_run}")
+            # pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br_name)
+            # print(f"stop_and_delete: {next_run}")
+            if is_turn_off_push:
+                pipeline.turn_push_on(repository_id)
 
 
 def initial_rancher_pipline_info(repository_id):
