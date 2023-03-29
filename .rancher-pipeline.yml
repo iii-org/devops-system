@@ -33,7 +33,6 @@ stages:
       - master
       - jonathan
       - project_issue
-      - develop
 - name: Test--Checkmarx source code scan
   iiidevops: checkmarx
   steps:
