@@ -554,7 +554,7 @@ class DownloadProject(Resource):
 ##### List project ######
 @doc(tags=["Project"], description="List projects")
 @use_kwargs(router_model.ListMyProjectsSchema, location="query")
-@marshal_with(router_model.ListMyProjectsResponse)
+# @marshal_with(router_model.ListMyProjectsResponse)
 class ListMyProjectsV2(MethodResource):
     @jwt_required()
     def get(self, **kwargs):
