@@ -985,33 +985,33 @@ def get_test_summary(project_id):
                 raise e
 
     # webinspect ..
-    if not plugins.get_plugin_config("webinspect")["disabled"]:
-        scan = webinspect.get_latest_scans(project_name)
-        if scan is not None:
-            if type(scan["stats"]) is dict and scan["stats"]["status"] == "Complete":
-                ret["webinspect"] = {
-                    "message": "success",
-                    "status": 1,
-                    "result": scan["stats"],
-                    "run_at": scan["run_at"],
-                }
-            elif scan["stats"]["status"] in ["NotRunning", "Interrupted", "Failed"]:
-                ret["webinspect"] = {
-                    "message": f"Status is {scan['stats']['status'].lower()}.",
-                    "status": -1,
-                    "result": {},
-                    "run_at": str(scan["run_at"]) if scan["run_at"] is not None else None,
-                }
-            else:
-                ret["webinspect"] = {
-                    "message": "It is not finished yet.",
-                    "status": 2,
-                    "result": {},
-                    "run_at": str(scan["run_at"]) if scan.get("run_at") is not None else None,
-                }
-        else:
-            not_found_ret["message"] = not_found_ret_message("webinspect")
-            ret["webinspect"] = not_found_ret.copy()
+    # if not plugins.get_plugin_config("webinspect")["disabled"]:
+    #     scan = webinspect.get_latest_scans(project_name)
+    #     if scan is not None:
+    #         if type(scan["stats"]) is dict and scan["stats"]["status"] == "Complete":
+    #             ret["webinspect"] = {
+    #                 "message": "success",
+    #                 "status": 1,
+    #                 "result": scan["stats"],
+    #                 "run_at": scan["run_at"],
+    #             }
+    #         elif scan["stats"]["status"] in ["NotRunning", "Interrupted", "Failed"]:
+    #             ret["webinspect"] = {
+    #                 "message": f"Status is {scan['stats']['status'].lower()}.",
+    #                 "status": -1,
+    #                 "result": {},
+    #                 "run_at": str(scan["run_at"]) if scan["run_at"] is not None else None,
+    #             }
+    #         else:
+    #             ret["webinspect"] = {
+    #                 "message": "It is not finished yet.",
+    #                 "status": 2,
+    #                 "result": {},
+    #                 "run_at": str(scan["run_at"]) if scan.get("run_at") is not None else None,
+    #             }
+    #     else:
+    #         not_found_ret["message"] = not_found_ret_message("webinspect")
+    #         ret["webinspect"] = not_found_ret.copy()
 
     # sonarqube ..
     if not plugins.get_plugin_config("sonarqube")["disabled"]:
