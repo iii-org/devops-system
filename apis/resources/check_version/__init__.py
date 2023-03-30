@@ -181,6 +181,7 @@ def update_pipieline_file(pj_id, version):
                 if pipeline.get_pipeline_trigger_webhook_push(gl_pj_id):
                     pipeline.turn_push_off(gl_pj_id)
                     is_turn_off_push = True
+                    sleep(5)
                 pipe_dict["stages"] = pipe_stages
                 f.content = yaml.dump(pipe_dict, sort_keys=False)
                 f.save(
@@ -193,6 +194,7 @@ def update_pipieline_file(pj_id, version):
                 # sleep(30)
                 if is_turn_off_push:
                     pipeline.turn_push_on(gl_pj_id)
+                sleep(2)
 
             logger.logger.info(f"Change: {change}")
             logger.logger.info(f"Updating {gl_pj_id} tool version in branch({branch}) done.")

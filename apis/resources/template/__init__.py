@@ -6,7 +6,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-
+from time import sleep
 from resources.rancher import create_pipeline_execution
 import dateutil.parser
 import yaml
@@ -679,14 +679,14 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
                         exist_branch_list,
                     )
     if had_update_branche:
-        # if not run or default or (run and default_branch not in need_running_branches):
-        #     next_run = pipeline.get_pipeline_next_run(repository_id)
-        #     print(f"next_run: {next_run}")
-        #     create_pipeline_execution(repository_id, default_branch, next_run)
         is_turn_off_push = False
-        if pipeline.get_pipeline_trigger_webhook_push(repository_id):
-            pipeline.turn_push_off(repository_id)
-            is_turn_off_push = True
+        if not run or default or (run and default_branch not in need_running_branches):
+            # next_run = pipeline.get_pipeline_next_run(repository_id)
+            # print(f"next_run: {next_run}")
+            # create_pipeline_execution(repository_id, default_branch, next_run)
+            if pipeline.get_pipeline_trigger_webhook_push(repository_id):
+                pipeline.turn_push_off(repository_id)
+                is_turn_off_push = True
 
         f.content = yaml.dump(default_pipe_json, sort_keys=False)
         f.save(
@@ -695,10 +695,10 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
             author_name="iiidevops",
             commit_message=f"{user_account} 編輯 {default_branch} 分支 .rancher-pipeline.yaml",
         )
-        # if not run or default or (run and default_branch not in need_running_branches):
-        #     pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=default_branch)
-        if is_turn_off_push:
-            pipeline.turn_push_on(repository_id)
+        if not run or default or (run and default_branch not in need_running_branches):
+            # pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=default_branch)
+            if is_turn_off_push:
+                pipeline.turn_push_on(repository_id)
 
     # Sync default branch pipeline.yml to other branches, seperate to two parts to avoid not delete all branches
     for br_name in need_running_branches:
@@ -765,6 +765,7 @@ def sync_branch(
             # print(f"stop_and_delete: {next_run}")
             if is_turn_off_push:
                 pipeline.turn_push_on(repository_id)
+            sleep(1)
 
 
 def initial_rancher_pipline_info(repository_id):
