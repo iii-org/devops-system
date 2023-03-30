@@ -149,8 +149,8 @@ def get_project_list(user_id:int, role: str="simple", args: dict={}, disable: bo
     ret = []
     for row in rows:
         nexus_project = NexusProject().set_project_row(row).set_starred_info(user_id)
+        redmine_project_id = row.plugin_relation.plan_project_id
         if role == "pm":
-            redmine_project_id = row.plugin_relation.plan_project_id
             try:
                 if sync:
                     project_object = redmine_lib.redmine.project.get(redmine_project_id)
