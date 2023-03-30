@@ -1,14 +1,13 @@
 import json
 from datetime import datetime, timedelta
 
-from flask import make_response
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc
 from flask_apispec import marshal_with, doc, use_kwargs
+import base64
 
 import model
-import base64
 import util
 from model import db, WebInspect
 from . import router_model
@@ -19,11 +18,12 @@ from resources.logger import logger
 from plugins import get_plugin_config
 from typing import Any, Union
 import requests
-from requests.cookies import RequestsCookieJar
 from requests.models import Response
+from requests.cookies import RequestsCookieJar
 
 
 WIE_CONFIG = {}
+# wiescc_obj = None
 
 
 def wie_get_config(key):
@@ -35,57 +35,25 @@ def wie_get_config(key):
     return None
 
 
-class WIESCC:
-    def __init__(self):
-        self.url = wie_get_config("wi_scc_url")
-        self.username = wie_get_config("wi-username")
-        self.password = wie_get_config("wi-password")
-        self.cookie_jar = RequestsCookieJar()
-        self.auth_token = self.__generate_auth_token()
-        self.scc_token = self.__generate_scc_token()
-        self.headers = {"Authorization": self.scc_token, "Content-Type": "application/json"}
-
-    def __generate_auth_token(self) -> str:
-        login_pwd_str = f"{self.username}:{self.password}"
-        b_login_pwd_str = base64.b64encode(login_pwd_str.encode("utf-8"))
-        return b_login_pwd_str.decode("utf-8")
-
-    def __generate_scc_token(self) -> str:
-        ret = self.post(
-            "/ssc/api/v1/tokens",
-            headers={"Authorization": f"Basic {self.auth_token}", "Content-Type": "application/json"},
-            data={
-                "type": "UnifiedLoginToken",
-                "terminalDate": self.__generate_expire_timestamp(),
-                "description": "api",
-            },
-        )
-        self.cookie_jar.update(ret.cookies)
-        return ret.json()["data"]["token"]
-
-    def __generate_expire_timestamp(self) -> str:
-        current_timestamp = datetime.utcnow()
-        current_timestamp += timedelta(hours=11)
-        return current_timestamp.isoformat()
-
-    def __api_request(
+class Request:
+    def api_request(
         self,
         method: str,
         path: str,
         headers: dict[str, Any] = {},
         params: dict[str, Any] = {},
         data: dict[str, Any] = {},
-        cookie: Union[dict, RequestsCookieJar] = {},
+        cookies: Union[dict, RequestsCookieJar] = {},
     ):
         url = f"{self.url}{path}"
         if method == "GET":
-            output = self.__api_get(path, headers, params, cookie)
+            output = self.__api_get(path, headers, params, cookies=cookies)
         elif method == "POST":
-            output = self.__api_post(path, headers, data, cookie)
+            output = self.__api_post(path, headers, data, cookies=cookies)
         elif method == "PUT":
-            output = self.__api_put(path, headers, data, cookie)
+            output = self.__api_put(path, headers, data, cookies=cookies)
         elif method == "PATCH":
-            output = self.__api_patch(path, headers, data, cookie)
+            output = self.__api_patch(path, headers, data, cookies=cookies)
 
         if int(output.status_code / 100) != 2:
             logger.exception(
@@ -142,6 +110,77 @@ class WIESCC:
         return res
 
 
+class WebinspectScc(Request):
+    def __init__(self):
+        self.url = wie_get_config("wi_scc_url")
+        self.cookie_jar = RequestsCookieJar()
+        self.auth_token = self.__generate_auth_token()
+        self.scc_token = self.__generate_scc_token()
+        self.headers = {
+            "Authorization": self.scc_token,
+            "Content-Type": "application/json",
+        }
+
+    def __generate_auth_token(self) -> str:
+        login_pwd_str = f'{wie_get_config("wi-username")}:{wie_get_config("wi-password")}'
+        b_login_pwd_str = base64.b64encode(login_pwd_str.encode("utf-8"))
+        return b_login_pwd_str.decode("utf-8")
+
+    def __generate_scc_token(self) -> str:
+        ret = self.post(
+            "/ssc/api/v1/tokens",
+            headers={
+                "Authorization": f"Basic {self.auth_token}",
+                "Content-Type": "application/json",
+            },
+            data={
+                "type": "UnifiedLoginToken",
+                "terminalDate": self.__generate_expire_timestamp(),
+                "description": "",
+            },
+        )
+        self.cookie_jar.update(ret.cookies)
+        return ret.json()["data"]["token"]
+
+    def __generate_expire_timestamp(self) -> str:
+        current_timestamp = datetime.utcnow()
+        current_timestamp += timedelta(hours=11)
+        return current_timestamp.isoformat()
+
+    # def
+
+
+class WIEDAST(Request):
+    def __init__(self):
+        self.url = wie_get_config("wi_dast_url")
+        self.token = self.__generate_token()
+        self.headers = {"Authorization": self.token, "Content-Type": "application/json"}
+
+    def __generate_token(self) -> str:
+        ret = self.__api_request(
+            "POST",
+            "/api/v2/auth",
+            headers={"Content-Type": "application/json"},
+            data={"username": wie_get_config("wi-username"), "password": wie_get_config("wi-password")},
+        )
+        return ret.json()["token"]
+
+    def get_scan_summary(self, scan_id: str) -> dict[str, Any]:
+        ret = self.__api_request(
+            method="GET", path=f"/api/v2/scans/{int(scan_id)}/scan-summary", headers=self.headers
+        ).json()
+        return ret
+
+    def publish_scan_report(self, scan_id: str) -> dict[str, Any]:
+        ret = self.__api_request(
+            method="POST",
+            path=f"/api/v2/scans/{int(scan_id)}/scan-action",
+            headers=self.headers,
+            data={"ScanActionType": 5},
+        ).json()
+        return ret
+
+
 # -------------- Regular methods --------------
 """
 0 = Created
@@ -193,6 +232,44 @@ def list_scans(project_id: int, limit: int = 10, offset: int = 0) -> list[dict[s
     ]
 
 
+def get_scan_summary(scan_id: str):
+    wie_scc = WIEDAST()
+    ret = wie_scc.get_scan_summary(scan_id)
+
+    scan_info = {
+        "id": scan_id,
+        "state": {
+            "critical": ret["criticalCount"],
+            "high": ret["highCount"],
+            "medium": ret["mediumCount"],
+            "low": ret["lowCount"],
+        },
+        "status": ret["scanStatusTypeDescription"],
+        "publish_status": ret["publishStatusTypeDescription"],
+    }
+
+    wie = get_webinspect_query(scan_id=scan_id).first()
+    if wie.finished:
+        return json.loads(str(wie))
+
+    if scan_info["status"] == "Complete":
+        if scan_info["publish_status"] == "Published":
+            wie.finished = True
+            wie.finished_at = datetime.utcnow()
+            db.session.commit()
+        elif scan_info["publish_status"] == "NotPublished":
+            wie_scc.publish_scan_report(scan_id)
+        return json.loads(str(wie))
+
+    else:
+        needed_update_info = {"state": scan_info["state"], "status": scan_info["status"]}
+        if {"state": wie.state, "status": wie.status} != needed_update_info:
+            update_scan(needed_update_info)
+
+    ret = json.loads(str(get_webinspect_query(scan_id=scan_id).first()))
+    return ret
+
+
 # --------------------- Resources ---------------------
 
 
@@ -214,6 +291,12 @@ class WebInspectListScan(Resource):
 
 
 class WebInspectScan(Resource):
+    @doc(tags=["WebInspect"], description="Get WebInspect scan summary.")
+    # @use_kwargs(router_model.WIEScanUpdateSchema, location="json")
+    @jwt_required()
+    def get(self, s_id):
+        return util.success(get_scan_summary(s_id))
+
     @doc(tags=["WebInspect"], description="Update specific WebInspect scan.")
     @use_kwargs(router_model.WIEScanUpdateSchema, location="json")
     @jwt_required()
