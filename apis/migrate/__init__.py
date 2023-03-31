@@ -2,6 +2,7 @@ import os
 import config
 import model
 from model import db, UIRouteData, PluginSoftware, SystemParameter
+from nexus import nx_get_user_plugin_relation
 from resources.logger import logger
 from migrate.upgrade_function.ui_route_upgrade import ui_route_first_version
 from migrate.upgrade_function import v1_22_upgrade
@@ -28,7 +29,8 @@ VERSIONS = [
     "1.26.0.1",
     "1.26.0.2",
     "1.26.0.3",
-    "1.26.0.4"
+    "1.26.0.4",
+    "1.27.0.1",
 ]
 ONLY_UPDATE_DB_MODELS = [
     "1.22.0.1",
@@ -44,7 +46,7 @@ ONLY_UPDATE_DB_MODELS = [
     "1.25.0.7",
     "1.26.0.1",
     "1.26.0.3",
-    "1.26.0.4"
+    "1.26.0.4",
 ]
 
 
@@ -70,6 +72,18 @@ def upgrade(version):
         db.session.commit()
     elif version == "1.26.0.2":
         recreate_ui_route()
+    elif version == "1.27.0.1":
+        correct_user_email_notification_option_in_redmine()
+        pass
+
+
+def correct_user_email_notification_option_in_redmine():
+    from resources.redmine import redmine
+
+    for user_msg in model.UserMessageType.query.all():
+        user_relation = nx_get_user_plugin_relation(user_id=user_msg.user_id)
+        plan_user_id, option = user_relation.plan_user_id, "none" if not user_msg.mail else "only_my_events"
+        redmine.rm_update_user_mail_notification_option(plan_user_id, option)
 
 
 def recreate_ui_route():
