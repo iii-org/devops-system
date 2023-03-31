@@ -556,6 +556,14 @@ class Redmine:
         setattr(user, "mail", new_email)
         user.save()
 
+    def rm_update_user_mail_notification_option(self, plan_user_id: int, option: str):
+        """
+        params: option, available values are [all, only_my_events(only for things i watch or i's involved in), none]
+        """
+        user = redmine_lib.redmine.user.get(plan_user_id)
+        setattr(user, "mail_notification", option)
+        user.save()
+
     def rm_get_or_set_emission_email_address(self, rm_emission_email_address):
         deployer_node_ip = config.get("DEPLOYER_NODE_IP")
         if deployer_node_ip is None:
@@ -626,6 +634,14 @@ def update_mail_config(args):
     elif not old_active and temp_save is not None:
         mail_config.value = value | args
         db.session.commit()
+
+
+def update_user_mail_mail_notification_option(user_id: int, active: bool) -> None:
+    from nexus import nx_get_user_plugin_relation
+
+    user_relation = nx_get_user_plugin_relation(user_id=user_id)
+    plan_user_id, option = user_relation.plan_user_id, "none" if not active else "only_my_events"
+    redmine.rm_update_user_mail_notification_option(plan_user_id, option)
 
 
 # --------------------- Resources ---------------------

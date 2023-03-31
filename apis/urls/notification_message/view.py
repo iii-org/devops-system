@@ -89,7 +89,7 @@ class MessageV2(MethodResource):
     @marshal_with(util.CommonResponse)
     @jwt_required()
     def post(self):
-        role.require_admin()
+        # role.require_admin()
         parser = reqparse.RequestParser()
         parser.add_argument("alert_level", type=int, required=True)
         parser.add_argument("title", type=str)

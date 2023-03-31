@@ -18,7 +18,7 @@ from resources.rancher import create_pipeline_execution
 DEFAULT_FORMAT = {"white_list": [], "black_list": []}
 
 # Latest version
-LATEST_VERSION = 4
+LATEST_VERSION = 5
 
 
 def get_project_pipeline_version(pj_id):
@@ -45,9 +45,6 @@ def update_project_pipeline_version(pj_id, version=None, status=None, message=No
 
 
 def check_project_list_file_exist():
-    """
-    ret = {"white_list": [{repo_name}, {repo_name}], "black_list": []}
-    """
     path = "devops-data/config/black_white_projects.json"
     if not os.path.isfile(path):
         Path("devops-data/config").mkdir(parents=True, exist_ok=True)
@@ -180,6 +177,11 @@ def update_pipieline_file(pj_id, version):
             if change:
                 next_run = pipeline.get_pipeline_next_run(gl_pj_id)
                 create_pipeline_execution(gl_pj_id, branch, next_run)
+                # is_turn_off_push = False
+                # if pipeline.get_pipeline_trigger_webhook_push(gl_pj_id):
+                #     pipeline.turn_push_off(gl_pj_id)
+                #     is_turn_off_push = True
+                #     sleep(5)
                 pipe_dict["stages"] = pipe_stages
                 f.content = yaml.dump(pipe_dict, sort_keys=False)
                 f.save(
@@ -190,6 +192,9 @@ def update_pipieline_file(pj_id, version):
                 )
                 pipeline.stop_and_delete_pipeline(gl_pj_id, next_run, branch=branch)
                 sleep(30)
+                # if is_turn_off_push:
+                #     pipeline.turn_push_on(gl_pj_id)
+                # sleep(2)
 
             logger.logger.info(f"Change: {change}")
             logger.logger.info(f"Updating {gl_pj_id} tool version in branch({branch}) done.")

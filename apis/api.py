@@ -125,7 +125,6 @@ def add_resource(classes, level):
 
 
 app.config["PROPAGATE_EXCEPTIONS"] = True
-# app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,
     "pool_recycle": 60,
@@ -206,10 +205,8 @@ class NexusVersion(Resource):
     def _check(check: str) -> str:
         error: apiError.DevOpsError = apiError.DevOpsError(400, "api_version is not valid")
         # check regex only digit and dot
-        if re.match(r"^[Vv]?\d+(\.\d+)*$", check) is None:
-            # Check string is only 'develop'
-            if check.lower() != "develop":
-                raise error
+        if re.match(r"^[Vv]?\d+(\.\d+)*$", check) is None and check.lower() != "develop":
+            raise error
 
         return check
 
@@ -527,10 +524,6 @@ api.add_resource(redmine.RedmineMailActive, "/mail/active")
 
 system_url(api, add_resource)
 
-# Mocks
-# api.add_resource(mock.MockTestResult, '/mock/test_summary')
-# api.add_resource(mock.MockSesame, '/mock/sesame')
-# api.add_resource(mock.UserDefaultFromAd, '/mock/userdefaultad')
 
 # Harbor
 harbor_url(api, add_resource)

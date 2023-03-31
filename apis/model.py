@@ -325,9 +325,11 @@ class WebInspect(db.Model):
     branch = Column(String)
     commit_id = Column(String)
     stats = Column(String)
+    status = Column(String)
     # The time scan registered
     run_at = Column(DateTime)
     finished = Column(Boolean, default=False)
+    finished_at = Column(DateTime)
 
     def __repr__(self):
         fields = {}

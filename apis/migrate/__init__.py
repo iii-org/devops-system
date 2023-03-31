@@ -2,6 +2,7 @@ import os
 import config
 import model
 from model import db, UIRouteData, PluginSoftware, SystemParameter
+from nexus import nx_get_user_plugin_relation
 from resources.logger import logger
 from migrate.upgrade_function.ui_route_upgrade import ui_route_first_version
 from migrate.upgrade_function import v1_22_upgrade
@@ -28,6 +29,8 @@ VERSIONS = [
     "1.26.0.1",
     "1.26.0.2",
     "1.26.0.3",
+    "1.26.0.4",
+    "1.27.0.1",
 ]
 ONLY_UPDATE_DB_MODELS = [
     "1.22.0.1",
@@ -43,6 +46,7 @@ ONLY_UPDATE_DB_MODELS = [
     "1.25.0.7",
     "1.26.0.1",
     "1.26.0.3",
+    "1.26.0.4",
 ]
 
 
@@ -68,6 +72,8 @@ def upgrade(version):
         db.session.commit()
     elif version == "1.26.0.2":
         recreate_ui_route()
+    elif version == "1.27.0.1":
+        pass
 
 
 def recreate_ui_route():
@@ -159,4 +165,5 @@ def run():
                 logger.info("Upgrade to {0}".format(version))
                 upgrade(version)
     except Exception as e:
+        logger.exception(str(e))
         raise e

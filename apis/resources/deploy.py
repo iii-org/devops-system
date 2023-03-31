@@ -2588,10 +2588,10 @@ def check_port_can_use(args) -> bool:
             else:
                 service_name = f'{k8s_info.get("repo_name")}-service-'
                 if release_id is None:
-                    service_name += f'dockerhub-'
+                    service_name += f"dockerhub-"
                 else:
-                    service_name += f'{str(release_id)}-'
-                service_name += f'{app_name}'
+                    service_name += f"{str(release_id)}-"
+                service_name += f"{app_name}"
             if check_port in get_inuse_port_list(k8s_client, namespace, service_name):
                 return True
     return not (check_port in get_inuse_port_list(k8s_client))
@@ -2710,7 +2710,6 @@ def get_app_header_information(app_header, detail: bool = False):
         return []
 
     output = row_to_dict(app_header)
-    # output["total_pods"] = 0
     output["available_pods"] = 0
     output["cluster"] = {}
     output["cluster"]["id"] = app_header.cluster_id
@@ -2724,12 +2723,10 @@ def get_app_header_information(app_header, detail: bool = False):
             applications.append(app_json)
             if "deployment" in app_json:
                 deployment = app_json["deployment"]
-                if "total_pod_number" in deployment:
-                    if deployment.get("total_pod_number", 0) is not None:
-                        output["total_pods"] += deployment.get("total_pod_number", 0)
-                if "available_pod_number" in deployment:
-                    if deployment.get("available_pod_number", 0) is not None:
-                        output["available_pods"] += deployment.get("available_pod_number", 0)
+                if "total_pod_number" in deployment and deployment.get("total_pod_number", 0) is not None:
+                    output["total_pods"] += deployment.get("total_pod_number", 0)
+                if "available_pod_number" in deployment and deployment.get("available_pod_number", 0) is not None:
+                    output["available_pods"] += deployment.get("available_pod_number", 0)
         output["applications"] = applications
     return output
 
@@ -2873,7 +2870,6 @@ class ApplicationHeaders(Resource):
             parser.add_argument("applications", type=dict, action="append")
             parser.add_argument("disabled", type=inputs.boolean)
             args = parser.parse_args()
-            # output = create_application_header(args)
             return util.success({"application_headers": {"id": create_application_header(args)}})
         except NoResultFound:
             return util.respond(404, _ERROR_CREATE_APPLICATION_HEADER)

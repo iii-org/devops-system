@@ -1,301 +1,304 @@
 import json
 from datetime import datetime, timedelta
 
-from flask import make_response
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
 from sqlalchemy import desc
+from flask_apispec import marshal_with, doc, use_kwargs
+import base64
 
 import model
-import nexus
 import util
-from model import db
+from model import db, WebInspect
+from . import router_model
 
-# -------- API methods --------
-from resources import apiError, role, gitlab, kubernetesClient
+from resources import role
+from resources import apiError
 from resources.logger import logger
-
-wie = None
-wi_base_url = ""
-sec = kubernetesClient.read_namespace_secret("default", "webinspect")
-if sec is not None:
-    wi_base_url = sec.get("wi-base-url", "")
-
-
-def wie_instance():
-    global wie
-    if wie is None:
-        wie = WIE()
-    return wie
+from plugins import get_plugin_config
+from typing import Any, Union
+import requests
+from requests.models import Response
+from requests.cookies import RequestsCookieJar
 
 
-def wi_api_request(method, path, headers=None, params=None, data=None):
-    if headers is None:
-        headers = {}
-    if params is None:
-        params = {}
-    if "Content-Type" not in headers:
-        headers["Content-Type"] = "application/json"
+WIE_CONFIG = {}
+# wiescc_obj = None
 
-    if wi_base_url == "":
-        raise apiError.DevOpsError(500, "WebInspect is not set up.", apiError.resource_not_found())
-    url = f"{wi_base_url}{path}"
-    output = util.api_request(method, url, headers, params, data)
 
-    logger.debug(
-        f"WebInspect api {method} {url}, header={str(headers)}, params={str(params)}, body={data},"
-        f" response={output.status_code} {output.text}"
-    )
-    if int(output.status_code / 100) != 2:
-        raise apiError.DevOpsError(
-            output.status_code,
-            "Got non-2xx response from WebInspect.",
-            apiError.error_3rd_party_api("WebInspect", output),
+def wie_get_config(key):
+    global WIE_CONFIG
+    if not WIE_CONFIG:
+        WIE_CONFIG = {config["key"]: config for config in get_plugin_config("webinspect")["arguments"]}
+    if key in WIE_CONFIG:
+        return WIE_CONFIG[key]["value"]
+    return None
+
+
+class Request:
+    def api_request(
+        self,
+        method: str,
+        path: str,
+        headers: dict[str, Any] = {},
+        params: dict[str, Any] = {},
+        data: dict[str, Any] = {},
+        cookies: Union[dict, RequestsCookieJar] = {},
+    ):
+        url = f"{self.url}{path}"
+        if method == "GET":
+            output = self.__api_get(path, headers, params, cookies=cookies)
+        elif method == "POST":
+            output = self.__api_post(path, headers, data, cookies=cookies)
+        elif method == "PUT":
+            output = self.__api_put(path, headers, data, cookies=cookies)
+        elif method == "PATCH":
+            output = self.__api_patch(path, headers, data, cookies=cookies)
+
+        if int(output.status_code / 100) != 2:
+            logger.exception(
+                f"WebInspect api {method} {url}, header={str(headers)}, params={str(params)}, body={data},"
+                f" response={output.status_code} {output.text}"
+            )
+            raise apiError.DevOpsError(
+                output.status_code,
+                "Got non-2xx response from WebInspect.",
+                apiError.error_3rd_party_api("WebInspect", output),
+            )
+        return output
+
+    def __api_get(
+        self,
+        path: str,
+        headers: dict[str, Any] = {},
+        params: dict[str, Any] = {},
+        cookies: Union[dict, RequestsCookieJar] = {},
+    ) -> Response:
+        return requests.get(f"{self.url}{path}", headers=headers, params=params, verify=False, cookies=cookies)
+
+    def __api_post(
+        self,
+        path: str,
+        headers: dict[str, Any] = {},
+        data: dict[str, Any] = {},
+        cookies: Union[dict, RequestsCookieJar] = {},
+    ) -> Response:
+        data = json.dumps(data)
+        res = requests.post(f"{self.url}{path}", headers=headers, data=data, verify=False, cookies=cookies)
+        return res
+
+    def __api_put(
+        self,
+        path: str,
+        headers: dict[str, Any] = {},
+        data: dict[str, Any] = {},
+        cookies: Union[dict, RequestsCookieJar] = {},
+    ) -> Response:
+        data = json.dumps(data)
+        res = requests.put(f"{self.url}{path}", headers=headers, data=data, verify=False, cookies=cookies)
+        return res
+
+    def __api_patch(
+        self,
+        path: str,
+        headers: dict[str, Any] = {},
+        data: dict[str, Any] = {},
+        cookies: Union[dict, RequestsCookieJar] = {},
+    ) -> Response:
+        data = json.dumps(data)
+        res = requests.patch(f"{self.url}{path}", headers=headers, data=data, verify=False, cookies=cookies)
+        return res
+
+
+class WebinspectScc(Request):
+    def __init__(self):
+        self.url = wie_get_config("wi_scc_url")
+        self.cookie_jar = RequestsCookieJar()
+        self.auth_token = self.__generate_auth_token()
+        self.scc_token = self.__generate_scc_token()
+        self.headers = {
+            "Authorization": self.scc_token,
+            "Content-Type": "application/json",
+        }
+
+    def __generate_auth_token(self) -> str:
+        login_pwd_str = f'{wie_get_config("wi-username")}:{wie_get_config("wi-password")}'
+        b_login_pwd_str = base64.b64encode(login_pwd_str.encode("utf-8"))
+        return b_login_pwd_str.decode("utf-8")
+
+    def __generate_scc_token(self) -> str:
+        ret = self.post(
+            "/ssc/api/v1/tokens",
+            headers={
+                "Authorization": f"Basic {self.auth_token}",
+                "Content-Type": "application/json",
+            },
+            data={
+                "type": "UnifiedLoginToken",
+                "terminalDate": self.__generate_expire_timestamp(),
+                "description": "",
+            },
         )
-    return output
+        self.cookie_jar.update(ret.cookies)
+        return ret.json()["data"]["token"]
+
+    def __generate_expire_timestamp(self) -> str:
+        current_timestamp = datetime.utcnow()
+        current_timestamp += timedelta(hours=11)
+        return current_timestamp.isoformat()
+
+    # def
 
 
-def wi_api_get(path, params=None, headers=None):
-    return wi_api_request("GET", path, params=params, headers=headers)
+class WIEDAST(Request):
+    def __init__(self):
+        self.url = wie_get_config("wi_dast_url")
+        self.token = self.__generate_token()
+        self.headers = {"Authorization": self.token, "Content-Type": "application/json"}
 
+    def __generate_token(self) -> str:
+        ret = self.__api_request(
+            "POST",
+            "/api/v2/auth",
+            headers={"Content-Type": "application/json"},
+            data={"username": wie_get_config("wi-username"), "password": wie_get_config("wi-password")},
+        )
+        return ret.json()["token"]
 
-def wi_api_post(path, params=None, headers=None, data=None):
-    return wi_api_request("POST", path, headers=headers, data=data, params=params)
+    def get_scan_summary(self, scan_id: str) -> dict[str, Any]:
+        ret = self.__api_request(
+            method="GET", path=f"/api/v2/scans/{int(scan_id)}/scan-summary", headers=self.headers
+        ).json()
+        return ret
+
+    def publish_scan_report(self, scan_id: str) -> dict[str, Any]:
+        ret = self.__api_request(
+            method="POST",
+            path=f"/api/v2/scans/{int(scan_id)}/scan-action",
+            headers=self.headers,
+            data={"ScanActionType": 5},
+        ).json()
+        return ret
 
 
 # -------------- Regular methods --------------
-def wi_create_scan(args):
-    new = model.WebInspect(
+"""
+0 = Created
+1 = Queued
+2 = Pending
+3 = Paused
+4 = Running
+5 = Complete
+"""
+
+
+def get_webinspect_query(scan_id: str) -> WebInspect:
+    web_inspect_query = WebInspect.query.filter_by(scan_id=scan_id)
+    if web_inspect_query.first() is None:
+        raise apiError.DevOpsError(400, "Scan not found", apiError.resource_not_found())
+    return web_inspect_query
+
+
+def create_scan(args: dict[str, Any]) -> None:
+    new = WebInspect(
         scan_id=args["scan_id"],
         project_name=args["project_name"],
         branch=args["branch"],
         commit_id=args["commit_id"],
         run_at=datetime.utcnow(),
+        status="Created",
         finished=False,
     )
     db.session.add(new)
     db.session.commit()
 
 
-def wi_list_scans(project_name):
-    ret = []
-    project_id = nexus.nx_get_project(name=project_name).id
-    rows = model.WebInspect.query.filter_by(project_name=project_name).all()
-    for row in rows:
-        d = json.loads(str(row))
-        d["issue_link"] = gitlab.commit_id_to_url(project_id, d["commit_id"])
-        ret.append(d)
-    return ret
-
-
-def get_latest_scans(project_name):
-    row = model.WebInspect.query.filter_by(project_name=project_name).order_by(desc(model.WebInspect.run_at)).first()
-    if row is not None:
-        if not row.finished:
-            wix_get_scan_status(row.scan_id)
-            row = (
-                model.WebInspect.query.filter_by(project_name=project_name)
-                .order_by(desc(model.WebInspect.run_at))
-                .first()
-            )
-        return json.loads(str(row))
-    return None
-
-
-def wi_get_scan_by_commit(project_id, commit_id):
-    project_name = nexus.nx_get_project(id=project_id).name
-    row = model.WebInspect.query.filter(
-        model.WebInspect.project_name == project_name,
-        model.WebInspect.commit_id.like(f"{commit_id}%"),
-    ).first()
-    if row is not None:
-        if not row.finished:
-            wix_get_scan_status(row.scan_id)
-            row = (
-                model.WebInspect.query.filter_by(project_name=project_name)
-                .order_by(desc(model.WebInspect.run_at))
-                .first()
-            )
-
-        d = json.loads(str(row))
-        d["issue_link"] = gitlab.commit_id_to_url(project_id, d["commit_id"])
-        return d
-    return {}
-
-
-def is_wie():
-    wi_type = kubernetesClient.read_namespace_secret("default", "webinspect").get("wi-type", None)
-    return wi_type == "WIE"
-
-
-def wix_get_scan_status(scan_id):
-    if is_wie():
-        return wie_instance().get_scan_status(scan_id)
-    else:
-        return wi_get_scan_status(scan_id)
-
-
-def wi_get_scan_status(scan_id):
-    status = wi_api_get("/scanner/scans/{0}?action=GetCurrentStatus".format(scan_id)).json().get("ScanStatus")
-    if status == "Complete":
-        scan = model.WebInspect.query.filter_by(scan_id=scan_id).one()
-        if not scan.finished:
-            # This line will fill the data in db
-            wi_get_scan_statistics(scan_id)
-    elif status == "NotRunning" or status == "Interrupted" or status == "Failed":
-        wi_set_scan_failed(scan_id, status)
-    return status
-
-
-def wix_get_scan_statistics(scan_id):
-    if is_wie():
-        return wie_instance().get_scan_statistics(scan_id)
-    else:
-        return wi_get_scan_statistics(scan_id)
-
-
-def wi_get_scan_statistics(scan_id):
-    row = model.WebInspect.query.filter_by(scan_id=scan_id).one()
-    if row.stats is not None:
-        return json.loads(row.stats)
-    ret = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, "status": "Complete"}
-    results = wi_api_get("/scanner/scans/{0}.issue".format(scan_id)).json()
-    for r in results:
-        for issue in r["issues"]:
-            ret[issue["severity"]] += 1
-    row = model.WebInspect.query.filter_by(scan_id=scan_id).one()
-    row.stats = json.dumps(ret)
-    row.finished = True
-    db.session.commit()
-    return ret
-
-
-def wi_set_scan_failed(scan_id, status):
-    row = model.WebInspect.query.filter_by(scan_id=scan_id).one()
-    row.stats = json.dumps({"status": status})
-    row.finished = True
+def update_scan(scan_id: str, args: dict[str, Any]) -> None:
+    args = {k: v for k, v in args.items() if v is not None}
+    wie = get_webinspect_query(scan_id)
+    wie.update(args)
     db.session.commit()
 
 
-def wix_download_report(scan_id):
-    if is_wie():
-        return wie_instance().download_report(scan_id)
+def list_scans(project_id: int, limit: int = 10, offset: int = 0) -> list[dict[str, Any]]:
+    project_name = model.Project.query.filter_by(id=project_id).first().name
+    return [
+        json.loads(str(task))
+        for task in WebInspect.query.filter_by(project_name=project_name)
+        .order_by(desc(WebInspect.run_at))
+        .limit(limit)
+        .offset(offset)
+        .all()
+    ]
+
+
+def get_scan_summary(scan_id: str):
+    wie_scc = WIEDAST()
+    ret = wie_scc.get_scan_summary(scan_id)
+
+    scan_info = {
+        "id": scan_id,
+        "state": {
+            "critical": ret["criticalCount"],
+            "high": ret["highCount"],
+            "medium": ret["mediumCount"],
+            "low": ret["lowCount"],
+        },
+        "status": ret["scanStatusTypeDescription"],
+        "publish_status": ret["publishStatusTypeDescription"],
+    }
+
+    wie = get_webinspect_query(scan_id=scan_id).first()
+    if wie.finished:
+        return json.loads(str(wie))
+
+    if scan_info["status"] == "Complete":
+        if scan_info["publish_status"] == "Published":
+            wie.finished = True
+            wie.finished_at = datetime.utcnow()
+            db.session.commit()
+        elif scan_info["publish_status"] == "NotPublished":
+            wie_scc.publish_scan_report(scan_id)
+        return json.loads(str(wie))
+
     else:
-        return wi_download_report(scan_id)
+        needed_update_info = {"state": scan_info["state"], "status": scan_info["status"]}
+        if {"state": wie.state, "status": wie.status} != needed_update_info:
+            update_scan(needed_update_info)
 
-
-def wix_get_report(scan_id):
-    if is_wie():
-        return wie_instance().get_report(scan_id)
-    else:
-        return wi_get_report(scan_id)
-
-
-def wi_download_report(scan_id):
-    xml = wi_api_get("/scanner/scans/{0}.xml?detailType=Full".format(scan_id)).content
-    response = make_response(xml)
-    response.headers.set("Content-Type", "application/xml")
-    response.headers.set("charset", "utf-8")
-    response.headers.set("Content-Disposition", "attachment", filename="report-{0}.xml".format(scan_id))
-    return response
-
-
-def wi_get_report(scan_id):
-    return wi_api_get("/scanner/scans/{0}.xml?detailType=Full".format(scan_id)).content
-
-
-class WIE:
-    def __init__(self):
-        self.token = None
-        self.token_made = None
-        self.login()
-
-    def login(self):
-        secret = kubernetesClient.read_namespace_secret("default", "webinspect")
-        res = wi_api_post(
-            "/v1/auth",
-            data={
-                "username": secret.get("wi-username", None),
-                "password": secret.get("wi-password", None),
-            },
-        )
-        self.token = res.json().get("data").split(" ")[1]
-        self.token_made = datetime.utcnow()
-
-    def cookie_header(self):
-        if (datetime.utcnow() - self.token_made) > timedelta(hours=12):
-            self.login()
-        return {"Cookie": f"WIESession={self.token}"}
-
-    def get_scan_status(self, scan_id):
-        return (
-            wi_api_get(f"/v2/scans/{scan_id}", headers=self.cookie_header())
-            .json()
-            .get("data")
-            .get("scanStateText", "Error")
-        )
-
-    def get_scan_statistics(self, scan_id):
-        row = model.WebInspect.query.filter_by(scan_id=scan_id).one()
-        if row.stats is not None:
-            return json.loads(row.stats)
-        data = wi_api_get(f"/v2/scans/{scan_id}", headers=self.cookie_header()).json().get("data")
-        ret = data.get("scanStatistics")
-        ret["status"] = data.get("scanStateText", "Error")
-        row = model.WebInspect.query.filter_by(scan_id=scan_id).one()
-        row.stats = json.dumps(ret)
-        row.finished = True
-        db.session.commit()
-        return ret
-
-    def download_report(self, scan_id):
-        xml = wi_api_get(f"/v2/scans/{scan_id}/export?type=xml", headers=self.cookie_header()).content
-        response = make_response(xml)
-        response.headers.set("Content-Type", "application/xml")
-        response.headers.set("charset", "utf-8")
-        response.headers.set(
-            "Content-Disposition",
-            "attachment",
-            filename="report-{0}.xml".format(scan_id),
-        )
-        return response
-
-    def get_report(self, scan_id):
-        return wi_api_get(f"/v2/scans/{scan_id}/export?type=xml", headers=self.cookie_header()).content
+    ret = json.loads(str(get_webinspect_query(scan_id=scan_id).first()))
+    return ret
 
 
 # --------------------- Resources ---------------------
+
+
+class WebInspectPostScan(Resource):
+    @doc(tags=["WebInspect"], description="Create WebInspect scan.")
+    @use_kwargs(router_model.WIEScanPostSchema, location="json")
+    @jwt_required()
+    def post(self, **kwargs):
+        return util.success(create_scan(kwargs))
+
+
+class WebInspectListScan(Resource):
+    @doc(tags=["WebInspect"], description="List project's WebInspect scans.")
+    @use_kwargs(router_model.WIEScanGetSchema, location="query")
+    @jwt_required()
+    def get(self, project_id, **kwargs):
+        role.require_in_project(project_id=project_id)
+        return util.success(list_scans(project_id, kwargs.get("limit", 10), kwargs.get("offset", 0)))
+
+
 class WebInspectScan(Resource):
+    @doc(tags=["WebInspect"], description="Get WebInspect scan summary.")
+    # @use_kwargs(router_model.WIEScanUpdateSchema, location="json")
     @jwt_required()
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("scan_id", type=str)
-        parser.add_argument("project_name", type=str)
-        parser.add_argument("branch", type=str)
-        parser.add_argument("commit_id", type=str)
-        args = parser.parse_args()
-        role.require_in_project(project_name=args["project_name"])
-        return util.success(wi_create_scan(args))
+    def get(self, s_id):
+        return util.success(get_scan_summary(s_id))
 
+    @doc(tags=["WebInspect"], description="Update specific WebInspect scan.")
+    @use_kwargs(router_model.WIEScanUpdateSchema, location="json")
     @jwt_required()
-    def get(self, project_name):
-        role.require_in_project(project_name=project_name)
-        return util.success(wi_list_scans(project_name))
-
-
-class WebInspectScanStatus(Resource):
-    @jwt_required()
-    def get(self, scan_id):
-        return util.success({"status": wix_get_scan_status(scan_id)})
-
-
-class WebInspectScanStatistics(Resource):
-    @jwt_required()
-    def get(self, scan_id):
-        return util.success({"severity_count": wix_get_scan_statistics(scan_id)})
-
-
-class WebInspectReport(Resource):
-    @jwt_required()
-    def get(self, scan_id):
-        return wix_download_report(scan_id)
+    def patch(self, s_id, **kwargs):
+        return util.success(update_scan(s_id, kwargs))

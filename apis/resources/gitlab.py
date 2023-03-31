@@ -75,7 +75,15 @@ def get_repo_url(project_id):
 
 
 def commit_id_to_url(project_id, commit_id):
-    return f"{get_repo_url(project_id)[0:-4]}/-/commit/{commit_id}"
+    project_query = model.Project.query.filter_by(id=project_id).one()
+    if config.get("GITLAB_EXTERNAL_BASE_URL") is not None:
+        project_name = project_query.name
+        git_repo_url = (
+            f'{config.get("GITLAB_EXTERNAL_BASE_URL")}/{config.get("GITLAB_ADMIN_ACCOUNT") or "root"}/{project_name}'
+        )
+    else:
+        git_repo_url = project_query.http_url[0:-4]
+    return f"{git_repo_url}/-/commit/{commit_id}"
 
 
 # May throws NoResultFound

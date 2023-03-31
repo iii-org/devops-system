@@ -446,6 +446,7 @@ def hb_get_artifact_wtih_digrest(project_name, repository_name, reference):
         ).json()
         return ret
     except Exception as e:
+        logger.exception(str(e))
         return {}
 
 

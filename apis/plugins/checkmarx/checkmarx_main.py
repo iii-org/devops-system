@@ -468,37 +468,50 @@ def row_to_dict(row):
 class CronjobScan(Resource):
     def get(self):
         querys = Model.query.filter(Model.finished == None).all()
-        id_list = [query.scan_id for query in querys]
-        for id in id_list:
+        # id_list = [query.scan_id for query in querys]
+        # for id in id_list:
+        for query in querys:
             try:
-                status_id, _ = checkmarx.get_scan_status(id)
+                status_id, _ = checkmarx.get_scan_status(query.scan_id)
                 # Merge id 2 and 10 as same status
                 if status_id == 10:
                     status_id, _ = 2, "PreScan"
 
                 if status_id in [1, 2, 3]:
-                    logger.logger.info(f"Updating checkmarx scan: {id}'s status")
-                    checkmarx.register_report(id)
-                    logger.logger.info(f"Updating checkmarx scan: {id}'s report")
+                    logger.logger.info(f"Updating checkmarx scan: {query.scan_id}'s status")
+                    checkmarx.register_report(query.scan_id)
+                    logger.logger.info(f"Updating checkmarx scan: {query.scan_id}'s report")
 
                 time.sleep(1)
             except Exception as e:
                 logger.logger.exception(str(e))
-        querys_all = Model.query.all()
-        repo_id_list = [query.repo_id for query in querys_all]
+        # querys_all = Model.query.all()
+        querys_all = Model.query.with_entities(Model.repo_id).group_by(Model.repo_id).all()
+        # repo_id_list = [query.repo_id for query in querys_all]
         # 刪除重複
-        for id in list(set(repo_id_list)):
-            rows = Model.query.filter_by(repo_id=id).order_by(desc(Model.scan_id)).all()
+        # for id in list(set(repo_id_list)):
+        for query in querys_all:
+            # rows = Model.query.filter_by(repo_id=id).order_by(desc(Model.scan_id)).all()
+            rows = Model.query.filter_by(repo_id=query.repo_id).order_by(desc(Model.run_at)).all()
             if rows:
-                df = pd.DataFrame([row_to_dict(row) for row in rows])
-                df.sort_values(by="run_at", ascending=False, inplace=True)
-                df_five_download = df[0:5]
-                # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
-                for i in list(df_five_download.scan_id):
-                    Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update({"scan_final_status": None})
-                update_list = list(df.drop(list(df_five_download.index)).scan_id)
-                # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
-                for i in update_list:
-                    Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update({"report_id": -1})
+                # df = pd.DataFrame([row_to_dict(row) for row in rows])
+                # df.sort_values(by="run_at", ascending=False, inplace=True)
+                # df_five_download = df[0:5]
+                # # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
+                # for i in list(df_five_download.scan_id):
+                #     Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update({"scan_final_status": None})
+                # update_list = list(df.drop(list(df_five_download.index)).scan_id)
+                # # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
+                # for i in update_list:
+                #     Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update({"report_id": -1})
+                for i in range(len(rows)):
+                    if i < 5:
+                        # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
+                        rows[i].scan_final_status = None
+                    else:
+                        # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
+                        rows[i].report_id = -1
+                        if rows[i].finished is None:
+                            rows[i].finished = True
                 db.session.commit()
         return util.success()

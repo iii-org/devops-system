@@ -183,19 +183,19 @@ def filter_by_user(rows, user_id, role_id=None):
                 for type_project_id in row[1].type_parameter["project_ids"]:
                     if (type_project_id,) in project_ids and row not in out_list:
                         out_list.append(row)
+                        break
             if row[1].type_id == 3:
-                for type_user_id in row[1].type_parameter["user_ids"]:
-                    if type_user_id == user_id and row not in out_list:
-                        out_list.append(row)
+                if user_id in row[1].type_parameter["user_ids"] and row not in out_list:
+                    out_list.append(row)
             if role_id and row[1].type_id == 4:
-                for type_role_id in row[1].type_parameter["role_ids"]:
-                    if type_role_id == role_id and row not in out_list:
-                        out_list.append(row)
+                if role_id in row[1].type_parameter["role_ids"] and row not in out_list:
+                    out_list.append(row)
             if row[1].type_id == 5:
                 for type_project_id in row[1].type_parameter["project_ids"]:
                     pj_row = Project.query.filter_by(id=type_project_id).first()
                     if pj_row.owner_id == user_id:
                         out_list.append(row)
+                        break
     return out_list
 
 
@@ -242,13 +242,11 @@ def get_notification_message_list(args, admin=False):
     if admin and args.get("include_system_message") is not True:
         base_query = base_query.filter(NotificationMessage.alert_level <= 100)
     rows = base_query.order_by(desc(NotificationMessage.id)).all()
-
     if admin is False:
         rows = filter_by_user(rows, get_jwt_identity()["user_id"], get_jwt_identity()["role_id"])
     out = combine_message_and_recipient(rows)
     if admin:
         out = count_must_receiver_number(out)
-    # print(out)
     out, page_dict = util.list_pagination(out, args["limit"], args["offset"])
     out_dict = {"notification_message_list": out}
 

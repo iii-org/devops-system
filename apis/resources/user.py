@@ -24,14 +24,14 @@ from resources.activity import record_activity
 from resources.apiError import DevOpsError
 from resources.gitlab import gitlab
 from resources.logger import logger
-from resources.redmine import redmine
+from resources.redmine import redmine, update_user_mail_mail_notification_option
 from resources.project import get_project_list
 import resources
 from sqlalchemy import desc, nullslast
 import gitlab as gitlab_pack
 from resources.mail import mail_server_is_open
 from resources.notification_message import create_notification_message
-import random
+import secrets
 import base64
 
 # Make a regular expression
@@ -345,7 +345,7 @@ def update_user_role(user_id, role_id):
 
 
 def update_external_passwords(user_id, new_pwd, old_pwd):
-    DEFAULT_AD_PASSWORD = f"IIIdevops{random.randrange(10000, 99999)}"
+    DEFAULT_AD_PASSWORD = f"IIIdevops{secrets.SystemRandom().randrange(10000, 99999)}"
     login_account = model.User.query.filter_by(id=user_id).first().login
     try:
         user_login = nx_get_user(id=user_id).login
@@ -1012,7 +1012,7 @@ def create_user(args):
         logger.info(f"Nexus user project_user_role created.")
 
         # insert user_message_type
-        row = model.UserMessageType(user_id=user_id, teams=False, notification=True, mail=False)
+        row = model.UserMessageType(user_id=user_id, teams=False, notification=True, mail=True)
         db.session.add(row)
         db.session.commit()
         logger.info(f"Nexus user_message_type created.")

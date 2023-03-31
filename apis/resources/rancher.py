@@ -674,6 +674,26 @@ def remove_extra_executions():
                     logger.exception(str(e))
 
 
+def turn_project_push_off(ci_project_id, ci_pipeline_id):
+    logger.info(f"Project {ci_project_id} Start to turn push off.")
+    data = {"triggerWebhookPush": False}
+    try:
+        rancher.rc_update_project_pipline(ci_project_id, ci_pipeline_id, data)
+    except Exception as e:
+        logger.exception(str(e))
+    logger.info(f"Project {ci_project_id} Finish turn push off.")
+
+
+def turn_project_push_on(ci_project_id, ci_pipeline_id):
+    logger.info(f"Project {ci_project_id} Start to turn push on.")
+    data = {"triggerWebhookPush": True}
+    try:
+        rancher.rc_update_project_pipline(ci_project_id, ci_pipeline_id, data)
+    except Exception as e:
+        logger.exception(str(e))
+    logger.info(f"Project {ci_project_id} Finish turn push on.")
+
+
 def turn_tags_off():
     logger.info("Start to turn tags off.")
     data = {"triggerWebhookTag": False}
