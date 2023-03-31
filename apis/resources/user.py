@@ -1012,7 +1012,9 @@ def create_user(args):
         logger.info(f"Nexus user project_user_role created.")
 
         # insert user_message_type
-        create_user_message_type(user_id)
+        row = model.UserMessageType(user_id=user_id, teams=False, notification=True, mail=True)
+        db.session.add(row)
+        db.session.commit()
         logger.info(f"Nexus user_message_type created.")
     except Exception as e:
         harbor.hb_delete_user(harbor_user_id)
@@ -1030,19 +1032,6 @@ def create_user(args):
         "harbor_user_id": harbor_user_id,
         "kubernetes_sa_name": kubernetes_sa_name,
     }
-
-
-def create_user_message_type(user_id: int) -> None:
-    """
-    Mail's setting is based on SMTP server's openess
-    """
-
-    status = model.SystemParameter.query.filter_by(name="mail_config").first().active
-
-    row = model.UserMessageType(user_id=user_id, teams=False, notification=True, mail=status)
-    db.session.add(row)
-    db.session.commit()
-    update_user_mail_mail_notification_option(user_id, status)
 
 
 def user_list(filters):
@@ -1217,6 +1206,4 @@ def update_user_message_types(user_id, args):
                     error=apiError.argument_error("mail"),
                 )
             users_message_type.mail = mail
-            # Update redmine user email notification option
-            update_user_mail_mail_notification_option(user_id, mail)
         db.session.commit()

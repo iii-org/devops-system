@@ -73,17 +73,7 @@ def upgrade(version):
     elif version == "1.26.0.2":
         recreate_ui_route()
     elif version == "1.27.0.1":
-        correct_user_email_notification_option_in_redmine()
         pass
-
-
-def correct_user_email_notification_option_in_redmine():
-    from resources.redmine import redmine
-
-    for user_msg in model.UserMessageType.query.all():
-        user_relation = nx_get_user_plugin_relation(user_id=user_msg.user_id)
-        plan_user_id, option = user_relation.plan_user_id, "none" if not user_msg.mail else "only_my_events"
-        redmine.rm_update_user_mail_notification_option(plan_user_id, option)
 
 
 def recreate_ui_route():
