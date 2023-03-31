@@ -556,6 +556,14 @@ class Redmine:
         setattr(user, "mail", new_email)
         user.save()
 
+    def rm_update_user_mail_notification_option(self, plan_user_id: int, option: str):
+        """
+        params: option, available values are [all, only_my_events(only for things i watch or i's involved in), none]
+        """
+        user = redmine_lib.redmine.user.get(plan_user_id)
+        setattr(user, "mail_notification", option)
+        user.save()
+
     def rm_get_or_set_emission_email_address(self, rm_emission_email_address):
         deployer_node_ip = config.get("DEPLOYER_NODE_IP")
         if deployer_node_ip is None:

@@ -1206,4 +1206,8 @@ def update_user_message_types(user_id, args):
                     error=apiError.argument_error("mail"),
                 )
             users_message_type.mail = mail
+            # Update redmine user email notification option
+            user_relation = nx_get_user_plugin_relation(user_id=user_id)
+            plan_user_id, option = user_relation.plan_user_id, "none" if not mail else "only_my_events"
+            redmine.rm_update_user_mail_notification_option(plan_user_id, option)
         db.session.commit()
