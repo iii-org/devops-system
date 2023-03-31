@@ -636,6 +636,14 @@ def update_mail_config(args):
         db.session.commit()
 
 
+def update_user_mail_mail_notification_option(user_id: int, active: bool) -> None:
+    from nexus import nx_get_user_plugin_relation
+
+    user_relation = nx_get_user_plugin_relation(user_id=user_id)
+    plan_user_id, option = user_relation.plan_user_id, "none" if not active else "only_my_events"
+    redmine.rm_update_user_mail_notification_option(plan_user_id, option)
+
+
 # --------------------- Resources ---------------------
 
 

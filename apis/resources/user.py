@@ -24,7 +24,7 @@ from resources.activity import record_activity
 from resources.apiError import DevOpsError
 from resources.gitlab import gitlab
 from resources.logger import logger
-from resources.redmine import redmine
+from resources.redmine import redmine, update_user_mail_mail_notification_option
 from resources.project import get_project_list
 import resources
 from sqlalchemy import desc, nullslast
@@ -1012,9 +1012,7 @@ def create_user(args):
         logger.info(f"Nexus user project_user_role created.")
 
         # insert user_message_type
-        row = model.UserMessageType(user_id=user_id, teams=False, notification=True, mail=False)
-        db.session.add(row)
-        db.session.commit()
+        create_user_message_type(user_id)
         logger.info(f"Nexus user_message_type created.")
     except Exception as e:
         harbor.hb_delete_user(harbor_user_id)
@@ -1032,6 +1030,19 @@ def create_user(args):
         "harbor_user_id": harbor_user_id,
         "kubernetes_sa_name": kubernetes_sa_name,
     }
+
+
+def create_user_message_type(user_id: int) -> None:
+    """
+    Mail's setting is based on SMTP server's openess
+    """
+
+    status = model.SystemParameter.query.filter_by(name="mail_config").first().active
+
+    row = model.UserMessageType(user_id=user_id, teams=False, notification=True, mail=status)
+    db.session.add(row)
+    db.session.commit()
+    update_user_mail_mail_notification_option(user_id, status)
 
 
 def user_list(filters):
@@ -1207,7 +1218,5 @@ def update_user_message_types(user_id, args):
                 )
             users_message_type.mail = mail
             # Update redmine user email notification option
-            user_relation = nx_get_user_plugin_relation(user_id=user_id)
-            plan_user_id, option = user_relation.plan_user_id, "none" if not mail else "only_my_events"
-            redmine.rm_update_user_mail_notification_option(plan_user_id, option)
+            update_user_mail_mail_notification_option(user_id, mail)
         db.session.commit()
