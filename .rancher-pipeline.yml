@@ -7,7 +7,7 @@ stages:
       sourceName: nexus
       targetKey: api_origin
     runScriptConfig:
-      image: iiiorg/iiidevops-cli:0.0.1
+      image: iiiorg/iiidevops-cli:0.0.4
       shellScript: curl --location -s --request POST ${api_origin}/rancher/delete_app
         --form project_name=${CICD_GIT_REPO_NAME} --form branch_name=${CICD_GIT_BRANCH}
         && curl --location -s --request POST ${api_origin}/project/issues_commit_by_name
@@ -66,10 +66,10 @@ stages:
       sourceName: rancher
       targetKey: rancher_url
     runScriptConfig:
-      image: iiiorg/iiidevops-cli:0.0.1
+      image: iiiorg/iiidevops-cli:0.0.4
       shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
         && rancher kubectl delete configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env
-        --ignore-not-found=true && perl iiidevops/bin/chk-app-env.pl && rancher kubectl
+        --ignore-not-found=true && chk-app-env.pl && rancher kubectl
         create configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env
         --from-env-file=iiidevops/app.env && rancher kubectl annotate configmap -n
         ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env iiidevops.org/project_name=${CICD_GIT_REPO_NAME}
@@ -116,7 +116,7 @@ stages:
       sourceName: nexus
       targetKey: api_origin
     runScriptConfig:
-      image: iiiorg/iiidevops-cli:0.0.1
+      image: iiiorg/iiidevops-cli:0.0.4
       shellScript: curl --location -s --request POST ${api_origin}/v2/harbor/${CICD_GIT_REPO_NAME}/scan
         --form branch=${CICD_GIT_BRANCH} --form commit_id=${CICD_GIT_COMMIT}
   when:
@@ -142,7 +142,7 @@ stages:
       sourceName: nexus
       targetKey: api_origin
     runScriptConfig:
-      image: iiiorg/iiidevops-cli:0.0.1
+      image: iiiorg/iiidevops-cli:0.0.4
       shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
         && export PW=$(rancher kubectl get secret nexus-bot -n ${CICD_GIT_REPO_NAME}
         -o=go-template='{{index .data "password"}}' | base64 -d) && export UN=$(rancher
@@ -208,7 +208,7 @@ stages:
       sourceName: rancher
       targetKey: rancher_url
     runScriptConfig:
-      image: iiiorg/iiidevops-cli:0.0.1
+      image: iiiorg/iiidevops-cli:0.0.4
       shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify;
         deploy-wait.pl
   when:
