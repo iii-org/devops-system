@@ -678,41 +678,46 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
                         "enable",
                         exist_branch_list,
                     )
-    if had_update_branche:
-        # is_turn_off_push = False
-        if not run or default or (run and default_branch not in need_running_branches):
-            next_run = pipeline.get_pipeline_next_run(repository_id)
-            print(f"next_run: {next_run}")
-            create_pipeline_execution(repository_id, default_branch, next_run)
-            # if pipeline.get_pipeline_trigger_webhook_push(repository_id):
-            #     pipeline.turn_push_off(repository_id)
-            #     is_turn_off_push = True
-
-        f.content = yaml.dump(default_pipe_json, sort_keys=False)
-        f.save(
-            branch=default_branch,
-            author_email="system@iiidevops.org.tw",
-            author_name="iiidevops",
-            commit_message=f"{user_account} 編輯 {default_branch} 分支 .rancher-pipeline.yaml",
-        )
-        if not run or default or (run and default_branch not in need_running_branches):
-            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=default_branch)
-            # if is_turn_off_push:
-            #     pipeline.turn_push_on(repository_id)
+    # if had_update_branche:
+    #     # is_turn_off_push = False
+    #     if not run or default or (run and default_branch not in need_running_branches):
+    #         next_run = pipeline.get_pipeline_next_run(repository_id)
+    #         print(f"next_run: {next_run}")
+    #         create_pipeline_execution(repository_id, default_branch, next_run)
+    #         # if pipeline.get_pipeline_trigger_webhook_push(repository_id):
+    #         #     pipeline.turn_push_off(repository_id)
+    #         #     is_turn_off_push = True
+    #
+    #     f.content = yaml.dump(default_pipe_json, sort_keys=False)
+    #     f.save(
+    #         branch=default_branch,
+    #         author_email="system@iiidevops.org.tw",
+    #         author_name="iiidevops",
+    #         commit_message=f"{user_account} 編輯 {default_branch} 分支 .rancher-pipeline.yaml",
+    #     )
+    #     if not run or default or (run and default_branch not in need_running_branches):
+    #         pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=default_branch)
+    #         # if is_turn_off_push:
+    #         #     pipeline.turn_push_on(repository_id)
 
     # Sync default branch pipeline.yml to other branches, seperate to two parts to avoid not delete all branches
-    for br_name in need_running_branches:
-        sync_branch(
-            user_account,
-            repository_id,
-            pipe_yaml_file_name,
-            br_name,
-            default_pipe_json,
-            not_run=not run,
-        )
+    if run:
+        for br_name in need_running_branches:
+            sync_branch(
+                user_account,
+                repository_id,
+                pipe_yaml_file_name,
+                br_name,
+                default_pipe_json,
+                not_run=not run,
+            )
 
     # Rest of branches
-    rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches + [default_branch]])
+    # rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches + [default_branch]])
+    # if run:
+        rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches])
+    else:
+        rest_branch_names = all_branches
     thread = threading.Thread(
         target=sync_branches,
         args=(
@@ -727,8 +732,15 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
 
 
 def sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name_list, default_pipe_json):
+    is_turn_off_push = False
+    if pipeline.get_pipeline_trigger_webhook_push(repository_id):
+        pipeline.turn_push_off(repository_id)
+        is_turn_off_push = True
     for br_name in br_name_list:
         sync_branch(user_account, repository_id, pipe_yaml_file_name, br_name, default_pipe_json)
+    if is_turn_off_push:
+        pipeline.turn_push_on(repository_id)
+    sleep(1)
 
 
 def sync_branch(
@@ -745,14 +757,14 @@ def sync_branch(
     pipe_json = updated_pipe_json
     if had_update_branche:
         # is_turn_off_push = False
-        if not_run:
-            next_run = pipeline.get_pipeline_next_run(repository_id)
-            print(f"next_run: {next_run}")
-            create_pipeline_execution(repository_id, br_name, next_run)
-            # if pipeline.get_pipeline_trigger_webhook_push(repository_id):
-            #     pipeline.turn_push_off(repository_id)
-            #     is_turn_off_push = True
-
+        # if not_run:
+        #     next_run = pipeline.get_pipeline_next_run(repository_id)
+        #     print(f"next_run: {next_run}")
+        #     create_pipeline_execution(repository_id, br_name, next_run)
+        #     # if pipeline.get_pipeline_trigger_webhook_push(repository_id):
+        #     #     pipeline.turn_push_off(repository_id)
+        #     #     is_turn_off_push = True
+        print(br_name, "not run:", not_run)
         f.content = yaml.dump(pipe_json, sort_keys=False)
         f.save(
             branch=br_name,
@@ -760,12 +772,12 @@ def sync_branch(
             author_name="iiidevops",
             commit_message=f"{user_account} 編輯 {br_name} 分支 .rancher-pipeline.yaml",
         )
-        if not_run:
-            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br_name)
-            print(f"stop_and_delete: {next_run}")
-            # if is_turn_off_push:
-            #     pipeline.turn_push_on(repository_id)
-            # sleep(1)
+        # if not_run:
+        #     pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br_name)
+        #     print(f"stop_and_delete: {next_run}")
+        #     # if is_turn_off_push:
+        #     #     pipeline.turn_push_on(repository_id)
+        #     # sleep(1)
 
 
 def initial_rancher_pipline_info(repository_id):
