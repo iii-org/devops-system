@@ -738,8 +738,9 @@ def sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name_list
     for br_name in br_name_list:
         sync_branch(user_account, repository_id, pipe_yaml_file_name, br_name, default_pipe_json)
     if is_turn_off_push:
+        sleep(5)
         pipeline.turn_push_on(repository_id)
-    sleep(1)
+
 
 
 def sync_branch(
