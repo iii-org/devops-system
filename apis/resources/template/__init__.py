@@ -825,7 +825,7 @@ def update_nonexist_key_rancher_file(repository_id: int):
 
 
 def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
-    update_nonexist_key_rancher_file(repository_id)
+    # update_nonexist_key_rancher_file(repository_id)
     initial_info = initial_rancher_pipline_info(repository_id)
     disable_list = []
     if PluginSoftware.query.filter_by(disabled=True).first():
@@ -881,6 +881,10 @@ def update_pj_rancher_pipline(repository_id):
     pj = gl.projects.get(repository_id)
     if pj.empty_repo:
         return
+    # is_turn_off_push = False
+    # if pipeline.get_pipeline_trigger_webhook_push(repository_id):
+    #     pipeline.turn_push_off(repository_id)
+    #     is_turn_off_push = True
     for br in pj.branches.list(all=True):
         try:
             pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
@@ -930,6 +934,9 @@ def update_pj_rancher_pipline(repository_id):
             commit_message=f'Add "iiidevops" in branch {br.name} .rancher-pipeline.yml.',
         )
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
+    # if is_turn_off_push:
+    #     pipeline.turn_push_on(repository_id)
+    # sleep(1)
 
 
 def update_project_rancher_pipline():
