@@ -733,6 +733,7 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
 def sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name_list, default_pipe_json):
     is_turn_off_push = False
     if pipeline.get_pipeline_trigger_webhook_push(repository_id):
+        sleep(5)
         pipeline.turn_push_off(repository_id)
         is_turn_off_push = True
     for br_name in br_name_list:
@@ -740,7 +741,6 @@ def sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name_list
     if is_turn_off_push:
         sleep(5)
         pipeline.turn_push_on(repository_id)
-
 
 
 def sync_branch(
