@@ -506,6 +506,15 @@ def gitlab_error(response):
     return error_3rd_party_api("Gitlab", response)
 
 
+# 88: Webinspect Error
+def wie_project_not_exist(project_name):
+    return build(8801, f"Application: {project_name} not found.")
+
+
+def wie_project_version_not_exist(project_version_name):
+    return build(8801, f"Project Version: {project_version_name} not found.")
+
+
 # 89: General Plugin
 def plugin_is_disabled(plugin_name):
     return build(8901, "Plugin Software is disabled.", {"plugin_name": plugin_name})
