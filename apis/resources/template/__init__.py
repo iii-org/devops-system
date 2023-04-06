@@ -712,9 +712,8 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
                 not_run=not run,
             )
 
-    # Rest of branches
-    # rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches + [default_branch]])
-    # if run:
+        # Rest of branches
+        # rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches + [default_branch]])
         rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches])
     else:
         rest_branch_names = all_branches
@@ -764,7 +763,7 @@ def sync_branch(
         #     # if pipeline.get_pipeline_trigger_webhook_push(repository_id):
         #     #     pipeline.turn_push_off(repository_id)
         #     #     is_turn_off_push = True
-        print(br_name, "not run:", not_run)
+        logger.logger.info(f"{br_name} not run : {not_run}")
         f.content = yaml.dump(pipe_json, sort_keys=False)
         f.save(
             branch=br_name,
