@@ -326,6 +326,7 @@ class WebInspect(db.Model):
     commit_id = Column(String)
     stats = Column(String)
     status = Column(String)
+    report_id = Column(Integer)
     # The time scan registered
     run_at = Column(DateTime)
     finished = Column(Boolean, default=False)
