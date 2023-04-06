@@ -711,7 +711,7 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
                 default_pipe_json,
                 not_run=not run,
             )
-
+        sleep(1)
         # Rest of branches
         # rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches + [default_branch]])
         rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches])
