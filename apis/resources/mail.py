@@ -1,9 +1,11 @@
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from resources import apiError
 from resources import logger
 from model import db, SystemParameter
 import config
+import markdown
 
 
 class Mail:
@@ -79,11 +81,19 @@ class Mail:
             else config.get("DEPLOYER_NODE_IP")
         )
 
-        text = MIMEText(message, "plain", "utf-8")
+        # css = subprocess.check_output(['pygmentize', '-S', 'default', '-f', 'html', '-a', '.codehilite'])
+        markdown_content = message.strip()
+        html_content = markdown.markdown(markdown_content, extensions=['codehilite'])
+        # html_content = '<style type="text/css">' + css + '</style>' + html_content
+
+        # create a multipart email message
+        text = MIMEMultipart('alternative')
         text["Subject"] = f"[{domain}] {title}"
         text["From"] = self.smtp_emission_address
         text["To"] = receiver
         text["Disposition-Notification-To"] = self.smtp_emission_address
+        text.attach(MIMEText(markdown_content, "plain", "utf-8"))
+        text.attach(MIMEText(html_content, "html", "utf-8"))
 
         if self.server is not None:
             logger.logger.info(f"Sending Mail to {receiver}, title: {title}")
