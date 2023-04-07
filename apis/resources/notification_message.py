@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from time import strptime, mktime
 import json
 import util
-from resources import role
+from resources import role, logger
 from model import (
     UserMessageType,
     db,
@@ -459,7 +459,19 @@ class NotificationRoom(object):
 
                 v["creator"] = NexusUser().set_user_id(v["creator_id"]).to_json()
             v.pop("creator_id", None)
-            send_mail(k, v["title"], v["message"])
+            try:
+                # import subprocess
+                # import pygments
+                import markdown
+                # css = subprocess.check_output(['pygmentize', '-S', 'default', '-f', 'html', '-a', '.codehilite'])
+                message = markdown.markdown(v["message"].strip(), extensions=['codehilite'])
+                # message = '<style type="text/css">' + css + '</style>' + message
+            except ImportError:
+                logger.logger.warning('This script requires pygments and markdown to be installed.')
+                logger.logger.warning('Please:')
+                logger.logger.warning('   pip install pygments markdown')
+                message = v["message"]
+            send_mail(k, v["title"], message)
             if get_notification_is_open(k, message_id):
                 emit(
                     "create_message",
