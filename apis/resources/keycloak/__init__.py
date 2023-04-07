@@ -4,7 +4,7 @@ from keycloak.exceptions import KeycloakGetError, KeycloakAuthenticationError
 from resources.logger import logger
 
 
-KEYCLOAK_URL = "https://10.20.0.75:32110"
+KEYCLOAK_URL = "https://kc.rproxy.iiidevops.org"
 REALM_NAME = "IIIdevops"
 CLIENT_ID = "iiidevops"
 CLIENT_SECRET_KEY = "0cxoXRmuAS19545kJ0UWersLMM5IQh70"
