@@ -103,6 +103,14 @@
         "start_version": "v1.18.1",
         "end_version": "v1.27.9"
     },
+    "react-nginx-todo":{
+        "start_version": "v1.18.1",
+        "end_version": "v1.27.9"
+    },
+    "redis-dev":{
+        "start_version": "v1.0.0",
+        "end_version": "v1.27.9"
+    },
     "spring-boot-gradle-hello":{
         "start_version": "v1.18.1",
         "end_version": "v1.27.9"
