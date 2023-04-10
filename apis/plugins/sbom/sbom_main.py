@@ -207,6 +207,10 @@ def risk_detail(file_path=None, kwargs=None):
             if i not in list(df_vulnerability_info.columns):
                 df_vulnerability_info[i] = None
         # 依照指定順序排序
+        for index in [
+            index for index in ["id", "severity", "description", "dataSource"] if index not in df_vulnerability_info
+        ]:
+            df_vulnerability_info[index] = ""
         df_vulnerability_info = df_vulnerability_info[["id", "severity", "description", "dataSource"]]
         # 擷取grype.json中的['name']
         df_artifact_info = pd.DataFrame(
@@ -220,7 +224,10 @@ def risk_detail(file_path=None, kwargs=None):
         df_fix_versions = pd.DataFrame(
             [data["matches"][index]["vulnerability"]["fix"] for index, value in enumerate(data["matches"])]
         )
-        df_fix_versions["versions"] = df_fix_versions["versions"].apply(lambda x: x if x != [] else np.nan)
+        if "versions" in df_fix_versions:
+            df_fix_versions["versions"] = df_fix_versions["versions"].apply(lambda x: x if x != [] else np.nan)
+        else:
+            df_fix_versions["versions"] = ""
         if df_fix_versions["versions"].isnull().all():
             df_result = df_vulnerability_info.join(df_artifact_info)
             df_result["versions"] = None
