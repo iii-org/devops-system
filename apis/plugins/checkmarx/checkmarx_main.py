@@ -528,13 +528,14 @@ class CronjobScan(Resource):
                             if status_id == 10:
                                 status_id, _ = 2, "PreScan"
                             logger.logger.info(f"scan_id: {row.scan_id}, status_id: {status_id}, ststus_name: {_}")
-                            if status_id in [1, 2, 3] or (status_id == 7 and row.report_id < 0):
+                            if status_id in [1, 2, 3]:
                                 logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status")
                                 checkmarx.register_report(row.scan_id)
                                 report_count += 1
                                 logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report")
-
-                            time.sleep(1)
+                                time.sleep(1)
+                            elif status_id == 7 and row.report_id < 0 and row.finished is None:
+                                rows.scan_final_status = None
                         except Exception as e:
                             logger.logger.exception(str(e))
                         # else:
