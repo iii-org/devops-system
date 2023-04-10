@@ -512,7 +512,7 @@ class CronjobScan(Resource):
                     # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
                     # 最近30天內及最新的五筆
                     if report_count < 5 and utcnow - datetime.timedelta(days=30) <= row.run_at:
-                        if rows.finished is None:
+                        if row.finished is None:
                             try:
                                 status_id, _ = checkmarx.get_scan_status(rows.scan_id)
                                 # Merge id 2 and 10 as same status
@@ -520,10 +520,10 @@ class CronjobScan(Resource):
                                     status_id, _ = 2, "PreScan"
 
                                 if status_id in [1, 2, 3]:
-                                    logger.logger.info(f"Updating checkmarx scan: {rows[i].scan_id}'s status")
-                                    checkmarx.register_report(rows[i].scan_id)
+                                    logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status")
+                                    checkmarx.register_report(row.scan_id)
                                     report_count += 1
-                                    logger.logger.info(f"Updating checkmarx scan: {rows[i].scan_id}'s report")
+                                    logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report")
 
                                 time.sleep(1)
                             except Exception as e:
@@ -532,8 +532,8 @@ class CronjobScan(Resource):
                         #     rows.scan_final_status = None
                     else:
                         # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
-                        rows.report_id = -1
-                        if rows.finished is None:
-                            rows.finished = True
+                        row.report_id = -1
+                        if row.finished is None:
+                            row.finished = True
                 db.session.commit()
         return util.success()
