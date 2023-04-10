@@ -535,5 +535,7 @@ class CronjobScan(Resource):
                         row.report_id = -1
                         if row.finished is None:
                             row.finished = True
+                        if row.scan_final_status is None:
+                            row.scan_final_status = "Deleted"
                 db.session.commit()
         return util.success()
