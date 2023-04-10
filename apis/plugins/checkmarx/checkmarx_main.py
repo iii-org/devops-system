@@ -133,14 +133,20 @@ class CheckMarx(object):
             Model.query.filter_by(repo_id=args["repo_id"]).filter(Model.report_id != -1).order_by(Model.run_at).all()
         )
         if len(record) >= 5:
-            update_row = (
-                Model.query.filter_by(repo_id=args["repo_id"])
-                .filter(Model.report_id != -1)
-                .order_by(Model.run_at)
-                .first()
-            )
-            if update_row:
-                update_row.report_id = -1
+            # update_row = (
+            #     Model.query.filter_by(repo_id=args["repo_id"])
+            #     .filter(Model.report_id != -1)
+            #     .order_by(Model.run_at)
+            #     .first()
+            # )
+            # if update_row:
+            #     update_row.report_id = -1
+            #     db.session.commit()
+            is_update: bool = False
+            for i in range(len(record) - 4):
+                record[i].report_id = -1
+                is_update = True
+            if is_update:
                 db.session.commit()
         return util.success()
 
@@ -488,12 +494,15 @@ class CronjobScan(Resource):
         #     except Exception as e:
         #         logger.logger.exception(str(e))
         # querys_all = Model.query.all()
-        querys_all = Model.query.with_entities(Model.repo_id).group_by(Model.repo_id).all()
+        querys_all = Model.query.with_entities(Model.repo_id).group_by(Model.repo_id).order_by(Model.repo_id).all()
         # repo_id_list = [query.repo_id for query in querys_all]
         # 刪除重複
         # for id in list(set(repo_id_list)):
         utcnow = datetime.datetime.utcnow()
+        rec_no = 0
         for query in querys_all:
+            rec_no += 1
+            logger.logger.info(f"rec no: {rec_no}, repo_id:{query.repo_id}, run CronjobScan")
             # rows = Model.query.filter_by(repo_id=id).order_by(desc(Model.scan_id)).all()
             rows = Model.query.filter_by(repo_id=query.repo_id).order_by(desc(Model.run_at)).all()
             if rows:
@@ -537,5 +546,7 @@ class CronjobScan(Resource):
                             row.finished = True
                         if row.scan_final_status is None:
                             row.scan_final_status = "Deleted"
+                        if row.scan_final_status == "Scanning" or row.scan_final_status == "Queued":
+                            row.scan_final_status = "Canceled"
                 db.session.commit()
         return util.success()
