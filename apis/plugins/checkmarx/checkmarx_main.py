@@ -427,8 +427,8 @@ class RegisterCheckmarxReport(Resource):
 
 class GetCheckmarxReportStatus(Resource):
     @jwt_required()
-    def get(self, scan_id):
-        status_id, value = checkmarx.get_report_status(scan_id)
+    def get(self, report_id):
+        status_id, value = checkmarx.get_report_status(report_id)
         return util.success({"id": status_id, "value": value})
 
 
@@ -523,7 +523,7 @@ class CronjobScan(Resource):
                     if report_count < 5 and utcnow - datetime.timedelta(days=30) <= row.run_at:
                         # if row.finished is None:
                         try:
-                            status_id, _ = checkmarx.get_scan_status(rows.scan_id)
+                            status_id, _ = checkmarx.get_scan_status(row.scan_id)
                             # Merge id 2 and 10 as same status
                             if status_id == 10:
                                 status_id, _ = 2, "PreScan"
