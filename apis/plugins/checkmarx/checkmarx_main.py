@@ -150,10 +150,12 @@ class CheckMarx(object):
             status = self.__api_get("/sast/scans/{0}".format(scan_id)).json().get("status")
         except Exception as e:
             error_mes = None
-            if e.status_code == 404 and hasattr(e, "error_value"):
+            # if e.status_code == 404 and hasattr(e, "error_value"):
+            if e.status_code == 404:
                 scan = Model.query.filter_by(scan_id=scan_id).one()
                 scan.scan_final_status = "Deleted"
-                error_mes = e.error_value.get("message")
+                if hasattr(e, "error_value"):
+                    error_mes = e.error_value.get("message")
 
             error_mes = error_mes if error_mes is not None else str(e)
             raise apiError.DevOpsError(
@@ -467,29 +469,30 @@ def row_to_dict(row):
 
 class CronjobScan(Resource):
     def get(self):
-        querys = Model.query.filter(Model.finished == None).all()
-        # id_list = [query.scan_id for query in querys]
-        # for id in id_list:
-        for query in querys:
-            try:
-                status_id, _ = checkmarx.get_scan_status(query.scan_id)
-                # Merge id 2 and 10 as same status
-                if status_id == 10:
-                    status_id, _ = 2, "PreScan"
-
-                if status_id in [1, 2, 3]:
-                    logger.logger.info(f"Updating checkmarx scan: {query.scan_id}'s status")
-                    checkmarx.register_report(query.scan_id)
-                    logger.logger.info(f"Updating checkmarx scan: {query.scan_id}'s report")
-
-                time.sleep(1)
-            except Exception as e:
-                logger.logger.exception(str(e))
+        # querys = Model.query.filter(Model.finished == None).all()
+        # # id_list = [query.scan_id for query in querys]
+        # # for id in id_list:
+        # for query in querys:
+        #     try:
+        #         status_id, _ = checkmarx.get_scan_status(query.scan_id)
+        #         # Merge id 2 and 10 as same status
+        #         if status_id == 10:
+        #             status_id, _ = 2, "PreScan"
+        #
+        #         if status_id in [1, 2, 3]:
+        #             logger.logger.info(f"Updating checkmarx scan: {query.scan_id}'s status")
+        #             checkmarx.register_report(query.scan_id)
+        #             logger.logger.info(f"Updating checkmarx scan: {query.scan_id}'s report")
+        #
+        #         time.sleep(1)
+        #     except Exception as e:
+        #         logger.logger.exception(str(e))
         # querys_all = Model.query.all()
         querys_all = Model.query.with_entities(Model.repo_id).group_by(Model.repo_id).all()
         # repo_id_list = [query.repo_id for query in querys_all]
         # 刪除重複
         # for id in list(set(repo_id_list)):
+        utcnow = datetime.datetime.utcnow()
         for query in querys_all:
             # rows = Model.query.filter_by(repo_id=id).order_by(desc(Model.scan_id)).all()
             rows = Model.query.filter_by(repo_id=query.repo_id).order_by(desc(Model.run_at)).all()
@@ -504,14 +507,33 @@ class CronjobScan(Resource):
                 # # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
                 # for i in update_list:
                 #     Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update({"report_id": -1})
-                for i in range(len(rows)):
-                    if i < 5:
-                        # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
-                        rows[i].scan_final_status = None
+                report_count = 0
+                for row in rows:
+                    # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
+                    # 最近30天內及最新的五筆
+                    if report_count < 5 and utcnow - datetime.timedelta(days=30) <= row.run_at:
+                        if rows.finished is None:
+                            try:
+                                status_id, _ = checkmarx.get_scan_status(rows.scan_id)
+                                # Merge id 2 and 10 as same status
+                                if status_id == 10:
+                                    status_id, _ = 2, "PreScan"
+
+                                if status_id in [1, 2, 3]:
+                                    logger.logger.info(f"Updating checkmarx scan: {rows[i].scan_id}'s status")
+                                    checkmarx.register_report(rows[i].scan_id)
+                                    report_count += 1
+                                    logger.logger.info(f"Updating checkmarx scan: {rows[i].scan_id}'s report")
+
+                                time.sleep(1)
+                            except Exception as e:
+                                logger.logger.exception(str(e))
+                        # else:
+                        #     rows.scan_final_status = None
                     else:
                         # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
-                        rows[i].report_id = -1
-                        if rows[i].finished is None:
-                            rows[i].finished = True
+                        rows.report_id = -1
+                        if rows.finished is None:
+                            rows.finished = True
                 db.session.commit()
         return util.success()
