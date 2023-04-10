@@ -512,22 +512,22 @@ class CronjobScan(Resource):
                     # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
                     # 最近30天內及最新的五筆
                     if report_count < 5 and utcnow - datetime.timedelta(days=30) <= row.run_at:
-                        if row.finished is None:
-                            try:
-                                status_id, _ = checkmarx.get_scan_status(rows.scan_id)
-                                # Merge id 2 and 10 as same status
-                                if status_id == 10:
-                                    status_id, _ = 2, "PreScan"
+                        # if row.finished is None:
+                        try:
+                            status_id, _ = checkmarx.get_scan_status(rows.scan_id)
+                            # Merge id 2 and 10 as same status
+                            if status_id == 10:
+                                status_id, _ = 2, "PreScan"
 
-                                if status_id in [1, 2, 3]:
-                                    logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status")
-                                    checkmarx.register_report(row.scan_id)
-                                    report_count += 1
-                                    logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report")
+                            if status_id in [1, 2, 3]:
+                                logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status")
+                                checkmarx.register_report(row.scan_id)
+                                report_count += 1
+                                logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report")
 
-                                time.sleep(1)
-                            except Exception as e:
-                                logger.logger.exception(str(e))
+                            time.sleep(1)
+                        except Exception as e:
+                            logger.logger.exception(str(e))
                         # else:
                         #     rows.scan_final_status = None
                     else:
