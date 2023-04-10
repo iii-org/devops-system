@@ -1,5 +1,7 @@
 import json
 from datetime import datetime, timedelta
+from time import sleep
+from pathlib import Path
 
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
@@ -141,7 +143,7 @@ class Request:
         return res
 
 
-class WebinspectScc(Request):
+class WIESCC(Request):
     def __init__(self):
         self.url = wie_get_config("wi_scc_url")
         self.cookie_jar = RequestsCookieJar()
@@ -249,7 +251,7 @@ class WebinspectScc(Request):
         )
         return ret.json().get("data", {})
 
-    def wie_get_report(self, report_id: int, token: str) -> None:
+    def wie_get_report(self, report_id: int, token: str) -> str:
         params = {"mat": token, "id": report_id}
         ret = self.__api_request(
             "GET",
@@ -257,8 +259,12 @@ class WebinspectScc(Request):
             headers=self.headers,
             params=params,
         )
+        return ret.content
 
     def wie_get_report_status(self, report_id: int) -> dict[str, Any]:
+        """
+        response: status: [SCHED_PROCESSING, PROCESSING, PROCESS_COMPLETE, ERROR_PROCESSING]
+        """
         ret = self.__api_request(
             "GET",
             f"/ssc/api/v1/reports/{report_id}",
@@ -266,12 +272,10 @@ class WebinspectScc(Request):
         ).json()
         return ret
 
-    # def get_report(self, project_name: int):
-    #     # create report
-
-    #     # get report by id and token
-    #     report_token = self.wie_get_report_token()["token"]
-    #     self.wie_get_report(report_id, report_token)
+    def get_report_content(self, report_id: int):
+        report_token = self.wie_get_report_token()["token"]
+        ret = self.wie_get_report(report_id, report_token)
+        return ret
 
 
 class WIEDAST(Request):
@@ -307,14 +311,17 @@ class WIEDAST(Request):
 
 # -------------- Regular methods --------------
 """
-0 = Created
-1 = Queued
-2 = Pending
-3 = Paused
-4 = Running
-5 = Complete
-6 = Generating Report
-7 = Finished
+- Failed
+- Created
+- Queued
+- Pending
+- Paused
+- Running
+- Complete
+- Error Publishing Scan
+- Generating Report
+- Error Generating Report
+- Finished
 """
 
 
@@ -375,24 +382,16 @@ def get_scan_summary(scan_id: str):
     }
 
 
-"""
-0 = Created
-1 = Queued
-2 = Pending
-3 = Paused
-4 = Running
-5 = Complete
-6 = Generating Report
-7 = Finished
-"""
-
-
 def update_scan_summary(scan_id: str):
     wie = get_webinspect_query(scan_id=scan_id).first()
-    if wie.finished:
+    if wie.finished or wie.status == "Error Publishing Scan" or wie.status == "Error Generating Report":
         return
 
-    if wie.status not in ["Complete", "Generating Report", "Finished"]:
+    if wie.status not in [
+        "Complete",
+        "Generating Report",
+        "Finished",
+    ]:
         wie_scan_info = get_scan_summary(scan_id)
         needed_update_info = {"state": wie_scan_info["state"], "status": wie_scan_info["status"]}
         if {"state": wie.state, "status": wie.status} != needed_update_info:
@@ -400,30 +399,85 @@ def update_scan_summary(scan_id: str):
 
 
 def generate_report(scan_id: str):
-    """
-    !! here1: Get report status, to check report is ready or not
-    !! here2: Get report status, to check report is ready or not
-    """
     wie = get_webinspect_query(scan_id=scan_id).first()
-    if wie.finished:
+    if wie.finished or wie.status == "Error Publishing Scan" or wie.status == "Error Generating Report":
         return
-    if wie.status not in ["Complete", "Generating Report", "Finished"]:
+    if wie.status not in [
+        "Complete",
+        "Generating Report",
+        "Finished",
+    ]:
         update_scan_summary(scan_id)
         return
     elif wie.status == "Complete":
+        wie_scc = WIESCC()
+        wie_dast = WIEDAST()
         wie_scan_info = get_scan_summary(scan_id)
-        # !! handle Fail to publish error !!
         if wie_scan_info["publish_status"] == "NotPublished":
-            wie_dast = WIEDAST()
             wie_dast.wie_publish_scan_report(scan_id)
-        wie_scc = WebinspectScc()
+            is_pulbich = __check_scan_is_publish(scan_id)
+            if not is_pulbich:
+                update_scan({"status": "Fail to Publish"})
+                return
         report_id = wie_scc.create_report(wie.project_name, wie.version_name, wie.commit_id)
         update_scan({"report_id": report_id, "status": "Generating Report"})
-        # here1
-        wie_scc.wie_get_report_status(report_id)
+        handle_download_store_report(report_id, wie_scc, wie)
+
     elif wie.status == "Generating Report":
-        # here2
-        pass
+        handle_download_store_report(report_id, wie_scc, wie)
+
+
+def __check_scan_is_publish(scan_id):
+    num, is_published = 0, False
+    while num < 15:
+        wie_scan_info = get_scan_summary(scan_id)
+        if wie_scan_info["publish_status"] == "Published":
+            is_published = True
+            break
+        sleep(1)
+    return is_published
+
+
+def handle_download_store_report(
+    report_id: int,
+    wie_scc: WIESCC,
+    wie_query: WebInspect,
+):
+    is_finished = __check_scan_report_is_finished(report_id)
+    if not is_finished:
+        update_scan({"status": "Error Generating Report"})
+        return
+    else:
+        report_content = wie_scc.get_report_content
+    __store_report_in_local(wie_query, report_content)
+    update_scan({"status": "Finished", "finished": True, "finished_at": datetime.utcnow()})
+
+
+def __check_scan_report_is_finished(wie_scc: WIESCC, report_id: int):
+    # [ SCHED_PROCESSING, PROCESSING, PROCESS_COMPLETE, ERROR_PROCESSING ]
+    num, is_finished = 0, False
+    while num < 15:
+        status = wie_scc.wie_get_report_status(report_id).get("data", {}).get("status", "ERROR_PROCESSING")
+        if status == "ERROR_PROCESSING":
+            break
+        elif status == "PROCESS_COMPLETE":
+            is_finished = True
+            break
+        else:
+            sleep(1)
+    return is_finished
+
+
+def __store_report_in_local(wie_query: WebInspect, report_content: str):
+    scan_commit, scan_pj_name = wie_query.commit_id, wie_query.project_name
+    wie_pj_path = f"{WIE_REPORT_PATH}/{scan_pj_name}"
+
+    if not os.path.isdir(wie_pj_path):
+        os.makedirs(wie_pj_path, exist_ok=True)
+    else:
+        __remove_older_than_four_wie_report(wie_pj_path)
+    file_name = Path(f"{wie_pj_path}/{scan_commit}.pdf")
+    file_name.write_bytes(report_content)
 
 
 def __remove_older_than_four_wie_report(wie_pj_path: str):
@@ -434,20 +488,6 @@ def __remove_older_than_four_wie_report(wie_pj_path: str):
     if len(files) >= 4:
         for file in files[:-4]:
             file.unlink()
-
-
-def get_report(scan_id: str):
-    """
-    !! Remove extra project report, when get scan_id.
-    """
-    wie = get_webinspect_query(scan_id).first()
-    scan_commit, scan_pj_name = wie.commit_id, wie.project_name
-    wie_pj_path = f"{WIE_REPORT_PATH}/{scan_pj_name}"
-
-    if not os.path.isdir(wie_pj_path):
-        os.makedirs(wie_pj_path, exist_ok=True)
-    else:
-        __remove_older_than_four_wie_report(wie_pj_path)
 
 
 # --------------------- Resources ---------------------
