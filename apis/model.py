@@ -324,13 +324,15 @@ class WebInspect(db.Model):
     project_name = Column(String, ForeignKey(Project.name, ondelete="CASCADE"))
     branch = Column(String)
     commit_id = Column(String)
-    stats = Column(String)
+    state = Column(JSON, default={})
     status = Column(String)
     report_id = Column(Integer)
+    report_status = Column(String)
     # The time scan registered
     run_at = Column(DateTime)
     finished = Column(Boolean, default=False)
     finished_at = Column(DateTime)
+    log = Column(String)
 
     def __repr__(self):
         fields = {}
