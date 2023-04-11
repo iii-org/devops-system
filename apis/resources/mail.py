@@ -1,11 +1,14 @@
+import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 from resources import apiError
 from resources import logger
 from model import db, SystemParameter
 import config
 import markdown
+import base64
 
 
 class Mail:
@@ -80,12 +83,29 @@ class Mail:
             if config.get("DEPLOYMENT_NAME") is not None
             else config.get("DEPLOYER_NODE_IP")
         )
-
+        # logger.logger.info(f"mail content: \n  {message}")
         # css = subprocess.check_output(['pygmentize', '-S', 'default', '-f', 'html', '-a', '.codehilite'])
         markdown_content = message.strip()
         html_content = markdown.markdown(markdown_content, extensions=['codehilite'])
         # html_content = '<style type="text/css">' + css + '</style>' + html_content
-
+        # logger.logger.info(f"mail html content: \n  {html_content}")
+        split_str = "data:image/png;base64,"
+        files: list = []
+        if split_str in html_content:
+            images: list = html_content.split(split_str)
+            for i in range(1, len(images)):
+                image:str = ""
+                if "'" in images[i]:
+                    image = images[i].split("'")[0]
+                elif '"' in images[i]:
+                    image = images[i].split('"')[0]
+                # print(image)
+                image_file = "image" + str(i) + ".png"
+                with open(image_file, "wb") as fi:
+                    fi.write(base64.urlsafe_b64decode(image))
+                files.append(image_file)
+                html_content = html_content.replace(split_str + image, image_file)
+            # print(html_content)
         # create a multipart email message
         text = MIMEMultipart('alternative')
         text["Subject"] = f"[{domain}] {title}"
@@ -94,12 +114,24 @@ class Mail:
         text["Disposition-Notification-To"] = self.smtp_emission_address
         text.attach(MIMEText(markdown_content, "plain", "utf-8"))
         text.attach(MIMEText(html_content, "html", "utf-8"))
-
+        for f in files:
+            with open(f, "rb") as fil:
+                part = MIMEApplication(
+                    fil.read(),
+                    Name=f
+                )
+            part['Content-Disposition'] = 'attachment; filename="%s"' % f
+            text.attach(part)
         if self.server is not None:
             logger.logger.info(f"Sending Mail to {receiver}, title: {title}")
             self.server.sendmail(self.smtp_emission_address, receiver, text.as_string())
             logger.logger.info(f"Sending mail done.")
             self.server.quit()
+        for f in files:
+            try:
+                os.remove(f)
+            except Exception as ex:
+                logger.logger.info(f"file ({f}) not existed")
 
 
 def get_basic_mail_info():
