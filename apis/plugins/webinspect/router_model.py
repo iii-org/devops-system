@@ -19,6 +19,7 @@ class WIEScanGetSchema(Schema):
 
 class WIEScanUpdateSchema(Schema):
     scan_id = fields.Str(example="1234")
+    log = fields.Str(example="error log")
     status = fields.Str(example="Complete")
     finished = fields.Bool(example=True)
     finished_at = fields.DateTime(example="1970-01-01T00:00:00")

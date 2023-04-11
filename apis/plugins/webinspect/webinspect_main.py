@@ -24,10 +24,12 @@ from typing import Any, Union
 import requests
 from requests.models import Response
 from requests.cookies import RequestsCookieJar
+import threading
 
 
 WIE_CONFIG = {}
 WIE_REPORT_PATH = "./logs/wie_report"
+WIE_DAST_TOKEN = ""
 
 scc_report_data_generator = lambda report_name, project_info: {
     "name": report_name,
@@ -69,7 +71,7 @@ def wie_get_config(key):
 
 
 class Request:
-    def __api_request(
+    def api_request(
         self,
         method: str,
         path: str,
@@ -183,23 +185,23 @@ class WIESCC(Request):
 
     def wie_get_project_info(self, project_name: str = ""):
         """
-        if it needs fuzzy search, use * e.q. name="*test*"
+        if it needs fuzzy search, use * e.q. name:"*test*"
         """
         if project_name:
-            params = {"q": f'name="{project_name}"'}
-        ret = self.__api_request(
-            "POST", "/ssc/api/v1/projects", headers=self.headers, params=params, cookies=self.cookie_jar
+            params = {"q": f'name:"{project_name}"'}
+        ret = self.api_request(
+            "GET", "/ssc/api/v1/projects", headers=self.headers, params=params, cookies=self.cookie_jar
         ).json()
         return ret
 
     def wie_get_version_info(self, project_id: int, version_name: str = ""):
         """
-        if it needs fuzzy search, use * e.q. name="*test*"
+        if it needs fuzzy search, use * e.q. name:"*test*"
         """
         if version_name:
-            params = {"q": f'name="{version_name}"'}
-        ret = self.__api_request(
-            "POST",
+            params = {"q": f'name:"{version_name}"'}
+        ret = self.api_request(
+            "GET",
             f"/ssc/api/v1/projects/{project_id}/versions",
             headers=self.headers,
             params=params,
@@ -209,7 +211,7 @@ class WIESCC(Request):
 
     def wie_create_report(self, report_name: str, project_info: dict[str, Any]):
         datas = scc_report_data_generator(report_name, project_info)
-        ret = self.__api_request(
+        ret = self.api_request(
             "POST",
             "/ssc/api/v1/reports",
             headers=self.headers,
@@ -246,18 +248,15 @@ class WIESCC(Request):
         return ret["data"]["id"]
 
     def wie_get_report_token(self) -> dict[str, str]:
-        ret = self.__api_request(
+        ret = self.api_request(
             "POST", "/ssc/api/v1/fileTokens", headers=self.headers, data={"fileTokenType": "3"}, cookies=self.cookie_jar
         )
         return ret.json().get("data", {})
 
     def wie_get_report(self, report_id: int, token: str) -> str:
         params = {"mat": token, "id": report_id}
-        ret = self.__api_request(
-            "GET",
-            "/ssc/transfer/reportDownload.html",
-            headers=self.headers,
-            params=params,
+        ret = self.api_request(
+            "GET", "/ssc/transfer/reportDownload.html", headers=self.headers, params=params, cookies=self.cookie_jar
         )
         return ret.content
 
@@ -265,10 +264,8 @@ class WIESCC(Request):
         """
         response: status: [SCHED_PROCESSING, PROCESSING, PROCESS_COMPLETE, ERROR_PROCESSING]
         """
-        ret = self.__api_request(
-            "GET",
-            f"/ssc/api/v1/reports/{report_id}",
-            headers=self.headers,
+        ret = self.api_request(
+            "GET", f"/ssc/api/v1/reports/{report_id}", headers=self.headers, cookies=self.cookie_jar
         ).json()
         return ret
 
@@ -281,11 +278,24 @@ class WIESCC(Request):
 class WIEDAST(Request):
     def __init__(self):
         self.url = wie_get_config("wi_dast_url")
-        self.token = self.__generate_token()
-        self.headers = {"Authorization": self.token, "Content-Type": "application/json"}
+        self.__check_dast_token()
+
+    def __check_dast_token(self):
+        global WIE_DAST_TOKEN
+        if not WIE_DAST_TOKEN:
+            WIE_DAST_TOKEN = self.__generate_token()
+            self.headers = {"Authorization": WIE_DAST_TOKEN, "Content-Type": "application/json"}
+            return
+
+        self.headers = {"Authorization": WIE_DAST_TOKEN, "Content-Type": "application/json"}
+        is_valid = self.wie_check_auth_token()
+        if not is_valid:
+            WIE_DAST_TOKEN = self.__generate_token()
+            self.headers = {"Authorization": WIE_DAST_TOKEN, "Content-Type": "application/json"}
+            return
 
     def __generate_token(self) -> str:
-        ret = self.__api_request(
+        ret = self.api_request(
             "POST",
             "/api/v2/auth",
             headers={"Content-Type": "application/json"},
@@ -293,24 +303,29 @@ class WIEDAST(Request):
         )
         return ret.json()["token"]
 
+    def wie_check_auth_token(self):
+        ret = self.api_request("GET", "/api/v2/auth/check", headers=self.headers)
+        return int(ret.status_code / 100) != 2
+
     def wie_get_scan_summary(self, scan_id: str) -> dict[str, Any]:
-        ret = self.__api_request(
+        ret = self.api_request(
             method="GET", path=f"/api/v2/scans/{int(scan_id)}/scan-summary", headers=self.headers
         ).json()
         return ret
 
     def wie_publish_scan_report(self, scan_id: str) -> dict[str, Any]:
-        ret = self.__api_request(
+        ret = self.api_request(
             method="POST",
             path=f"/api/v2/scans/{int(scan_id)}/scan-action",
             headers=self.headers,
             data={"ScanActionType": 5},
-        ).json()
+        )
         return ret
 
 
 # -------------- Regular methods --------------
 """
+status
 - Failed
 - Created
 - Queued
@@ -318,6 +333,9 @@ class WIEDAST(Request):
 - Paused
 - Running
 - Complete
+
+report_status
+- Started
 - Error Publishing Scan
 - Generating Report
 - Error Generating Report
@@ -365,10 +383,51 @@ def list_scans(project_id: int, limit: int = 10, offset: int = 0) -> list[dict[s
     ]
 
 
+def get_project_scans_and_update_status(project_id: int, limit: int = 10, offset: int = 0):
+    """
+    Only need to generate the five latest scan's report.
+    param: offset: multiples of 5
+    param: limit: multiples of 10
+    """
+    project_name = model.Project.query.filter_by(id=project_id).first().name
+    if offset <= 5:
+        a_limit, a_offset = limit - 5, 5
+        need_generate_report = True
+    else:
+        a_limit, a_offset = limit, offset
+        need_generate_report = False
+    for scan in (
+        WebInspect.query.filter_by(project_name=project_name)
+        .order_by(desc(WebInspect.run_at))
+        .limit(a_limit)
+        .offset(a_offset)
+        .all()
+    ):
+        update_scan_summary(scan.scan_id)
+        if scan.report_status is not None:
+            scan.report_status = None
+            db.session.commit()
+
+    if need_generate_report:
+        threading.Thread(
+            target=generate_project_scan_reports,
+            args=(project_name,),
+        ).start()
+
+    return list_scans(project_id, limit, offset)
+
+
+def generate_project_scan_reports(project_name: str):
+    scans = (
+        WebInspect.query.filter_by(project_name=project_name).order_by(desc(WebInspect.run_at)).limit(5).offset(0).all()
+    )
+    for scan in scans[::-1]:
+        generate_report(scan.scan_id)
+
+
 def get_scan_summary(scan_id: str):
     wie_dast = WIEDAST()
-    ret = wie_dast.wie_get_scan_summary(scan_id)
-
+    ret = wie_dast.wie_get_scan_summary(scan_id)["item"]
     return {
         "id": scan_id,
         "state": {
@@ -384,47 +443,45 @@ def get_scan_summary(scan_id: str):
 
 def update_scan_summary(scan_id: str):
     wie = get_webinspect_query(scan_id=scan_id).first()
-    if wie.finished or wie.status == "Error Publishing Scan" or wie.status == "Error Generating Report":
+    if wie.finished or wie.status in ["Complete", "Failed"]:
         return
 
-    if wie.status not in [
-        "Complete",
-        "Generating Report",
-        "Finished",
-    ]:
-        wie_scan_info = get_scan_summary(scan_id)
-        needed_update_info = {"state": wie_scan_info["state"], "status": wie_scan_info["status"]}
-        if {"state": wie.state, "status": wie.status} != needed_update_info:
-            update_scan(needed_update_info)
+    wie_scan_info = get_scan_summary(scan_id)
+    needed_update_info = {"state": wie_scan_info["state"], "status": wie_scan_info["status"]}
+    if {"state": wie.state, "status": wie.status} != needed_update_info:
+        update_scan(scan_id, needed_update_info)
 
 
 def generate_report(scan_id: str):
+    logger.info(f"Start generating wie report of scan_id: {scan_id}.")
     wie = get_webinspect_query(scan_id=scan_id).first()
-    if wie.finished or wie.status == "Error Publishing Scan" or wie.status == "Error Generating Report":
+    if wie.finished or wie.report_status in ["Error Publishing Scan", "Error Generating Report", "Finished"]:
+        logger.info(f"Stop generating report due to scan_id: {scan_id} is finished or report_status is error")
         return
-    if wie.status not in [
-        "Complete",
-        "Generating Report",
-        "Finished",
-    ]:
+    if wie.status != "Complete":
+        logger.info(f"Stop generating report due to scan_id: {scan_id} is scaning.")
         update_scan_summary(scan_id)
         return
-    elif wie.status == "Complete":
-        wie_scc = WIESCC()
+
+    wie_scc = WIESCC()
+    if wie.report_status != "Generating Report":
         wie_dast = WIEDAST()
         wie_scan_info = get_scan_summary(scan_id)
         if wie_scan_info["publish_status"] == "NotPublished":
             wie_dast.wie_publish_scan_report(scan_id)
             is_pulbich = __check_scan_is_publish(scan_id)
             if not is_pulbich:
-                update_scan({"status": "Fail to Publish"})
+                update_scan(scan_id, {"report_status": "Error Publishing Scan"})
+                logger.info(f"Stop generating report due to scan_id: {scan_id} error to publish.")
                 return
-        report_id = wie_scc.create_report(wie.project_name, wie.version_name, wie.commit_id)
-        update_scan({"report_id": report_id, "status": "Generating Report"})
-        handle_download_store_report(report_id, wie_scc, wie)
-
-    elif wie.status == "Generating Report":
-        handle_download_store_report(report_id, wie_scc, wie)
+        print(wie.project_name, wie.branch, wie.commit_id)
+        report_id = wie_scc.create_report(wie.project_name, wie.branch, wie.commit_id)
+        update_scan(scan_id, {"report_id": report_id, "report_status": "Generating Report"})
+        logger.info(f"Generating report of scan: {scan_id}.")
+        handle_download_store_report(scan_id, report_id, wie_scc, wie)
+    else:
+        report_id = wie.report_id
+        handle_download_store_report(scan_id, report_id, wie_scc, wie)
 
 
 def __check_scan_is_publish(scan_id):
@@ -439,18 +496,21 @@ def __check_scan_is_publish(scan_id):
 
 
 def handle_download_store_report(
+    scan_id: str,
     report_id: int,
     wie_scc: WIESCC,
     wie_query: WebInspect,
 ):
-    is_finished = __check_scan_report_is_finished(report_id)
+    is_finished = __check_scan_report_is_finished(wie_scc, report_id)
     if not is_finished:
-        update_scan({"status": "Error Generating Report"})
+        update_scan(scan_id, {"status": "Error Generating Report", "finished": True})
+        logger.info(f"Stop generating report due to scan_id: {scan_id} error to generate.")
         return
     else:
-        report_content = wie_scc.get_report_content
+        report_content = wie_scc.get_report_content(report_id)
     __store_report_in_local(wie_query, report_content)
-    update_scan({"status": "Finished", "finished": True, "finished_at": datetime.utcnow()})
+    update_scan(scan_id, {"report_status": "Finished", "finished": True, "finished_at": datetime.utcnow()})
+    logger.info(f"Scan_id: {scan_id}'s report is ready to download.")
 
 
 def __check_scan_report_is_finished(wie_scc: WIESCC, report_id: int):
@@ -488,6 +548,12 @@ def __remove_older_than_four_wie_report(wie_pj_path: str):
     if len(files) >= 4:
         for file in files[:-4]:
             file.unlink()
+            query = WebInspect.query.filter_by(
+                project_name=wie_pj_path.split("/")[-1], commit_id=file.name.split(".")[0]
+            )
+            if query.first() is not None:
+                query.update({"report_status": None})
+                db.session.commit()
 
 
 # --------------------- Resources ---------------------
@@ -523,4 +589,6 @@ class WebInspectListScan(Resource):
     @jwt_required()
     def get(self, project_id, **kwargs):
         role.require_in_project(project_id=project_id)
-        return util.success(list_scans(project_id, kwargs.get("limit", 10), kwargs.get("offset", 0)))
+        return util.success(
+            get_project_scans_and_update_status(project_id, kwargs.get("limit", 10), kwargs.get("offset", 0))
+        )
