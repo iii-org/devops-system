@@ -83,57 +83,41 @@ class Mail:
             if config.get("DEPLOYMENT_NAME") is not None
             else config.get("DEPLOYER_NODE_IP")
         )
-        # logger.logger.info(f"mail content: \n  {message}")
-        # css = subprocess.check_output(['pygmentize', '-S', 'default', '-f', 'html', '-a', '.codehilite'])
         markdown_content = message.strip()
         html_content = markdown.markdown(markdown_content, extensions=['codehilite'])
-        # html_content = '<style type="text/css">' + css + '</style>' + html_content
-        # logger.logger.info(f"mail html content: \n  {html_content}")
-        split_str = "data:image/png;base64,"
-        files: list = []
-        if split_str in html_content:
-            images: list = html_content.split(split_str)
-            for i in range(1, len(images)):
-                image:str = ""
-                if "'" in images[i]:
-                    image = images[i].split("'")[0]
-                elif '"' in images[i]:
-                    image = images[i].split('"')[0]
-                # print(image)
-                image_file = "image" + str(i) + ".png"
-                # with open(image_file, "wb") as fi:
-                #     fi.write(base64.urlsafe_b64decode(image))
-                files.append({"name": image_file, "base64": image})
-                html_content = html_content.replace(split_str + image, "cid:"+image_file)
-            # print(html_content)
         # create a multipart email message
         text = MIMEMultipart('alternative')
         text["Subject"] = f"[{domain}] {title}"
         text["From"] = self.smtp_emission_address
         text["To"] = receiver
         text["Disposition-Notification-To"] = self.smtp_emission_address
+
+        # 判斷是否有 embed image base64 若有將其轉成 CID 的方式，因為 GMAIL 及 OUTLOOK 皆不支援 embed image base64
+        i_types: list = ["png", "jpg", "jpeg"]
+        for i_type in i_types:
+            split_str = "data:image/" + i_type + ";base64,"
+            if split_str in html_content:
+                images: list = html_content.split(split_str)
+                for i in range(1, len(images)):
+                    image: str = ""
+                    if "'" in images[i]:
+                        image = images[i].split("'")[0]
+                    elif '"' in images[i]:
+                        image = images[i].split('"')[0]
+                    image_file = "image" + str(i) + "." + i_type
+                    # base64 to cid
+                    html_content = html_content.replace(split_str + image, "cid:"+ image_file)
+                    part = MIMEImage(base64.b64decode(image), Name=image_file)
+                    part['Content-Disposition'] = 'attachment; filename="%s"' % image_file
+                    part['Content-ID'] = image_file
+                    text.attach(part)
         text.attach(MIMEText(markdown_content, "plain", "utf-8"))
         text.attach(MIMEText(html_content, "html", "utf-8"))
-        for f in files:
-            # with open(f, "rb") as fil:
-            #     part = MIMEImage(
-            #         fil.read(),
-            #         Name=f
-            #     )
-            part = MIMEImage(base64.b64decode(f["base64"]), Name=f["name"])
-            part['Content-Disposition'] = 'attachment; filename="%s"' % f["name"]
-            part['Content-ID'] = f["name"]
-            text.attach(part)
         if self.server is not None:
             logger.logger.info(f"Sending Mail to {receiver}, title: {title}")
             self.server.sendmail(self.smtp_emission_address, receiver, text.as_string())
             logger.logger.info(f"Sending mail done.")
             self.server.quit()
-        # for f in files:
-        #     try:
-        #         os.remove(f)
-        #     except Exception as ex:
-        #         logger.logger.info(f"file ({f}) not existed")
 
 
 def get_basic_mail_info():
