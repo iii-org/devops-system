@@ -101,9 +101,9 @@ class Mail:
                     image = images[i].split('"')[0]
                 # print(image)
                 image_file = "image" + str(i) + ".png"
-                with open(image_file, "wb") as fi:
-                    fi.write(base64.urlsafe_b64decode(image))
-                files.append(image_file)
+                # with open(image_file, "wb") as fi:
+                #     fi.write(base64.urlsafe_b64decode(image))
+                files.append({"name": image_file, "base64": image})
                 html_content = html_content.replace(split_str + image, "cid:"+image_file)
             # print(html_content)
         # create a multipart email message
@@ -115,11 +115,12 @@ class Mail:
         text.attach(MIMEText(markdown_content, "plain", "utf-8"))
         text.attach(MIMEText(html_content, "html", "utf-8"))
         for f in files:
-            with open(f, "rb") as fil:
-                part = MIMEImage(
-                    fil.read(),
-                    Name=f
-                )
+            # with open(f, "rb") as fil:
+            #     part = MIMEImage(
+            #         fil.read(),
+            #         Name=f
+            #     )
+            part = MIMEImage(f.base64, Name=f.name)
             part['Content-Disposition'] = 'attachment; filename="%s"' % f
             part['Content-ID'] = f
             text.attach(part)
@@ -128,11 +129,11 @@ class Mail:
             self.server.sendmail(self.smtp_emission_address, receiver, text.as_string())
             logger.logger.info(f"Sending mail done.")
             self.server.quit()
-        for f in files:
-            try:
-                os.remove(f)
-            except Exception as ex:
-                logger.logger.info(f"file ({f}) not existed")
+        # for f in files:
+        #     try:
+        #         os.remove(f)
+        #     except Exception as ex:
+        #         logger.logger.info(f"file ({f}) not existed")
 
 
 def get_basic_mail_info():
