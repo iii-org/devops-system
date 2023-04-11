@@ -120,7 +120,7 @@ class Mail:
             #         fil.read(),
             #         Name=f
             #     )
-            part = MIMEImage(f["base64"], Name=f["name"])
+            part = MIMEImage(base64.urlsafe_b64decode(f["base64"]), Name=f["name"])
             part['Content-Disposition'] = 'attachment; filename="%s"' % f
             part['Content-ID'] = f
             text.attach(part)
