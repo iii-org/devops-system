@@ -8,7 +8,6 @@ from resources import logger
 from model import db, SystemParameter
 import config
 import markdown
-import base64
 
 
 class Mail:
@@ -120,9 +119,9 @@ class Mail:
             #         fil.read(),
             #         Name=f
             #     )
-            part = MIMEImage(io.BytesIO(base64.b64encode(f["base64"])), Name=f["name"])
-            part['Content-Disposition'] = 'attachment; filename="%s"' % f
-            part['Content-ID'] = f
+            part = MIMEImage(f["base64"], Name=f["name"])
+            part['Content-Disposition'] = 'attachment; filename="%s"' % f["name"]
+            part['Content-ID'] = f["name"]
             text.attach(part)
         if self.server is not None:
             logger.logger.info(f"Sending Mail to {receiver}, title: {title}")
