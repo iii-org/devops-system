@@ -2,7 +2,7 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
+from email.mime.image import MIMEImage
 from resources import apiError
 from resources import logger
 from model import db, SystemParameter
@@ -104,7 +104,7 @@ class Mail:
                 with open(image_file, "wb") as fi:
                     fi.write(base64.urlsafe_b64decode(image))
                 files.append(image_file)
-                html_content = html_content.replace(split_str + image, image_file)
+                html_content = html_content.replace(split_str + image, "cid:"+image_file)
             # print(html_content)
         # create a multipart email message
         text = MIMEMultipart('alternative')
@@ -116,11 +116,12 @@ class Mail:
         text.attach(MIMEText(html_content, "html", "utf-8"))
         for f in files:
             with open(f, "rb") as fil:
-                part = MIMEApplication(
+                part = MIMEImage(
                     fil.read(),
                     Name=f
                 )
             part['Content-Disposition'] = 'attachment; filename="%s"' % f
+            part['Content-ID'] = f
             text.attach(part)
         if self.server is not None:
             logger.logger.info(f"Sending Mail to {receiver}, title: {title}")
