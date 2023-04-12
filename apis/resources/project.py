@@ -234,10 +234,11 @@ def get_project_rows_by_user(user_id, disable, args={}):
     if accsearch is not None and search is None:
         query: Query = query.filter(Project.name == accsearch)
 
-    if is_empty_project.lower() == "true":
-        query: Query = query.filter(Project.is_empty_project == True)
-    elif is_empty_project.lower() == "false":
-        query: Query = query.filter(Project.is_empty_project == False)
+    if type(is_empty_project) is str:
+        if is_empty_project.lower() == "true":
+            query: Query = query.filter(Project.is_empty_project == True)
+        elif is_empty_project.lower() == "false":
+            query: Query = query.filter(Project.is_empty_project == False)
 
     if pj_due_start is not None and pj_due_end is not None:
         query: Query = query.filter(Project.due_date.between(pj_due_start, pj_due_end))
