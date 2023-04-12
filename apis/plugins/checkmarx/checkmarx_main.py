@@ -535,7 +535,7 @@ class CronjobScan(Resource):
                                 logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report")
                                 time.sleep(1)
                             elif status_id == 7 and row.report_id < 0 and row.finished is None:
-                                rows.scan_final_status = None
+                                row.scan_final_status = None
                         except Exception as e:
                             logger.logger.exception(str(e))
                         # else:
