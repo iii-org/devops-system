@@ -494,7 +494,11 @@ class CronjobScan(Resource):
         #     except Exception as e:
         #         logger.logger.exception(str(e))
         # querys_all = Model.query.all()
-        querys_all = Model.query.with_entities(Model.repo_id).group_by(Model.repo_id).order_by(Model.repo_id).all()
+        querys_all = Model.query.with_entities(Model.repo_id
+                                               ).filter(Model.repo_id is not None
+                                                        ).group_by(Model.repo_id
+                                                                   ).order_by(Model.repo_id
+                                                                              ).all()
         # repo_id_list = [query.repo_id for query in querys_all]
         # 刪除重複
         # for id in list(set(repo_id_list)):
@@ -536,6 +540,12 @@ class CronjobScan(Resource):
                                 time.sleep(1)
                             elif status_id == 7 and row.report_id < 0 and row.finished is None:
                                 row.scan_final_status = None
+                                report_count += 1
+                            elif status_id == 7 and row.report_id > 0:
+                                if row.finished_at is None:
+                                    row.scan_final_status = None
+                                    row.report_id = -1
+                                report_count += 1
                         except Exception as e:
                             logger.logger.exception(str(e))
                         # else:
