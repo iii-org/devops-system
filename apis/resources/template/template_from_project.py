@@ -140,8 +140,6 @@ def update_pipe_set_and_push_to_new_project(from_project_id, name, description):
     tm_git_mirror_push(template_project.path, temp_pj_secret_http_url, TEMPLATE_FOLDER_NAME)
     tag_list = get_tag_info_list_from_pj(template_project, "local-templates")
     pip_set_json = tm_read_pipe_set_json(template_project)
-    if pip_set_json == {}:
-        pip_set_json = {"name": "Template-Name", "description": "Main Descripttion", "arguments": []}
     update_redis_template_cache(template_project, "local-templates", pip_set_json, tag_list)
     return template_project, old_project, pipe_json_temp_name
 

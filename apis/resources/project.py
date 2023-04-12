@@ -185,7 +185,7 @@ def get_project_list(user_id:int, role: str="simple", args: dict={}, disable: bo
 def get_project_rows_by_user(user_id, disable, args={}):
     search: str = args.get("search")
     accsearch: str = args.get("accsearch")
-    is_empty_project: bool = args.get("is_empty_project")
+    is_empty_project: str = args.get("is_empty_project")
     limit: int = args.get("limit")
     offset: int = args.get("offset")
     pj_due_start: Optional[date] = (
@@ -234,8 +234,10 @@ def get_project_rows_by_user(user_id, disable, args={}):
     if accsearch is not None and search is None:
         query: Query = query.filter(Project.name == accsearch)
 
-    if is_empty_project is True:
-        query: Query = query.filter(Project.is_empty_project == is_empty_project)
+    if is_empty_project.lower() == "true":
+        query: Query = query.filter(Project.is_empty_project == True)
+    elif is_empty_project.lower() == "false":
+        query: Query = query.filter(Project.is_empty_project == False)
 
     if pj_due_start is not None and pj_due_end is not None:
         query: Query = query.filter(Project.due_date.between(pj_due_start, pj_due_end))

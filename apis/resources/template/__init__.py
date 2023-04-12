@@ -125,7 +125,7 @@ def tm_get_git_pipeline_json(pj, tag_name=None, commit_id=None):
 
 
 def tm_read_pipe_set_json(pj, tag_name=None):
-    pip_set_json = {}
+    pip_set_json = {"name": "Template-Name", "description": "Main Descripttion", "arguments": []}
     try:
         if pj.empty_repo:
             return {"description": "", "name": pj.name}
