@@ -68,7 +68,9 @@ def template_from_project_list():
             gl_from_pj = gl.projects.get(
                 nx_get_project_plugin_relation(nexus_project_id=template["from_project_id"]).git_repository_id
             )
-            template["the_last_update_time"] = gl_from_pj.commits.list()[0].created_at
+            template["the_last_update_time"] = None
+            if len(gl_from_pj.commits.list()) > 0:
+                template["the_last_update_time"] = gl_from_pj.commits.list()[0].created_at
             template["from_project_repo_url"] = gl_from_pj.http_url_to_repo
         except apiError.DevOpsError:
             template["the_last_update_time"] = None
@@ -138,6 +140,8 @@ def update_pipe_set_and_push_to_new_project(from_project_id, name, description):
     tm_git_mirror_push(template_project.path, temp_pj_secret_http_url, TEMPLATE_FOLDER_NAME)
     tag_list = get_tag_info_list_from_pj(template_project, "local-templates")
     pip_set_json = tm_read_pipe_set_json(template_project)
+    if pip_set_json == {}:
+        pip_set_json = {"name": "Template-Name", "description": "Main Descripttion", "arguments": []}
     update_redis_template_cache(template_project, "local-templates", pip_set_json, tag_list)
     return template_project, old_project, pipe_json_temp_name
 
