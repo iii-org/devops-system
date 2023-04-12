@@ -13,6 +13,7 @@ class WIEScanPostSchema(Schema):
 
 
 class WIEScanGetSchema(Schema):
+    force_update = fields.Bool(example=True)
     limit = fields.Int(doc="limit", example=1)
     offset = fields.Int(doc="offset", example=1)
 
@@ -23,6 +24,10 @@ class WIEScanUpdateSchema(Schema):
     status = fields.Str(example="Complete")
     finished = fields.Bool(example=True)
     finished_at = fields.DateTime(example="1970-01-01T00:00:00")
+
+
+class WebInspectDownloadReportSchema(Schema):
+    scan_id = fields.Str(example="1234")
 
 
 #################################### Response ####################################

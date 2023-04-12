@@ -9,7 +9,7 @@ from sqlalchemy import desc
 from flask_apispec import doc, use_kwargs
 import base64
 import os
-from pathlib import Path
+from flask import send_file
 
 import model
 import util
@@ -304,8 +304,8 @@ class WIEDAST(Request):
         return ret.json()["token"]
 
     def wie_check_auth_token(self):
-        ret = self.api_request("GET", "/api/v2/auth/check", headers=self.headers)
-        return int(ret.status_code / 100) != 2
+        ret = self.api_request(method="GET", path="/api/v2/auth/check", headers=self.headers)
+        return int(ret.status_code / 100) == 2
 
     def wie_get_scan_summary(self, scan_id: str) -> dict[str, Any]:
         ret = self.api_request(
@@ -383,7 +383,14 @@ def list_scans(project_id: int, limit: int = 10, offset: int = 0) -> list[dict[s
     ]
 
 
-def get_project_scans_and_update_status(project_id: int, limit: int = 10, offset: int = 0):
+def __is_named_threading_is_running(name):
+    for th in threading.enumerate():
+        if th.name == name:
+            return True
+    return False
+
+
+def get_project_scans_and_update_status(project_id: int, limit: int = 10, offset: int = 0, force_update: bool = False):
     """
     Only need to generate the five latest scan's report.
     param: offset: multiples of 5
@@ -407,12 +414,16 @@ def get_project_scans_and_update_status(project_id: int, limit: int = 10, offset
         if scan.report_status is not None:
             scan.report_status = None
             db.session.commit()
-
     if need_generate_report:
-        threading.Thread(
-            target=generate_project_scan_reports,
-            args=(project_name,),
-        ).start()
+        # Use project_name as thread name.
+        # if is not force_update, it won't not run another same name threading.
+        is_running = __is_named_threading_is_running(project_name)
+        if force_update or not is_running:
+            threading.Thread(
+                name=project_name,
+                target=generate_project_scan_reports,
+                args=(project_name,),
+            ).start()
 
     return list_scans(project_id, limit, offset)
 
@@ -556,6 +567,19 @@ def __remove_older_than_four_wie_report(wie_pj_path: str):
                 db.session.commit()
 
 
+def donwload_pdf(scan_id: str):
+    wie = get_webinspect_query(scan_id).first()
+    pj_name, commit_id = wie.project_name, wie.commit_id
+    file_path = f"{WIE_REPORT_PATH}/{pj_name}/{commit_id}.pdf"
+    if not os.path.isfile(file_path):
+        raise apiError.DevOpsError(400, "File not found", apiError.file_not_found(f"{commit_id}.pdf", file_path))
+    return send_file(
+        f".{file_path}",
+        attachment_filename="report.pdf",
+        mimetype="Content-Type: application/pdf; charset={r.encoding}",
+    )
+
+
 # --------------------- Resources ---------------------
 
 # ------------------------------------------------------ Runner API ----------------------------------------------------------
@@ -576,12 +600,6 @@ class WebInspectScan(Resource):
 
     # ------------------------------------------------------ III API ----------------------------------------------------------
 
-    # @doc(tags=["WebInspect"], description="Get WebInspect scan summary.")
-    # # @use_kwargs(router_model.WIEScanUpdateSchema, location="json")
-    # @jwt_required()
-    # def get(self, s_id):
-    #     return util.success(get_scan_summary(s_id))
-
 
 class WebInspectListScan(Resource):
     @doc(tags=["WebInspect"], description="List project's WebInspect scans.")
@@ -590,5 +608,16 @@ class WebInspectListScan(Resource):
     def get(self, project_id, **kwargs):
         role.require_in_project(project_id=project_id)
         return util.success(
-            get_project_scans_and_update_status(project_id, kwargs.get("limit", 10), kwargs.get("offset", 0))
+            get_project_scans_and_update_status(
+                project_id, kwargs.get("limit", 10), kwargs.get("offset", 0), kwargs.get("force_update", False)
+            )
         )
+
+
+class WebInspectDownloadReport(Resource):
+    @doc(tags=["WebInspect"], description="List project's WebInspect scans.")
+    @use_kwargs(router_model.WebInspectDownloadReportSchema, location="query")
+    @jwt_required()
+    def get(self, project_id, **kwargs):
+        role.require_in_project(project_id=project_id)
+        return donwload_pdf(kwargs["scan_id"])
