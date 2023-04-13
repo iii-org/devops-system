@@ -18,7 +18,7 @@ from resources.rancher import create_pipeline_execution
 DEFAULT_FORMAT = {"white_list": [], "black_list": []}
 
 # Latest version
-LATEST_VERSION = 5
+LATEST_VERSION = 6
 
 
 def get_project_pipeline_version(pj_id):
