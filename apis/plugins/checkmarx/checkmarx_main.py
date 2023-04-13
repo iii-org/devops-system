@@ -7,7 +7,7 @@ import requests
 from flask import send_file
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from sqlalchemy.exc import NoResultFound
 
 import nexus
@@ -130,7 +130,11 @@ class CheckMarx(object):
         db.session.add(new)
         db.session.commit()
         record = (
-            Model.query.filter_by(repo_id=args["repo_id"]).filter(Model.report_id != -1).order_by(Model.run_at).all()
+            Model.query.filter_by(repo_id=args["repo_id"]
+                                  ).filter(or_(Model.report_id != -1,
+                                               Model.report_id is None,
+                                               Model.finished is None)
+                                           ).order_by(Model.run_at).all()
         )
         if len(record) >= 5:
             # update_row = (
@@ -532,7 +536,7 @@ class CronjobScan(Resource):
                             if status_id == 10:
                                 status_id, _ = 2, "PreScan"
                             logger.logger.info(f"scan_id: {row.scan_id}, status_id: {status_id}, ststus_name: {_}")
-                            if status_id in [1, 2, 3] or (status_id == 7 and row.report_id < 0 and row.finished):
+                            if status_id in [1, 2, 3] or (status_id == 7 and not (row.report_id > 0) and row.finished):
                                 logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status")
                                 checkmarx.register_report(row.scan_id)
                                 report_count += 1
@@ -555,6 +559,8 @@ class CronjobScan(Resource):
                         row.report_id = -1
                         if row.finished is None:
                             row.finished = True
+                            if row.finished_at is None:
+                                row.scan_final_status = "Canceled"
                         if row.scan_final_status is None:
                             row.scan_final_status = "Deleted"
                         if row.scan_final_status == "Scanning" or row.scan_final_status == "Queued":
