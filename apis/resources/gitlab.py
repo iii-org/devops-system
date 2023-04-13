@@ -958,7 +958,7 @@ def get_commit_issues_relation(project_id, issue_id, limit):
             "commit_title": commit_issues_relation.commit_title,
             "commit_time": str(commit_issues_relation.commit_time.isoformat()),
             "branch": commit_issues_relation.branch,
-            "web_url": commit_issues_relation.web_url
+            "web_url": commit_id_to_url(commit_issues_relation.project_id, commit_issues_relation.commit_id)
             if account_is_gitlab_project_memeber(commit_issues_relation.project_id, account)
             else None,
             "created_at": str(commit_issues_relation.created_at),
@@ -1084,12 +1084,13 @@ def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
                 )
                 ret["issue_hook"][issue_id] = account in get_project_members(project_id)
 
-        ret["commit_id"] = commit["id"]
-        ret["commit_short_id"] = commit["id"][:7]
+        commit_id = commit["id"]
+        ret["commit_id"] = commit_id
+        ret["commit_short_id"] = commit_id[:7]
         ret["author_name"] = commit["author_name"]
         ret["commit_title"] = commit["title"]
         ret["commit_time"] = datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z").isoformat()
-        ret["gitlab_url"] = commit["web_url"] if show_url else None
+        ret["gitlab_url"] = commit_id_to_url(project_id, commit_id) if show_url else None
 
         ret_list.append(ret)
 
