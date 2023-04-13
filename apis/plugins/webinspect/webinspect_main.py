@@ -350,6 +350,15 @@ def get_webinspect_query(scan_id: str) -> WebInspect:
     return web_inspect_query
 
 
+"""
+def get_scan_by_commit(project_id: int, commit_id: str):
+    project_name = model.Project.query.filter_by(id=project_id).first().name
+    scan = WebInspect.query.filter_by(project_name=project_name, commit_id=commit_id).first()
+
+    if scan.status != "Complete":
+"""
+
+
 def create_scan(args: dict[str, Any]) -> None:
     new = WebInspect(
         scan_id=args["scan_id"],
@@ -374,7 +383,7 @@ def update_scan(scan_id: str, args: dict[str, Any]) -> None:
 def list_scans(project_id: int, limit: int = 10, offset: int = 0) -> list[dict[str, Any]]:
     project_name = model.Project.query.filter_by(id=project_id).first().name
     return [
-        json.loads(str(task))
+        task.dict()
         for task in WebInspect.query.filter_by(project_name=project_name)
         .order_by(desc(WebInspect.run_at))
         .limit(limit)
@@ -579,8 +588,6 @@ def donwload_pdf(scan_id: str):
         mimetype="Content-Type: application/pdf; charset={r.encoding}",
     )
 
-
-# --------------------- Resources ---------------------
 
 # ------------------------------------------------------ Runner API ----------------------------------------------------------
 class WebInspectPostScan(Resource):

@@ -34,11 +34,26 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship, backref, validates
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
-
+import config
 import util
 from enums.action_type import ActionType
 
 db = SQLAlchemy()
+
+
+def model_to_dict(self, except_attirbute_list=[]):
+    model_unused_attribute = ["metadata", "registry", "dict", "query", "query_class"]
+    fields = {}
+    for field in [
+        x for x in dir(self) if not x.startswith("_") and x not in model_unused_attribute + except_attirbute_list
+    ]:
+        data = self.__getattribute__(field)
+        try:
+            json.dumps(data)
+            fields[field] = data
+        except TypeError:
+            fields[field] = str(data)
+    return fields
 
 
 class AlembicVersion(db.Model):
@@ -118,6 +133,7 @@ class Project(db.Model):
     alert = Column(Boolean, default=False)
     trace_order = relationship("TraceOrder", backref="project")
     excalidraws = relationship("Excalidraw", back_populates="project")
+    webinspect = relationship("WebInspect", back_populates="project")
 
     def __repr__(self):
         fields = {}
@@ -333,25 +349,18 @@ class WebInspect(db.Model):
     finished = Column(Boolean, default=False)
     finished_at = Column(DateTime)
     log = Column(String)
+    project = relationship("Project", back_populates="webinspect")
 
-    def __repr__(self):
-        fields = {}
-        for field in [
-            x
-            for x in dir(self)
-            if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
-        ]:
-            data = self.__getattribute__(field)
-            try:
-                # this will fail on unencodable values, like other classes
-                json.dumps(data)
-                if field == "stats":
-                    fields[field] = json.loads(data)
-                else:
-                    fields[field] = data
-            except TypeError:
-                fields[field] = str(data)
-        return json.dumps(fields)
+    @property
+    def commit_url(self):
+        if config.get("GITLAB_EXTERNAL_BASE_URL") is not None:
+            git_repo_url = f'{config.get("GITLAB_EXTERNAL_BASE_URL")}/{config.get("GITLAB_ADMIN_ACCOUNT") or "root"}/{self.project_name}'
+        else:
+            git_repo_url = self.project.http_url[0:-4]
+        return f"{git_repo_url}/-/commit/{self.commit_id}"
+
+    def dict(self):
+        return model_to_dict(self, ["project"])
 
 
 class Activity(db.Model):
