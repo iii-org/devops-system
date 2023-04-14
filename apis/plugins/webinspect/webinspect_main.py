@@ -313,14 +313,25 @@ class WIEDAST(Request):
         ).json()
         return ret
 
-    def wie_publish_scan_report(self, scan_id: str) -> dict[str, Any]:
+    def wie_scan_action(self, scan_id: str, scan_action_type: int) -> dict[str, Any]:
+        """
+        param: scan_action_type
+        1 = PauseScan / 2 = ResumeScan / 3 = DeleteScan / 4 = ClearTrackedScan
+        5 = RetryImportScanResults / 6 = CompleteScan / 7 = RetryImportScanFinding
+        """
         ret = self.api_request(
             method="POST",
-            path=f"/api/v2/scans/{int(scan_id)}/scan-action",
+            path=f"/api/v2/scans/{scan_id}/scan-action",
             headers=self.headers,
-            data={"ScanActionType": 5},
+            data={"ScanActionType": scan_action_type},
         )
         return ret
+
+    def wie_publish_scan_report(self, scan_id: str) -> dict[str, Any]:
+        return self.wie_scan_action(scan_id, 5)
+
+    def wie_resume_scan_from_interrupted(self, scan_id: str) -> dict[str, Any]:
+        return self.wie_scan_action(scan_id, 2)
 
 
 # -------------- Regular methods --------------
@@ -332,7 +343,10 @@ status
 - Pending
 - Paused
 - Running
+- Interrupted
+- ResumeScanQueued
 - Complete
+
 
 report_status
 - Started
@@ -378,6 +392,26 @@ def update_scan(scan_id: str, args: dict[str, Any]) -> None:
     wie = get_webinspect_query(scan_id)
     wie.update(args)
     db.session.commit()
+
+
+def get_latest_scan_by_project_name_and_update(project_id: int) -> dict[str, Any]:
+    scans = list_scans(project_id, limit=1)
+    if not scans:
+        return {}
+    scan_id = scans[0]["scan_id"]
+    update_scan_summary(scan_id)
+
+    return WebInspect.query.filter_by(scan_id=scan_id).first().dict()
+
+
+def get_scan_by_commit_and_update(project_id: int, commit_id: str) -> dict[str, Any]:
+    project_name = model.Project.query.filter_by(id=project_id).first().name
+    scan = WebInspect.query.filter_by(project_name=project_name, commit_id=commit_id).first()
+    if scan is None:
+        return {}
+    scan_id = scan.scan_id
+    update_scan_summary(scan_id)
+    return WebInspect.query.filter_by(scan_id=scan_id).first().dict()
 
 
 def list_scans(project_id: int, limit: int = 10, offset: int = 0) -> list[dict[str, Any]]:
@@ -467,7 +501,13 @@ def update_scan_summary(scan_id: str):
         return
 
     wie_scan_info = get_scan_summary(scan_id)
-    needed_update_info = {"state": wie_scan_info["state"], "status": wie_scan_info["status"]}
+    current_scan_status = wie_scan_info["status"]
+    needed_update_info = {"state": wie_scan_info["state"], "status": current_scan_status}
+
+    # Sometime scan would be interrupted, need to resume it.
+    if current_scan_status == "Interrupted":
+        WIEDAST().wie_resume_scan_from_interrupted(scan_id)
+
     if {"state": wie.state, "status": wie.status} != needed_update_info:
         update_scan(scan_id, needed_update_info)
 
@@ -585,7 +625,7 @@ def donwload_pdf(scan_id: str):
     return send_file(
         f".{file_path}",
         attachment_filename="report.pdf",
-        mimetype="Content-Type: application/pdf; charset={r.encoding}",
+        mimetype="application/pdf",
     )
 
 

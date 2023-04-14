@@ -59,6 +59,7 @@ import pandas as pd
 from .rancher import get_all_appname_by_project
 from typing import Any
 
+
 def get_pj_id_by_name(name):
     ret = {"id": -1, "plan_id": -1, "repo_id": -1}
     pj_info = (
@@ -114,31 +115,33 @@ def get_project_issue_calculation(user_id, project_ids=[]):
 
 
 def check_son_project_belong_to_by_userid(user_id: int, son_id_list: list) -> list:
-    user_project_id_list = model.ProjectUserRole.query.filter_by(user_id=user_id).with_entities(model.ProjectUserRole.project_id).all()
+    user_project_id_list = (
+        model.ProjectUserRole.query.filter_by(user_id=user_id).with_entities(model.ProjectUserRole.project_id).all()
+    )
     son_id_list = [user_project_id[0] for user_project_id in user_project_id_list if user_project_id[0] in son_id_list]
     return son_id_list
 
 
-def get_son_project_by_redmine_id(project_id: int, start: bool=False) -> dict[str: Any]:
+def get_son_project_by_redmine_id(project_id: int, start: bool = False) -> dict[str:Any]:
     # print('project_id ===' , project_id)
     if not start:
         start_project = json.loads(str(model.Project.query.filter_by(id=project_id).first()))
-        start_project["sons"] = []  
+        start_project["sons"] = []
     else:
-        start_project={'sons':[]}
+        start_project = {"sons": []}
 
     son_ids = [row.son_id for row in model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).all()]
     for son_id in son_ids:
-        if get_jwt_identity()['role_id'] != 5:
-            son_ids = check_son_project_belong_to_by_userid(user_id=get_jwt_identity()['user_id'], son_id_list=son_ids)
-      
+        if get_jwt_identity()["role_id"] != 5:
+            son_ids = check_son_project_belong_to_by_userid(user_id=get_jwt_identity()["user_id"], son_id_list=son_ids)
+
         son_id_info = get_son_project_by_redmine_id(son_id, False)
         start_project["sons"].append(son_id_info)
     # print('start_project= ' , start_project)
     return start_project
 
 
-def get_project_list(user_id:int, role: str="simple", args: dict={}, disable: bool=None, sync: bool=False):
+def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disable: bool = None, sync: bool = False):
     limit = args.get("limit")
     offset = args.get("offset")
     extra_data = args.get("test_result", "false") == "true"
@@ -170,10 +173,10 @@ def get_project_list(user_id:int, role: str="simple", args: dict={}, disable: bo
 
         if pj_members_count:
             nexus_project = nexus_project.set_project_members()
-        nexus_project = nexus_project.to_json() 
-        nexus_project.update({'son_project':[]})
+        nexus_project = nexus_project.to_json()
+        nexus_project.update({"son_project": []})
         project_ = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first()
-        nexus_project['son_project'].append(get_son_project_by_redmine_id(project_id=project_.id, start=True))
+        nexus_project["son_project"].append(get_son_project_by_redmine_id(project_id=project_.id, start=True))
         ret.append(nexus_project)
     if limit is not None and offset is not None:
         page_dict = util.get_pagination(counts, limit, offset)
@@ -1015,33 +1018,24 @@ def get_test_summary(project_id):
                 raise e
 
     # webinspect ..
-    # if not plugins.get_plugin_config("webinspect")["disabled"]:
-    #     scan = webinspect.get_latest_scans(project_name)
-    #     if scan is not None:
-    #         if type(scan["stats"]) is dict and scan["stats"]["status"] == "Complete":
-    #             ret["webinspect"] = {
-    #                 "message": "success",
-    #                 "status": 1,
-    #                 "result": scan["stats"],
-    #                 "run_at": scan["run_at"],
-    #             }
-    #         elif scan["stats"]["status"] in ["NotRunning", "Interrupted", "Failed"]:
-    #             ret["webinspect"] = {
-    #                 "message": f"Status is {scan['stats']['status'].lower()}.",
-    #                 "status": -1,
-    #                 "result": {},
-    #                 "run_at": str(scan["run_at"]) if scan["run_at"] is not None else None,
-    #             }
-    #         else:
-    #             ret["webinspect"] = {
-    #                 "message": "It is not finished yet.",
-    #                 "status": 2,
-    #                 "result": {},
-    #                 "run_at": str(scan["run_at"]) if scan.get("run_at") is not None else None,
-    #             }
-    #     else:
-    #         not_found_ret["message"] = not_found_ret_message("webinspect")
-    #         ret["webinspect"] = not_found_ret.copy()
+    if not plugins.get_plugin_config("webinspect")["disabled"]:
+        scan = webinspect.get_latest_scan_by_project_name_and_update(project_id)
+        if scan is not None:
+            if scan["status"] == "Complete":
+                message, status = "success", 1
+            elif scan["status"] == "Failed":
+                message, status = "failed", -1
+            else:
+                message, status = "scanning", 2
+            ret["webinspect"] = {
+                "message": message,
+                "status": status,
+                "result": scan["state"],
+                "run_at": scan["run_at"],
+            }
+        else:
+            not_found_ret["message"] = not_found_ret_message("webinspect")
+            ret["webinspect"] = not_found_ret.copy()
 
     # sonarqube ..
     if not plugins.get_plugin_config("sonarqube")["disabled"]:
@@ -1060,7 +1054,6 @@ def get_test_summary(project_id):
         else:
             not_found_ret["message"] = not_found_ret_message("sonarqube")
             ret["sonarqube"] = not_found_ret.copy()
-
     # zap ..
     if not plugins.get_plugin_config("zap")["disabled"]:
         result = zap.zap_get_latest_test(project_id)
