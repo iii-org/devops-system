@@ -1020,7 +1020,7 @@ def get_test_summary(project_id):
     # webinspect ..
     if not plugins.get_plugin_config("webinspect")["disabled"]:
         scan = webinspect.get_latest_scan_by_project_name_and_update(project_id)
-        if scan is not None:
+        if scan:
             if scan["status"] == "Complete":
                 message, status = "success", 1
             elif scan["status"] == "Failed":
