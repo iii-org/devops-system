@@ -127,11 +127,21 @@ def update_pipe_set_and_push_to_new_project(from_project_id, name, description):
     old_secret_http_url = tm_get_secret_url(old_project)
     temp_pj_secret_http_url = tm_get_secret_url(template_project)
     Path(TEMPLATE_FOLDER_NAME).mkdir(exist_ok=True)
+    # subprocess.run(
+    #     [
+    #         "git",
+    #         "clone",
+    #         "--mirror",
+    #         old_secret_http_url,
+    #         f"{TEMPLATE_FOLDER_NAME}/{old_project.path}",
+    #     ]
+    # )
     subprocess.run(
         [
             "git",
             "clone",
-            "--mirror",
+            "--branch",
+            old_project.default_branch,
             old_secret_http_url,
             f"{TEMPLATE_FOLDER_NAME}/{old_project.path}",
         ]
