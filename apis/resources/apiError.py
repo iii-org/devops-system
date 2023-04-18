@@ -13,7 +13,7 @@ def build(err_code, message, details=None):
 
 def error_3rd_party_api(service_name, response):
     msg = None
-    service_name_error_msg_mapping = {"Rancher": "message"}
+    service_name_error_msg_mapping = {"Rancher": "message", "WebInspect": "message"}
     if type(response) is str:
         resp_value = response
     else:
