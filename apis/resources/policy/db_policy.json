@@ -1,0 +1,34 @@
+{
+	"MSSQL": {
+		"RE": "^((?=.{8,128}$)(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).*|(?=.{8,128}$)(?=.*\d)(?=.*[a-zA-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
+		"Policy": "The password doesn't contain the account name of the user.\nThe password is at least eight characters long.\nThe password contains characters from three of the following four categories:\n	Latin uppercase letters (A through Z)\n	Latin lowercase letters (a through z)\n	Base 10 digits (0 through 9)\n	Non-alphanumeric characters such as: exclamation point (!), dollar sign ($), number sign (#), or percent (%).\nPasswords can be up to 128 characters long. Use passwords that are as long and complex as possible."
+	},
+	"MySQL": {
+		"RE": "^((?=.{8,}$)(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
+		"Policy": "The password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character, 1 uppercase character, and 1 special (nonalphanumeric) character."
+	},
+	"mariaDB": {
+		"RE": "^((?=.{8,}$)(?=.*\d)(?=.*[a-zA-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
+		"Policy": "The password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character or 1 uppercase character, and 1 special (nonalphanumeric) character."
+	},
+	"influxDB": {
+		"RE": "",
+		"Policy": ""
+	},
+	"Elasticsearch": {
+		"RE": "^((?=.{6,}$)",
+		"Policy": "The password is at least six characters long."
+	},
+	"mongoDB": {
+		"RE": "",
+		"Policy": []
+	},
+	"SQLite": {
+		"RE": "",
+		"Policy": []
+	},
+	"postgreSQL": {
+		"RE": "^((?=.{8,}$)(?=.*\d)(?=.*[a-zA-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
+		"Policy": "The password doesn't contain the account name of the user.\nThe password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character or 1 uppercase character."
+	}
+}

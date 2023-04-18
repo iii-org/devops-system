@@ -54,6 +54,7 @@ from resources import (
     system_parameter,
     maintenance,
     issue_display_field,
+    policy,
 )
 from resources.redis import should_update_template_cache
 from resources.template import fetch_and_update_template_cache
@@ -679,6 +680,12 @@ notification_message_url(api, add_resource, socketio)
 # routine job
 api.add_resource(routine_job.DoJobByMonth, "/routine_job/by_month")
 api.add_resource(routine_job.DoJobByDay, "/routine_job/by_day")
+
+
+# policy
+
+# Database password principle
+api.add_resource(policy.DBPSWDPolicy, "/db/pswd/policy/check")
 
 
 @app.route("/user/login", methods=["POST"])
