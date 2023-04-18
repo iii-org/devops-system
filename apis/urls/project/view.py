@@ -586,6 +586,7 @@ class ListMyProjects(Resource):
         parser.add_argument("pj_due_date_start", type=str, location="args")
         parser.add_argument("pj_due_date_end", type=str, location="args")
         parser.add_argument("test_result", type=str, location="args")
+        parser.add_argument("root", type=bool, location="args")
         args = parser.parse_args()
         disabled = None
         if args.get("disabled") is not None:

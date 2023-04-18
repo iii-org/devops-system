@@ -123,7 +123,6 @@ def check_son_project_belong_to_by_userid(user_id: int, son_id_list: list) -> li
 
 
 def get_son_project_by_redmine_id(project_id: int, start: bool = False) -> dict[str:Any]:
-    # print('project_id ===' , project_id)
     if not start:
         start_project = json.loads(str(model.Project.query.filter_by(id=project_id).first()))
         start_project["sons"] = []
@@ -137,7 +136,6 @@ def get_son_project_by_redmine_id(project_id: int, start: bool = False) -> dict[
 
         son_id_info = get_son_project_by_redmine_id(son_id, False)
         start_project["sons"].append(son_id_info)
-    # print('start_project= ' , start_project)
     return start_project
 
 
@@ -173,10 +171,11 @@ def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disabl
 
         if pj_members_count:
             nexus_project = nexus_project.set_project_members()
-        nexus_project = nexus_project.to_json()
-        nexus_project.update({"son_project": []})
-        project_ = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first()
-        nexus_project["son_project"].append(get_son_project_by_redmine_id(project_id=project_.id, start=True))
+        nexus_project = nexus_project.to_json() 
+        project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first().id
+        nexus_project.update({"son_projects":[]})
+        son = get_son_project_by_redmine_id(project_id, start=True)
+        nexus_project['son_projects'].append(son)
         ret.append(nexus_project)
     if limit is not None and offset is not None:
         page_dict = util.get_pagination(counts, limit, offset)
@@ -201,6 +200,7 @@ def get_project_rows_by_user(user_id, disable, args={}):
         if args.get("pj_due_date_end", False)
         else None
     )
+    root: bool = args.get('root')
 
     query: Query = model.Project.query.options(joinedload(model.Project.user_role, innerjoin=True))
     # 如果不是admin（也就是一般RD/PM/QA），取得 user_id 有參加的 project 列表
@@ -250,6 +250,9 @@ def get_project_rows_by_user(user_id, disable, args={}):
             for star_project in stared_project_objects
             if pj_due_start <= star_project.due_date <= pj_due_end
         ]
+    if root is True:
+        sons_project_list = [son[0] for son in model.ProjectParentSonRelation.query.with_entities(model.ProjectParentSonRelation.son_id).all()]
+        query: Query = query.filter(Project.id.notin_(sons_project_list))
 
     # Remove dump_project and stared_project
     stared_project_ids: list[int] = [_.id for _ in stared_project_objects]
