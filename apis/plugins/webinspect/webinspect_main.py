@@ -84,6 +84,8 @@ class Request:
             output = self.__api_put(path, headers, data, cookies=cookies)
         elif method == "PATCH":
             output = self.__api_patch(path, headers, data, cookies=cookies)
+        elif method == "DELETE":
+            output = self.__api_delete(path, headers, data, cookies=cookies)
 
         if int(output.status_code / 100) != 2:
             logger.exception(
@@ -137,6 +139,17 @@ class Request:
     ) -> Response:
         data = json.dumps(data)
         res = requests.patch(f"{self.url}{path}", headers=headers, data=data, verify=False, cookies=cookies)
+        return res
+
+    def __api_delete(
+        self,
+        path: str,
+        headers: dict[str, Any] = {},
+        data: dict[str, Any] = {},
+        cookies: Union[dict, RequestsCookieJar] = {},
+    ) -> Response:
+        data = json.dumps(data)
+        res = requests.delete(f"{self.url}{path}", headers=headers, data=data, verify=False, cookies=cookies)
         return res
 
 
@@ -255,6 +268,11 @@ class WIESCC(Request):
         )
         return ret.content
 
+    def wie_remove_report(self, report_id: int) -> None:
+        return self.api_request(
+            "DELETE", f"/ssc/api/v1/reports/{report_id}", headers=self.headers, cookies=self.cookie_jar
+        )
+
     def wie_get_report_status(self, report_id: int) -> dict[str, Any]:
         """
         response: status: [SCHED_PROCESSING, PROCESSING, PROCESS_COMPLETE, ERROR_PROCESSING]
@@ -264,10 +282,18 @@ class WIESCC(Request):
         ).json()
         return ret
 
-    def get_report_content(self, report_id: int):
+    def get_report_content(self, report_id: int) -> None:
         report_token = self.wie_get_report_token()["token"]
         ret = self.wie_get_report(report_id, report_token)
         return ret
+
+    def delete_report_if_exist(self, report_id: int) -> None:
+        try:
+            if self.wie_get_report_status(report_id):
+                self.wie_remove_report(report_id)
+        except Exception as e:
+            logger.info("Fail to delete report_id {report_id}, error_msg: {e}")
+            return
 
 
 class WIEDAST(Request):
@@ -546,7 +572,7 @@ def __check_scan_is_publish(scan_id):
         if wie_scan_info["publish_status"] == "Published":
             is_published = True
             break
-        sleep(1)
+        sleep(2)
     return is_published
 
 
@@ -563,7 +589,7 @@ def handle_download_store_report(
         return
     else:
         report_content = wie_scc.get_report_content(report_id)
-    __store_report_in_local(wie_query, report_content)
+    __store_report_in_local(wie_query, wie_scc, report_content)
     update_scan(scan_id, {"report_status": "Finished", "finished": True, "finished_at": datetime.utcnow()})
     logger.info(f"Scan_id: {scan_id}'s report is ready to download.")
 
@@ -579,25 +605,26 @@ def __check_scan_report_is_finished(wie_scc: WIESCC, report_id: int):
             is_finished = True
             break
         else:
-            sleep(1)
+            sleep(2)
     return is_finished
 
 
-def __store_report_in_local(wie_query: WebInspect, report_content: str):
+def __store_report_in_local(wie_query: WebInspect, wie_scc: WIESCC, report_content: str):
     scan_commit, scan_pj_name = wie_query.commit_id, wie_query.project_name
     wie_pj_path = f"{WIE_REPORT_PATH}/{scan_pj_name}"
 
     if not os.path.isdir(wie_pj_path):
         os.makedirs(wie_pj_path, exist_ok=True)
     else:
-        __remove_older_than_four_wie_report(wie_pj_path)
+        __remove_older_than_four_wie_report(wie_scc, wie_pj_path)
     file_name = Path(f"{wie_pj_path}/{scan_commit}.pdf")
     file_name.write_bytes(report_content)
 
 
-def __remove_older_than_four_wie_report(wie_pj_path: str):
+def __remove_older_than_four_wie_report(wie_scc: WIESCC, wie_pj_path: str):
     """
-    Keep only five reports, which means you should retain only four old reports since one of them is for the new report
+    - Keep only five reports, which means you should retain only four old reports since one of them is for the new report.
+    - Delete report in WIE server as the same time.
     """
     files = sorted(Path(wie_pj_path).iterdir(), key=os.path.getmtime)
     if len(files) >= 4:
@@ -607,8 +634,10 @@ def __remove_older_than_four_wie_report(wie_pj_path: str):
                 project_name=wie_pj_path.split("/")[-1], commit_id=file.name.split(".")[0]
             )
             if query.first() is not None:
+                report_id = query.first().report_id
                 query.update({"report_status": None})
                 db.session.commit()
+                wie_scc.delete_report_if_exist(report_id)
 
 
 def donwload_pdf(scan_id: str):
