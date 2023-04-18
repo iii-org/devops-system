@@ -12,6 +12,7 @@ FIXED = {
     "DEFAULT_TRACE_ORDER": ["Epic", "Feature", "Test Plan"],
     "DOCUMENT_LEVEL": "public",
     "REDIS_BASE_URL": "devops-redis-service:6379",
+    "VERSION_CENTER_BASE_URL": "http://version-center.iiidevops.org",
 }
 
 in_file = {}
