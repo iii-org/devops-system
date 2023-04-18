@@ -387,6 +387,33 @@ class Cluster(Resource):
             return util.respond(404, _ERROR_DELETE_CLUSTERS, error=apiError.delete_cluster_failed())
 
 
+def get_cluster_config(cluster_id=None):
+    output = []
+    if cluster_id is not None:
+        cluster = model.Cluster.query.filter_by(id=cluster_id).first()
+        cluster_path = check_directory_exists(cluster.name)
+        file_name = secure_filename(_DEFAULT_K8S_CONFIG_FILE)
+        file_path = os.path.join(cluster_path, file_name)
+        content = ""
+        with open(file_path) as file:
+            content = file.read()
+        output = row_to_dict(cluster)
+        output["config"] = content
+    return output
+
+
+class ClusterConfig(Resource):
+    @jwt_required()
+    def get(self, cluster_id):
+        try:
+            output = get_cluster_config(cluster_id)
+            if output is None:
+                return util.success()
+            return util.success(output)
+        except NoResultFound:
+            return util.respond(404, _ERROR_GET_CLUSTERS, error=apiError.get_clusters_failed())
+
+
 def get_registries_application_information(registry):
     if registry is None:
         return []

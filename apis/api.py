@@ -603,6 +603,7 @@ api.add_resource(deploy.Clusters, "/deploy/clusters")
 api.add_resource(deploy.Cluster, "/deploy/clusters/<int:cluster_id>")
 api.add_resource(deploy.Registries, "/deploy/registries")
 api.add_resource(deploy.Registry, "/deploy/registries/<int:registry_id>")
+api.add_resource(deploy.ClusterConfig, "/clusters/config/<int:cluster_id>")
 
 api.add_resource(deploy.ReleaseApplication, "/deploy/release/<int:release_id>")
 
