@@ -739,9 +739,11 @@ def start_prod_not_extra():
     The execution of these functions does not affect the server's startup.
     """
     try:
+        logger.logger.info("Starting register version center.")
         # Register in version center
         devops_version.login()
         devops_version.register_in_vc(force_update=True)
+        logger.logger.info("Updating version center complete.")
     except Exception as e:
         logger.logger.exception(f"Error message: {str(e)}")
 

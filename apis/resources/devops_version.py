@@ -180,10 +180,13 @@ def register_in_vc(force_update: bool = False) -> None:
 
     nexus_version = model.NexusVersion.query.first()
     deploy_version, deploy_uuid = nexus_version.deploy_version, nexus_version.deployment_uuid
+    logger.info(f"Oringal deploy_version: {deploy_version}, deploy_uuid: {deploy_uuid}.")
     if deploy_version is None or force_update:
         deploy_version = system_git_commit_id().get("git_tag")
+        logger.info(f"After deploy_version: {deploy_version}.")
         nexus_version.deploy_version = deploy_version
         model.db.session.commit()
+        logger.info(f"Updating deploy_version to {deploy_version}.")
 
     return __api_post("/report_info", data={"iiidevops": {"deploy_version": deploy_version}, "uuid": deploy_uuid})
 
