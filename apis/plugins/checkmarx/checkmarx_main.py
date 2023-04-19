@@ -152,7 +152,6 @@ class CheckMarx(object):
 
             logger.logger.info(f'[{recno}] scan_id: {row.scan_id}')
             row.report_id = -1
-            db.session.save()
             is_update = True
             recno += 1
             if recno >= len(record) - 5:
