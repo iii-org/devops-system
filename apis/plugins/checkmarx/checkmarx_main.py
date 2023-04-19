@@ -148,6 +148,7 @@ class CheckMarx(object):
             #     db.session.commit()
             is_update: bool = False
             for i in range(len(record) - 4):
+                logger.logger.info(f'[{i}] scan_id: {record.scan_id}')
                 record[i].report_id = -1
                 is_update = True
             if is_update:
