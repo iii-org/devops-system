@@ -309,7 +309,6 @@ def fetch_and_update_template_cache():
                 template_list |= handle_template_cache(pj, group.name, pip_set_json, tag_list)
                 # update_redis_template_cache(pj, group.name, pip_set_json, tag_list)
     update_template_cache_all(template_list)
-    logger.logger.info(f"Updated data: {template_list}")
     return output
 
 

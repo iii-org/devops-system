@@ -726,6 +726,8 @@ def start_prod():
 
         plugins.create_plugins_api_router(api, add_resource)
         plugins.sync_plugins_in_db_and_code()
+
+        start_prod_extra_funcs()
         return app
     except Exception as e:
         ret = internal_error(e)
@@ -734,7 +736,7 @@ def start_prod():
         raise e
 
 
-def start_prod_not_extra():
+def start_prod_extra_funcs():
     """
     The execution of these functions does not affect the server's startup.
     """
@@ -750,5 +752,4 @@ def start_prod_not_extra():
 
 if __name__ == "__main__":
     start_prod()
-    start_prod_not_extra()
     socketio.run(app, host="0.0.0.0", port=10009, debug=config.get("DEBUG"), use_reloader=config.get("USE_RELOADER"))
