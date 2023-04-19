@@ -129,35 +129,28 @@ class CheckMarx(object):
         )
         db.session.add(new)
         db.session.commit()
-        record = (
-            Model.query.filter(Model.repo_id==args["repo_id"],
-                               or_(Model.report_id != -1,
-                                   Model.report_id.is_(None),
-                                   Model.finished.is_(None))
-                               ).order_by(Model.run_at.asc()).all()
-        )
+        record = Model.query.with_entities(Model.scan_id
+                                           ).filter(Model.repo_id==args["repo_id"],
+                                                    or_(Model.report_id != -1,
+                                                        Model.report_id.is_(None),
+                                                        Model.finished.is_(None))
+                                                    ).order_by(Model.run_at.asc()).all()
         logger.logger.info(len(record))
-        recno = 0
-        is_update: bool = False
-        for row in record:
-            # update_row = (
-            #     Model.query.filter_by(repo_id=args["repo_id"])
-            #     .filter(Model.report_id != -1)
-            #     .order_by(Model.run_at)
-            #     .first()
-            # )
-            # if update_row:
-            #     update_row.report_id = -1
-            #     db.session.commit()
-
-            logger.logger.info(f'[{recno}] scan_id: {row.scan_id}')
-            row.report_id = -1
-            is_update = True
-            recno += 1
-            if recno >= len(record) - 5:
-                break
-        if is_update:
-            db.session.commit()
+        if len(record) > 5:
+            for i in range(len(record) -5):
+                # update_row = (
+                #     Model.query.filter_by(repo_id=args["repo_id"])
+                #     .filter(Model.report_id != -1)
+                #     .order_by(Model.run_at)
+                #     .first()
+                # )
+                # if update_row:
+                #     update_row.report_id = -1
+                #     db.session.commit()
+                row = Model.query.filter_by(scan_id=record[i].scan_id)
+                logger.logger.info(f'[{i}] scan_id: {row.scan_id}')
+                row.report_id = -1
+                db.session.commit()
         return util.success()
 
     # Need to write into db if see a final scan status
