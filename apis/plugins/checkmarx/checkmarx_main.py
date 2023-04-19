@@ -132,8 +132,8 @@ class CheckMarx(object):
         record = (
             Model.query.filter(Model.repo_id==args["repo_id"],
                                or_(Model.report_id != -1,
-                                   Model.report_id is None,
-                                   Model.finished is None)
+                                   Model.report_id.is_(None),
+                                   Model.finished.is_(None))
                                ).order_by(Model.run_at.asc()).all()
         )
         logger.logger.info(len(record))
