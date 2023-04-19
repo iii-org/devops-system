@@ -140,10 +140,14 @@ def get_son_project_by_redmine_id(project_id: int, start: bool = False) -> dict[
 
 
 def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disable: bool = None, sync: bool = False):
+    '''
+    List all project when role is equal to simple, so avoid do something if role == simple. 
+    '''
     limit = args.get("limit")
     offset = args.get("offset")
     extra_data = args.get("test_result", "false") == "true"
     pj_members_count = args.get("pj_members_count", "false") == "true"
+    parent_son = args.get("parent_son", False)
     user_name = model.User.query.get(user_id).login
 
     rows, counts = get_project_rows_by_user(user_id, disable, args=args)
@@ -172,10 +176,11 @@ def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disabl
         if pj_members_count:
             nexus_project = nexus_project.set_project_members()
         nexus_project = nexus_project.to_json() 
-        project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first().id
-        nexus_project.update({"son_projects":[]})
-        son = get_son_project_by_redmine_id(project_id, start=True)
-        nexus_project['son_projects'].append(son)
+        if parent_son:
+            project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first().id
+            nexus_project.update({"son_projects":[]})
+            son = get_son_project_by_redmine_id(project_id, start=True)
+            nexus_project['son_projects'].append(son)
         ret.append(nexus_project)
     if limit is not None and offset is not None:
         page_dict = util.get_pagination(counts, limit, offset)

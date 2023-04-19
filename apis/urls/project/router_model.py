@@ -419,6 +419,7 @@ class ListMyProjectsSchema(Schema):
     pj_due_date_start = fields.Str(doc="pj_due_date_start", example="1970-01-01")
     pj_due_date_end = fields.Str(doc="pj_due_date_end", example="1970-01-01")
     root = fields.Bool()
+    parent_son = fields.Bool()
 
 class CalculateProjectIssuesSchema(Schema):
     project_ids = fields.Str(doc="project_ids", example="1,2,3,4", required=True)
