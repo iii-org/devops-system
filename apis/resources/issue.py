@@ -52,6 +52,7 @@ from resources.redis import (
     add_issue_relation,
     update_pj_issue_calc,
     get_all_issue_relations,
+    update_issue_pj_user_relations,
 )
 from datetime import date
 
@@ -1331,7 +1332,9 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         else:
             issue["author"] = {}
 
-        has_children = check_issue_has_son(str(issue["id"]))
+        has_children = check_issue_has_son(
+            str(issue["id"]), by_user_permission=get_jwt_identity()["role_id"] != role.ADMIN.id
+        )
         issue["is_closed"] = issue["status"]["id"] in NexusIssue.get_closed_statuses()
         issue["issue_link"] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
         issue["family"] = issue.get("parent") is not None or issue.get("relations") != [] or has_children
@@ -2638,13 +2641,26 @@ def get_commit_hook_issues(commit_id):
 
 
 def sync_issue_relation():
-    issue_family = {}
+    """
+    Update issue family(son, parent issue) & issue_relation(belongs pj, pj's members)
+    """
+    issue_family, issue_pj_user_relations = {}, {}
     for project in model.Project.query.all():
-        plan_id = get_plan_id(project.id)
+        plan_id, pj_id = get_plan_id(project.id), project.id
+        pj_users = [str(user["id"]) for user in project.users]
         if plan_id != -1:
             try:
-                all_issues, _ = redmine.rm_list_issues(params={"project_id": plan_id, "status_id": "*"})
+                all_issues, _ = redmine.rm_list_issues(
+                    params={"project_id": plan_id, "status_id": "*", "subproject_id": "!*"}
+                )
                 for issue in all_issues:
+                    issue_rel_info = {
+                        "plan_project_id": plan_id,
+                        "project_id": pj_id,
+                        "project_users": ",".join(pj_users),
+                    }
+                    issue_rel_info = json.dumps(issue_rel_info, default=str)
+                    issue_pj_user_relations[issue["id"]] = issue_rel_info
                     if issue.get("parent") is not None:
                         parent_id = issue["parent"]["id"]
                         issue_family[parent_id] = handle_sync_son_issue(issue_family.get(parent_id), str(issue["id"]))
@@ -2652,6 +2668,7 @@ def sync_issue_relation():
                 continue
 
     update_issue_relations(issue_family)
+    update_issue_pj_user_relations(issue_pj_user_relations)
 
 
 def handle_sync_son_issue(value, issue_id):

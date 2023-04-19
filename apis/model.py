@@ -129,11 +129,23 @@ class Project(db.Model):
     is_empty_project = Column(Boolean, server_default="false")
     starred_by = relationship(User, secondary="starred_project", backref="starred_project")
     plugin_relation = relationship("ProjectPluginRelation", uselist=False)
-    user_role = relationship("ProjectUserRole", back_populates="project")
+    user_role = relationship("ProjectUserRole", back_populates="project", lazy="subquery")
     alert = Column(Boolean, default=False)
     trace_order = relationship("TraceOrder", backref="project")
     excalidraws = relationship("Excalidraw", back_populates="project")
     webinspect = relationship("WebInspect", back_populates="project")
+
+    def __member_serializer(self, member_id):
+        info = User.query.filter_by(id=member_id).first()
+        if info is not None and info.name:
+            name = info.name
+        else:
+            name = ""
+        return {"id": member_id, "name": name}
+
+    @property
+    def users(self):
+        return [self.__member_serializer(row.user_id) for row in self.user_role]
 
     def __repr__(self):
         fields = {}
@@ -142,7 +154,7 @@ class Project(db.Model):
             for x in dir(self)
             if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
         ]:
-            if field in ["starred_by", "plugin_relation", "user_role"]:
+            if field in ["starred_by", "plugin_relation", "users"]:
                 continue
             data = self.__getattribute__(field)
             try:
