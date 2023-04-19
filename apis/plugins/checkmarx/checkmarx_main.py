@@ -134,7 +134,7 @@ class CheckMarx(object):
                                   ).filter(or_(Model.report_id != -1,
                                                Model.report_id is None,
                                                Model.finished is None)
-                                           ).order_by(Model.run_at).all()
+                                           ).order_by(Model.run_at.asc()).all()
         )
         if len(record) >= 5:
             # update_row = (
