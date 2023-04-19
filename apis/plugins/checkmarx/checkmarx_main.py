@@ -130,11 +130,11 @@ class CheckMarx(object):
         db.session.add(new)
         db.session.commit()
         record = (
-            Model.query.filter_by(repo_id=args["repo_id"]
-                                  ).filter(or_(Model.report_id != -1,
-                                               Model.report_id is None,
-                                               Model.finished is None)
-                                           ).order_by(Model.run_at.asc()).all()
+            Model.query.filter(Model.repo_id==args["repo_id"],
+                               or_(Model.report_id != -1,
+                                   Model.report_id is None,
+                                   Model.finished is None)
+                               ).order_by(Model.run_at.asc()).all()
         )
         logger.logger.info(len(record))
         if len(record) >= 5:
