@@ -147,7 +147,7 @@ class CheckMarx(object):
                 # if update_row:
                 #     update_row.report_id = -1
                 #     db.session.commit()
-                row = Model.query.filter_by(scan_id=record[i].scan_id)
+                row = Model.query.filter_by(scan_id=record[i].scan_id).one()
                 logger.logger.info(f'[{i}] scan_id: {row.scan_id}')
                 row.report_id = -1
                 db.session.commit()
