@@ -136,6 +136,7 @@ class CheckMarx(object):
                                                Model.finished is None)
                                            ).order_by(Model.run_at.asc()).all()
         )
+        logger.logger.info(len(record))
         if len(record) >= 5:
             # update_row = (
             #     Model.query.filter_by(repo_id=args["repo_id"])
