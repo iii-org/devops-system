@@ -420,6 +420,9 @@ class Rancher(object):
         if project_relation:
             pipeline_name = project_relation.ci_pipeline_id
             result = self.rc_get_yaml(project_id)
+            # 當 rc_get_yaml 找不到 project_id 時會傳回 result["status"] 為 404 型別為 int ,所以後續的判嚮會出現錯誤，故新增下列判斷。
+            if type(result["status"]) is not dict:
+                return result
             if int(result["status"]["nextRun"]) <= total_run:
                 result["status"]["nextRun"] = total_run + 1
             token = self.__generate_token()
