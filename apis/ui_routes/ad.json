@@ -844,7 +844,7 @@
     ]
   },
   {
-    "path": "/activities/:projectName?",
+    "path": "/activities",
     "component": "layout",
     "name": "Activities",
     "redirect": {
@@ -909,7 +909,7 @@
         }
       },
       {
-        "path": "project-activities",
+        "path": ":projectName?/project-activities",
         "name": "ProjectActivities",
         "component": "views/Activities/ProjectActivities",
         "meta": {
