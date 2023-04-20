@@ -130,6 +130,7 @@ class CheckMarx(object):
         db.session.add(new)
         db.session.commit()
         record = Model.query.filter(Model.repo_id==args["repo_id"],
+                                    Model.scan_id != new.scan_id,
                                     or_(Model.report_id != -1,
                                         Model.report_id.is_(None),
                                         Model.finished.is_(None))
@@ -150,7 +151,7 @@ class CheckMarx(object):
                 logger.logger.info(f'[{i}] scan_id: {record[i].scan_id}')
                 # db.session.refresh(record[i])
                 record[i].report_id = -1
-            Model.db.session.commit()
+            db.session.commit()
         return util.success()
 
     # Need to write into db if see a final scan status
