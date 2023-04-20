@@ -193,8 +193,14 @@ def add_issue_relation(parent_issue_id, son_issue_id):
 # Issue project user realtion Cache
 def get_single_issue_pj_user_relation(issue_id: int) -> dict[int, Any]:
     redis_data = redis_op.dict_get_certain(ISSUE_PJ_USER_RELATION_KEY, issue_id)
+    if not redis_data:
+        return {}
     out = json.loads(redis_data)
     return out
+
+
+def update_issue_pj_user_relation(issue_id: int, issue_pj_user_relation: dict[str, Any]) -> None:
+    return redis_op.dict_set_certain(ISSUE_PJ_USER_RELATION_KEY, issue_id, issue_pj_user_relation)
 
 
 def update_issue_pj_user_relations(issue_pj_user_relations: dict[int, Any]) -> None:

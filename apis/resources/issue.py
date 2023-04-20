@@ -53,6 +53,8 @@ from resources.redis import (
     update_pj_issue_calc,
     get_all_issue_relations,
     update_issue_pj_user_relations,
+    update_issue_pj_user_relation,
+    get_single_issue_pj_user_relation,
 )
 from datetime import date
 
@@ -683,9 +685,9 @@ def get_issue(issue_id, with_children=True, journals=True, operator_id=None):
             Due to redmine system that allows users to access children issues they do not have permission to view,
             so need to examine the data of issue_pj_user_relation from redis
             """
-            # get_single_issue_pj_user_relation(children_issue["id"])
-            # if
-            children_detail.append(get_issue_assign_to_detail(children_issue))
+            issue_belong_pj_users = get_single_issue_pj_user_relation(children_issue["id"]).get("project_users", "")
+            if str(get_jwt_identity()["user_id"]) in issue_belong_pj_users.split(","):
+                children_detail.append(get_issue_assign_to_detail(children_issue))
         issue["children"] = children_detail
     return __deal_with_issue_redmine_output(issue, closed_statuses)
 
@@ -721,9 +723,10 @@ def create_issue(args, operator_id):
         operator_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
     personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
+    project_model_obj = model.Project.query.get(project_id)
 
     # Check project is disabled or not
-    if model.Project.query.get(project_id).disabled:
+    if project_model_obj.disabled:
         raise DevOpsError(400, "Project is disabled", error=apiError.project_is_disabled(project_id))
 
     # Check tracker_id is not force to has father issue's tracker
@@ -803,6 +806,16 @@ def create_issue(args, operator_id):
             args["description"] = change_url
     created_issue = personal_redmine_obj.rm_create_issue(args)
     created_issue_id = created_issue["issue"]["id"]
+    update_issue_pj_user_relation(
+        int(created_issue_id),
+        json.dumps(
+            {
+                "plan_project_id": args["project_id"],
+                "project_id": project_id,
+                "project_users": ",".join([str(user["id"]) for user in project_model_obj.users]),
+            }
+        ),
+    )
     create_issue_extensions(created_issue_id, extension_args)
 
     # Update cache
@@ -1338,10 +1351,9 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         else:
             issue["author"] = {}
 
-        # has_children = check_issue_has_son(
-        #     str(issue["id"]), by_user_permission=get_jwt_identity()["role_id"] != role.ADMIN.id
-        # )
-        has_children = check_issue_has_son(str(issue["id"]))
+        has_children = check_issue_has_son(
+            str(issue["id"]), by_user_permission=get_jwt_identity()["role_id"] != role.ADMIN.id
+        )
         issue["is_closed"] = issue["status"]["id"] in NexusIssue.get_closed_statuses()
         issue["issue_link"] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
         issue["family"] = issue.get("parent") is not None or issue.get("relations") != [] or has_children
