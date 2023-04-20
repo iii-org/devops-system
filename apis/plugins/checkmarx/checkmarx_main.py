@@ -130,7 +130,7 @@ class CheckMarx(object):
         db.session.add(new)
         db.session.commit()
         rows = Model.query.filter(Model.repo_id == args["repo_id"],
-                                  Model.scan_id == new.scan_id,
+                                  Model.scan_id != new.scan_id,
                                   or_(Model.report_id != -1,
                                       Model.report_id.is_(None),
                                       Model.finished.is_(None))
