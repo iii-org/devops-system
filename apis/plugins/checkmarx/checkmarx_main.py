@@ -134,7 +134,7 @@ class CheckMarx(object):
                                     or_(Model.report_id != -1,
                                         Model.report_id.is_(None),
                                         Model.finished.is_(None))
-                                    ).order_by(Model.run_at).offset(5).all()
+                                    ).order_by(Model.run_at.desc()).offset(4).all()
         logger.logger.info(len(rows))
         if len(rows) > 0:
             for row in rows:
