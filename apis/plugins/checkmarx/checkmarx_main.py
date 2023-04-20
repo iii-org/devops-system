@@ -129,15 +129,15 @@ class CheckMarx(object):
         )
         db.session.add(new)
         db.session.commit()
-        record = Model.query.filter(Model.repo_id==args["repo_id"],
+        rows = Model.query.filter(Model.repo_id==args["repo_id"],
                                     Model.scan_id != new.scan_id,
                                     or_(Model.report_id != -1,
                                         Model.report_id.is_(None),
                                         Model.finished.is_(None))
-                                    ).order_by(Model.run_at).all()
-        logger.logger.info(len(record))
-        if len(record) > 5:
-            for i in range(len(record) - 5):
+                                    ).order_by(Model.run_at).offset(5).all()
+        logger.logger.info(len(rows))
+        if len(rows) > 0:
+            for row in rows:
                 # update_row = (
                 #     Model.query.filter_by(repo_id=args["repo_id"])
                 #     .filter(Model.report_id != -1)
@@ -148,9 +148,9 @@ class CheckMarx(object):
                 #     update_row.report_id = -1
                 #     db.session.commit()
                 # row = Model.query.filter_by(scan_id=record[i].scan_id).one()
-                logger.logger.info(f'[{i}] scan_id: {record[i].scan_id}')
+                logger.logger.info(f'scan_id: {row.scan_id}')
                 # db.session.refresh(record[i])
-                record[i].report_id = -1
+                row.report_id = -1
             db.session.commit()
         return util.success()
 
