@@ -118,26 +118,14 @@ class CheckMarx(object):
 
     @staticmethod
     def create_scan(args):
-        new = Model(
-            cm_project_id=args["cm_project_id"],
-            repo_id=args["repo_id"],
-            scan_id=args["scan_id"],
-            branch=args["branch"],
-            commit_id=args["commit_id"],
-            scan_final_status=None,
-            run_at=datetime.datetime.utcnow(),
-        )
-        db.session.add(new)
-        db.session.commit()
-        rows = Model.query.filter(Model.repo_id == args["repo_id"],
-                                  Model.scan_id != new.scan_id,
+        rows = Model.query.filter(Model.repo_id==args["repo_id"],
                                   or_(Model.report_id != -1,
                                       Model.report_id.is_(None),
                                       Model.finished.is_(None))
                                   ).order_by(Model.run_at.desc()).all()
         logger.logger.info(len(rows))
-        report_count = 0
         if len(rows) > 0:
+            report_count = 0
             for row in rows:
                 # update_row = (
                 #     Model.query.filter_by(repo_id=args["repo_id"])
@@ -151,12 +139,24 @@ class CheckMarx(object):
                 # row = Model.query.filter_by(scan_id=record[i].scan_id).one()
                 logger.logger.info(f'[{report_count}] scan_id: {row.scan_id}')
                 if report_count < 4:
-                    if row.report_id == -1 and row.finished is None:
+                    if row.report_id == -1 and row.scan_final_status == "Finished" and row.finished is None:
                         row.scan_final_status = None
                 else:
+                    # db.session.refresh(record[i])
                     row.report_id = -1
-                report_count += 1
             db.session.commit()
+        new = Model(
+            cm_project_id=args["cm_project_id"],
+            repo_id=args["repo_id"],
+            scan_id=args["scan_id"],
+            branch=args["branch"],
+            commit_id=args["commit_id"],
+            scan_final_status=None,
+            run_at=datetime.datetime.utcnow(),
+        )
+        db.session.add(new)
+        db.session.commit()
+        return util.success()
 
     # Need to write into db if see a final scan status
     def get_scan_status(self, scan_id):
