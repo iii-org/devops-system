@@ -154,7 +154,7 @@ class CheckMarx(object):
             update_row = (
                 Model.query.filter_by(repo_id=args["repo_id"])
                 .filter(Model.report_id != -1,
-                        or_(Model.report_id == -1, Model.scan_final_status.is_(None), Model.finished.is_(None)))
+                        or_(Model.report_id == -1, Model.scan_final_status is None, Model.finished is None))
                 .order_by(Model.run_at)
                 .first()
             )
