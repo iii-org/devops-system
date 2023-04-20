@@ -150,25 +150,28 @@ class CheckMarx(object):
         )
         db.session.add(new)
         db.session.commit()
-        if Model.query.filter_by(repo_id=args["repo_id"]).order_by(desc(Model.run_at)).count() > 5:
-            update_row = (
-                Model.query.filter_by(repo_id=args["repo_id"])
-                .filter(Model.report_id != -1,
-                        or_(Model.report_id == -1, Model.scan_final_status is None, Model.finished is None))
-                .order_by(Model.run_at)
-                .first()
-            )
-            if update_row:
-                update_row.report_id = -1
-                if update_row.finished is None:
-                    update_row.finished = True
-                    if update_row.finished_at is None:
-                        update_row.scan_final_status = "Canceled"
-                if update_row.scan_final_status is None:
-                    update_row.scan_final_status = "Deleted"
-                if update_row.scan_final_status == "Scanning" or update_row.scan_final_status == "Queued":
+        # if Model.query.filter_by(repo_id=args["repo_id"]).order_by(desc(Model.run_at)).count() > 5:
+        update_row = (
+            Model.query.filter_by(repo_id=args["repo_id"])
+            .filter(Model.report_id != -1,
+                    or_(Model.report_id == -1, Model.scan_final_status is None, Model.finished is None))
+            .order_by(Model.run_at)
+            .first()
+        )
+        if update_row:
+            update_row.report_id = -1
+            if update_row.finished is None:
+                update_row.finished = True
+                if update_row.finished_at is None:
                     update_row.scan_final_status = "Canceled"
-                db.session.commit()
+            if update_row.scan_final_status is None:
+                update_row.scan_final_status = "Deleted"
+            if update_row.scan_final_status == "Scanning" or update_row.scan_final_status == "Queued":
+                update_row.scan_final_status = "Canceled"
+            db.session.commit()
+            logger.logger.info(f'[scan_id: {update_row.scan_id}] ' +
+                               f'[report_id: {update_row.report_id}] ' +
+                               f'[scan_final_status: {update_row.scan_final_status}]')
         return util.success()
 
     # Need to write into db if see a final scan status
