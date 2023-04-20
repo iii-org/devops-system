@@ -118,7 +118,7 @@ class CheckMarx(object):
 
     @staticmethod
     def create_scan(args):
-        # rows = Model.query.filter_by(repo_id=args["repo_id"]).order_by(desc(Model.run_at)).all()
+        # rows = Model.query.filter(Model.repo_id == args["repo_id"]).order_by(desc(Model.run_at)).all()
         # logger.logger.info(len(rows))
         # if rows:
         #     report_count = 0
@@ -138,7 +138,7 @@ class CheckMarx(object):
         #                                f'[report_id: {row.report_id}] ' +
         #                                f'[scan_final_status: {row.scan_final_status}]')
         #             report_count += 1
-        #     # db.session.commit()
+        #     db.session.commit()
         new = Model(
             cm_project_id=args["cm_project_id"],
             repo_id=args["repo_id"],
@@ -154,7 +154,7 @@ class CheckMarx(object):
         update_row = (
             Model.query.filter_by(repo_id=args["repo_id"])
             .filter(Model.report_id != -1,
-                    or_(Model.report_id == -1, Model.scan_final_status is None, Model.finished is None))
+                    or_(Model.scan_final_status is None, Model.finished is None))
             .order_by(Model.run_at)
             .first()
         )
