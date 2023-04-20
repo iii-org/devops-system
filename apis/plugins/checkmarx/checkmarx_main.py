@@ -129,12 +129,12 @@ class CheckMarx(object):
         )
         db.session.add(new)
         db.session.commit()
-        db.session.refresh(new)
         record = Model.query.filter(Model.repo_id==args["repo_id"],
-                                                    or_(Model.report_id != -1,
-                                                        Model.report_id.is_(None),
-                                                        Model.finished.is_(None))
-                                                    ).order_by(Model.run_at.asc()).all()
+                                    or_(Model.report_id != -1,
+                                        Model.report_id.is_(None),
+                                        Model.finished.is_(None))
+                                    ).order_by(Model.run_at.asc()).all()
+        db.session.refresh(record)
         logger.logger.info(len(record))
         if len(record) > 5:
             for i in range(len(record) - 5):
