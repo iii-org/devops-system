@@ -147,7 +147,7 @@ class CheckMarx(object):
                                        f'[report_id: {row.report_id}] ' +
                                        f'[scan_final_status: {row.scan_final_status}]')
                     report_count += 1
-            db.session.commit()
+            # db.session.commit()
         new = Model(
             cm_project_id=args["cm_project_id"],
             repo_id=args["repo_id"],
