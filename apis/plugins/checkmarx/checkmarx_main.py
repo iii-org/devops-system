@@ -144,10 +144,11 @@ class CheckMarx(object):
                 else:
                     # db.session.refresh(record[i])
                     row.report_id = -1
+                report_count += 1
                 db.session.commit()
                 logger.logger.info(f'[{report_count}] [scan_id: {row.scan_id}] ' +
                                    f'[report_id: {row.report_id}] ' +
-                                   f'[scan_final_status: {row.scan_final_status}')
+                                   f'[scan_final_status: {row.scan_final_status}]')
         new = Model(
             cm_project_id=args["cm_project_id"],
             repo_id=args["repo_id"],
