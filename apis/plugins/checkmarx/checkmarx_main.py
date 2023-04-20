@@ -118,7 +118,19 @@ class CheckMarx(object):
 
     @staticmethod
     def create_scan(args):
-        rows = Model.query.filter(Model.repo_id==args["repo_id"],
+        new = Model(
+            cm_project_id=args["cm_project_id"],
+            repo_id=args["repo_id"],
+            scan_id=args["scan_id"],
+            branch=args["branch"],
+            commit_id=args["commit_id"],
+            scan_final_status=None,
+            run_at=datetime.datetime.utcnow(),
+        )
+        db.session.add(new)
+        db.session.commit()
+        rows = Model.query.filter(Model.repo_id == args["repo_id"],
+                                  Model.scan_id == new.scan_id,
                                   or_(Model.report_id != -1,
                                       Model.report_id.is_(None),
                                       Model.finished.is_(None))
@@ -143,19 +155,8 @@ class CheckMarx(object):
                         row.scan_final_status = None
                 else:
                     row.report_id = -1
-                db.session.commit()
                 report_count += 1
-        new = Model(
-            cm_project_id=args["cm_project_id"],
-            repo_id=args["repo_id"],
-            scan_id=args["scan_id"],
-            branch=args["branch"],
-            commit_id=args["commit_id"],
-            scan_final_status=None,
-            run_at=datetime.datetime.utcnow(),
-        )
-        db.session.add(new)
-        db.session.commit()
+            db.session.commit()
 
     # Need to write into db if see a final scan status
     def get_scan_status(self, scan_id):
