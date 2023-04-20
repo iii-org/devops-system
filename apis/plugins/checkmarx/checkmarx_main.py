@@ -118,7 +118,7 @@ class CheckMarx(object):
 
     @staticmethod
     def create_scan(args):
-        rows = Model.query.filter_by(repo_id=args["repo_id"]).order_by(Model.run_at.desc()).all()
+        rows = Model.query.filter_by(repo_id=args["repo_id"]).order_by(desc(Model.run_at)).all()
         logger.logger.info(len(rows))
         if len(rows) > 0:
             report_count = 0
