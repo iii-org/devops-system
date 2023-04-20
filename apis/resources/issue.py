@@ -679,6 +679,12 @@ def get_issue(issue_id, with_children=True, journals=True, operator_id=None):
     elif issue.get("children", None):
         children_detail = []
         for children_issue in issue["children"]:
+            """
+            Due to redmine system that allows users to access children issues they do not have permission to view,
+            so need to examine the data of issue_pj_user_relation from redis
+            """
+            # get_single_issue_pj_user_relation(children_issue["id"])
+            # if
             children_detail.append(get_issue_assign_to_detail(children_issue))
         issue["children"] = children_detail
     return __deal_with_issue_redmine_output(issue, closed_statuses)
@@ -1332,9 +1338,10 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         else:
             issue["author"] = {}
 
-        has_children = check_issue_has_son(
-            str(issue["id"]), by_user_permission=get_jwt_identity()["role_id"] != role.ADMIN.id
-        )
+        # has_children = check_issue_has_son(
+        #     str(issue["id"]), by_user_permission=get_jwt_identity()["role_id"] != role.ADMIN.id
+        # )
+        has_children = check_issue_has_son(str(issue["id"]))
         issue["is_closed"] = issue["status"]["id"] in NexusIssue.get_closed_statuses()
         issue["issue_link"] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
         issue["family"] = issue.get("parent") is not None or issue.get("relations") != [] or has_children
