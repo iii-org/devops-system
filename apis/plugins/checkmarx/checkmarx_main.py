@@ -118,37 +118,41 @@ class CheckMarx(object):
 
     @staticmethod
     def create_scan(args):
-        rows = Model.query.filter(Model.repo_id==args["repo_id"],
-                                  or_(Model.report_id != -1,
-                                      Model.report_id.is_(None),
-                                      Model.finished.is_(None))
-                                  ).order_by(Model.run_at.desc()).offset(4).update({"report": -1})
-        # logger.logger.info(len(rows))
-        # if len(rows) > 0:
-        #     report_count = 0
-        #     for row in rows:
-        #         # update_row = (
-        #         #     Model.query.filter_by(repo_id=args["repo_id"])
-        #         #     .filter(Model.report_id != -1)
-        #         #     .order_by(Model.run_at)
-        #         #     .first()
-        #         # )
-        #         # if update_row:
-        #         #     update_row.report_id = -1
-        #         #     db.session.commit()
-        #         # row = Model.query.filter_by(scan_id=record[i].scan_id).one()
-        #         logger.logger.info(f'[{report_count}] scan_id: {row.scan_id}')
-        #         if report_count < 4:
-        #             if row.report_id == -1 and row.scan_final_status == "Finished" and row.finished is None:
-        #                 row.scan_final_status = None
-        #         else:
-        #             # db.session.refresh(record[i])
-        #             row.report_id = -1
-        #         report_count += 1
-        db.session.commit()
-        # logger.logger.info(f'[{report_count}] [scan_id: {row.scan_id}] ' +
-        #                    f'[report_id: {row.report_id}] ' +
-        #                    f'[scan_final_status: {row.scan_final_status}]')
+        rows = Model.query.with_entities(Model.scan_id
+                                         ).filter(Model.repo_id == args["repo_id"],
+                                                  or_(Model.report_id != -1,
+                                                      Model.report_id.is_(None),
+                                                      Model.finished.is_(None))
+                                                  ).order_by(Model.run_at.desc()
+                                                             ).offset(4).all()
+        logger.logger.info(len(rows))
+        if len(rows) > 0:
+            report_count = 0
+            for row in rows:
+                # update_row = (
+                #     Model.query.filter_by(repo_id=args["repo_id"])
+                #     .filter(Model.report_id != -1)
+                #     .order_by(Model.run_at)
+                #     .first()
+                # )
+                # if update_row:
+                #     update_row.report_id = -1
+                #     db.session.commit()
+                update_row = Model.query.filter_by(scan_id=row.scan_id).one()
+                logger.logger.info(f'[{report_count}] scan_id: {update_row.scan_id}')
+                if report_count < 4:
+                    if (update_row.report_id == -1
+                            and update_row.scan_final_status == "Finished"
+                            and update_row.finished is None):
+                        update_row.scan_final_status = None
+                else:
+                    # db.session.refresh(record[i])
+                    update_row.report_id = -1
+                report_count += 1
+                db.session.commit()
+                logger.logger.info(f'[{report_count}] [scan_id: {update_row.scan_id}] ' +
+                                   f'[report_id: {update_row.report_id}] ' +
+                                   f'[scan_final_status: {update_row.scan_final_status}]')
         new = Model(
             cm_project_id=args["cm_project_id"],
             repo_id=args["repo_id"],
