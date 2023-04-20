@@ -133,8 +133,7 @@ class CheckMarx(object):
                                     or_(Model.report_id != -1,
                                         Model.report_id.is_(None),
                                         Model.finished.is_(None))
-                                    ).order_by(Model.run_at.asc()).all()
-        db.session.refresh(record)
+                                    ).order_by(Model.run_at).all()
         logger.logger.info(len(record))
         if len(record) > 5:
             for i in range(len(record) - 5):
@@ -149,6 +148,7 @@ class CheckMarx(object):
                 #     db.session.commit()
                 # row = Model.query.filter_by(scan_id=record[i].scan_id).one()
                 logger.logger.info(f'[{i}] scan_id: {record[i].scan_id}')
+                db.session.refresh(record[i])
                 record[i].report_id = -1
             db.session.commit()
         return util.success()
