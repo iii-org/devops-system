@@ -15,14 +15,16 @@ def get_plugin_software(simple=False) -> list[dict[str, Any]]:
         PluginSoftware.id, PluginSoftware.name, PluginSoftware.disabled
     ).all()
     if simple:
-        disable_list = []
-        if PluginSoftware.query.filter_by(disabled=True).first():
-            rows = PluginSoftware.query.filter_by(disabled=True).all()
-            disable_list = [row.name for row in rows]
+        # disable_list = []
+        # if PluginSoftware.query.filter_by(disabled=True).first():
+        #     rows = PluginSoftware.query.filter_by(disabled=True).all()
+        #     disable_list = [row.name for row in rows]
+        print(type(plugins[0]["disabled"]))
         output: list[dict[str, Any]] = [
             {"id": plugin["id"], "name": plugin["name"], "disabled": plugin["disabled"]}
             for plugin in plugins
-            if plugin and plugin["name"] not in disable_list
+            if plugin and not plugin["disabled"]
+            # if plugin and plugin["name"] not in disable_list
         ]
     else:
         output: list[dict[str, Any]] = [
