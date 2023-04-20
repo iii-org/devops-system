@@ -129,6 +129,7 @@ class CheckMarx(object):
         )
         db.session.add(new)
         db.session.commit()
+        db.session.refresh()
         record = Model.query.with_entities(Model.scan_id
                                            ).filter(Model.repo_id==args["repo_id"],
                                                     or_(Model.report_id != -1,
