@@ -151,7 +151,7 @@ class CheckMarx(object):
                 logger.logger.info(f'scan_id: {row.scan_id}')
                 # db.session.refresh(record[i])
                 row.report_id = -1
-            db.session.commit()
+                db.session.commit()
         return util.success()
 
     # Need to write into db if see a final scan status
