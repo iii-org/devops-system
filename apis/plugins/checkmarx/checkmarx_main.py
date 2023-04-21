@@ -180,6 +180,8 @@ class CheckMarx(object):
             scan = Model.query.filter_by(scan_id=scan_id).one()
             if status_id == 7:
                 scan.stats = json.dumps(self.get_scan_statistics(scan_id))
+            if status_id == 9:
+                scan.logs = json.dumps(status.get("details"))
             scan.scan_final_status = status_name
             db.session.commit()
         return status_id, status_name
@@ -327,6 +329,10 @@ class CheckMarx(object):
             stats = None
         else:
             stats = json.loads(row.stats)
+        if row.logs is None:
+            logs = None
+        else:
+            logs = json.loads(row.logs)
         return {
             "scan_id": row.scan_id,
             "branch": row.branch,
@@ -337,6 +343,7 @@ class CheckMarx(object):
             "run_at": str(row.run_at),
             "report_id": row.report_id,
             "report_ready": row.finished is True and row.report_id != -1,
+            "logs": logs,
         }
 
 
