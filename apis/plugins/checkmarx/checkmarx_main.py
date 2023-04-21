@@ -520,10 +520,13 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                     elif status_id == 7 and row.report_id < 0 and row.finished is None:
                         row.scan_final_status = None
                         report_count += 1
+                        logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status}")
                     elif status_id == 7 and row.report_id > 0:
                         if row.finished_at is None:
                             row.scan_final_status = None
                             row.report_id = -1
+                            logger.logger.info(
+                                f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status} and report_id {row.report_id}")
                         report_count += 1
                 except Exception as e:
                     logger.logger.exception(str(e))
