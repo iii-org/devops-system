@@ -33,6 +33,7 @@ VERSIONS = [
     "1.27.0.1",
     "1.28.0.1",
     "1.28.0.2",
+    "1.28.0.3",
 ]
 ONLY_UPDATE_DB_MODELS = [
     "1.22.0.1",
@@ -78,6 +79,8 @@ def upgrade(version):
         recreate_ui_route()
     elif version == "1.27.0.1":
         pass
+    elif version == "1.28.0.3":
+        recreate_ui_route()
 
 
 def recreate_ui_route():
