@@ -510,7 +510,7 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
     disable_list = []
     if PluginSoftware.query.filter_by(disabled=True).first():
         rows = PluginSoftware.query.filter_by(disabled=True).all()
-        disable_list = [row.name for row in rows]
+        disable_list = [row.name if row.name != "sbom" else "anchore" for row in rows]
 
     if not stages_info:
         return out
