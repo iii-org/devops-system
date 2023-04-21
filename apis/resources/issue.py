@@ -711,6 +711,15 @@ def get_issue_assign_to_detail(issue):
         }
     if hasattr(issue_obj, "subject"):
         issue_detail["name"] = issue_obj.subject
+
+    if hasattr(issue_obj, "project"):
+        project_id = nexus.nx_get_project_plugin_relation(rm_project_id=issue_obj.project.id).project_id
+        nx_project = model.Project.query.get(project_id)
+        issue_detail["project"] = {
+            "id": nx_project.id,
+            "name": nx_project.name,
+            "display": nx_project.display,
+        }
     return issue_detail
 
 
