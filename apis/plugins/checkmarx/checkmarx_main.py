@@ -118,6 +118,7 @@ class CheckMarx(object):
 
     @staticmethod
     def create_scan(args):
+        checkamrx_keep_report(args["repo_id"], 4)
         new = Model(
             cm_project_id=args["cm_project_id"],
             repo_id=args["repo_id"],
@@ -129,7 +130,6 @@ class CheckMarx(object):
         )
         db.session.add(new)
         db.session.commit()
-        checkamrx_keep_report(args["repo_id"])
         # # if Model.query.filter_by(repo_id=args["repo_id"]).order_by(desc(Model.run_at)).count() > 5:
         # update_row = (
         #     Model.query.filter_by(repo_id=args["repo_id"])
@@ -492,7 +492,7 @@ class CronjobScan(Resource):
         return util.success()
 
 
-def checkamrx_keep_report(repo_id):
+def checkamrx_keep_report(repo_id, keep_record:int = 5):
     rows = Model.query.filter_by(repo_id=repo_id).order_by(desc(Model.run_at)).all()
     utcnow = datetime.datetime.utcnow()
     if rows:
@@ -500,7 +500,7 @@ def checkamrx_keep_report(repo_id):
         for row in rows:
             # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
             # 最近30天內及最新的五筆
-            if report_count < 5 and utcnow - datetime.timedelta(days=30) <= row.run_at:
+            if report_count < keep_record and utcnow - datetime.timedelta(days=30) <= row.run_at:
                 # if row.finished is None:
                 try:
                     status_id, _ = checkmarx.get_scan_status(row.scan_id)
