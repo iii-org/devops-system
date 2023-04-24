@@ -716,7 +716,7 @@ class Tag(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), nullable=False)
     name = Column(String)
     next_tag_id = Column(Integer, ForeignKey("tag.id"), index=True)
-    next_tag = relationship(lambda: Tag, remote_side=id, backref="before_tag")
+    next_tag = relationship(lambda: Tag, remote_side=id, backref=backref("before_tag", uselist=False), post_update=True)
 
 
 class IssueTag(db.Model):

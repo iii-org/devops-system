@@ -10,3 +10,7 @@ def tag_url(api, add_resource):
     api.add_resource(view.TagV2, "/v2/tags/<int:tag_id>")
     add_resource(view.TagV2, "private")
     api.add_resource(view.UserTags, "/user/tags")
+
+    # tag order
+    api.add_resource(view.TagOrderV2, "/v2/tags/order")
+    add_resource(view.TagOrderV2, "private")
