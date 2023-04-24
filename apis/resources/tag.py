@@ -1,6 +1,5 @@
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource, reqparse
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy import desc
 
 import model
 import util as util
@@ -110,3 +109,15 @@ def get_user_project_ids(user_id):
     for project in projects:
         output.append(project.project_id)
     return output
+
+
+def order_pj_tags_by_id() -> None:
+    # Order by aesc id
+    has_tag_pj_ids = [tag.project_id for tag in model.Tag.query.with_entities(model.Tag.project_id).distinct().all()]
+    for has_tag_pj_id in has_tag_pj_ids:
+        pj_tags_objects = model.Tag.query.filter_by(project_id=has_tag_pj_id).order_by(desc(model.Tag.id)).all()
+        pre_tag_id = pj_tags_objects[0].id
+        for pj_tags_object in pj_tags_objects[1:]:
+            pj_tags_object.next_tag_id = pre_tag_id
+            db.session.commit()
+            pre_tag_id = pj_tags_object.id
