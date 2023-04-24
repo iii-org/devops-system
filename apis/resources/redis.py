@@ -15,6 +15,7 @@ SERVER_ALIVE_KEY = "system_all_alive"
 TEMPLATE_CACHE = "template_list_cache"
 SHOULD_UPDATE_TEMPLATE = "should_update_template"
 ISSUE_PJ_USER_RELATION_KEY = "issue_pj_user_relation"
+PLUGINS_SOFTWARE_SWITCH = "plugins_software_switch"
 
 
 class RedisOperator:
@@ -293,3 +294,29 @@ def get_template_caches_all():
 
 def count_template_number():
     return redis_op.dict_len(TEMPLATE_CACHE)
+
+
+# plugins software_switch
+def update_plugins_software_switch(plugins_name: str, disabled: bool):
+    return redis_op.dict_set_certain(PLUGINS_SOFTWARE_SWITCH, plugins_name, str(disabled).lower())
+
+
+def get_plugins_software_switch_all() -> dict[str, Any]:
+    return redis_op.dict_get_all(PLUGINS_SOFTWARE_SWITCH)
+
+
+def delete_plugins_software_switch() -> None:
+    """
+    Delete all plugins software switch.
+
+    :return: None
+    """
+    redis_op.dict_delete_all(PLUGINS_SOFTWARE_SWITCH)
+
+
+def update_plugins_software_switch_all(data: dict) -> None:
+    logger.logger.info(f"Before data {redis_op.dict_get_all(PLUGINS_SOFTWARE_SWITCH)}")
+    if data:
+        delete_plugins_software_switch()
+        for key in data.keys():
+            update_plugins_software_switch(key, data[key])

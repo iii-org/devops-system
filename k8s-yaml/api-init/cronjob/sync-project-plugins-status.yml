@@ -1,0 +1,23 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: sync-project-plugins-status
+spec:
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 0
+  schedule: "0 0 * * *"
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          containers:
+          - name: curl
+            image: curlimages/curl:7.76.1
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/sh
+            - -c
+            - curl --location --request GET 'http://devopsapi-service:10009/plugins/cronjob'
+          restartPolicy: OnFailure
