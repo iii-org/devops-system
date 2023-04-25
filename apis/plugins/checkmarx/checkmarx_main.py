@@ -297,7 +297,6 @@ class CheckMarx(object):
 
     @staticmethod
     def list_scans(project_id):
-        checkamrx_keep_report(nexus.nx_get_repository_id(project_id))
         rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(desc(Model.run_at)).all()
         ret = [CheckMarx.to_json(row, project_id) for row in rows]
         return ret

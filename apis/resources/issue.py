@@ -1808,6 +1808,7 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
 def calculate_issue_progress(filters, issue_status, output, args=None):
     redmine_issues = redmine_lib.redmine.issue.filter(**filters)
     for issue in redmine_issues:
+        print(issue)
         if args.get("due_date_status"):
             due_date = args["due_date_status"]
             df_due_date, bool_has_due_date, bool_no_due_date = has_or_no_due_date(issue)
