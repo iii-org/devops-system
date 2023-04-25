@@ -246,6 +246,7 @@ stages:
       include:
       - master
       - test-package
+      - develop
 - name: Test--ZAP
   iiidevops: zap
   steps:
@@ -310,6 +311,7 @@ stages:
       - master
       - subissue
       - project_issue
+      - develop
 - name: Test--SideeX
   iiidevops: sideex
   steps:
