@@ -37,8 +37,8 @@ DB_POLICY = dict({
 		"Policy": []
 	},
 	"postgreSQL": {
-		"RE": "",
-		"Policy": ""
+		"RE": "^((?=.{8,}$)(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
+		"Policy": "The password doesn't contain the account name of the user.\nThe password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character, 1 uppercase character, and 1 special (nonalphanumeric) character."
 	}
 })
 
@@ -47,15 +47,15 @@ def check_pswd_policy(db_type, db_user, db_pswd):
 	db_policy = DB_POLICY.get(db_type)
 	if db_policy:
 		output = {"pass": True}
-		if db_policy["RE"]:
-			result = re.match(db_policy["RE"], db_pswd)
-			if result is None:
-				output["pass"] = False
-				output["description"] = db_policy["Policy"]
-			if db_type == "MSSQL" or db_type == "postgreSQL":
-				if db_user in db_pswd:
-					output["pass"] = False
-					output["description"] = db_policy["Policy"]
+		# if db_policy["RE"]:
+		# 	result = re.match(db_policy["RE"], db_pswd)
+		# 	if result is None:
+		# 		output["pass"] = False
+		# 		output["description"] = db_policy["Policy"]
+		# 	if db_type == "MSSQL" or db_type == "postgreSQL":
+		# 		if db_user in db_pswd:
+		# 			output["pass"] = False
+		# 			output["description"] = db_policy["Policy"]
 		return output
 	return None
 
