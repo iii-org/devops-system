@@ -297,6 +297,7 @@ class CheckMarx(object):
 
     @staticmethod
     def list_scans(project_id):
+        checkamrx_keep_report(nexus.nx_get_repository_id(project_id))
         rows = Model.query.filter_by(repo_id=nexus.nx_get_repository_id(project_id)).order_by(desc(Model.run_at)).all()
         ret = [CheckMarx.to_json(row, project_id) for row in rows]
         return ret
@@ -508,6 +509,7 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
             # 解決 Instance is not bound to a Session 的錯誤
             if row not in db.session:
                 row = db.session.merge(row)
+                db.session.refresh(row)
             # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
             # 最近30天內及最新的五筆
             if report_count < keep_record and utcnow - datetime.timedelta(days=30) <= row.run_at:
