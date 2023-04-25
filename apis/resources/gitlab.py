@@ -1079,10 +1079,10 @@ def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
         for issue_id in commit_issue_id_list:
             if issue_id in issue_list:
                 issue = redmine.issue.get(issue_id)
-                project_id = (
+                issue_project_id = (
                     model.ProjectPluginRelation.query.filter_by(plan_project_id=issue.project.id).first().project_id
                 )
-                ret["issue_hook"][issue_id] = account in get_project_members(project_id)
+                ret["issue_hook"][issue_id] = account in get_project_members(issue_project_id)
 
         commit_id = commit["id"]
         ret["commit_id"] = commit_id

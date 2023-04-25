@@ -47,15 +47,15 @@ def check_pswd_policy(db_type, db_user, db_pswd):
 	db_policy = DB_POLICY.get(db_type)
 	if db_policy:
 		output = {"pass": True}
-		if db_policy["RE"]:
-			result = re.match(db_policy["RE"], db_pswd)
-			if result is None:
-				output["pass"] = False
-				output["description"] = db_policy["Policy"]
-			if db_type == "MSSQL" or db_type == "postgreSQL":
-				if db_user in db_pswd:
-					output["pass"] = False
-					output["description"] = db_policy["Policy"]
+		# if db_policy["RE"]:
+		# 	result = re.match(db_policy["RE"], db_pswd)
+		# 	if result is None:
+		# 		output["pass"] = False
+		# 		output["description"] = db_policy["Policy"]
+		# 	if db_type == "MSSQL" or db_type == "postgreSQL":
+		# 		if db_user in db_pswd:
+		# 			output["pass"] = False
+		# 			output["description"] = db_policy["Policy"]
 		return output
 	return None
 
