@@ -37,8 +37,8 @@ DB_POLICY = dict({
 		"Policy": []
 	},
 	"postgreSQL": {
-		"RE": "^((?=.{8,}$)(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
-		"Policy": "The password doesn't contain the account name of the user.\nThe password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character, 1 uppercase character, and 1 special (nonalphanumeric) character."
+		"RE": "",
+		"Policy": ""
 	}
 })
 
