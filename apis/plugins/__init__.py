@@ -306,7 +306,7 @@ def update_plugin_config(plugin_name, args):
             threading.Thread(
                 target=template.update_pj_plugin_status,
                 args=(
-                    plugin_name,
+                    (plugin_name if plugin_name != "sbom" else "anchore"),
                     args["disabled"],
                 ),
             ).start()

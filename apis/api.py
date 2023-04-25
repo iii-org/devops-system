@@ -54,6 +54,7 @@ from resources import (
     system_parameter,
     maintenance,
     issue_display_field,
+    policy,
 )
 from resources.redis import should_update_template_cache
 from resources.template import fetch_and_update_template_cache
@@ -603,6 +604,7 @@ api.add_resource(deploy.Clusters, "/deploy/clusters")
 api.add_resource(deploy.Cluster, "/deploy/clusters/<int:cluster_id>")
 api.add_resource(deploy.Registries, "/deploy/registries")
 api.add_resource(deploy.Registry, "/deploy/registries/<int:registry_id>")
+api.add_resource(deploy.ClusterConfig, "/clusters/config/<int:cluster_id>")
 
 api.add_resource(deploy.ReleaseApplication, "/deploy/release/<int:release_id>")
 
@@ -680,9 +682,10 @@ api.add_resource(routine_job.DoJobByMonth, "/routine_job/by_month")
 api.add_resource(routine_job.DoJobByDay, "/routine_job/by_day")
 
 
-@app.before_request
-def pre_check_block_ip_account():
-    print("test cors")
+# policy
+
+# Database password principle
+api.add_resource(policy.DBPSWDPolicy, "/db/pswd/policy/check")
 
 
 @app.route("/user/login", methods=["POST"])
@@ -723,12 +726,28 @@ def start_prod():
 
         plugins.create_plugins_api_router(api, add_resource)
         plugins.sync_plugins_in_db_and_code()
+
+        start_prod_extra_funcs()
         return app
     except Exception as e:
         ret = internal_error(e)
         if ret[1] == 404:
             logger.logger.exception(e)
         raise e
+
+
+def start_prod_extra_funcs():
+    """
+    The execution of these functions does not affect the server's startup.
+    """
+    try:
+        logger.logger.info("Starting register version center.")
+        # Register in version center
+        devops_version.login()
+        devops_version.register_in_vc(force_update=True)
+        logger.logger.info("Updating version center complete.")
+    except Exception as e:
+        logger.logger.exception(f"Error message: {str(e)}")
 
 
 if __name__ == "__main__":

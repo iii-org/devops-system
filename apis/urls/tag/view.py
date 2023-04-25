@@ -14,6 +14,7 @@ from resources.tag import (
     get_tag,
     update_tag,
     delete_tag,
+    move_tag,
 )
 
 import model
@@ -148,3 +149,14 @@ class TagV2(MethodResource):
             return util.success({"tag": delete_tag(tag_id)})
         except NoResultFound:
             return util.respond(404)
+
+
+######## Tag order ##########
+
+
+class TagOrderV2(MethodResource):
+    @doc(tags=["Tag"], description="Tag's order API")
+    @use_kwargs(router_model.TagOrderSchema, location="json")
+    @jwt_required()
+    def put(self, **kwargs):
+        return util.success(move_tag(kwargs["tag_id"], kwargs.get("to_tag_id")))

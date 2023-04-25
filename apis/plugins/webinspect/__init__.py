@@ -13,3 +13,4 @@ def router(api, add_resource):
     # add_resource(webinspect_main.WebInspectListScan, "public")
     api.add_resource(webinspect_main.WebInspectScan, "/webinspect/scan/<s_id>")
     # add_resource(webinspect_main.WebInspectScan, "public")
+    api.add_resource(webinspect_main.WebInspectDownloadReport, "/project/<sint:project_id>/webinspect/scan/report")

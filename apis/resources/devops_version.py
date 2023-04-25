@@ -24,7 +24,7 @@ version_center_token = None
 def __get_token():
     global version_center_token
     if version_center_token is None:
-        _login()
+        login()
     return version_center_token
 
 
@@ -41,7 +41,7 @@ def __api_request(method, path, headers=None, params=None, data=None, with_token
 
     # Token expire
     if output.status_code == 401 and not retry:
-        _login()
+        login()
         return __api_request(method, path, headers, params, data, True, True)
 
     if int(output.status_code / 100) != 2:
@@ -61,20 +61,12 @@ def __api_post(path, params=None, headers=None, data=None, with_token=True):
     return __api_request("POST", path, headers=headers, data=data, params=params, with_token=with_token)
 
 
-def __api_put(path, params=None, headers=None, data=None, with_token=True):
-    return __api_request("PUT", path, headers=headers, data=data, params=params, with_token=with_token)
-
-
-def __api_delete(path, params=None, headers=None, with_token=True):
-    return __api_request("DELETE", path, params=params, headers=headers, with_token=with_token)
-
-
-def _login():
+def login():
     global version_center_token
     dp_uuid = model.NexusVersion.query.one().deployment_uuid
     res = __api_post(
         "/login",
-        params={"uuid": dp_uuid, "name": config.get("DEPLOYMENT_NAME")},
+        params={"uuid": dp_uuid, "name": config.get("DEPLOYMENT_NAME") or config.get("DEPLOYER_NODE_IP")},
         with_token=False,
     )
     version_center_token = res.json().get("data", {}).get("access_token", None)
@@ -181,6 +173,22 @@ def get_deployment_info():
         "deployment_name": config.get("DEPLOYMENT_NAME"),
         "deployment_uuid": row.deployment_uuid,
     }
+
+
+def register_in_vc(force_update: bool = False) -> None:
+    from resources.system import system_git_commit_id
+
+    nexus_version = model.NexusVersion.query.first()
+    deploy_version, deploy_uuid = nexus_version.deploy_version, nexus_version.deployment_uuid
+    logger.info(f"Oringal deploy_version: {deploy_version}, deploy_uuid: {deploy_uuid}.")
+    if deploy_version is None or force_update:
+        deploy_version = system_git_commit_id().get("git_tag")
+        logger.info(f"After deploy_version: {deploy_version}.")
+        nexus_version.deploy_version = deploy_version
+        model.db.session.commit()
+        logger.info(f"Updating deploy_version to {deploy_version}.")
+
+    return __api_post("/report_info", data={"iiidevops": {"deploy_version": deploy_version}, "uuid": deploy_uuid})
 
 
 # ------------------ Resources ------------------

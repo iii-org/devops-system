@@ -58,6 +58,9 @@ def get_harbor_scan_report(project_name, branch, commit_id):
 def harbor_get_scan_by_commit(project_id, commit_id):
     row = HarborScan.query.filter_by(project_id=project_id, commit=commit_id).first()
     if row is not None:
+        if row.finished is False:
+            update_harbor_scan_status(row, project_id)
+            row = HarborScan.query.filter_by(project_id=project_id, commit=commit_id).first()
         ret = json.loads(str(row))
         ret["run_at"] = ret.pop("created_at")
         scan_overview = ret.pop("scan_overview", {}) or {}
@@ -108,17 +111,7 @@ def harbor_scan_list(project_id, kwargs):
     for row in rows:
         setattr(row, "scan_status", "Not Scanned")
         if row.finished is False:
-            scan_report_dict = hb_get_artifact_scan_overview(nx_get_project(id=project_id).name, row.branch, row.commit)
-            if scan_report_dict is not None:
-                if scan_report_dict.get("summary", {}).get("summary") is not None:
-                    scan_report_dict |= scan_report_dict.pop("summary")
-                    scan_report_dict |= scan_report_dict.pop("summary")
-                if scan_report_dict.get("complete_percent") == 100:
-                    row.finished_at = datetime.utcnow()
-                    row.finished = True
-                row.updated_at = datetime.utcnow()
-                row.scan_overview = scan_report_dict
-                db.session.commit()
+            update_harbor_scan_status(row, project_id)
         if row.scan_overview is not None:
             for k, v in row.scan_overview.items():
                 setattr(row, k, v)
@@ -134,3 +127,17 @@ def harbor_scan_list(project_id, kwargs):
     if page_dict:
         out_dict["page"] = page_dict
     return out_dict
+
+
+def update_harbor_scan_status(row: HarborScan, project_id: int) -> None:
+    scan_report_dict = hb_get_artifact_scan_overview(nx_get_project(id=project_id).name, row.branch, row.commit)
+    if scan_report_dict is not None:
+        if scan_report_dict.get("summary", {}).get("summary") is not None:
+            scan_report_dict |= scan_report_dict.pop("summary")
+            scan_report_dict |= scan_report_dict.pop("summary")
+        if scan_report_dict.get("complete_percent") == 100:
+            row.finished_at = datetime.utcnow()
+            row.finished = True
+        row.updated_at = datetime.utcnow()
+        row.scan_overview = scan_report_dict
+        db.session.commit()

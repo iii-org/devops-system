@@ -125,7 +125,7 @@ def tm_get_git_pipeline_json(pj, tag_name=None, commit_id=None):
 
 
 def tm_read_pipe_set_json(pj, tag_name=None):
-    pip_set_json = {}
+    pip_set_json = {"name": "Template-Name", "description": "Main Descripttion", "arguments": []}
     try:
         if pj.empty_repo:
             return {"description": "", "name": pj.name}
@@ -309,7 +309,6 @@ def fetch_and_update_template_cache():
                 template_list |= handle_template_cache(pj, group.name, pip_set_json, tag_list)
                 # update_redis_template_cache(pj, group.name, pip_set_json, tag_list)
     update_template_cache_all(template_list)
-    logger.logger.info(f"Updated data: {template_list}")
     return output
 
 
@@ -511,7 +510,7 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
     disable_list = []
     if PluginSoftware.query.filter_by(disabled=True).first():
         rows = PluginSoftware.query.filter_by(disabled=True).all()
-        disable_list = [row.name for row in rows]
+        disable_list = [row.name if row.name != "sbom" else "anchore" for row in rows]
 
     if not stages_info:
         return out
@@ -679,14 +678,10 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
                         exist_branch_list,
                     )
     if had_update_branche:
-        # is_turn_off_push = False
         if not run or default or (run and default_branch not in need_running_branches):
             next_run = pipeline.get_pipeline_next_run(repository_id)
             print(f"next_run: {next_run}")
             create_pipeline_execution(repository_id, default_branch, next_run)
-            # if pipeline.get_pipeline_trigger_webhook_push(repository_id):
-            #     pipeline.turn_push_off(repository_id)
-            #     is_turn_off_push = True
 
         f.content = yaml.dump(default_pipe_json, sort_keys=False)
         f.save(
@@ -697,8 +692,6 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
         )
         if not run or default or (run and default_branch not in need_running_branches):
             pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=default_branch)
-            # if is_turn_off_push:
-            #     pipeline.turn_push_on(repository_id)
 
     # Sync default branch pipeline.yml to other branches, seperate to two parts to avoid not delete all branches
     for br_name in need_running_branches:
@@ -710,9 +703,9 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
             default_pipe_json,
             not_run=not run,
         )
-
     # Rest of branches
-    rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches + [default_branch]])
+    # rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches + [default_branch]])
+    rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches])
     thread = threading.Thread(
         target=sync_branches,
         args=(
@@ -744,15 +737,11 @@ def sync_branch(
     had_update_branche = pipe_json != updated_pipe_json
     pipe_json = updated_pipe_json
     if had_update_branche:
-        # is_turn_off_push = False
         if not_run:
             next_run = pipeline.get_pipeline_next_run(repository_id)
             print(f"next_run: {next_run}")
             create_pipeline_execution(repository_id, br_name, next_run)
-            # if pipeline.get_pipeline_trigger_webhook_push(repository_id):
-            #     pipeline.turn_push_off(repository_id)
-            #     is_turn_off_push = True
-
+        logger.logger.info(f"{br_name} not run : {not_run}")
         f.content = yaml.dump(pipe_json, sort_keys=False)
         f.save(
             branch=br_name,
@@ -763,9 +752,6 @@ def sync_branch(
         if not_run:
             pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br_name)
             print(f"stop_and_delete: {next_run}")
-            # if is_turn_off_push:
-            #     pipeline.turn_push_on(repository_id)
-            # sleep(1)
 
 
 def initial_rancher_pipline_info(repository_id):
@@ -814,12 +800,12 @@ def update_nonexist_key_rancher_file(repository_id: int):
 
 
 def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
-    update_nonexist_key_rancher_file(repository_id)
+    # update_nonexist_key_rancher_file(repository_id)
     initial_info = initial_rancher_pipline_info(repository_id)
     disable_list = []
     if PluginSoftware.query.filter_by(disabled=True).first():
         rows = PluginSoftware.query.filter_by(disabled=True).all()
-        disable_list = [row.name for row in rows]
+        disable_list = [row.name if row.name != "sbom" else "anchore" for row in rows]
 
     if not initial_info:
         return initial_info
@@ -870,6 +856,10 @@ def update_pj_rancher_pipline(repository_id):
     pj = gl.projects.get(repository_id)
     if pj.empty_repo:
         return
+    # is_turn_off_push = False
+    # if pipeline.get_pipeline_trigger_webhook_push(repository_id):
+    #     pipeline.turn_push_off(repository_id)
+    #     is_turn_off_push = True
     for br in pj.branches.list(all=True):
         try:
             pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
@@ -919,6 +909,9 @@ def update_pj_rancher_pipline(repository_id):
             commit_message=f'Add "iiidevops" in branch {br.name} .rancher-pipeline.yml.',
         )
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
+    # if is_turn_off_push:
+    #     pipeline.turn_push_on(repository_id)
+    # sleep(1)
 
 
 def update_project_rancher_pipline():

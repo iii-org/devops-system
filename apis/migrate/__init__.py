@@ -31,6 +31,11 @@ VERSIONS = [
     "1.26.0.3",
     "1.26.0.4",
     "1.27.0.1",
+    "1.28.0.1",
+    "1.28.0.2",
+    "1.28.0.3",
+    "1.28.0.4",
+    "1.28.0.5",
 ]
 ONLY_UPDATE_DB_MODELS = [
     "1.22.0.1",
@@ -47,6 +52,9 @@ ONLY_UPDATE_DB_MODELS = [
     "1.26.0.1",
     "1.26.0.3",
     "1.26.0.4",
+    "1.28.0.1",
+    "1.28.0.2",
+    "1.28.0.4",
 ]
 
 
@@ -74,6 +82,12 @@ def upgrade(version):
         recreate_ui_route()
     elif version == "1.27.0.1":
         pass
+    elif version == "1.28.0.3":
+        recreate_ui_route()
+    elif version == "1.28.0.5":
+        from resources.tag import order_pj_tags_by_id
+
+        order_pj_tags_by_id()
 
 
 def recreate_ui_route():

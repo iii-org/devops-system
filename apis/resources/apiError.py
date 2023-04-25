@@ -13,7 +13,7 @@ def build(err_code, message, details=None):
 
 def error_3rd_party_api(service_name, response):
     msg = None
-    service_name_error_msg_mapping = {"Rancher": "message"}
+    service_name_error_msg_mapping = {"Rancher": "message", "WebInspect": "message"}
     if type(response) is str:
         resp_value = response
     else:
@@ -504,6 +504,15 @@ def excalidraw_operation_error(msg):
 # GitLab
 def gitlab_error(response):
     return error_3rd_party_api("Gitlab", response)
+
+
+# 88: Webinspect Error
+def wie_project_not_exist(project_name):
+    return build(8801, f"Application: {project_name} not found.")
+
+
+def wie_project_version_not_exist(project_version_name):
+    return build(8801, f"Project Version: {project_version_name} not found.")
 
 
 # 89: General Plugin

@@ -68,7 +68,9 @@ def template_from_project_list():
             gl_from_pj = gl.projects.get(
                 nx_get_project_plugin_relation(nexus_project_id=template["from_project_id"]).git_repository_id
             )
-            template["the_last_update_time"] = gl_from_pj.commits.list()[0].created_at
+            template["the_last_update_time"] = None
+            if len(gl_from_pj.commits.list()) > 0:
+                template["the_last_update_time"] = gl_from_pj.commits.list()[0].created_at
             template["from_project_repo_url"] = gl_from_pj.http_url_to_repo
         except apiError.DevOpsError:
             template["the_last_update_time"] = None
@@ -125,11 +127,21 @@ def update_pipe_set_and_push_to_new_project(from_project_id, name, description):
     old_secret_http_url = tm_get_secret_url(old_project)
     temp_pj_secret_http_url = tm_get_secret_url(template_project)
     Path(TEMPLATE_FOLDER_NAME).mkdir(exist_ok=True)
+    # subprocess.run(
+    #     [
+    #         "git",
+    #         "clone",
+    #         "--mirror",
+    #         old_secret_http_url,
+    #         f"{TEMPLATE_FOLDER_NAME}/{old_project.path}",
+    #     ]
+    # )
     subprocess.run(
         [
             "git",
             "clone",
-            "--mirror",
+            "--branch",
+            old_project.default_branch,
             old_secret_http_url,
             f"{TEMPLATE_FOLDER_NAME}/{old_project.path}",
         ]
@@ -178,23 +190,42 @@ def delete_template(id):
 def tm_update_pipe_set_json_from_api(pj, name, description):
     if pj.empty_repo:
         return
-    f = pj.files.get(file_path="iiidevops/pipeline_settings.json", ref=pj.default_branch)
-    pip_set_json = json.loads(f.decode())
-    if (name is not None or description is not None) and (
-        pip_set_json.get("name") != name or pip_set_json.get("description") != description
-    ):
-        if name is not None and pip_set_json.get("name") != name:
-            pip_set_json["name"] = name
-        if description is not None and pip_set_json.get("description") != description:
-            pip_set_json["description"] = description
-        f.content = json.dumps(pip_set_json)
-        f.save(
-            branch=pj.default_branch,
-            author_email="system@iiidevops.org.tw",
-            author_name="iiidevops",
-            commit_message=f"{get_jwt_identity()['user_account']} 編輯 {pj.default_branch} 分支 \
-                    iiidevops/pipeline_settings.json",
-        )
+    try:
+        f = pj.files.get(file_path="iiidevops/pipeline_settings.json", ref=pj.default_branch)
+    except Exception as ex:
+        pip_set_json = {"name": "Template-Name", "description": "Main Descripttion", "arguments": []}
+        if (name is not None or description is not None) and (
+            pip_set_json.get("name") != name or pip_set_json.get("description") != description
+        ):
+            if name is not None and pip_set_json.get("name") != name:
+                pip_set_json["name"] = name
+            if description is not None and pip_set_json.get("description") != description:
+                pip_set_json["description"] = description
+        pj.files.create({
+            "file_path": "iiidevops/pipeline_settings.json",
+            "branch": pj.default_branch,
+            "content": json.dumps(pip_set_json),
+            "author_email": "system@iiidevops.org.tw",
+            "author_name": "iiidevops",
+            "commit_message": f"{get_jwt_identity()['user_account']} 編輯 {pj.default_branch} 分支 \
+                        iiidevops/pipeline_settings.json"})
+    else:
+        pip_set_json = json.loads(f.decode())
+        if (name is not None or description is not None) and (
+            pip_set_json.get("name") != name or pip_set_json.get("description") != description
+        ):
+            if name is not None and pip_set_json.get("name") != name:
+                pip_set_json["name"] = name
+            if description is not None and pip_set_json.get("description") != description:
+                pip_set_json["description"] = description
+            f.content = json.dumps(pip_set_json)
+            f.save(
+                branch=pj.default_branch,
+                author_email="system@iiidevops.org.tw",
+                author_name="iiidevops",
+                commit_message=f"{get_jwt_identity()['user_account']} 編輯 {pj.default_branch} 分支 \
+                        iiidevops/pipeline_settings.json",
+            )
     return pip_set_json["name"]
 
 

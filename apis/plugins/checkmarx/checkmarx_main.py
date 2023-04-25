@@ -7,7 +7,7 @@ import requests
 from flask import send_file
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from sqlalchemy.exc import NoResultFound
 
 import nexus
@@ -118,6 +118,7 @@ class CheckMarx(object):
 
     @staticmethod
     def create_scan(args):
+        checkamrx_keep_report(args["repo_id"], 4)
         new = Model(
             cm_project_id=args["cm_project_id"],
             repo_id=args["repo_id"],
@@ -129,19 +130,28 @@ class CheckMarx(object):
         )
         db.session.add(new)
         db.session.commit()
-        record = (
-            Model.query.filter_by(repo_id=args["repo_id"]).filter(Model.report_id != -1).order_by(Model.run_at).all()
-        )
-        if len(record) >= 5:
-            update_row = (
-                Model.query.filter_by(repo_id=args["repo_id"])
-                .filter(Model.report_id != -1)
-                .order_by(Model.run_at)
-                .first()
-            )
-            if update_row:
-                update_row.report_id = -1
-                db.session.commit()
+        # # if Model.query.filter_by(repo_id=args["repo_id"]).order_by(desc(Model.run_at)).count() > 5:
+        # update_row = (
+        #     Model.query.filter_by(repo_id=args["repo_id"])
+        #     .filter(Model.report_id != -1
+        #
+        #     .order_by(Model.run_at)
+        #     .first()
+        # )
+        # if update_row:
+        #     update_row.report_id = -1
+        #     if update_row.finished is None:
+        #         update_row.finished = True
+        #         if update_row.finished_at is None:
+        #             update_row.scan_final_status = "Canceled"
+        #     if update_row.scan_final_status is None:
+        #         update_row.scan_final_status = "Deleted"
+        #     if update_row.scan_final_status == "Scanning" or update_row.scan_final_status == "Queued":
+        #         update_row.scan_final_status = "Canceled"
+        #     db.session.commit()
+        #     logger.logger.info(f'[scan_id: {update_row.scan_id}] ' +
+        #                        f'[report_id: {update_row.report_id}] ' +
+        #                        f'[scan_final_status: {update_row.scan_final_status}]')
         return util.success()
 
     # Need to write into db if see a final scan status
@@ -150,10 +160,12 @@ class CheckMarx(object):
             status = self.__api_get("/sast/scans/{0}".format(scan_id)).json().get("status")
         except Exception as e:
             error_mes = None
-            if e.status_code == 404 and hasattr(e, "error_value"):
+            # if e.status_code == 404 and hasattr(e, "error_value"):
+            if e.status_code == 404:
                 scan = Model.query.filter_by(scan_id=scan_id).one()
                 scan.scan_final_status = "Deleted"
-                error_mes = e.error_value.get("message")
+                if hasattr(e, "error_value"):
+                    error_mes = e.error_value.get("message")
 
             error_mes = error_mes if error_mes is not None else str(e)
             raise apiError.DevOpsError(
@@ -168,6 +180,8 @@ class CheckMarx(object):
             scan = Model.query.filter_by(scan_id=scan_id).one()
             if status_id == 7:
                 scan.stats = json.dumps(self.get_scan_statistics(scan_id))
+            if status_id == 9:
+                scan.logs = json.dumps(status.get("details"))
             scan.scan_final_status = status_name
             db.session.commit()
         return status_id, status_name
@@ -315,6 +329,10 @@ class CheckMarx(object):
             stats = None
         else:
             stats = json.loads(row.stats)
+        if row.logs is None:
+            logs = None
+        else:
+            logs = json.loads(row.logs)
         return {
             "scan_id": row.scan_id,
             "branch": row.branch,
@@ -325,6 +343,7 @@ class CheckMarx(object):
             "run_at": str(row.run_at),
             "report_id": row.report_id,
             "report_ready": row.finished is True and row.report_id != -1,
+            "logs": logs,
         }
 
 
@@ -419,8 +438,8 @@ class RegisterCheckmarxReport(Resource):
 
 class GetCheckmarxReportStatus(Resource):
     @jwt_required()
-    def get(self, scan_id):
-        status_id, value = checkmarx.get_report_status(scan_id)
+    def get(self, report_id):
+        status_id, value = checkmarx.get_report_status(report_id)
         return util.success({"id": status_id, "value": value})
 
 
@@ -467,51 +486,69 @@ def row_to_dict(row):
 
 class CronjobScan(Resource):
     def get(self):
-        querys = Model.query.filter(Model.finished == None).all()
-        # id_list = [query.scan_id for query in querys]
-        # for id in id_list:
-        for query in querys:
-            try:
-                status_id, _ = checkmarx.get_scan_status(query.scan_id)
-                # Merge id 2 and 10 as same status
-                if status_id == 10:
-                    status_id, _ = 2, "PreScan"
-
-                if status_id in [1, 2, 3]:
-                    logger.logger.info(f"Updating checkmarx scan: {query.scan_id}'s status")
-                    checkmarx.register_report(query.scan_id)
-                    logger.logger.info(f"Updating checkmarx scan: {query.scan_id}'s report")
-
-                time.sleep(1)
-            except Exception as e:
-                logger.logger.exception(str(e))
-        # querys_all = Model.query.all()
-        querys_all = Model.query.with_entities(Model.repo_id).group_by(Model.repo_id).all()
-        # repo_id_list = [query.repo_id for query in querys_all]
-        # 刪除重複
-        # for id in list(set(repo_id_list)):
+        querys_all = Model.query.with_entities(Model.repo_id
+                                               ).filter(Model.repo_id is not None
+                                                        ).group_by(Model.repo_id
+                                                                   ).order_by(Model.repo_id
+                                                                              ).all()
+        rec_no = 0
         for query in querys_all:
-            # rows = Model.query.filter_by(repo_id=id).order_by(desc(Model.scan_id)).all()
-            rows = Model.query.filter_by(repo_id=query.repo_id).order_by(desc(Model.run_at)).all()
-            if rows:
-                # df = pd.DataFrame([row_to_dict(row) for row in rows])
-                # df.sort_values(by="run_at", ascending=False, inplace=True)
-                # df_five_download = df[0:5]
-                # # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
-                # for i in list(df_five_download.scan_id):
-                #     Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update({"scan_final_status": None})
-                # update_list = list(df.drop(list(df_five_download.index)).scan_id)
-                # # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
-                # for i in update_list:
-                #     Model.query.filter_by(repo_id=id).filter_by(scan_id=i).update({"report_id": -1})
-                for i in range(len(rows)):
-                    if i < 5:
-                        # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
-                        rows[i].scan_final_status = None
-                    else:
-                        # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
-                        rows[i].report_id = -1
-                        if rows[i].finished is None:
-                            rows[i].finished = True
-                db.session.commit()
+            rec_no += 1
+            logger.logger.info(f"rec no: {rec_no}, repo_id:{query.repo_id}, run CronjobScan")
+            checkamrx_keep_report(query.repo_id)
         return util.success()
+
+
+def checkamrx_keep_report(repo_id, keep_record:int = 5):
+    rows = Model.query.filter_by(repo_id=repo_id).order_by(desc(Model.run_at)).all()
+    utcnow = datetime.datetime.utcnow()
+    if rows:
+        report_count = 0
+        for row in rows:
+            # 解決 Instance is not bound to a Session 的錯誤
+            if row not in db.session:
+                row = db.session.merge(row)
+                db.session.refresh(row)
+            # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
+            # 最近30天內及最新的五筆
+            if report_count < keep_record and utcnow - datetime.timedelta(days=30) <= row.run_at:
+                # if row.finished is None:
+                try:
+                    status_id, _ = checkmarx.get_scan_status(row.scan_id)
+                    # Merge id 2 and 10 as same status
+                    if status_id == 10:
+                        status_id, _ = 2, "PreScan"
+                    logger.logger.info(f"scan_id: {row.scan_id}, status_id: {status_id}, ststus_name: {_}")
+                    if status_id in [1, 2, 3] or (status_id == 7 and not (row.report_id > 0) and row.finished):
+                        logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status")
+                        checkmarx.register_report(row.scan_id)
+                        report_count += 1
+                        logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report")
+                        time.sleep(1)
+                    elif status_id == 7 and row.report_id < 0 and row.finished is None:
+                        row.scan_final_status = None
+                        report_count += 1
+                        logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status}")
+                    elif status_id == 7 and row.report_id > 0:
+                        if row.finished_at is None:
+                            row.scan_final_status = None
+                            row.report_id = -1
+                            logger.logger.info(
+                                f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status} and report_id {row.report_id}")
+                        report_count += 1
+                except Exception as e:
+                    logger.logger.exception(str(e))
+                # else:
+                #     rows.scan_final_status = None
+            else:
+                # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
+                row.report_id = -1
+                if row.finished is None:
+                    row.finished = True
+                    if row.finished_at is None:
+                        row.scan_final_status = "Canceled"
+                if row.scan_final_status is None:
+                    row.scan_final_status = "Deleted"
+                if row.scan_final_status == "Scanning" or row.scan_final_status == "Queued":
+                    row.scan_final_status = "Canceled"
+        db.session.commit()

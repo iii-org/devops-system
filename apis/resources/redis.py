@@ -1,18 +1,20 @@
 import json
 from datetime import datetime
 from typing import Any, Optional
+from flask_jwt_extended import get_jwt_identity
 
 import redis
 
 import config
 from resources import logger
-import ast
+
 
 ISSUE_FAMILIES_KEY = "issue_families"
 PROJECT_ISSUE_CALCULATE_KEY = "project_issue_calculation"
 SERVER_ALIVE_KEY = "system_all_alive"
 TEMPLATE_CACHE = "template_list_cache"
 SHOULD_UPDATE_TEMPLATE = "should_update_template"
+ISSUE_PJ_USER_RELATION_KEY = "issue_pj_user_relation"
 
 
 class RedisOperator:
@@ -24,14 +26,6 @@ class RedisOperator:
             port=int(self.redis_base_url.split(":")[1]),
             decode_responses=True,
         )
-        """
-        # local
-        self.pool = redis.ConnectionPool(
-            host='10.20.0.96', 
-            port='31852',
-            decode_responses=True
-        )
-        """
         self.r = redis.Redis(connection_pool=self.pool)
 
     #####################
@@ -147,13 +141,21 @@ def get_all_issue_relations():
     return redis_op.dict_get_all(ISSUE_FAMILIES_KEY)
 
 
-def check_issue_has_son(issue_id):
-    return redis_op.r.hexists(ISSUE_FAMILIES_KEY, issue_id)
+def check_issue_has_son(issue_id: int, by_user_permission: bool = False) -> bool:
+    issue_has_son = redis_op.r.hexists(ISSUE_FAMILIES_KEY, issue_id)
+    if not issue_has_son or not by_user_permission:
+        return issue_has_son
+
+    son_issue_ids = redis_op.dict_get_certain(ISSUE_FAMILIES_KEY, issue_id)
+    for issue_id in son_issue_ids.split(","):
+        pj_users = get_single_issue_pj_user_relation(int(issue_id)).get("project_users", "")
+
+        return str(get_jwt_identity()["user_id"]) in pj_users.split(",")
 
 
 def update_issue_relations(issue_families):
-    redis_op.dict_delete_all(ISSUE_FAMILIES_KEY)
     if issue_families != {}:
+        redis_op.dict_delete_all(ISSUE_FAMILIES_KEY)
         return redis_op.dict_set_all(ISSUE_FAMILIES_KEY, issue_families)
 
 
@@ -186,6 +188,29 @@ def add_issue_relation(parent_issue_id, son_issue_id):
         son_issue_ids = son_issue_ids.split(",")
         if son_issue_id not in son_issue_ids:
             update_issue_relation(parent_issue_id, ",".join(son_issue_ids + [str(son_issue_id)]))
+
+
+# Issue project user realtion Cache
+def get_single_issue_pj_user_relation(issue_id: int) -> dict[int, Any]:
+    redis_data = redis_op.dict_get_certain(ISSUE_PJ_USER_RELATION_KEY, issue_id)
+    if not redis_data:
+        return {}
+    out = json.loads(redis_data)
+    return out
+
+
+def update_issue_pj_user_relation(issue_id: int, issue_pj_user_relation: dict[str, Any]) -> None:
+    return redis_op.dict_set_certain(ISSUE_PJ_USER_RELATION_KEY, issue_id, issue_pj_user_relation)
+
+
+def update_issue_pj_user_relations(issue_pj_user_relations: dict[int, Any]) -> None:
+    if issue_pj_user_relations != {}:
+        remove_issue_pj_user_relations()
+        redis_op.dict_set_all(ISSUE_PJ_USER_RELATION_KEY, issue_pj_user_relations)
+
+
+def remove_issue_pj_user_relations() -> None:
+    redis_op.dict_delete_all(ISSUE_PJ_USER_RELATION_KEY)
 
 
 # Project issue calculate Cache
@@ -231,8 +256,8 @@ def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):
 # Template cache
 def update_template_cache_all(data: dict) -> None:
     logger.logger.info(f"Before data {redis_op.dict_get_all(TEMPLATE_CACHE)}")
-    delete_template_cache()
     if data:
+        delete_template_cache()
         redis_op.dict_set_all(TEMPLATE_CACHE, data)
         redis_op.bool_set(SHOULD_UPDATE_TEMPLATE, False)
 

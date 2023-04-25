@@ -7,7 +7,7 @@ from plugins.checkmarx.checkmarx_main import CheckMarx
 from plugins.sideex.sideex_main import sd_get_test_by_commit
 from plugins.sonarqube.sonarqube_main import sq_get_history_by_commit
 
-# from plugins.webinspect.webinspect_main import wi_get_scan_by_commit
+from plugins.webinspect.webinspect_main import get_scan_by_commit_and_update
 from plugins.zap.zap_main import zap_get_test_by_commit
 from plugins.cmas.cmas_main import get_task_state
 from resources.harbor.harbor_scan import harbor_get_scan_by_commit
@@ -24,8 +24,8 @@ def check_plugin_software_open(row, project_id, commit_id):
         return {"sideex": sd_get_test_by_commit(project_id, commit_id)}
     elif row.name == "sonarqube":
         return {"sonarqube": sq_get_history_by_commit(project_id, commit_id)}
-    # elif row.name == "webinspect":
-    #     return {"webinspect": wi_get_scan_by_commit(project_id, commit_id)}
+    elif row.name == "webinspect":
+        return {"webinspect": get_scan_by_commit_and_update(project_id, commit_id)}
     elif row.name == "zap":
         return {"zap": zap_get_test_by_commit(project_id, commit_id)}
     elif row.name == "sbom":

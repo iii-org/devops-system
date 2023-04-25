@@ -30,6 +30,6 @@ def router(api, add_resource):
     api.add_resource(checkmarx_main.GetCheckmarxScanStatus, "/checkmarx/scan_status/<scan_id>")
     api.add_resource(checkmarx_main.GetCheckmarxScanStatistics, "/checkmarx/scan_stats/<scan_id>")
     api.add_resource(checkmarx_main.RegisterCheckmarxReport, "/checkmarx/report/<scan_id>")
-    api.add_resource(checkmarx_main.GetCheckmarxReportStatus, "/checkmarx/report_status/<scan_id>")
+    api.add_resource(checkmarx_main.GetCheckmarxReportStatus, "/checkmarx/report_status/<report_id>")
     api.add_resource(checkmarx_main.CancelCheckmarxScan, "/checkmarx/scan/<scan_id>/cancel")
     api.add_resource(checkmarx_main.CronjobScan, "/checkmarx/cronjob_scan")

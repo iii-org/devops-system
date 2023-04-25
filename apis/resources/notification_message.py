@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from time import strptime, mktime
 import json
 import util
-from resources import role
+from resources import role, logger
 from model import (
     UserMessageType,
     db,

@@ -52,6 +52,9 @@ from resources.redis import (
     add_issue_relation,
     update_pj_issue_calc,
     get_all_issue_relations,
+    update_issue_pj_user_relations,
+    update_issue_pj_user_relation,
+    get_single_issue_pj_user_relation,
 )
 from datetime import date
 
@@ -678,7 +681,13 @@ def get_issue(issue_id, with_children=True, journals=True, operator_id=None):
     elif issue.get("children", None):
         children_detail = []
         for children_issue in issue["children"]:
-            children_detail.append(get_issue_assign_to_detail(children_issue))
+            """
+            Due to redmine system that allows users to access children issues they do not have permission to view,
+            so need to examine the data of issue_pj_user_relation from redis
+            """
+            issue_belong_pj_users = get_single_issue_pj_user_relation(children_issue["id"]).get("project_users", "")
+            if str(get_jwt_identity()["user_id"]) in issue_belong_pj_users.split(","):
+                children_detail.append(get_issue_assign_to_detail(children_issue))
         issue["children"] = children_detail
     return __deal_with_issue_redmine_output(issue, closed_statuses)
 
@@ -702,6 +711,15 @@ def get_issue_assign_to_detail(issue):
         }
     if hasattr(issue_obj, "subject"):
         issue_detail["name"] = issue_obj.subject
+
+    if hasattr(issue_obj, "project"):
+        project_id = nexus.nx_get_project_plugin_relation(rm_project_id=issue_obj.project.id).project_id
+        nx_project = model.Project.query.get(project_id)
+        issue_detail["project"] = {
+            "id": nx_project.id,
+            "name": nx_project.name,
+            "display": nx_project.display,
+        }
     return issue_detail
 
 
@@ -714,9 +732,10 @@ def create_issue(args, operator_id):
         operator_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=operator_id)
         plan_operator_id = operator_plugin_relation.plan_user_id
     personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
+    project_model_obj = model.Project.query.get(project_id)
 
     # Check project is disabled or not
-    if model.Project.query.get(project_id).disabled:
+    if project_model_obj.disabled:
         raise DevOpsError(400, "Project is disabled", error=apiError.project_is_disabled(project_id))
 
     # Check tracker_id is not force to has father issue's tracker
@@ -796,6 +815,16 @@ def create_issue(args, operator_id):
             args["description"] = change_url
     created_issue = personal_redmine_obj.rm_create_issue(args)
     created_issue_id = created_issue["issue"]["id"]
+    update_issue_pj_user_relation(
+        int(created_issue_id),
+        json.dumps(
+            {
+                "plan_project_id": args["project_id"],
+                "project_id": project_id,
+                "project_users": ",".join([str(user["id"]) for user in project_model_obj.users]),
+            }
+        ),
+    )
     create_issue_extensions(created_issue_id, extension_args)
 
     # Update cache
@@ -1331,7 +1360,9 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         else:
             issue["author"] = {}
 
-        has_children = check_issue_has_son(str(issue["id"]))
+        has_children = check_issue_has_son(
+            str(issue["id"]), by_user_permission=get_jwt_identity()["role_id"] != role.ADMIN.id
+        )
         issue["is_closed"] = issue["status"]["id"] in NexusIssue.get_closed_statuses()
         issue["issue_link"] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
         issue["family"] = issue.get("parent") is not None or issue.get("relations") != [] or has_children
@@ -1777,6 +1808,7 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
 def calculate_issue_progress(filters, issue_status, output, args=None):
     redmine_issues = redmine_lib.redmine.issue.filter(**filters)
     for issue in redmine_issues:
+        print(issue)
         if args.get("due_date_status"):
             due_date = args["due_date_status"]
             df_due_date, bool_has_due_date, bool_no_due_date = has_or_no_due_date(issue)
@@ -2638,13 +2670,26 @@ def get_commit_hook_issues(commit_id):
 
 
 def sync_issue_relation():
-    issue_family = {}
+    """
+    Update issue family(son, parent issue) & issue_relation(belongs pj, pj's members)
+    """
+    issue_family, issue_pj_user_relations = {}, {}
     for project in model.Project.query.all():
-        plan_id = get_plan_id(project.id)
+        plan_id, pj_id = get_plan_id(project.id), project.id
+        pj_users = [str(user["id"]) for user in project.users]
         if plan_id != -1:
             try:
-                all_issues, _ = redmine.rm_list_issues(params={"project_id": plan_id, "status_id": "*"})
+                all_issues, _ = redmine.rm_list_issues(
+                    params={"project_id": plan_id, "status_id": "*", "subproject_id": "!*"}
+                )
                 for issue in all_issues:
+                    issue_rel_info = {
+                        "plan_project_id": plan_id,
+                        "project_id": pj_id,
+                        "project_users": ",".join(pj_users),
+                    }
+                    issue_rel_info = json.dumps(issue_rel_info, default=str)
+                    issue_pj_user_relations[issue["id"]] = issue_rel_info
                     if issue.get("parent") is not None:
                         parent_id = issue["parent"]["id"]
                         issue_family[parent_id] = handle_sync_son_issue(issue_family.get(parent_id), str(issue["id"]))
@@ -2652,6 +2697,7 @@ def sync_issue_relation():
                 continue
 
     update_issue_relations(issue_family)
+    update_issue_pj_user_relations(issue_pj_user_relations)
 
 
 def handle_sync_son_issue(value, issue_id):
