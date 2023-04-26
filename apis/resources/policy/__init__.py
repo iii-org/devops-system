@@ -8,35 +8,35 @@ import util
 
 
 DB_POLICY = dict({
-	"MSSQL": {
+	"mssql": {
 		"RE": "^((?=.{8,128}$)[0-9a-zA-Z](?=.*\d)(?=.*[a-z])(?=.*[A-Z]).*|(?=.{8,128}$)(?=.*\d)(?=.*[a-zA-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
 		"Policy": "The password doesn't contain the account name of the user.\nThe password is at least eight characters long.\nThe password contains characters from three of the following four categories:\n	Latin uppercase letters (A through Z)\n	Latin lowercase letters (a through z)\n	Base 10 digits (0 through 9)\n	Non-alphanumeric characters such as: exclamation point (!), dollar sign ($), number sign (#), or percent (%) \n first character not be special (nonalphanumeric) character.\nPasswords can be up to 128 characters long. Use passwords that are as long and complex as possible."
 	},
-	"MySQL": {
-		"RE": "^((?=.{8,}$)[0-9a-zA-Z](?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
-		"Policy": "The password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character, 1 uppercase character, and 1 special (nonalphanumeric) character, and first character not be special (nonalphanumeric) character."
-	},
-	"mariaDB": {
+	# "MySQL": {
+	# 	"RE": "^((?=.{8,}$)[0-9a-zA-Z](?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
+	# 	"Policy": "The password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character, 1 uppercase character, and 1 special (nonalphanumeric) character, and first character not be special (nonalphanumeric) character."
+	# },
+	"mariadb": {
 		"RE": "^((?=.{8,}$)[0-9a-zA-Z](?=.*\d)(?=.*[a-zA-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
 		"Policy": "The password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character or 1 uppercase character, and 1 special (nonalphanumeric) character, and first character not be special (nonalphanumeric) character."
 	},
-	"influxDB": {
-		"RE": "",
-		"Policy": ""
-	},
-	"Elasticsearch": {
-		"RE": "^((?=.{6,}$)[0-9a-zA-Z])",
-		"Policy": "The password is at least six characters long, and first character not be special (nonalphanumeric) character."
-	},
-	"mongoDB": {
-		"RE": "",
-		"Policy": []
-	},
-	"SQLite": {
-		"RE": "",
-		"Policy": []
-	},
-	"postgreSQL": {
+	# "influxDB": {
+	# 	"RE": "",
+	# 	"Policy": ""
+	# },
+	# "Elasticsearch": {
+	# 	"RE": "^((?=.{6,}$)[0-9a-zA-Z])",
+	# 	"Policy": "The password is at least six characters long, and first character not be special (nonalphanumeric) character."
+	# },
+	# "mongoDB": {
+	# 	"RE": "",
+	# 	"Policy": []
+	# },
+	# "SQLite": {
+	# 	"RE": "",
+	# 	"Policy": []
+	# },
+	"postgres": {
 		"RE": "^((?=.{8,}$)[0-9a-zA-Z](?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
 		"Policy": "The password doesn't contain the account name of the user.\nThe password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character, 1 uppercase character, and 1 special (nonalphanumeric) character, and first character not be special (nonalphanumeric) character."
 	}
