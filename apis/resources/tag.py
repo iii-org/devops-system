@@ -149,6 +149,9 @@ def move_tag_to_end(tag_id: int) -> None:
 
     # Set tag to the end
     end_tag_object = model.Tag.query.filter_by(project_id=pj_id, next_tag_id=None).first()
+    if tag_object.id == end_tag_object.id:  # not moving, do not need to change
+        return
+
     end_tag_object.next_tag = tag_object
     tag_object.next_tag = None
     db.session.commit()
@@ -158,7 +161,8 @@ def move_tag_to_certain_tag_before(tag_id: int, to_tag_id: int) -> None:
     # Update the 'next_tag_id' value of tag that come before tag_id to the 'next_tag_id' value of tag_id.
     tag_object = model.Tag.query.get(tag_id)
     tag_next_tag, tag_before_tag = tag_object.next_tag, tag_object.before_tag
-    if tag_next_tag.id == to_tag_id:  # not moving, do not need to change
+
+    if tag_next_tag is not None and tag_next_tag.id == to_tag_id:  # not moving, do not need to change
         return
 
     if tag_before_tag is not None:  # tag is not the head.
