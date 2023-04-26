@@ -514,6 +514,7 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                 # if row.finished is None:
                 try:
                     status_id, _ = checkmarx.get_scan_status(row.scan_id)
+                    row = db.session.refresh(row)
                     # Merge id 2 and 10 as same status
                     if status_id == 10:
                         status_id, _ = 2, "PreScan"
