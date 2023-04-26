@@ -91,6 +91,7 @@ def upgrade(version):
         order_pj_tags_by_id()
     elif version == "1.28.0.6":
         model.WebInspect.query.delete()
+        db.session.commit()
 
 
 def recreate_ui_route():
