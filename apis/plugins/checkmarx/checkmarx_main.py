@@ -514,11 +514,11 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                 # if row.finished is None:
                 try:
                     status_id, _ = checkmarx.get_scan_status(row.scan_id)
-                    row = db.session.refresh(row)
                     # Merge id 2 and 10 as same status
                     if status_id == 10:
                         status_id, _ = 2, "PreScan"
                     logger.logger.info(f"scan_id: {row.scan_id}, status_id: {status_id}, ststus_name: {_}")
+                    row = Model.query.filter_by(scan_id=row.scan_id).one()
                     if status_id in [1, 2, 3] or (status_id == 7 and not (row.report_id > 0) and row.finished):
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status")
                         checkmarx.register_report(row.scan_id)
@@ -536,6 +536,7 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                             logger.logger.info(
                                 f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status} and report_id {row.report_id}")
                         report_count += 1
+                    db.session.commit()
                 except Exception as e:
                     logger.logger.exception(str(e))
                 # else:
