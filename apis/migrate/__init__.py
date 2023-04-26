@@ -36,6 +36,7 @@ VERSIONS = [
     "1.28.0.3",
     "1.28.0.4",
     "1.28.0.5",
+    "1.28.0.6",
 ]
 ONLY_UPDATE_DB_MODELS = [
     "1.22.0.1",
@@ -88,6 +89,8 @@ def upgrade(version):
         from resources.tag import order_pj_tags_by_id
 
         order_pj_tags_by_id()
+    elif version == "1.28.0.6":
+        model.WebInspect.query.delete()
 
 
 def recreate_ui_route():
