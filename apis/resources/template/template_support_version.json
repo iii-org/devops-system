@@ -16,11 +16,11 @@
         "end_version": "v1.28.9"
     },
     "django-mariadb-todo":{
-        "start_version": "v1.18.1",
+        "start_version": "v1.28.0",
         "end_version": "v1.28.9"
     },
     "django-postgresql-todo":{
-        "start_version": "v1.18.1",
+        "start_version": "v1.28.0",
         "end_version": "v1.28.9"
     },
     "django-sqlite-todo-test1":{
@@ -36,11 +36,11 @@
         "end_version": "v1.28.9"
     },
     "flask-mariadb-todo":{
-        "start_version": "v1.18.1",
+        "start_version": "v1.28.0",
         "end_version": "v1.28.9"
     },
     "flask-postgres-todo":{
-        "start_version": "v1.18.1",
+        "start_version": "v1.28.0",
         "end_version": "v1.28.9"
     },
     "flask-sqlite-todo":{
@@ -60,11 +60,11 @@
         "end_version": "v1.28.9"
     },
     "laravel-mariadb-login":{
-        "start_version": "v1.18.1",
+        "start_version": "v1.28.0",
         "end_version": "v1.28.9"
     },
     "laravel-postgres-login":{
-        "start_version": "v1.18.1",
+        "start_version": "v1.28.0",
         "end_version": "v1.28.9"
     },
     "laravel-sqlite-login":{
@@ -72,7 +72,7 @@
         "end_version": "v1.28.9"
     },
     "mariadb-dev":{
-        "start_version": "v1.18.1",
+        "start_version": "v1.28.0",
         "end_version": "v1.28.9"
     },
     "mongodb-dev":{
@@ -80,7 +80,7 @@
         "end_version": "v1.28.9"
     },
     "mssql-dev":{
-        "start_version": "v1.18.1",
+        "start_version": "v1.28.0",
         "end_version": "v1.28.9"
     },
     "nodejs-express-hello":{
@@ -96,7 +96,7 @@
         "end_version": "v1.28.9"
     },
     "postgres-dev":{
-        "start_version": "v1.18.1",
+        "start_version": "v1.28.0",
         "end_version": "v1.28.9"
     },
     "rabbitmq-dev":{
@@ -120,7 +120,7 @@
         "end_version": "v1.28.9"
     },
     "spring-boot-mariadb-restapi":{
-        "start_version": "v1.18.1",
+        "start_version": "v1.28.0",
         "end_version": "v1.28.9"
     },
     "spring-boot-maven-hello":{
@@ -128,7 +128,7 @@
         "end_version": "v1.28.9"
     },
     "spring-boot-postgres-example":{
-        "start_version": "v1.18.1",
+        "start_version": "v1.28.0",
         "end_version": "v1.28.9"
     },
     "vuejs-app-template1":{

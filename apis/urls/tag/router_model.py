@@ -55,7 +55,7 @@ class PostTagsSchema(Schema):
 
 
 class TagsSchema(PostTagsSchema):
-    tag_name = fields.Str(required=False, doc="tag_name", example="1")
+    name = fields.Str(required=False, doc="name", example="1")
 
 
 #################################### Response ####################################

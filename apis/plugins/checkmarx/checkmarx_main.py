@@ -518,6 +518,8 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                     if status_id == 10:
                         status_id, _ = 2, "PreScan"
                     logger.logger.info(f"scan_id: {row.scan_id}, status_id: {status_id}, ststus_name: {_}")
+                    # 因為在 get_scan_status() 中有重新跟資料庫取 row 同一筆資料並且會更新資料，故這邊要再重新取一次
+                    row = Model.query.filter_by(scan_id=row.scan_id).one()
                     if status_id in [1, 2, 3] or (status_id == 7 and not (row.report_id > 0) and row.finished):
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status")
                         checkmarx.register_report(row.scan_id)
@@ -528,13 +530,14 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                         row.scan_final_status = None
                         report_count += 1
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status}")
-                    elif status_id == 7 and row.report_id > 0:
+                    elif status_id == 7 and row.report_id != -1:
                         if row.finished_at is None:
                             row.scan_final_status = None
                             row.report_id = -1
                             logger.logger.info(
                                 f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status} and report_id {row.report_id}")
                         report_count += 1
+                    db.session.commit()
                 except Exception as e:
                     logger.logger.exception(str(e))
                 # else:
