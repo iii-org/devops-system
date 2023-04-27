@@ -28,13 +28,13 @@ DB_POLICY = dict({
 	# 	"RE": "^((?=.{6,}$)[0-9a-zA-Z])",
 	# 	"Policy": "The password is at least six characters long, and first character not be special (nonalphanumeric) character."
 	# },
-	# "mongoDB": {
-	# 	"RE": "",
-	# 	"Policy": []
-	# },
+	"mongodb": {
+		"RE": "^((?=.{1,}$)[0-9a-zA-Z])",
+		"Policy": "The password is at least one characters long and first character not be special (nonalphanumeric) character."
+	},
 	# "SQLite": {
 	# 	"RE": "",
-	# 	"Policy": []
+	# 	"Policy": ""
 	# },
 	"postgres": {
 		"RE": "^((?=.{8,}$)[0-9a-zA-Z](?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
