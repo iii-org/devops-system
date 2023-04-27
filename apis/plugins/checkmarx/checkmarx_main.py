@@ -523,7 +523,7 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                         if status_id == 9:
                             row.logs = json.dumps(details)
                         row.scan_final_status = status_name
-                    logger.logger.info(f"scan_id: {row.scan_id}, status_id: {status_id}, ststus_name: {status_name}")
+                    logger.logger.info(f"scan_id: {row.scan_id}, status_id: {status_id}, ststus_name: {status_name}, details: {details}")
                     if row.report_id is None:
                         row.report_id = -1
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report_id {row.report_id}")
