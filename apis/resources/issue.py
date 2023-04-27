@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 from distutils.util import strtobool
 from typing import Optional
 
+from redminelib import Redmine
 import pandas as pd
 from flask_socketio import Namespace, emit, join_room, leave_room
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -1386,6 +1387,136 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
     return output
 
 
+"""
+def get_project_issues_trace(project_id: str, args: dict[str, Any], user_id: int) -> dict[str, Any]:
+    nx_issue_params = defaultdict()
+    output = []
+    if util.is_dummy_project(project_id):
+        return []
+    try:
+        nx_project = NexusProject().set_project_id(project_id)
+        nx_issue_params["nx_project"] = nx_project
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
+    except NoResultFound:
+        raise DevOpsError(
+            404,
+            "Error while getting issues",
+            error=apiError.project_not_found(project_id),
+        )
+
+    default_filters = get_custom_filters_by_args(args, project_id=plan_id, children=True)
+    # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
+    if args.get("search") is not None and default_filters.get("issue_id") is None:
+        if args.get("assigned_to_id") is None:
+            return []
+    elif args.get("has_tag_issue", False):
+        return []
+    if len(default_filters.get("issue_id", "").split(",")) > 200:
+        issue_ids = default_filters.pop("issue_id").split(",")
+        default_filters_list = handle_exceed_limit_length_default_filter(default_filters, issue_ids, [])
+    else:
+        default_filters_list = [default_filters]
+
+    total_count = 0
+    personal_redmine_obj = get_redmine_obj(operator_id=user_id)
+    for default_filters in default_filters_list:
+        default_filters["include"] = "relations"
+       
+        if get_jwt_identity()["role_id"] != 7:
+            all_issues, total_count = personal_redmine_obj.rm_list_issues(params=default_filters)
+        else:
+            all_issues, total_count = redmine.rm_list_issues(params=default_filters)
+
+        # 透過 selection params 決定是否顯示 family bool 欄位
+        if not args.get("selection") or not strtobool(args.get("selection")):
+            nx_issue_params["relationship_bool"] = True
+
+        output += all_issues
+
+    logger.logger.info(f"Delete: {personal_redmine_obj.operator_id}")
+    del personal_redmine_obj
+
+    # Parse filter_issues
+    issue_ids = [issue["id"] for issue in output]
+    
+
+
+    #     common_project_issue_info_serializer(issue, args.get("with_point", False))
+
+    # if args.get("limit") is not None and args.get("offset") is not None:
+    #     page_dict = util.get_pagination(total_count, args["limit"], args["offset"])
+    #     output = {"issue_list": output, "page": page_dict}
+    # return output
+
+def get_head_issue_ids(issue_ids: list[int], by_user_permission: bool = False):
+    pass
+
+
+
+
+def common_project_issue_info_serializer(issue: dict[str, Any], with_point: bool = False):
+    issue["name"] = issue.pop("subject")
+
+    if issue.get("fixed_version") is None:
+        issue["fixed_version"] = {}
+
+    if issue.get("updated_on") is not None:
+        issue["updated_on"] = issue["updated_on"][:-1]
+
+    project_id = nexus.nx_get_project_plugin_relation(rm_project_id=issue["project"]["id"]).project_id
+    if project_has_child(project_id) or project_has_parent(project_id):
+        nx_project = model.Project.query.get(project_id)
+    issue["project"] = {
+        "id": nx_project.id,
+        "name": nx_project.name,
+        "display": nx_project.display,
+    }
+
+    if issue.get("assigned_to") is not None:
+        issue["assigned_to"] = get_user_info_by_plan_user_id(issue["assigned_to"]["id"])
+    else:
+        issue["assigned_to"] = {}
+
+    if issue.get("author") is not None:
+        issue["author"] = get_user_info_by_plan_user_id(issue["author"]["id"])
+    else:
+        issue["author"] = {}
+
+    has_children = check_issue_has_son(
+        str(issue["id"]), by_user_permission=get_jwt_identity()["role_id"] != role.ADMIN.id
+    )
+    issue["is_closed"] = issue["status"]["id"] in NexusIssue.get_closed_statuses()
+    issue["issue_link"] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
+    issue["family"] = issue.get("parent") is not None or issue.get("relations") != [] or has_children
+    issue["has_father"] = issue.get("parent") is not None
+    issue["has_children"] = has_children
+
+    if with_point:
+        issue |= get_issue_extensions(issue["id"])
+    issue["tags"] = get_issue_tags(issue["id"])
+
+    issue.pop("parent", "")
+    issue.pop("relations", "")
+    issue.pop("created_on", "")
+
+def get_user_info_by_plan_user_id(plan_user_id):
+    row = (
+        db.session.query(model.User)
+        .join(model.UserPluginRelation)
+        .filter(model.UserPluginRelation.plan_user_id == plan_user_id)
+        .first()
+    )
+    if row is None:
+        return {}
+    return {
+        "id": row.id,
+        "name": row.name,
+        "login": row.login,
+    }
+
+"""
+
+
 def get_issue_list_by_user(user_id, args):
     nx_issue_params = defaultdict()
     output = []
@@ -1691,7 +1822,9 @@ def get_issue_family(redmine_issue, args={}, all=False, user_name=None, sync=Fal
         output["parent"] = get_issue_parent(redmine_issue, redmine_obj)
         output["relations"] = get_issue_relations(redmine_issue, redmine_obj)
 
-    output["children"] = get_issue_children(redmine_issue, redmine_obj)
+    default_filters = get_custom_filters_by_args(args=args, children=None)
+
+    output["children"] = get_issue_children(redmine_issue, redmine_obj, default_filters)
 
     for key in ["parent", "children", "relations"]:
         if output.get(key) == []:
@@ -1712,17 +1845,19 @@ def get_issue_parent(redmine_issue, redmine_obj):
     return ret
 
 
-def get_issue_children(redmine_issue, redmine_obj):
+def get_issue_children(redmine_issue, redmine_obj: Redmine, args: dict[str, Any]) -> list[dict[str, Any]]:
     ret = []
     if len(redmine_issue.children):
         children_issue_ids = [str(child.id) for child in redmine_issue.children]
-        children_issue_ids_str = ",".join(children_issue_ids)
+        if args.get("issue_id") is not None:
+            children_issue_ids = list(set(children_issue_ids).intersection(args["issue_id"]))
+
+        args["issue_id"] = ",".join(children_issue_ids)
         filter_kwargs = {
             "status_id": "*",
-            "issue_id": children_issue_ids_str,
             "include": ["children"],
             "sort": "subject:dec",
-        }
+        } | args
         children_issues = redmine_obj.issue.filter(**filter_kwargs)
         ret = [NexusIssue().set_redmine_issue_v2(issue).to_json() for issue in children_issues]
     return ret

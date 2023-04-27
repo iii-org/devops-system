@@ -686,6 +686,7 @@ api.add_resource(routine_job.DoJobByDay, "/routine_job/by_day")
 
 # Database password principle
 api.add_resource(policy.DBPSWDPolicy, "/db/pswd/policy/check")
+api.add_resource(policy.DBPSWDPolicyTypeList, "/db/pswd/policy/type_list")
 
 
 @app.route("/user/login", methods=["POST"])
