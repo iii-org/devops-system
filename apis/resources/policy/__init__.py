@@ -55,7 +55,7 @@ def check_pswd_policy(db_type, db_user, db_pswd):
 		result = re.match("^((?=.{1,}$)[0-9a-zA-Z])", db_pswd)
 		if result is None:
 			output["pass"] = False
-			output["description"] = "First character not be special (nonalphanumeric) character."
+			output["description"] = "The first character should not be a special (non-alphanumeric) character."
 		# 檢查各資料庫的密碼原則
 		if db_policy["RE"]:
 			result = re.match(db_policy["RE"], db_pswd)
@@ -78,6 +78,13 @@ class DBPSWDPolicy(Resource):
 		parser.add_argument("db_user", type=str, required=True)
 		parser.add_argument("db_pswd", type=str, required=True)
 		args = parser.parse_args()
+		if args.get("db_pswd") is None:
+			return util.respond(404, f'db_pswd should not be null.')
+		if args.get("db_user") is None:
+			if args.get("db_type") == "mssql":
+				args["db_user"] = "sa"
+			else:
+				return util.respond(404, f'db_user should not be null.')
 		output = check_pswd_policy(args.get("db_type"), args.get("db_user"), args.get("db_pswd"))
 		if output:
 			return util.success(output)
