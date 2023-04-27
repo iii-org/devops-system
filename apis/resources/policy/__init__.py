@@ -43,6 +43,10 @@ DB_POLICY = dict({
 })
 
 
+def get_db_type_list() -> list:
+	return list(DB_POLICY.keys())
+
+
 def check_pswd_policy(db_type, db_user, db_pswd):
 	db_policy = DB_POLICY.get(db_type)
 	if db_policy:
@@ -73,3 +77,9 @@ class DBPSWDPolicy(Resource):
 			return util.success(output)
 		else:
 			return util.respond(404, f'db_type {args.get("db_type")} not found.')
+
+
+class DBPSWDPolicyTypeList(Resource):
+	@jwt_required()
+	def get(self):
+		return util.success(get_db_type_list())
