@@ -507,6 +507,9 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
     if rows:
         report_count = 0
         for row in rows:
+            # 解決 Instance is not bound to a Session 的錯誤
+            if row not in db.session:
+                row = db.session.merge(row)
             # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
             # 最近30天內及最新的五筆
             if report_count < keep_record and utcnow - datetime.timedelta(days=30) <= row.run_at:
@@ -525,9 +528,6 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                     logger.logger.info(f"scan_id: {row.scan_id}, status_id: {status_id}, ststus_name: {status_name}")
                     # # 因為在 get_scan_status() 中有重新跟資料庫取 row 同一筆資料並且會更新資料，故這邊要再重新取一次
                     # row = Model.query.filter_by(scan_id=row.scan_id).one()
-                    # 解決 Instance is not bound to a Session 的錯誤
-                    # if row not in db.session:
-                    #     row = db.session.merge(row)
                     if row.report_id is None:
                         row.report_id = -1
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report_id {row.report_id}")
@@ -536,7 +536,7 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                         checkmarx.register_report(row.scan_id)
                         report_count += 1
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report")
-                        time.sleep(1)
+                        # time.sleep(1)
                     elif status_id == 7 and row.report_id < 0 and row.finished is None:
                         row.scan_final_status = None
                         report_count += 1
