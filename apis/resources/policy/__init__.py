@@ -10,15 +10,15 @@ import util
 DB_POLICY = dict({
 	"mssql": {
 		"RE": "^((?=.{8,128}$)(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).*|(?=.{8,128}$)(?=.*\d)(?=.*[a-z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
-		"Policy": "The password doesn't contain the account name of the user.\nThe password is at least eight characters long.\nThe password contains characters from three of the following four categories:\n	Latin uppercase letters (A through Z)\n	Latin lowercase letters (a through z)\n	Base 10 digits (0 through 9)\n	Non-alphanumeric characters such as: exclamation point (!), dollar sign ($), number sign (#), or percent (%) \n first character not be special (nonalphanumeric) character.\nPasswords can be up to 128 characters long. Use passwords that are as long and complex as possible."
+		"Policy": "The password doesn't contain the account name of the user.\nThe password is at least eight characters long.\nThe password contains characters from three of the following four categories:\n	Latin uppercase letters (A through Z)\n	Latin lowercase letters (a through z)\n	Base 10 digits (0 through 9)\n	Non-alphanumeric characters such as: exclamation point (!), dollar sign ($), number sign (#), or percent (%).\nPasswords can be up to 128 characters long. Use passwords that are as long and complex as possible."
 	},
 	# "MySQL": {
 	# 	"RE": "^((?=.{8,}$)(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
-	# 	"Policy": "The password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character, 1 uppercase character, and 1 special (nonalphanumeric) character, and first character not be special (nonalphanumeric) character."
+	# 	"Policy": "The password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character, 1 uppercase character, and 1 special (nonalphanumeric) character."
 	# },
 	"mariadb": {
 		"RE": "^((?=.{8,}$)(?=.*\d)(?=.*[a-zA-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
-		"Policy": "The password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character or 1 uppercase character, and 1 special (nonalphanumeric) character, and first character not be special (nonalphanumeric) character."
+		"Policy": "The password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character or 1 uppercase character, and 1 special (nonalphanumeric) character."
 	},
 	# "influxDB": {
 	# 	"RE": "",
@@ -26,11 +26,11 @@ DB_POLICY = dict({
 	# },
 	# "Elasticsearch": {
 	# 	"RE": "^((?=.{6,}$))",
-	# 	"Policy": "The password is at least six characters long, and first character not be special (nonalphanumeric) character."
+	# 	"Policy": "The password is at least six characters long."
 	# },
 	"mongodb": {
 		"RE": "",
-		"Policy": "The password is at least one characters long and first character not be special (nonalphanumeric) character."
+		"Policy": ""
 	},
 	# "SQLite": {
 	# 	"RE": "",
@@ -38,7 +38,7 @@ DB_POLICY = dict({
 	# },
 	"postgres": {
 		"RE": "^((?=.{8,}$)(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!\u0022#$%&'()*+,./:;<=>?@[\]\^_`{|}~-]).*)",
-		"Policy": "The password doesn't contain the account name of the user.\nThe password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character, 1 uppercase character, and 1 special (nonalphanumeric) character, and first character not be special (nonalphanumeric) character."
+		"Policy": "The password doesn't contain the account name of the user.\nThe password is at least eight characters long.\nThe passwords must contain at least 1 numeric character, 1 lowercase character, 1 uppercase character, and 1 special (nonalphanumeric) character."
 	}
 })
 
@@ -51,10 +51,12 @@ def check_pswd_policy(db_type, db_user, db_pswd):
 	db_policy = DB_POLICY.get(db_type)
 	if db_policy:
 		output = {"pass": True}
+		# 檢查第一碼不可為特殊符號
 		result = re.match("^((?=.{1,}$)[0-9a-zA-Z])", db_pswd)
 		if result is None:
 			output["pass"] = False
-			output["description"] = db_policy["Policy"]
+			output["description"] = "First character not be special (nonalphanumeric) character."
+		# 檢查各資料庫的密碼原則
 		if db_policy["RE"]:
 			result = re.match(db_policy["RE"], db_pswd)
 			if result is None:
