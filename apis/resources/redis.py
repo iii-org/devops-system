@@ -147,10 +147,11 @@ def check_issue_has_son(issue_id: int, by_user_permission: bool = False) -> bool
         return issue_has_son
 
     son_issue_ids = redis_op.dict_get_certain(ISSUE_FAMILIES_KEY, issue_id)
-    for issue_id in son_issue_ids.split(","):
-        pj_users = get_single_issue_pj_user_relation(int(issue_id)).get("project_users", "")
+    has_issue_per_bools = []
+    for son_issue_id in son_issue_ids.split(","):
+        has_issue_per_bools.append(check_user_has_permission_to_see_issue(son_issue_id))
 
-        return str(get_jwt_identity()["user_id"]) in pj_users.split(",")
+    return any(has_issue_per_bools)
 
 
 def update_issue_relations(issue_families):
@@ -211,6 +212,11 @@ def update_issue_pj_user_relations(issue_pj_user_relations: dict[int, Any]) -> N
 
 def remove_issue_pj_user_relations() -> None:
     redis_op.dict_delete_all(ISSUE_PJ_USER_RELATION_KEY)
+
+
+def check_user_has_permission_to_see_issue(issue_id: int) -> bool:
+    pj_users = get_single_issue_pj_user_relation(int(issue_id)).get("project_users", "")
+    return str(get_jwt_identity()["user_id"]) in pj_users.split(",")
 
 
 # Project issue calculate Cache
