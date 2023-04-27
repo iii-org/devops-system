@@ -522,6 +522,7 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                     row = Model.query.filter_by(scan_id=row.scan_id).one()
                     if row.report_id is None:
                         row.report_id = -1
+                        logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report_id {row.report_id}")
                     if status_id in [1, 2, 3] or (status_id == 7 and row.report_id < 0 and row.finished):
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status")
                         checkmarx.register_report(row.scan_id)
