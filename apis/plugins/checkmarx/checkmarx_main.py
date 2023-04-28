@@ -191,22 +191,24 @@ class CheckMarx(object):
     def get_scan_statistics(self, scan_id):
         return self.__api_get("/sast/scans/%s/resultsStatistics" % scan_id).json()
 
-    def register_report(self, scan_id):
+    def register_report(self, scan_id, save2db=True):
         r = self.__api_post("/reports/sastScan", {"reportType": "PDF", "scanId": scan_id})
         report_id = r.json().get("reportId")
-        scan = Model.query.filter_by(scan_id=scan_id).one()
-        scan.report_id = report_id
-        db.session.commit()
-        return util.respond(
-            r.status_code,
-            "Report registered.",
-            data={"scanId": scan_id, "reportId": report_id},
-        )
+        if save2db:
+            scan = Model.query.filter_by(scan_id=scan_id).one()
+            scan.report_id = report_id
+            db.session.commit()
+            return util.respond(
+                r.status_code,
+                "Report registered.",
+                data={"scanId": scan_id, "reportId": report_id},
+            )
+        return report_id
 
-    def get_report_status(self, report_id):
+    def get_report_status(self, report_id, save2db=True):
         resp = self.__api_get("/reports/sastScan/%s/status" % report_id)
         status = resp.json().get("status")
-        if status.get("id") == 2:
+        if status.get("id") == 2 and save2db:
             row = Model.query.filter_by(report_id=report_id).one()
             row.finished_at = datetime.datetime.utcnow()
             row.finished = True
@@ -520,9 +522,14 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                     if status_id == 10:
                         status_id, status_name = 2, "PreScan"
                     if status_id in {7, 8, 9}:
-                        if status_id == 7:
+                        if status_id == 7:  # Finished
                             row.stats = json.dumps(checkmarx.get_scan_statistics(row.scan_id))
-                        if status_id == 9:
+                            row.report_id = checkmarx.register_report(row.scan_id)
+                            rep_status_id, value = checkmarx.get_report_status(row.report_id, False)
+                            if rep_status_id == 2:  # 1:InProcess, 2:Created
+                                row.finished_at = datetime.datetime.utcnow()
+                                row.finished = True
+                        if status_id == 9:  # Failed
                             row.logs = json.dumps(details)
                         row.scan_final_status = status_name
                     logger.logger.info(f"scan_id: {row.scan_id}, status_id: {status_id}, ststus_name: {status_name}" +
