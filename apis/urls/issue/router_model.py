@@ -7,6 +7,7 @@ from urls.route_model import (
     ProjectExtraResponse,
     RelationsResponse,
     CommonSingleIssueResponse,
+    CommonIssueSchema,
 )
 
 ### Issue single
@@ -218,8 +219,11 @@ class SingleIssueDeleteResponse(CommonBasicResponse):
 #################################### Schema ####################################
 
 
-class IssueIssueFamilySchema(Schema):
+class IssueIssueFamilySchema(CommonIssueSchema):
     with_point = fields.Str(doc="with_point", example=True)
+    due_date_start = fields.Str(doc="due_date_start", example="1970-01-01")
+    due_date_end = fields.Str(doc="due_date_end", example="1970-01-01")
+    tags = fields.Str(doc="tags", example="1,2,3")
 
 
 class ClosableAllSchema(Schema):
