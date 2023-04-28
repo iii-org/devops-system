@@ -524,12 +524,12 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                     if status_id in {7, 8, 9}:
                         if status_id == 7:  # Finished
                             row.stats = json.dumps(checkmarx.get_scan_statistics(row.scan_id))
-                            row.report_id = checkmarx.register_report(row.scan_id)
-                            rep_status_id, value = checkmarx.get_report_status(row.report_id, False)
-                            if rep_status_id == 2:  # 1:InProcess, 2:Created
-                                row.finished_at = datetime.datetime.utcnow()
-                                row.finished = True
-                                report_count += 1
+                            # row.report_id = checkmarx.register_report(row.scan_id)
+                            # rep_status_id, value = checkmarx.get_report_status(row.report_id, False)
+                            # if rep_status_id == 2:  # 1:InProcess, 2:Created
+                            #     row.finished_at = datetime.datetime.utcnow()
+                            #     row.finished = True
+                            #     report_count += 1
                         if status_id == 9:  # Failed
                             row.logs = json.dumps(details)
                         row.scan_final_status = status_name
