@@ -529,6 +529,7 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                             if rep_status_id == 2:  # 1:InProcess, 2:Created
                                 row.finished_at = datetime.datetime.utcnow()
                                 row.finished = True
+                                report_count += 1
                         if status_id == 9:  # Failed
                             row.logs = json.dumps(details)
                         row.scan_final_status = status_name
