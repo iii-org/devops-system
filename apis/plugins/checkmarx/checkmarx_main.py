@@ -7,7 +7,7 @@ import requests
 from flask import send_file
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
-from sqlalchemy import desc, or_
+from sqlalchemy import desc, or_, func
 from sqlalchemy.exc import NoResultFound
 
 import nexus
@@ -503,8 +503,18 @@ class CronjobScan(Resource):
         return util.success()
 
 
-def checkamrx_keep_report(repo_id, keep_record:int = 5):
-    rows = Model.query.filter_by(repo_id=repo_id).order_by(desc(Model.run_at)).all()
+def checkamrx_keep_report(repo_id, keep_record: int = 5):
+    scan = Model.query.with_entities(func.min(Model.run_at).label("run_at")
+                                     ).filter(Model.repo_id == repo_id,
+                                              Model.report_id > 0
+                                              ).group_by(Model.repo_id).first()
+    if scan:
+        rows = Model.query.filter(Model.repo_id == repo_id,
+                                  Model.run_at >= scan.run_at
+                                  ).order_by(desc(Model.run_at)
+                                             ).all()
+    else:
+        rows = Model.query.filter_by(repo_id=repo_id).order_by(desc(Model.run_at)).all()
     utcnow = datetime.datetime.utcnow()
     if rows:
         report_count = 0
@@ -524,11 +534,16 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                     if status_id in {7, 8, 9}:
                         if status_id == 7:  # Finished
                             row.stats = json.dumps(checkmarx.get_scan_statistics(row.scan_id))
-                            # row.report_id = checkmarx.register_report(row.scan_id)
-                            # rep_status_id, value = checkmarx.get_report_status(row.report_id, False)
-                            # if rep_status_id == 2:  # 1:InProcess, 2:Created
-                            #     row.finished_at = datetime.datetime.utcnow()
-                            #     row.finished = True
+                            report_change = False
+                            if row.report_id is None or row.report_id < 0:
+                                row.report_id = checkmarx.register_report(row.scan_id, False)
+                                if row.report_id is not None and row.report_id > 0:
+                                    report_change = True
+                                rep_status_id, value = checkmarx.get_report_status(str(row.report_id), False)
+                                if row.finished_at is None or report_change:
+                                    if rep_status_id == 2:  # 1:InProcess, 2:Created
+                                        row.finished_at = datetime.datetime.utcnow()
+                                        row.finished = True
                             #     report_count += 1
                         if status_id == 9:  # Failed
                             row.logs = json.dumps(details)
@@ -540,7 +555,7 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report_id {row.report_id}")
                     if status_id in [1, 2, 3] or (status_id == 7 and row.report_id < 0 and row.finished):
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status")
-                        checkmarx.register_report(row.scan_id)
+                        row.report_id = checkmarx.register_report(row.scan_id, False)
                         report_count += 1
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report")
                     elif status_id == 7 and row.report_id < 0 and row.finished is None:
