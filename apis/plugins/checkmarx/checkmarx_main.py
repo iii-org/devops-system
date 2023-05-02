@@ -521,8 +521,6 @@ def checkamrx_keep_report(repo_id, keep_record: int = 5):
         scan_list =[row.scan_id for row in rows]
         for scan_id in scan_list:
             row = Model.query.filter_by(scan_id=scan_id).one()
-            if row not in db.session:
-                row = db.session.merge(row)
             # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
             # 最近30天內及最新的五筆
             if report_count < keep_record and utcnow - datetime.timedelta(days=30) <= row.run_at:
@@ -578,4 +576,6 @@ def checkamrx_keep_report(repo_id, keep_record: int = 5):
                 if row.scan_final_status == "Scanning" or row.scan_final_status == "Queued":
                     row.scan_final_status = "Canceled"
                 logger.logger.info(f"scan: {row.scan_id}, rep_status_id: {row.report_id}")
+            if row not in db.session:
+                db.session.merge(row)
             db.session.commit()
