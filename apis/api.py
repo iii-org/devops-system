@@ -424,6 +424,7 @@ api.add_resource(release.Release, "/project/<project_id>/releases/<release_name>
 # Plugins
 api.add_resource(plugin.Plugins, "/plugins")
 api.add_resource(plugin.Plugin, "/plugins/<plugin_name>")
+api.add_resource(plugin.PluginsCronjob, "/plugins/cronjob")
 
 # dashboard
 api.add_resource(issue.DashboardIssuePriority, "/dashboard_issues_priority/<user_id>")
