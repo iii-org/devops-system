@@ -1130,7 +1130,7 @@ def update_issue(issue_id, args, operator_id=None):
     if attachment_list is not None:
         args["uploads"] = attachment_list
 
-    personal_redmine_obj.rm_update_issue(issue_id, args)
+    personal_redmine_obj.rm_update_issue(issue_id, args) 
 
     # Update cache
     if update_cache_issue_family:
@@ -1242,6 +1242,11 @@ def get_issue_datetime_status(project_id):
     }
     return output
 
+def add_issue_watcher(isse_id: int, user_id: dict):
+    return redmine.rm_add_watcher(isse_id, user_id)
+
+def remove_issue_watcher(issue_id: int, user_id: dict):
+    return redmine.rm_remove_watcher(issue_id, user_id)
 
 def get_issue_by_project(project_id, args):
     if util.is_dummy_project(project_id):
@@ -3404,3 +3409,23 @@ class IssueSocket(Namespace):
     def on_leave(self, data):
         leave_room(data["project_id"])
         print("leave", data["project_id"])
+
+
+class IssueWatcherV2(MethodResource):
+    @doc(tags=["Issue"], description="Adding a issue watcher.")
+    @jwt_required()
+    def post(self, **kwargs):
+        rm_user_id = {'user_id': model.UserPluginRelation.query.filter_by(user_id=get_jwt_identity()['user_id']) .first().plan_user_id}
+        # redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=["children"])
+        add_issue_watcher(kwargs['issue_id'], rm_user_id)
+        return util.success()
+
+
+    @doc(tags=["Issue"], description="Remove a issue watcher.")
+    @jwt_required()
+    def delete(self, **kwargs):
+        rm_user_id =  model.UserPluginRelation.query.filter_by(user_id=get_jwt_identity()['user_id']) .first().plan_user_id
+        remove_issue_watcher(kwargs['issue_id'], rm_user_id)
+        # redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=["children"])
+        return util.success()
+
