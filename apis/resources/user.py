@@ -34,7 +34,6 @@ from sqlalchemy import desc, nullslast
 import gitlab as gitlab_pack
 from resources.mail import mail_server_is_open
 from resources.notification_message import create_notification_message
-import secrets
 import base64
 from typing import Any
 
@@ -908,7 +907,13 @@ def create_user_in_redmine(args: dict[str, Any], is_admin: bool) -> int:
 
 
 def create_user_in_gitlab(args: dict[str, Any], is_admin: bool) -> int:
-    git_user = gitlab.gl_create_user(args, args["password"], is_admin=is_admin)
+    """
+    Due to users always log in using Keycloak.
+    automatically generating a default password to set in gitlab for avoiding
+    not matching to Gitlab's password policy.
+    """
+    pwd = generate_random_password()
+    git_user = gitlab.gl_create_user(args, pwd, is_admin=is_admin)
     gitlab_user_id = git_user["id"]
     logger.info(f"Gitlab user created, id={gitlab_user_id}")
     return gitlab_user_id

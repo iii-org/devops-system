@@ -22,6 +22,8 @@ import resources.apiError as apiError
 from resources.logger import logger
 from resources.keycloak import key_cloak
 
+from typing import Any
+
 # kubernetes 抓取 III 定義 annotations 標籤
 iii_template = {
     "project_name": "iiidevops.org/project_name",
@@ -52,10 +54,8 @@ class ApiK8sClient:
         self.core_v1 = k8s_client.CoreV1Api(self.api_k8s_client)
         self.rbac_auth_v1 = k8s_client.RbacAuthorizationV1Api(self.api_k8s_client)
         self.app_v1 = k8s_client.AppsV1Api(self.api_k8s_client)
-        self.extensions_v1beta1 = k8s_client.ExtensionsV1beta1Api(self.api_k8s_client)
-        self.batch_v1beta1 = k8s_client.BatchV1beta1Api(self.api_k8s_client)
+        self.networking_v1 = k8s_client.NetworkingV1Api(self.api_k8s_client)
         self.batch_v1 = k8s_client.BatchV1Api(self.api_k8s_client)
-        self.network_v1beta1 = k8s_client.NetworkingV1beta1Api(self.api_k8s_client)
         # 20230118 為取得 storage class 資訊而新增下列一行程式
         self.storage_v1 = k8s_client.StorageV1Api(self.api_k8s_client)
         # 20230118 為取得 storage class 資訊而新增上列一行程式
@@ -71,42 +71,42 @@ class ApiK8sClient:
     # Ingress
     def list_ingress_for_all_namespaces(self):
         try:
-            return self.network_v1beta1.list_ingress_for_all_namespaces()
+            return self.networking_v1.list_ingress_for_all_namespaces()
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
     def read_namespaced_ingress(self, name, namespace):
         try:
-            return self.network_v1beta1.read_namespaced_ingress(name, namespace)
+            return self.networking_v1.read_namespaced_ingress(name, namespace)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
     def create_namespaced_ingress(self, namespace, body):
         try:
-            return self.network_v1beta1.create_namespaced_ingress(namespace, body)
+            return self.networking_v1.create_namespaced_ingress(namespace, body)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
     def patch_namespaced_ingress(self, name, namespace, body):
         try:
-            return self.network_v1beta1.patch_namespaced_ingress(name, namespace, body)
+            return self.networking_v1.patch_namespaced_ingress(name, namespace, body)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
     def delete_namespaced_ingress(self, name, namespace):
         try:
-            return self.network_v1beta1.delete_namespaced_ingress(name, namespace)
+            return self.networking_v1.delete_namespaced_ingress(name, namespace)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
 
     def list_namespaced_ingress(self, namespace):
         try:
-            return self.extensions_v1beta1.list_namespaced_ingress(namespace)
+            return self.networking_v1.list_namespaced_ingress(namespace)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
@@ -228,7 +228,6 @@ class ApiK8sClient:
                 raise e
 
     #  Deployment
-
     def list_namespaced_deployment(self, namespace):
         try:
             return self.app_v1.list_namespaced_deployment(namespace)
@@ -301,7 +300,6 @@ class ApiK8sClient:
                 raise e
 
     #  RBAC
-
     def create_namespaced_role(self, namespace, role):
         try:
             return self.rbac_auth_v1.create_namespaced_role(namespace, role)
@@ -345,7 +343,6 @@ class ApiK8sClient:
                 raise e
 
     # namespace Quota
-
     def read_namespaced_resource_quota(self, name, namespace):
         try:
             return self.core_v1.read_namespaced_resource_quota(name, namespace)
@@ -390,7 +387,6 @@ class ApiK8sClient:
                 raise e
 
     # namespace service account
-
     def list_namespaced_service_account(self, namespace):
         try:
             return self.core_v1.list_namespaced_service_account(namespace)
@@ -480,10 +476,10 @@ class ApiK8sClient:
 
     # Cron Job
     def list_namespaced_cron_job(self, namespace):
-        return self.batch_v1beta1.list_namespaced_cron_job(namespace)
+        return self.batch_v1.list_namespaced_cron_job(namespace)
 
     def delete_namespaced_cron_job(self, name, namespace):
-        return self.batch_v1beta1.delete_namespaced_cron_job(name, namespace)
+        return self.batch_v1.delete_namespaced_cron_job(name, namespace)
 
     def get_api_client(self):
         return self.api_k8s_client
@@ -1189,6 +1185,13 @@ def delete_namespace_secret(namespace, name):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+
+def add_secrets_to_all_namespace(secret_name: str, content: dict[str, Any]):
+    if read_namespace_secret(DEFAULT_NAMESPACE, secret_name) is None:
+        create_namespace_secret(DEFAULT_NAMESPACE, secret_name, content)
+    else:
+        patch_namespace_secret(DEFAULT_NAMESPACE, secret_name, content)
 
 
 # K8s ConfigMaps Usage

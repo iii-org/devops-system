@@ -37,7 +37,7 @@ from resources.notification_message import (
     get_unclose_notification_message,
     create_notification_message,
 )
-from resources.kubernetesClient import ApiK8sClient
+from resources.kubernetesClient import ApiK8sClient, add_secrets_to_all_namespace
 from resources.router import update_plugin_hidden
 
 SYSTEM_SECRET_PREFIX = "system-secret-"
@@ -333,7 +333,8 @@ def update_plugin_config(plugin_name, args):
                 global_secrets[argument] = str(args["arguments"][argument])
     if patch_secret:
         patch_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), system_secrets)
-    rancher.rc_add_secrets_to_all_namespaces(plugin_name, global_secrets)
+    add_secrets_to_all_namespace(plugin_name, global_secrets)
+    # rancher.rc_add_secrets_to_all_namespaces(plugin_name, global_secrets)
 
     # Putting here to avoid not commit session error
     db_row.parameter = json.dumps(db_arguments)

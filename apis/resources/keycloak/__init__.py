@@ -22,14 +22,12 @@ class KeyCloak:
             realm_name=REALM_NAME,
             user_realm_name="master",
             auto_refresh_token=["get", "put", "post", "delete"],
-            verify=False,
         )
         self.keycloak_openid = KeycloakOpenID(
             server_url=KEYCLOAK_URL,
             client_id=CLIENT_ID,
             realm_name=REALM_NAME,
             client_secret_key=CLIENT_SECRET_KEY,
-            verify=False,
         )
 
     ##### user ######
