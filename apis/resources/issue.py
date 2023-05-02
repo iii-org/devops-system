@@ -2780,7 +2780,6 @@ def sync_issue_relation():
     issue_family, issue_pj_user_relations = {}, {}
     for project in model.Project.query.all():
         plan_id, pj_id = get_plan_id(project.id), project.id
-        pj_users = [str(user["id"]) for user in project.users]
         if plan_id != -1:
             try:
                 all_issues, _ = redmine.rm_list_issues(
@@ -2789,8 +2788,7 @@ def sync_issue_relation():
                 for issue in all_issues:
                     issue_rel_info = {
                         "plan_project_id": plan_id,
-                        "project_id": pj_id,
-                        "project_users": ",".join(pj_users),
+                        "project_id": pj_id
                     }
                     issue_rel_info = json.dumps(issue_rel_info, default=str)
                     issue_pj_user_relations[issue["id"]] = issue_rel_info
