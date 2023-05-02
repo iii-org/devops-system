@@ -534,17 +534,14 @@ def checkamrx_keep_report(repo_id, keep_record: int = 5):
                     if status_id in {7, 8, 9}:
                         if status_id == 7:  # Finished
                             row.stats = json.dumps(checkmarx.get_scan_statistics(row.scan_id))
-                            report_change = False
+                            # report_change = False
                             if row.report_id is None or row.report_id < 0:
                                 row.report_id = checkmarx.register_report(row.scan_id, False)
-                                if row.report_id is not None and row.report_id > 0:
-                                    report_change = True
+                            if row.report_id is not None and row.report_id > 0:
                                 rep_status_id, value = checkmarx.get_report_status(str(row.report_id), False)
-                                if row.finished_at is None or report_change:
-                                    if rep_status_id == 2:  # 1:InProcess, 2:Created
-                                        row.finished_at = datetime.datetime.utcnow()
-                                        row.finished = True
-                            #     report_count += 1
+                                if rep_status_id == 2:  # 1:InProcess, 2:Created
+                                    row.finished_at = datetime.datetime.utcnow()
+                                    row.finished = True
                         if status_id == 9:  # Failed
                             row.logs = json.dumps(details)
                         row.scan_final_status = status_name
@@ -563,11 +560,11 @@ def checkamrx_keep_report(repo_id, keep_record: int = 5):
                         report_count += 1
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status}")
                     elif status_id == 7 and row.report_id != -1:
-                        if row.finished_at is None:
-                            row.scan_final_status = None
-                            row.report_id = -1
-                            logger.logger.info(
-                                f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status} and report_id {row.report_id}")
+                        # if row.finished_at is None:
+                        #     row.scan_final_status = None
+                        #     row.report_id = -1
+                        #     logger.logger.info(
+                        #         f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status} and report_id {row.report_id}")
                         report_count += 1
                 except Exception as e:
                     logger.logger.exception(str(e))
