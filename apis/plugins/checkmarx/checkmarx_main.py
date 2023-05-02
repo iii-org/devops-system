@@ -566,7 +566,7 @@ def checkamrx_keep_report(repo_id, keep_record: int = 5):
                 except Exception as e:
                     logger.logger.exception(str(e))
             else:
-                logger.logger.info(f"scan: {row.scan_id}, rep_status_id: {row.rep_id}")
+                logger.logger.info(f"scan: {row.scan_id}, rep_status_id: {row.report_id}")
                 # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
                 row.report_id = -1
                 if row.finished is None:
@@ -577,5 +577,5 @@ def checkamrx_keep_report(repo_id, keep_record: int = 5):
                     row.scan_final_status = "Deleted"
                 if row.scan_final_status == "Scanning" or row.scan_final_status == "Queued":
                     row.scan_final_status = "Canceled"
-                logger.logger.info(f"scan: {row.scan_id}, rep_status_id: {row.rep_id}")
+                logger.logger.info(f"scan: {row.scan_id}, rep_status_id: {row.report_id}")
             db.session.commit()
