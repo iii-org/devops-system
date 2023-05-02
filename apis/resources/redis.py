@@ -227,7 +227,7 @@ def remove_issue_pj_user_relations() -> None:
 
 def check_user_has_permission_to_see_issue(issue_id: int) -> bool:
     pj_users = get_single_issue_pj_user_relation(int(issue_id)).get("project_users", "")
-    return str(get_jwt_identity()["user_id"]) in pj_users.split(",")
+    return str(get_jwt_identity()["user_id"]) in pj_users
 
 
 # Project issue calculate Cache
