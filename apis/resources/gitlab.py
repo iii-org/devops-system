@@ -2,7 +2,7 @@ import base64
 import json
 import os
 import re
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 
@@ -47,6 +47,8 @@ from resources.project_relation import (
 from flask_apispec import marshal_with, doc, use_kwargs
 from urls import route_model
 from flask_apispec.views import MethodResource
+from resources.mail import generate_issue_hook_title_and_content
+from resources.notification_message import create_notification_message
 
 GITLAB_NOTFOUND = exceptions
 GITLAB_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
@@ -1022,6 +1024,8 @@ def sync_commit_issues_relation(project_id):
                     )
                     model.db.session.add(new)
                     model.db.session.commit()
+
+                    send_issue_hook_msg(commit_issue_id_list, commit)
                 except IntegrityError:
                     model.db.session.rollback()
                 finally:
@@ -1031,6 +1035,24 @@ def sync_commit_issues_relation(project_id):
             project_commit_endpoint.updated_at = br.commit["committed_date"]
             project_commit_endpoint.commit_id = br.commit["id"]
             model.db.session.commit()
+
+
+def send_issue_hook_msg(commit_issue_id_list: list[str], commit_info: dict[str, Any]) -> None:
+    from resources.issue import get_issue
+
+    for issue_id in commit_issue_id_list:
+        issue_info = get_issue(issue_id)
+        commit_info["url"] = commit_id_to_url(issue_info["project"]["id"], commit_info["id"])
+
+        title, content = generate_issue_hook_title_and_content(issue_info, commit_info)
+        create_notify_msg_args = {
+            "alert_level": 1,
+            "message": content,
+            "title": title,
+            "type_ids": [2],
+            "type_parameters": {"project_ids": [issue_info["project"]["id"]]},
+        }
+        create_notification_message(create_notify_msg_args, user_id=1)
 
 
 def get_project_members(project_id):
