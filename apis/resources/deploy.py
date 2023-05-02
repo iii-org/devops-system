@@ -403,7 +403,7 @@ def get_cluster_config(cluster_id=None):
 
 
 class ClusterConfig(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, cluster_id):
         try:
             output = get_cluster_config(cluster_id)
@@ -2563,7 +2563,7 @@ def get_persistent_volume_claim_json(storage_class_id: int, cluster_name: str) -
 
 
 class PersistentVolumeClaim(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, storage_class_id):
         try:
             cluster_name = get_cluster_name_by_storage_class_id(storage_class_id)
@@ -2625,7 +2625,7 @@ def check_port_can_use(args) -> bool:
 
 
 class CheckPortCanUse(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self, cluster_name: str, expose_port: int):
         try:
             parser = reqparse.RequestParser()
@@ -2874,7 +2874,7 @@ def create_application_header(args) -> int:
 
 
 class ApplicationHeaders(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         try:
             return util.success({"app_headers": get_application_headers()})
@@ -2885,7 +2885,7 @@ class ApplicationHeaders(Resource):
                 error=apiError.get_application_header_failed(app_header_id=None),
             )
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         try:
             parser = reqparse.RequestParser()
@@ -2903,7 +2903,7 @@ class ApplicationHeaders(Resource):
 
 
 class ApplicationHeader(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, app_header_id):
         try:
             args = {"app_header_id": app_header_id}
@@ -2916,7 +2916,7 @@ class ApplicationHeader(Resource):
                 error=apiError.get_application_header_failed(app_header_id=args.get("app_header_id")),
             )
 
-    @jwt_required()
+    @jwt_required
     def patch(self, app_header_id):
         try:
             parser = reqparse.RequestParser()
@@ -2930,7 +2930,7 @@ class ApplicationHeader(Resource):
                 error=apiError.update_deploy_application_failed(app_header_id=app_header_id),
             )
 
-    @jwt_required()
+    @jwt_required
     def delete(self, app_header_id):
         try:
             return util.success(delete_app_header(app_header_id, True))
@@ -2941,7 +2941,7 @@ class ApplicationHeader(Resource):
                 error=apiError.delete_application_header_failed(app_header_id),
             )
 
-    @jwt_required()
+    @jwt_required
     def put(self, app_header_id):
         try:
             parser = reqparse.RequestParser()
@@ -2964,7 +2964,7 @@ class ApplicationHeader(Resource):
 
 
 class DeleteApplicationHeader(Resource):
-    @jwt_required()
+    @jwt_required
     def delete(self, app_header_id, application_id):
         try:
             return util.success(delete_app_header(app_header_id, True, application_id))

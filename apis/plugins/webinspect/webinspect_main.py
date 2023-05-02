@@ -657,7 +657,7 @@ def donwload_pdf(scan_id: str):
 class WebInspectPostScan(Resource):
     @doc(tags=["WebInspect"], description="Create WebInspect scan.")
     @use_kwargs(router_model.WIEScanPostSchema, location="json")
-    @jwt_required()
+    @jwt_required
     def post(self, **kwargs):
         return util.success(create_scan(kwargs))
 
@@ -665,7 +665,7 @@ class WebInspectPostScan(Resource):
 class WebInspectScan(Resource):
     @doc(tags=["WebInspect"], description="Update specific WebInspect scan.")
     @use_kwargs(router_model.WIEScanUpdateSchema, location="json")
-    @jwt_required()
+    @jwt_required
     def patch(self, s_id, **kwargs):
         return util.success(update_scan(s_id, kwargs))
 
@@ -675,7 +675,7 @@ class WebInspectScan(Resource):
 class WebInspectListScan(Resource):
     @doc(tags=["WebInspect"], description="List project's WebInspect scans.")
     @use_kwargs(router_model.WIEScanGetSchema, location="query")
-    @jwt_required()
+    @jwt_required
     def get(self, project_id, **kwargs):
         role.require_in_project(project_id=project_id)
         return util.success(
@@ -688,7 +688,7 @@ class WebInspectListScan(Resource):
 class WebInspectDownloadReport(Resource):
     @doc(tags=["WebInspect"], description="List project's WebInspect scans.")
     @use_kwargs(router_model.WebInspectDownloadReportSchema, location="query")
-    @jwt_required()
+    @jwt_required
     def get(self, project_id, **kwargs):
         role.require_in_project(project_id=project_id)
         return donwload_pdf(kwargs["scan_id"])

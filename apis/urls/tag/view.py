@@ -156,6 +156,6 @@ class TagV2(MethodResource):
 class TagOrderV2(MethodResource):
     @doc(tags=["Tag"], description="Tag's order API")
     @use_kwargs(router_model.TagOrderSchema, location="json")
-    @jwt_required()
+    @jwt_required
     def put(self, **kwargs):
         return util.success(move_tag(kwargs["tag_id"], kwargs.get("to_tag_id")))
