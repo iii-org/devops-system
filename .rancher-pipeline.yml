@@ -84,6 +84,7 @@ stages:
       - project_issue
       - develop
       - son-project-issue
+      - ics
 - name: Build--Build and push docker image
   iiidevops: deployed-environments
   steps:
@@ -109,6 +110,7 @@ stages:
       - project_issue
       - develop
       - son-project-issue
+      - ics
 - name: Build--Scan docker image
   iiidevops: deployed-environments
   steps:
@@ -130,6 +132,7 @@ stages:
       - project_issue
       - develop
       - son-project-issue
+      - ics
 - name: Build--Copy Image
   iiidevops: deployed-environments
   steps:
@@ -167,6 +170,7 @@ stages:
       - project_issue
       - develop
       - son-project-issue
+      - ics
 - name: Deploy--Web
   iiidevops: deployed-environments
   steps:
@@ -197,6 +201,7 @@ stages:
       - project_issue
       - develop
       - son-project-issue
+      - ics
 - name: Deploy--Wait Web deployment
   iiidevops: deployed-environments
   steps:
@@ -225,6 +230,7 @@ stages:
       - project_issue
       - develop
       - son-project-issue
+      - ics
 - name: Test--Anchore SBOM
   iiidevops: anchore
   steps:
