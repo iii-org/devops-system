@@ -1331,7 +1331,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         return output
 
     # Parse filter_issues
-    output = [common_project_issue_info_serializer(issue, args.get("with_point", False)) for issue in output]
+    output = [common_project_issue_info_serializer(issue, args.get("with_point", False), download) for issue in output]
 
     if download:
         return output
@@ -1419,7 +1419,7 @@ def __get_trace_issues_info(res: dict[int, int], issue_list: list[int]):
     return res
 
 
-def common_project_issue_info_serializer(issue: dict[str, Any], with_point: bool = False):
+def common_project_issue_info_serializer(issue: dict[str, Any], with_point: bool = False, download: bool = False):
     issue["name"] = issue.pop("subject")
 
     if issue.get("fixed_version") is None:
@@ -1446,8 +1446,13 @@ def common_project_issue_info_serializer(issue: dict[str, Any], with_point: bool
     else:
         issue["author"] = {}
 
+    if download:
+        by_user_permission = False
+    else:
+        by_user_permission = get_jwt_identity()["role_id"] != role.ADMIN.id
+
     has_children = check_issue_has_son(
-        str(issue["id"]), by_user_permission=get_jwt_identity()["role_id"] != role.ADMIN.id
+        str(issue["id"]), by_user_permission=by_user_permission
     )
     issue["is_closed"] = issue["status"]["id"] in NexusIssue.get_closed_statuses()
     issue["issue_link"] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
