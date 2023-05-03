@@ -1025,7 +1025,7 @@ def sync_commit_issues_relation(project_id):
                     model.db.session.add(new)
                     model.db.session.commit()
 
-                    send_issue_hook_msg(commit_issue_id_list, commit)
+                    # send_issue_hook_msg(commit_issue_id_list, commit)
                 except IntegrityError:
                     model.db.session.rollback()
                 finally:
