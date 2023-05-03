@@ -373,6 +373,11 @@ user_url(api, add_resource)
 api.add_resource(role.RoleList, "/user/role/list")
 
 # pipeline
+api.add_resource(pipeline.PipelineExecAction, "/pipelines/<repository_id>/pipelines_exec/action")
+api.add_resource(pipeline.PipelineExec, "/pipelines/<repository_id>/pipelines_exec")
+api.add_resource(pipeline.PipelineConfig, "/pipelines/<repository_id>/config")
+api.add_resource(pipeline.Pipeline, "/pipelines/<repository_id>/pipelines")
+
 # api.add_resource(pipeline.Pipeline, "/pipelines/<repository_id>/pipelines")
 # api.add_resource(pipeline.PipelineExec, "/pipelines/<repository_id>/pipelines_exec")
 # api.add_resource(pipeline.PipelineConfig, "/pipelines/<repository_id>/config")
@@ -383,7 +388,7 @@ api.add_resource(role.RoleList, "/user/role/list")
 
 # Websocket
 socketio.on_namespace(system_parameter.SyncTemplateWebsocketLog("/sync_template/websocket/logs"))
-socketio.on_namespace(kubernetesClient.KubernetesPodExec("/k8s/websocket/pod_exec"))
+socketio.on_namespace(pipeline.PipelineWebsocketLog("/pipeline/websocket/logs"))
 socketio.on_namespace(issue.IssueSocket("/issues/websocket"))
 
 # issue

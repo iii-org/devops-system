@@ -52,6 +52,18 @@ GITLAB_NOTFOUND = exceptions
 GITLAB_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 iiidevops_system_group = ["iiidevops-templates", "local-templates", "iiidevops-catalog"]
 
+Maintainer = 40
+"""
+    access_level:
+    # No access (0)
+    # Minimal access (5)
+    # Guest (10)
+    # Reporter (20)
+    # Developer (30)
+    # Maintainer (40)
+    # Owner (50)
+"""
+
 
 def get_nexus_project_id(repo_id):
     row = model.ProjectPluginRelation.query.filter_by(git_repository_id=repo_id).first()
@@ -105,7 +117,22 @@ class GitLab(object):
             cmd = f'echo "$(sed /$GITLAB_DOMAIN_NAME/d /etc/hosts)" > /etc/hosts; echo "{cluster_ip} $GITLAB_DOMAIN_NAME" >> /etc/hosts'
             os.system(cmd)
 
-        self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
+        if config.get("GITLAB_API_VERSION") == "v3":
+            # get gitlab admin token
+            url = f'{config.get("GITLAB_BASE_URL")}/api/v3/session'
+            param = {
+                "login": config.get("GITLAB_ADMIN_ACCOUNT"),
+                "password": config.get("GITLAB_ADMIN_PASSWORD"),
+            }
+            output = requests.post(
+                url,
+                data=json.dumps(param),
+                headers={"Content-Type": "application/json"},
+                verify=False,
+            )
+            self.private_token = output.json()["private_token"]
+        else:
+            self.private_token = config.get("GITLAB_PRIVATE_TOKEN")
         logger.info(config.get("GITLAB_BASE_URL"))
         self.gl = Gitlab(
             config.get("GITLAB_BASE_URL"),
@@ -192,6 +219,29 @@ class GitLab(object):
 
     def gl_delete_project(self, repo_id):
         return self.__api_delete(f"/projects/{repo_id}")
+
+    def gl_create_group(self, group_name: str):
+        return self.__api_post(f"/groups", params={"name": group_name, "path": group_name}).json()
+
+    def gl_group_add_maintainer(self, group_id, user_id):
+        return self.__api_post(
+            f"/groups/{group_id}/members", params={"id": group_id, "user_id": user_id, "access_level": Maintainer}
+        ).json()
+
+    def gl_list_groups(self):
+        return self.__api_get(f"/groups").json()
+
+    def get_group_id_for_name(self, group_name):
+        group_list = self.gl_list_groups()
+        for group in group_list:
+            if group.get("name") == group_name:
+                return group.get("id")
+        return None
+
+    def gl_project_share_maintainer_group(self, repo_id: int, group_id: int):
+        return self.__api_post(
+            f"/projects/{repo_id}/share", params={"id": repo_id, "group_id": group_id, "group_access": Maintainer}
+        )
 
     def gl_create_user(self, args, user_source_password, is_admin=False):
         data = {
@@ -857,6 +907,80 @@ class GitLab(object):
                     "commit_id": commit.id,
                 }
             util.write_json_file(f"{base_path}/{pj.id}/{date}.json", result)
+
+    def __gl_start_convert_page(self, start: int, limit: int):
+        page = (start // limit) + 1
+        return page
+
+    # pipeline
+    def gl_list_pipelines(
+        self,
+        repo_id: int,
+        limit: int,
+        start: int,
+        branch: str = None,
+        sort: str = "desc",
+        with_pagination: bool = False,
+    ) -> list[dict[str, Any]]:
+
+        params = {"page": self.__gl_start_convert_page(start, limit), "per_page": limit, "sort": sort}
+        if branch is not None:
+            params["ref"] = branch
+
+        ret = self.__api_get(f"/projects/{repo_id}/pipelines", params=params)
+        results = ret.json()
+        if not with_pagination:
+            return results
+
+        headers = ret.headers
+        pagination = {
+            "total": int(headers.get("X-Total") or 0),
+            "current": int(headers.get("X-Page") or 0),
+            "prev": int(headers.get("X-Prev-Page") or 0),
+            "next": int(headers.get("X-Next-Page") or 0),
+            "pages": int(headers.get("X-Total-Pages") or 0),
+            "per_page": limit,
+        }
+        return results, pagination
+
+    def gl_get_single_pipeline(self, repo_id: int, pipeline_id: int):
+        return self.__api_get(f"/projects/{repo_id}/pipelines/{pipeline_id}").json()
+
+    def gl_get_pipeline_console(self, repo_id: int, job_id: int):
+        return self.__api_get(f"/projects/{repo_id}/jobs/{job_id}/trace").content.decode("utf-8")
+
+    def gl_rerun_pipeline_job(self, repo_id: int, pipeline_id: int):
+        return self.__api_post(f"/projects/{repo_id}/pipelines/{pipeline_id}/retry").json()
+
+    def gl_create_pipeline(self, repo_id: int, branch: str):
+        return self.__api_post(f"/projects/{repo_id}/pipeline", {"ref": branch}).json()
+
+    def gl_stop_pipeline_job(self, repo_id: int, pipeline_id: int):
+        return self.__api_post(f"/projects/{repo_id}/pipelines/{pipeline_id}/cancel").json()
+
+    def gl_pipeline_jobs(self, repo_id: int, pipeline_id: int) -> dict[str, Any]:
+        return self.__api_get(f"/projects/{repo_id}/pipelines/{pipeline_id}/jobs").json()
+
+    def get_pipeline_jobs_status(self, repo_id: int, pipeline_id: int, with_commit_msg: bool = False) -> dict[str, int]:
+        from resources.template import initial_gitlab_pipline_info
+
+        jobs = self.gl_pipeline_jobs(repo_id, pipeline_id)
+        success = len([job for job in jobs if job["status"] == "success"])
+
+        branch = self.gl_get_single_pipeline(repo_id, pipeline_id)["ref"]
+        pipeline_info = initial_gitlab_pipline_info(repo_id, branch)
+        total = len(pipeline_info["pipe_dict"])
+        ret = {"status": {"total": total, "success": success}}
+        if with_commit_msg:
+            commit_message = jobs[0].get("commit", {}).get("title", "") if jobs else ""
+            ret.update({"commit_message": commit_message})
+        return ret
+
+    def create_pipeline(self, repo_id: int, branch: str):
+        latest_pipeline_info = self.gl_list_pipelines(repo_id=repo_id, limit=1, start=0, branch=branch)[0]
+        sha = latest_pipeline_info["sha"]
+        commit_msg = self.single_commit(repo_id, sha)["title"]
+        return self.create_commit(repo_id, branch, commit_msg)
 
 
 def single_file(
