@@ -34,7 +34,6 @@ stages:
       - jonathan
       - project_issue
       - develop
-      - rm_watch
 - name: Test--Checkmarx source code scan
   iiidevops: checkmarx
   steps:
@@ -56,7 +55,6 @@ stages:
       - master
       - project_issue
       - develop
-      - rm_watch
 - name: Deploy--Set Web environment variables
   iiidevops: deployed-environments
   steps:
@@ -325,7 +323,6 @@ stages:
       - subissue
       - project_issue
       - develop
-      - rm_watch
 - name: Test--SideeX
   iiidevops: sideex
   steps:
