@@ -32,6 +32,7 @@ stages:
       include:
       - master
       - jonathan
+      - project_issue
       - develop
 - name: Test--Checkmarx source code scan
   iiidevops: checkmarx
@@ -52,6 +53,7 @@ stages:
     branch:
       include:
       - master
+      - project_issue
       - develop
 - name: Deploy--Set Web environment variables
   iiidevops: deployed-environments
@@ -79,7 +81,9 @@ stages:
       - jonathan
       - subissue
       - sso
+      - project_issue
       - develop
+      - son-project-issue
 - name: Build--Build and push docker image
   iiidevops: deployed-environments
   steps:
@@ -102,7 +106,9 @@ stages:
       - jonathan
       - subissue
       - sso
+      - project_issue
       - develop
+      - son-project-issue
 - name: Build--Scan docker image
   iiidevops: deployed-environments
   steps:
@@ -121,7 +127,9 @@ stages:
       - jonathan
       - subissue
       - sso
+      - project_issue
       - develop
+      - son-project-issue
 - name: Build--Copy Image
   iiidevops: deployed-environments
   steps:
@@ -156,7 +164,9 @@ stages:
       - jonathan
       - subissue
       - sso
+      - project_issue
       - develop
+      - son-project-issue
 - name: Deploy--Web
   iiidevops: deployed-environments
   steps:
@@ -184,7 +194,9 @@ stages:
       - jonathan
       - subissue
       - sso
+      - project_issue
       - develop
+      - son-project-issue
 - name: Deploy--Wait Web deployment
   iiidevops: deployed-environments
   steps:
@@ -210,7 +222,9 @@ stages:
       - jonathan
       - subissue
       - sso
+      - project_issue
       - develop
+      - son-project-issue
 - name: Test--Anchore SBOM
   iiidevops: anchore
   steps:
@@ -295,8 +309,8 @@ stages:
       include:
       - master
       - subissue
+      - project_issue
       - develop
-      - subissue
 - name: Test--SideeX
   iiidevops: sideex
   steps:
