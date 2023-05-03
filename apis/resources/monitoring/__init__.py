@@ -53,9 +53,6 @@ AlertServiceIDMapping = {
     "K8s not alive": 401,
     "Kubernetes node has insufficient storage": 402,
     "Sonarqube not alive": 501,
-    "Rancher not alive": 601,
-    "Rancher AppRevision counts out of limit": 602,
-    "Rancher pod restart times out of limits": 603,
     "Excalidraw not alive": 1001,
     "ad not alive": 1002,
     "SMTP not alive": 1101,
@@ -69,7 +66,6 @@ def plugin_disable_or_not():
         "Harbor",
         "Kubernetes",
         "Sonarqube",
-        "Rancher",
         "Excalidraw",
     ]
     plugin_software = PluginSoftware.query.all()
@@ -338,24 +334,6 @@ class Monitoring:
             url=config.get("SONARQUBE_INTERNAL_BASE_URL"),
         )
 
-    # Rancher
-    def rancher_alive(self, is_project=False, is_check: bool = True):
-        self.server = "Rancher"
-        self.alert_service_id = 601
-        rancher_alive = self.__check_server_alive(
-            rancher.rc_get_pipeline_info,
-            check_url_alive,
-            self.ci_pj_id,
-            url=f"http://{config.get('RANCHER_IP_PORT')}",
-        )
-        if not rancher_alive or is_project:
-            return rancher_alive
-        if not self.__check_server_element_alive(rancher_projects_limit_num):
-            rancher_alive = False
-        if not self.__check_server_element_alive(rancher_pod_restart_times_outoflimits, is_check):
-            rancher_alive = False
-        return rancher_alive
-
     # Plugins
     def excalidraw_alive(self):
         from resources.excalidraw import check_excalidraw_alive
@@ -417,7 +395,6 @@ class Monitoring:
                 "Harbor": self.harbor_alive(is_project),
                 "K8s": self.kubernetes_alive(is_project),
                 "Sonarqube": self.sonarqube_alive(),
-                "Rancher": self.rancher_alive(is_project, False),
             },
             "all_alive": self.all_alive,
         }
@@ -656,70 +633,4 @@ def gitlab_projects_storage_limit():
         "message": message,
         "error_title": "Gitlab projects are exceeded its storage limit",
         # "invalid_project_id_mapping": invalid_project_id_mapping
-    }
-
-
-def rancher_projects_limit_num():
-    command = "kubectl get apprevisions -n $(kubectl get project -n local -o jsonpath=\"{.items[?(@.spec.displayName=='Default')].metadata.name}\") | grep -v NAME | wc -l"
-    output_str, _ = util.ssh_to_node_by_key(command, config.get("DEPLOYER_NODE_IP"))
-    parameter = SystemParameter.query.filter_by(name="rancher_app_revision_limit").first()
-    logger.logger.info(
-        f"Rancher monitor app limit num. Default: {parameter.value['limit_nums']}, Current: {output_str}"
-    )
-    if int(output_str) >= int(parameter.value["limit_nums"]):
-        return {
-            "error_title": "Rancher AppRevision counts out of limit",
-            "status": False,
-            "message": f"Rancher AppRevision counts surpass {parameter.value['limit_nums']}. Now is {output_str}.",
-        }
-    else:
-        return {
-            "error_title": "Rancher AppRevision counts out of limit",
-            "status": True,
-        }
-
-
-def rancher_pod_restart_times_outoflimits(is_check: bool = False):
-    # 取得目前TUC時間
-    utcnow = datetime.utcnow()
-    # 檢查 utcnow 的分 >= 5 and < 10 才做 pod 重啟上限值檢查
-    if 5 <= utcnow.minute < 10 or is_check:
-        # 獲取restart上限值
-        condition = SystemParameter.query.filter_by(name="k8s_pod_restart_times_limit").one()
-        if not condition.active or condition.active is None:
-            raise apiError.DevOpsError(
-                404,
-                "k8s_pod_restart_times_limit.active is null or false in system_parameter table.",
-            )
-        limit_times = condition.value["limit_times"]
-        # 獲取過去一小時內重啟次數資料
-        last_hour = utcnow - timedelta(hours=1)
-        limit_hour = last_hour.strftime("%Y-%m-%d %H:00:00")
-        data_collections = ServerDataCollection.query.filter_by(type_id=1).filter(
-            ServerDataCollection.collect_at > limit_hour,
-            func.cast(func.cast(ServerDataCollection.value["value"], Text), Integer) >= limit_times,
-        )
-        # 進行監控並回傳結果
-        message = []
-        if data_collections:
-            for data_collection in data_collections:
-                detail = data_collection.detail
-                restart_times = data_collection.value["value"]
-                if restart_times > limit_times:
-                    row = Project.query.filter_by(id=data_collection.project_id).first()
-                    if row:
-                        project_name = row.name
-                        message.append(
-                            f"Project: {project_name} Restart times of pod({detail['pod_name']}) belong in container("
-                            f"{detail['containers_name']}) has surpassed {limit_times} times({restart_times}) in 1 hour.",
-                        )
-        if message:
-            return {
-                "status": False,
-                "message": "\n".join(message),
-                "error_title": "Rancher pod restart times out of limits",
-            }
-    return {
-        "error_title": "Rancher pod restart times out of limits",
-        "status": True,
     }

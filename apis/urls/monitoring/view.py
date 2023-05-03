@@ -23,8 +23,6 @@ from resources.monitoring import (
     server_alive,
     plugin_disable_or_not,
 )
-from resources.rancher import rancher
-from resources.rancher import remove_extra_executions
 from resources.redis import get_server_alive, update_server_alive
 from urls.monitoring import router_model
 
@@ -181,48 +179,6 @@ class SonarQubeAlive(Resource):
 
 
 ####################
-# rancher
-####################
-@doc(tags=["Monitoring"], description="Get Rancher server's status")
-@marshal_with(router_model.ServerAliveResponse)
-class RancherAliveV2(MethodResource):
-    @jwt_required
-    def get(self):
-        return server_alive("Rancher")
-
-
-class RancherAlive(Resource):
-    @jwt_required
-    def get(self):
-        return server_alive("Rancher")
-
-
-@doc(tags=["Monitoring"], description="Check Rancher name is changed to default or not")
-@marshal_with(router_model.RancherDefaultNameResponse)
-class RancherDefaultNameV2(MethodResource):
-    @jwt_required
-    def get(self):
-        rancher.rc_get_cluster_id()
-        return {"default_cluster_name": rancher.cluster_id is not None}
-
-
-class RancherDefaultName(Resource):
-    @jwt_required
-    def get(self):
-        rancher.rc_get_cluster_id()
-        return {"default_cluster_name": rancher.cluster_id is not None}
-
-
-@doc(tags=["monitoring"], description="DeleteApprevisions")
-@marshal_with(util.CommonResponse)
-class DeleteApprevisions(MethodResource):
-    def delete(self):
-        os.chmod("./apis/urls/monitoring/apprevisions.sh", 0o777)
-        subprocess.run("./apis/urls/monitoring/apprevisions.sh")
-        return util.success()
-
-
-####################
 # k8s
 ####################
 @doc(tags=["Monitoring"], description="Get Kubernetes server's status")
@@ -297,17 +253,6 @@ class CollectPodRestartTime(Resource):
         expired_date = datetime.utcnow() - timedelta(days=30)
         ServerDataCollection.query.filter_by(type_id=1).filter(ServerDataCollection.create_at <= expired_date).delete()
         db.session.commit()
-
-
-@doc(tags=["Monitoring"], description="Remove extra k8s executions.")
-class RemoveExtraExecutionsV2(MethodResource):
-    def post(self):
-        remove_extra_executions()
-
-
-class RemoveExtraExecutions(Resource):
-    def post(self):
-        remove_extra_executions()
 
 
 ####################

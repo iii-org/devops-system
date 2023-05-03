@@ -44,7 +44,6 @@ from plugins.zap import zap_main as zap
 from plugins.sideex import sideex_main as sideex
 from plugins.cmas import cmas_main as cmas
 from .gitlab import gitlab, unprotect_project
-from .rancher import rancher, remove_pj_executions
 from .redmine import redmine
 from resources.monitoring import Monitoring
 from resources.harbor import harbor_scan
@@ -56,6 +55,7 @@ from resources import role
 from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
 import config
 import pandas as pd
+from .rancher import rancher
 from .rancher import get_all_appname_by_project
 from resources.keycloak import key_cloak
 from typing import Any
@@ -449,8 +449,7 @@ def create_project_main(user_id: int, args: dict[str, Any], pj_id_mapping: dict[
     uuids = uuid.uuid1().hex
 
     try:
-        rancher_pipeline_id = create_project_rancher(gitlab_pj_http_url, project_name)
-        ret_pi_id_mapping = create_project_store_in_db(user_id, rancher_pipeline_id, uuids, args, pj_id_mapping)
+        ret_pi_id_mapping = create_project_store_in_db(user_id, uuids, args, pj_id_mapping)
         project_id = ret_pi_id_mapping["project_id"]
 
         # 若有父專案, 加關聯進ProjectParentSonRelation
@@ -493,8 +492,6 @@ def create_project_main(user_id: int, args: dict[str, Any], pj_id_mapping: dict[
         harbor.hb_delete_project(harbor_param)
         kubernetesClient.delete_namespace(project_name)
         sonarqube.sq_delete_project(project_name)
-        t_rancher = DevOpsThread(target=rancher.rc_disable_project_pipeline, args=(gitlab_pj_http_url,))
-        t_rancher.start()
         kubernetesClient.delete_namespace(project_name)
         key_cloak.delete_group(key_cloak_group_id)
 
@@ -506,20 +503,8 @@ def create_project_main(user_id: int, args: dict[str, Any], pj_id_mapping: dict[
         raise e
 
 
-def create_project_rancher(gitlab_pj_http_url: str, project_name: str) -> str:
-    # Enable rancher pipeline
-    rancher.rc_get_project_id()
-    t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline, args=(gitlab_pj_http_url,))
-    t_rancher.start()
-    rancher_pipeline_id = t_rancher.join_()
-
-    # Add kubernetes namespace into rancher default project
-    rancher.rc_add_namespace_into_rc_project(project_name)
-    return rancher_pipeline_id
-
-
 def create_project_store_in_db(
-    user_id: int, rancher_pipeline_id: int, uuids: str, args: dict[str, Any], pj_id_mapping: dict[str : dict[str, Any]]
+    user_id: int, uuids: str, args: dict[str, Any], pj_id_mapping: dict[str : dict[str, Any]]
 ) -> None:
     owner_id = args["owner_id"] or user_id
     # get base_example
@@ -568,17 +553,9 @@ def create_project_store_in_db(
         git_repository_id=gitlab_pj_id,
         harbor_project_id=harbor_pj_id,
         ci_project_id=rancher.project_id,
-        ci_pipeline_id=rancher_pipeline_id,
         key_cloak_group_id=key_cloak_group_id,
     )
     db.session.add(new_relation)
-    db.session.commit()
-
-    # Create PipelineUpdateVersion
-    from resources.check_version import LATEST_VERSION
-
-    row = model.PipelineUpdateVersion(project_id=project_id, version=LATEST_VERSION)
-    db.session.add(row)
     db.session.commit()
 
     return {
@@ -613,258 +590,6 @@ def create_project_add_nfs_folder(uuids: str, project_name: str):
         project_nfs_file_path = f"./devops-data/project-data/{project_name}/{folder}"
         os.makedirs(project_nfs_file_path, exist_ok=True)
         os.chmod(project_nfs_file_path, 0o777)
-
-
-# def create_project()
-# is_inherit_members = args.pop("is_inheritance_member", False)
-# if args["description"] is None:
-#     args["description"] = ""
-# if args["display"] is None:
-#     args["display"] = args["name"]
-# if not args["owner_id"]:
-#     owner_id = user_id
-# else:
-#     owner_id = args["owner_id"]
-# project_name = args["name"]
-# # create namespace in kubernetes
-# try:
-#     kubernetesClient.create_namespace(project_name)
-#     kubernetesClient.create_role_in_namespace(project_name)
-#     kubernetesClient.create_namespace_quota(project_name)
-#     kubernetesClient.create_namespace_limitrange(project_name)
-# except ApiException as e:
-#     if e.status == 409:
-#         raise DevOpsError(
-#             e.status,
-#             "Kubernetes already has this identifier.",
-#             error=apiError.identifier_has_been_taken(args["name"]),
-#         )
-#     kubernetesClient.delete_namespace(project_name)
-#     raise e
-
-# # 取得母專案資訊
-# if args.get("parent_id", None) is not None:
-#     parent_plan_project_id = get_plan_project_id(args.get("parent_id"))
-#     args["parent_plan_project_id"] = parent_plan_project_id
-
-# # 使用 multi-thread 建立各專案
-# services = ["redmine", "gitlab", "harbor", "sonarqube"]
-# targets = {
-#     "redmine": redmine.rm_create_project,
-#     "gitlab": gitlab.gl_create_project,
-#     "harbor": harbor.hb_create_project,
-#     "sonarqube": sonarqube.sq_create_project,
-# }
-# service_args = {
-#     "redmine": (args,),
-#     "gitlab": (args,),
-#     "harbor": (args["name"],),
-#     "sonarqube": (args["name"], args.get("display")),
-# }
-# helper = util.ServiceBatchOpHelper(services, targets, service_args)
-# helper.run()
-
-# # 先取出已成功的專案建立 id，以便之後可能的回溯需求
-# redmine_pj_id = None
-# gitlab_pj_id = None
-# gitlab_pj_name = None
-# gitlab_pj_ssh_url = None
-# gitlab_pj_http_url = None
-# harbor_pj_id = None
-# project_name = args["name"]
-
-# for service in services:
-#     if helper.errors[service] is None:
-#         output = helper.outputs[service]
-#         if service == "redmine":
-#             redmine_pj_id = output["project"]["id"]
-#         elif service == "gitlab":
-#             gitlab_pj_id = output["id"]
-#             gitlab_pj_name = output["name"]
-#             gitlab_pj_ssh_url = output["ssh_url_to_repo"]
-#             gitlab_pj_http_url = output["http_url_to_repo"]
-#         elif service == "harbor":
-#             harbor_pj_id = output
-
-# # 如果不是全部都成功，rollback
-# if any(helper.errors.values()):
-#     kubernetesClient.delete_namespace(project_name)
-#     for service in services:
-#         if helper.errors[service] is None:
-#             if service == "redmine":
-#                 redmine.rm_delete_project(redmine_pj_id)
-#             elif service == "gitlab":
-#                 gitlab.gl_delete_project(gitlab_pj_id)
-#             elif service == "harbor":
-#                 harbor_param = [harbor_pj_id, project_name]
-#                 harbor.hb_delete_project(harbor_param)
-#             elif service == "sonarqube":
-#                 sonarqube.sq_delete_project(project_name)
-
-#     # 丟出服務序列在最前的錯誤
-#     for service in services:
-#         e = helper.errors[service]
-#         if e is not None:
-#             if service == "redmine":
-#                 status_code = e.status_code
-#                 resp = e.unpack_response()
-#                 if status_code == 422 and "errors" in resp:
-#                     if len(resp["errors"]) > 0:
-#                         if resp["errors"][0] == "Identifier has already been taken":
-#                             raise DevOpsError(
-#                                 status_code,
-#                                 "Redmine already used this identifier.",
-#                                 error=apiError.identifier_has_been_taken(args["name"]),
-#                             )
-#                 raise e
-#             elif service == "gitlab":
-#                 status_code = e.status_code
-#                 gitlab_json = e.unpack_response()
-#                 if status_code == 400:
-#                     try:
-#                         if gitlab_json["message"]["name"][0] == "has already been taken":
-#                             raise DevOpsError(
-#                                 status_code,
-#                                 {"gitlab": gitlab_json},
-#                                 error=apiError.identifier_has_been_taken(args["name"]),
-#                             )
-#                     except (KeyError, IndexError):
-#                         pass
-#                 raise e
-#             else:
-#                 raise e
-# try:
-#     project_id = None
-#     uuids = uuid.uuid1().hex
-#     # enable rancher pipeline
-#     rancher.rc_get_project_id()
-#     t_rancher = DevOpsThread(target=rancher.rc_enable_project_pipeline, args=(gitlab_pj_http_url,))
-#     t_rancher.start()
-#     rancher_pipeline_id = t_rancher.join_()
-
-#     # add kubernetes namespace into rancher default project
-#     rancher.rc_add_namespace_into_rc_project(args["name"])
-
-#     # get base_example
-#     template_pj_path = None
-#     if args.get("template_id") is not None:
-#         template_pj = template.get_projects_detail(args["template_id"])
-#         template_pj_path = template_pj.path
-
-#     # Insert into nexus database
-#     new_pjt = model.Project(
-#         name=gitlab_pj_name,
-#         display=args["display"],
-#         description=args["description"],
-#         ssh_url=gitlab_pj_ssh_url,
-#         http_url=gitlab_pj_http_url,
-#         disabled=args["disabled"],
-#         start_date=args["start_date"],
-#         due_date=args["due_date"],
-#         create_at=str(datetime.utcnow()),
-#         owner_id=owner_id,
-#         creator_id=user_id,
-#         base_example=template_pj_path,
-#         example_tag=args["tag_name"],
-#         uuid=uuids,
-#         is_inheritance_member=is_inherit_members,
-#         is_empty_project=args.get("template_id") is None,
-#     )
-#     db.session.add(new_pjt)
-#     db.session.commit()
-#     project_id = new_pjt.id
-
-#     # 加關聯project_plugin_relation
-#     new_relation = model.ProjectPluginRelation(
-#         project_id=project_id,
-#         plan_project_id=redmine_pj_id,
-#         git_repository_id=gitlab_pj_id,
-#         harbor_project_id=harbor_pj_id,
-#         ci_project_id=rancher.project_id,
-#         ci_pipeline_id=rancher_pipeline_id,
-#     )
-#     db.session.add(new_relation)
-#     db.session.commit()
-
-#     # 若有父專案, 加關聯進ProjectParentSonRelation
-#     if args.get("parent_plan_project_id") is not None:
-#         new_father_son_relation = model.ProjectParentSonRelation(
-#             parent_id=args.get("parent_id"),
-#             son_id=project_id,
-#             created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-#         )
-#         db.session.add(new_father_son_relation)
-#         db.session.commit()
-
-#     # 加關聯project_user_role
-#     project_add_member(project_id, owner_id)
-#     if owner_id != user_id:
-#         project_add_subadmin(project_id, user_id)
-#     create_bot(project_id)
-
-#     # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
-#     if is_inherit_members and args.get("parent_plan_project_id") is not None:
-#         for row in (
-#             db.session.query(model.User, ProjectUserRole)
-#             .join(model.User)
-#             .filter(model.ProjectUserRole.project_id == args.get("parent_id"))
-#             .all()
-#         ):
-#             if (
-#                 row.User.id not in [owner_id, user_id]
-#                 and not row.User.login.startswith("project_bot")
-#                 and row.ProjectUserRole.role_id != 7
-#             ):
-#                 project_add_member(project_id, row.User.id)
-
-#     # Commit and push file by template , if template env is not None
-#     if args.get("template_id") is not None:
-#         template.tm_use_template_push_into_pj(
-#             args["template_id"],
-#             gitlab_pj_id,
-#             args["tag_name"],
-#             args["arguments"],
-#             uuids,
-#         )
-
-#     # Create PipelineUpdateVersion
-#     from resources.check_version import LATEST_VERSION
-
-#     row = model.PipelineUpdateVersion(project_id=project_id, version=LATEST_VERSION)
-#     db.session.add(row)
-#     db.session.commit()
-
-#     # Create project NFS folder /(uuid)
-#     for folder in ["pipeline", uuids]:
-#         project_nfs_file_path = f"./devops-data/project-data/{gitlab_pj_name}/{folder}"
-#         os.makedirs(project_nfs_file_path, exist_ok=True)
-#         os.chmod(project_nfs_file_path, 0o777)
-
-#     return {
-#         "project_id": project_id,
-#         "plan_project_id": redmine_pj_id,
-#         "git_repository_id": gitlab_pj_id,
-#         "harbor_project_id": harbor_pj_id,
-#         "description": args["description"],
-#         "project_url": f'http://{config.get("DEPLOYMENT_NAME")}/#/plan/{project_name}/overview',
-#     }
-# except Exception as e:
-#     redmine.rm_delete_project(redmine_pj_id)
-#     gitlab.gl_delete_project(gitlab_pj_id)
-#     harbor_param = [harbor_pj_id, project_name]
-#     harbor.hb_delete_project(harbor_param)
-#     kubernetesClient.delete_namespace(project_name)
-#     sonarqube.sq_delete_project(project_name)
-#     t_rancher = DevOpsThread(target=rancher.rc_disable_project_pipeline, args=(gitlab_pj_http_url,))
-#     t_rancher.start()
-#     kubernetesClient.delete_namespace(project_name)
-
-#     if project_id is not None:
-#         delete_bot(project_id)
-#         db.engine.execute("DELETE FROM public.project_plugin_relation WHERE project_id = '{0}'".format(project_id))
-#         db.engine.execute("DELETE FROM public.project_user_role WHERE project_id = '{0}'".format(project_id))
-#         db.engine.execute("DELETE FROM public.projects WHERE id = '{0}'".format(project_id))
-#     raise e
 
 
 def project_add_subadmin(project_id, user_id):
@@ -953,7 +678,7 @@ def pm_update_project(project_id, args):
     if args.get("disabled") is not None:
         disabled = args["disabled"]
         gitlab.gl_archive_project(plugin_relation.git_repository_id, disabled)
-        rancher.rc_del_app_with_prefix(f"{project_name}-")
+        # rancher.rc_del_app_with_prefix(f"{project_name}-")
 
     # 若有父專案, 加關聯進ProjectParentSonRelation, 須等redmine更新完再寫入
     if args.get("parent_plan_project_id") is not None:
@@ -1075,15 +800,6 @@ def delete_project_helper(project_id):
 
     delete_bot(project_id, sso=True)
 
-    try:
-        # disabled rancher pipeline
-        rancher.rc_disable_project_pipeline(relation.ci_project_id, relation.ci_pipeline_id)
-        # remove kubernetes namespace out to rancher project
-        rancher.rc_add_namespace_into_rc_project(None)
-    except DevOpsError as e:
-        if e.status_code != 404:
-            raise e
-
     try_to_delete(gitlab.gl_delete_project, gitlab_project_id)
     try_to_delete(redmine.rm_delete_project, redmine_project_id)
     if harbor_project_id is not None:
@@ -1095,7 +811,7 @@ def delete_project_helper(project_id):
     # delete rancher app
     try_to_delete(rancher.rc_del_app_when_devops_del_pj, project_name)
     # delete rancher pod execution
-    try_to_delete(remove_pj_executions, project_id)
+
     # delete kubernetes namespace
     try_to_delete(kubernetesClient.delete_namespace, project_name)
 
@@ -1561,15 +1277,15 @@ def get_kubernetes_namespace_quota(project_id):
     project_quota = kubernetesClient.get_namespace_quota(project_name)
     deployments = kubernetesClient.list_namespace_deployments(project_name)
     ingresses = kubernetesClient.list_namespace_ingresses(project_name)
-    apps = rancher.rc_get_apps_all()
-    df_app = pd.DataFrame(apps)
-    df_project_app = df_app[df_app["targetNamespace"] == project_name]
+    # apps = rancher.rc_get_apps_all()
+    # df_app = pd.DataFrame(apps)
+    # df_project_app = df_app[df_app["targetNamespace"] == project_name]
     project_quota["quota"]["deployments"] = None
     project_quota["used"]["deployments"] = str(len(deployments))
     project_quota["quota"]["ingresses"] = None
     project_quota["used"]["ingresses"] = str(len(ingresses))
     project_quota["quota"]["apps"] = None
-    project_quota["used"]["apps"] = str(len(df_project_app))
+    # project_quota["used"]["apps"] = str(len(df_project_app))
     if "secrets" not in project_quota["quota"]:
         secrets = kubernetesClient.list_namespace_secrets(project_name)
         project_quota["quota"]["secrets"] = None

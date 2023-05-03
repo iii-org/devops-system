@@ -80,7 +80,6 @@ from urls.system_parameter import sync_system_parameter_url
 from urls.tag import tag_url
 from urls.template import template_url
 from urls.user import user_url
-from urls.rancher import rancher_url
 
 
 app = Flask(__name__)
@@ -290,7 +289,6 @@ api.add_resource(
     gitlab.SyncGitCommitIssueRelationByPjName,
     "/project/issues_commit_by_name",
 )
-api.add_resource(pipeline.PipelineFile, "/project/<string:project_name>/pipeline_file")
 
 
 # App
@@ -375,16 +373,15 @@ user_url(api, add_resource)
 api.add_resource(role.RoleList, "/user/role/list")
 
 # pipeline
-api.add_resource(pipeline.Pipeline, "/pipelines/<repository_id>/pipelines")
-api.add_resource(pipeline.PipelineExec, "/pipelines/<repository_id>/pipelines_exec")
-api.add_resource(pipeline.PipelineConfig, "/pipelines/<repository_id>/config")
-api.add_resource(pipeline.PipelineExecAction, "/pipelines/<repository_id>/pipelines_exec/action")
-api.add_resource(pipeline.PipelineExecLogs, "/pipelines/logs")
-api.add_resource(pipeline.PipelinePhaseYaml, "/pipelines/<repository_id>/branch/<branch_name>/phase_yaml")
-api.add_resource(pipeline.PipelineYaml, "/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml")
+# api.add_resource(pipeline.Pipeline, "/pipelines/<repository_id>/pipelines")
+# api.add_resource(pipeline.PipelineExec, "/pipelines/<repository_id>/pipelines_exec")
+# api.add_resource(pipeline.PipelineConfig, "/pipelines/<repository_id>/config")
+# api.add_resource(pipeline.PipelineExecAction, "/pipelines/<repository_id>/pipelines_exec/action")
+# api.add_resource(pipeline.PipelineExecLogs, "/pipelines/logs")
+# api.add_resource(pipeline.PipelinePhaseYaml, "/pipelines/<repository_id>/branch/<branch_name>/phase_yaml")
+# api.add_resource(pipeline.PipelineYaml, "/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml")
 
 # Websocket
-socketio.on_namespace(rancher.RancherWebsocketLog("/rancher/websocket/logs"))
 socketio.on_namespace(system_parameter.SyncTemplateWebsocketLog("/sync_template/websocket/logs"))
 socketio.on_namespace(kubernetesClient.KubernetesPodExec("/k8s/websocket/pod_exec"))
 socketio.on_namespace(issue.IssueSocket("/issues/websocket"))
@@ -531,26 +528,21 @@ system_url(api, add_resource)
 harbor_url(api, add_resource)
 
 # Maintenance
-api.add_resource(maintenance.UpdateDbRcProjectPipelineId, "/maintenance/update_rc_pj_pipe_id")
-api.add_resource(
-    maintenance.SecretesIntoRcAll,
-    "/maintenance/secretes_into_rc_all",
-    "/maintenance/secretes_into_rc_all/<secret_name>",
-)
-api.add_resource(
-    maintenance.RegistryIntoRcAll,
-    "/maintenance/registry_into_rc_all",
-    "/maintenance/registry_into_rc_all/<registry_name>",
-)
-api.add_resource(maintenance.UpdatePjHttpUrl, "/maintenance/update_pj_http_url")
+# api.add_resource(maintenance.UpdateDbRcProjectPipelineId, "/maintenance/update_rc_pj_pipe_id")
+# api.add_resource(
+#     maintenance.SecretesIntoRcAll,
+#     "/maintenance/secretes_into_rc_all",
+#     "/maintenance/secretes_into_rc_all/<secret_name>",
+# )
+# api.add_resource(
+#     maintenance.RegistryIntoRcAll,
+#     "/maintenance/registry_into_rc_all",
+#     "/maintenance/registry_into_rc_all/<registry_name>",
+# )
+# api.add_resource(maintenance.UpdatePjHttpUrl, "/maintenance/update_pj_http_url")
 
 # Rancher
-api.add_resource(rancher.Catalogs, "/rancher/catalogs", "/rancher/catalogs/<catalog_name>")
-api.add_resource(rancher.Catalogs_Refresh, "/rancher/catalogs_refresh")
 api.add_resource(rancher.RancherDeleteAPP, "/rancher/delete_app")
-api.add_resource(rancher.RancherCreateAPP, "/rancher/create_app")
-api.add_resource(rancher.RancherYaml, "/rancher/<sint:project_id>/yaml")
-api.add_resource(rancher.RancherAppnameByProject, "/rancher/<sint:project_id>/app")
 
 # Activity
 api.add_resource(activity.AllActivities, "/all_activities")
@@ -561,7 +553,6 @@ api.add_resource(activity.ProjectActivities, "/project/<sint:project_id>/activit
 api.add_resource(sync_redmine.SyncRedmine, "/sync_redmine")
 api.add_resource(sync_redmine.SyncRedmineNow, "/sync_redmine/now")
 api.add_resource(gitlab.GitCountEachPjCommitsByDays, "/sync_gitlab/count_each_pj_commits_by_days")
-api.add_resource(rancher.RancherCountEachPjPiplinesByDays, "/sync_rancher/count_each_pj_piplines_by_days")
 api.add_resource(issue.ExecuteIssueAlert, "/sync_issue_alert")
 
 # Subadmin Projects Permission
@@ -671,9 +662,6 @@ api.add_resource(system_parameter.ParameterGithubVerifyExecuteStatus, "/system_p
 
 # Status of Sync
 lock_url(api, add_resource)
-
-# rancher
-rancher_url(api, add_resource)
 
 # message
 notification_message_url(api, add_resource, socketio)

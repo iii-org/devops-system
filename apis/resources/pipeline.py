@@ -14,13 +14,12 @@ from model import ProjectPluginRelation, db, PipelineLogsCache, Project
 from nexus import nx_get_project_plugin_relation
 from resources import role
 from .gitlab import GitLab, commit_id_to_url
-from .rancher import rancher, turn_project_push_off, turn_project_push_on
 from os import listdir, makedirs
 from shutil import rmtree
 
 gitlab = GitLab()
 
-
+"""
 def __rancher_pagination(rancher_output):
     def __url_get_marker(url):
         key_name = "marker"
@@ -443,3 +442,4 @@ class PipelineFile(Resource):
         parser.add_argument("file_name", type=str, required=True, location="args")
         args = parser.parse_args()
         return util.success(delete_pipeline_file(project_name, args["folder_name"], args["file_name"]))
+"""

@@ -351,11 +351,11 @@ def delete_plugin_row(plugin_name):
     row = model.PluginSoftware.query.filter_by(name=plugin_name).one()
     model.db.session.delete(row)
     model.db.session.commit()
-    try:
-        rancher.rc_delete_secrets_into_rc_all(plugin_name)
-    except apiError.DevOpsError as e:
-        if e.status_code != 404:
-            raise e
+    # try:
+    #     rancher.rc_delete_secrets_into_rc_all(plugin_name)
+    # except apiError.DevOpsError as e:
+    #     if e.status_code != 404:
+    #         raise e
     try:
         delete_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name))
     except ApiException as e:

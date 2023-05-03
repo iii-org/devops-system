@@ -295,15 +295,15 @@ def check_k8s_ns(projects_name):
     return list(set(projects_name) - set(k8s_ns_list))
 
 
-def check_pipeline_hooks():
-    project_git_http_url = [
-        pj_url[0]
-        for pj_url in model.Project.query.filter(model.Project.id != -1).with_entities(model.Project.http_url).all()
-    ]
-    rancher.rancher.rc_get_project_id()
-    pipeline_list = [pipeline["repositoryUrl"] for pipeline in rancher.rancher.rc_get_project_pipeline()]
-    non_exist_pipeline = list(set(project_git_http_url) - set(pipeline_list))
-    return non_exist_pipeline
+# def check_pipeline_hooks():
+#     project_git_http_url = [
+#         pj_url[0]
+#         for pj_url in model.Project.query.filter(model.Project.id != -1).with_entities(model.Project.http_url).all()
+#     ]
+#     rancher.rancher.rc_get_project_id()
+#     pipeline_list = [pipeline["repositoryUrl"] for pipeline in rancher.rancher.rc_get_project_pipeline()]
+#     non_exist_pipeline = list(set(project_git_http_url) - set(pipeline_list))
+#     return non_exist_pipeline
 
 
 def check_project_relation(project_id):
@@ -412,7 +412,7 @@ def k8s_namespace_process(projects_name, check_bot_list):
                 k8s_namespace_waiter(project_name)
                 logger.logger.info("Create k8s role binding")
                 kubernetesClient.create_role_binding(project_name, util.encode_k8s_sa(user_row.login))
-                rancher.rancher.rc_add_namespace_into_rc_project(project_name)
+                # rancher.rancher.rc_add_namespace_into_rc_project(project_name)
             except ApiException as e:
                 if e.status == 409:
                     logger.logger.info("Kubernetes already has this identifier.")
@@ -478,25 +478,6 @@ def harbor_process(projects_name, check_bot_list):
             check_project_relation(pj.id)
             nexus.nx_update_project_relation(pj.id, {"harbor_project_id": new_hb_pj_id})
             check_bot_list.append(pj.id)
-
-
-def pipeline_process(check_bot_list):
-    non_exist_pipeline = check_pipeline_hooks()
-    if non_exist_pipeline:
-        logger.logger.info(f"Non-exist pipelines found: {non_exist_pipeline}.")
-        for gitlab_pj_http_url in non_exist_pipeline:
-            logger.logger.info(f"Create rancher pipeline: {gitlab_pj_http_url}.")
-            new_ci_pipeline_id = rancher.rancher.rc_enable_project_pipeline(gitlab_pj_http_url)
-            logger.logger.info(f"Update relation for new ci_pipeline_id: {new_ci_pipeline_id}.")
-            pj_row = model.Project.query.filter_by(http_url=gitlab_pj_http_url).one()
-            check_project_relation(pj_row.id)
-            project_relation = model.ProjectPluginRelation.query.filter_by(project_id=pj_row.id).one()
-            # project_relation = db.session.query(model.ProjectPluginRelation).join(
-            #     model.Project).filter(model.Project.http_url == gitlab_pj_http_url).one()
-            project_relation.ci_pipeline_id = new_ci_pipeline_id
-            project_relation.ci_project_id = rancher.rancher.project_id
-            model.db.session.commit()
-            check_bot_list.append(pj_row.id)
 
 
 def bot_process(check_bot_list, project_id=None):
@@ -566,8 +547,6 @@ def main_process():
     gitlab_process(projects_name, check_bot_list)
     logger.logger.info("Harbor projects start.")
     harbor_process(projects_name, check_bot_list)
-    logger.logger.info("Rancher pipelines start.")
-    pipeline_process(check_bot_list)
     logger.logger.info("Sonarqube projects start.")
     sonarqube_process(projects_name, check_bot_list)
     for pj_id in check_bot_list:
@@ -593,8 +572,6 @@ def recreate_project(project_id):
     gitlab_process(projects_name, check_bot_list)
     logger.logger.info("Harbor projects start.")
     harbor_process(projects_name, check_bot_list)
-    logger.logger.info("Rancher pipelines start.")
-    pipeline_process(check_bot_list)
     logger.logger.info("Sonarqube projects start.")
     sonarqube_process(projects_name, check_bot_list)
     unlock_project(pj_id=project_id)

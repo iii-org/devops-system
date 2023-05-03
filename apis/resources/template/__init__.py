@@ -7,7 +7,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 from time import sleep
-from resources.rancher import create_pipeline_execution
 import dateutil.parser
 import yaml
 from resources.handler.jwt import get_jwt_identity, jwt_required
@@ -681,7 +680,6 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
         if not run or default or (run and default_branch not in need_running_branches):
             next_run = pipeline.get_pipeline_next_run(repository_id)
             print(f"next_run: {next_run}")
-            create_pipeline_execution(repository_id, default_branch, next_run)
 
         f.content = yaml.dump(default_pipe_json, sort_keys=False)
         f.save(
@@ -740,7 +738,6 @@ def sync_branch(
         if not_run:
             next_run = pipeline.get_pipeline_next_run(repository_id)
             print(f"next_run: {next_run}")
-            create_pipeline_execution(repository_id, br_name, next_run)
         logger.logger.info(f"{br_name} not run : {not_run}")
         f.content = yaml.dump(pipe_json, sort_keys=False)
         f.save(

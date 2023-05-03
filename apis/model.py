@@ -1190,6 +1190,7 @@ class GitlabSourceCodeLens(db.Model):
     updated_at = Column(DateTime)
 
 
+## Remove
 class PipelineUpdateVersion(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True)
     version = Column(Integer)
@@ -1247,6 +1248,7 @@ class Pict(db.Model):
     sideex_id = Column(Integer, ForeignKey(Sideex.id, ondelete="CASCADE"), nullable=False)
 
 
+## Remove
 class PipelineExecution(db.Model):
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
