@@ -465,7 +465,7 @@ class IssueFilterByProject(Resource):
 class DownloadProjectExecuteV2(MethodResource):
     # download/execute
     @doc(tags=["Issue"], description="Execute download project's issues as excel.")
-    @use_kwargs(router_model.DownloadProjectSchema, location="form")
+    @use_kwargs(router_model.DownloadProjectSchema, location="json")
     @marshal_with(util.CommonResponse)
     @jwt_required()
     def post(self, project_id, **kwargs):
