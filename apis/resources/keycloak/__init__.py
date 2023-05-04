@@ -4,10 +4,10 @@ from keycloak.exceptions import KeycloakGetError, KeycloakAuthenticationError
 from resources.logger import logger
 
 
-KEYCLOAK_URL = "https://kc.rproxy.iiidevops.org"
+KEYCLOAK_URL = "https://keycloak.dev7.iiidevops.org"
 REALM_NAME = "IIIdevops"
 CLIENT_ID = "iiidevops"
-CLIENT_SECRET_KEY = "0cxoXRmuAS19545kJ0UWersLMM5IQh70"
+CLIENT_SECRET_KEY = "efthPokNU2GxizYkK68Ivg3w8fG7Ocr3"
 AM_REALM_ROLE_NAME = "admin"
 
 # Root url: change to dev4
