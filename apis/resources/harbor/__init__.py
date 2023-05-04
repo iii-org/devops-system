@@ -129,69 +129,69 @@ def hb_delete_project(harbor_param):
             raise e
 
 
-def hb_create_user(args, is_admin=False):
-    login = args["login"]
-    pass_quality = check_passsword(args["password"])
-    harbor_password = args["password"]
-    if pass_quality is False:
-        harbor_password = DEFAULT_PASSWORD
-    data = {
-        "username": login,
-        "password": harbor_password,
-        "realname": args["name"],
-        "email": args["email"],
-    }
-    if is_admin:
-        data["sysadmin_flag"] = True
-    __api_post("/users", data=data)
-    res = __api_get("/users/search", params={"username": login}).json()
-    return res[0]["user_id"]
-
-
-def hb_list_user(args):
-    return __api_get("/users", params=args)
-
-
-def hb_delete_user(user_id):
-    __api_delete("/users/{0}".format(user_id))
-
-
-def hb_search_user(username):
-    return __api_get("/users/search", params={"username": username}).json()
-
-
-def hb_get_user(user_id):
-    return __api_get(f"/users/{user_id}").json()
-
-
-def hb_update_user_password(user_id, new_pwd, old_pwd):
-    pass_quality = check_passsword(new_pwd)
-    if pass_quality is False:
-        new_pwd = DEFAULT_PASSWORD
-    data = {"new_password": new_pwd, "old_password": old_pwd}
-    try:
-        return __api_put(f"/users/{user_id}/password", data=data)
-    except DevOpsError as e:
-        if not (
-            e.status_code == 400
-            and e.error_value["details"]["response"]["errors"][0]["message"]
-            == "the new password can not be same with the old one"
-        ):
-            raise e
-        return e
-
-
-def hb_update_user_email(user_id, user_name, new_email):
-    data = {"email": new_email, "realname": user_name}
-    try:
-        __api_put(f"/users/{user_id}", data=data)
-    except DevOpsError as e:
-        if not (
-            e.status_code == 400
-            and e.error_value["details"]["response"]["errors"][0]["message"]
-            == "the new password can not be same with the old one"
-        ):
-            raise e
+# def hb_create_user(args, is_admin=False):
+#     login = args["login"]
+#     pass_quality = check_passsword(args["password"])
+#     harbor_password = args["password"]
+#     if pass_quality is False:
+#         harbor_password = DEFAULT_PASSWORD
+#     data = {
+#         "username": login,
+#         "password": harbor_password,
+#         "realname": args["name"],
+#         "email": args["email"],
+#     }
+#     if is_admin:
+#         data["sysadmin_flag"] = True
+#     __api_post("/users", data=data)
+#     res = __api_get("/users/search", params={"username": login}).json()
+#     return res[0]["user_id"]
+#
+#
+# def hb_list_user(args):
+#     return __api_get("/users", params=args)
+#
+#
+# def hb_delete_user(user_id):
+#     __api_delete("/users/{0}".format(user_id))
+#
+#
+# def hb_search_user(username):
+#     return __api_get("/users/search", params={"username": username}).json()
+#
+#
+# def hb_get_user(user_id):
+#     return __api_get(f"/users/{user_id}").json()
+#
+#
+# def hb_update_user_password(user_id, new_pwd, old_pwd):
+#     pass_quality = check_passsword(new_pwd)
+#     if pass_quality is False:
+#         new_pwd = DEFAULT_PASSWORD
+#     data = {"new_password": new_pwd, "old_password": old_pwd}
+#     try:
+#         return __api_put(f"/users/{user_id}/password", data=data)
+#     except DevOpsError as e:
+#         if not (
+#             e.status_code == 400
+#             and e.error_value["details"]["response"]["errors"][0]["message"]
+#             == "the new password can not be same with the old one"
+#         ):
+#             raise e
+#         return e
+#
+#
+# def hb_update_user_email(user_id, user_name, new_email):
+#     data = {"email": new_email, "realname": user_name}
+#     try:
+#         __api_put(f"/users/{user_id}", data=data)
+#     except DevOpsError as e:
+#         if not (
+#             e.status_code == 400
+#             and e.error_value["details"]["response"]["errors"][0]["message"]
+#             == "the new password can not be same with the old one"
+#         ):
+#             raise e
 
 
 def hb_list_member(project_id, args):
