@@ -798,7 +798,7 @@ def delete_project_helper(project_id):
     key_cloak_group_id = relation.key_cloak_group_id
     project_name = nexus.nx_get_project(id=project_id).name
 
-    delete_bot(project_id, sso=True)
+    delete_bot(project_id)
 
     try_to_delete(gitlab.gl_delete_project, gitlab_project_id)
     try_to_delete(redmine.rm_delete_project, redmine_project_id)
@@ -830,11 +830,11 @@ def delete_project_helper(project_id):
         shutil.rmtree(project_nfs_file_path)
 
 
-def delete_bot(project_id, sso=False):
+def delete_bot(project_id):
     row = model.ProjectUserRole.query.filter_by(project_id=project_id, role_id=role.BOT.id).first()
     if row is None:
         return
-    user.delete_user(row.user_id, sso=sso)
+    user.delete_user(row.user_id)
     delete_kubernetes_namespace_secret(project_id, "gitlab-bot")
     delete_kubernetes_namespace_secret(project_id, "sonar-bot")
     delete_kubernetes_namespace_secret(project_id, "nexus-bot")

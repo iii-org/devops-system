@@ -103,7 +103,7 @@ def sq_list_user(params):
 
 
 def sq_list_project(params):
-    return __api_post("/projects/search", params=params)
+    return __api_get("/projects/search", params=params)
 
 
 def sq_update_project_key(oldname, newname):
