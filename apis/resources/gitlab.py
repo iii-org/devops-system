@@ -2,8 +2,7 @@ import base64
 import json
 import os
 import re
-from datetime import datetime, time, timedelta
-from enum import Enum
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import ipaddress
@@ -220,29 +219,6 @@ class GitLab(object):
     def gl_delete_project(self, repo_id):
         return self.__api_delete(f"/projects/{repo_id}")
 
-    def gl_create_group(self, group_name: str):
-        return self.__api_post(f"/groups", params={"name": group_name, "path": group_name}).json()
-
-    def gl_group_add_maintainer(self, group_id, user_id):
-        return self.__api_post(
-            f"/groups/{group_id}/members", params={"id": group_id, "user_id": user_id, "access_level": Maintainer}
-        ).json()
-
-    def gl_list_groups(self):
-        return self.__api_get(f"/groups").json()
-
-    def get_group_id_for_name(self, group_name):
-        group_list = self.gl_list_groups()
-        for group in group_list:
-            if group.get("name") == group_name:
-                return group.get("id")
-        return None
-
-    def gl_project_share_maintainer_group(self, repo_id: int, group_id: int):
-        return self.__api_post(
-            f"/projects/{repo_id}/share", params={"id": repo_id, "group_id": group_id, "group_access": Maintainer}
-        )
-
     def gl_create_user(self, args, user_source_password, is_admin=False):
         data = {
             "name": args["name"],
@@ -304,10 +280,7 @@ class GitLab(object):
     def gl_delete_user_email(self, gitlab_user_id, gitlab_email_id):
         return self.__api_delete(f"/users/{gitlab_user_id}/emails/{gitlab_email_id}")
 
-    def gl_count_branches(self, repo_id):
-        output = self.__api_get(f"/projects/{repo_id}/repository/branches")
-        return len(output.json())
-
+    """
     def gl_create_rancher_pipeline_yaml(self, repo_id, args, method):
         path = f'/projects/{repo_id}/repository/files/{args["file_path"]}'
         params = {}
@@ -317,17 +290,19 @@ class GitLab(object):
             "encoding",
             "author_email",
             "author_name",
-            "content",
+            "content",params
             "commit_message",
         ]:
             params[key] = args[key]
-        return self.__api_request(method, path, params=params)
+        return self.__api_request(method, path, =params)
+    
 
     def gl_get_project_file_for_pipeline(self, project_id, args):
         return self.__api_get(
             f'/projects/{project_id}/repository/files/{args["file_path"]}',
             params={"ref": args["branch"]},
         )
+    """
 
     def gl_get_branches(self, repo_id):
         gl_total_branch_list = []
@@ -580,10 +555,6 @@ class GitLab(object):
                 output.append(commit)
         return output
 
-    def convert_login_to_mail(self, login):
-        user = model.User.query.filter_by(login=login).one()
-        return user.email
-
     def gl_get_commits_by_members(self, project_id, branch):
         commits = self.gl_get_commits(project_id, branch)
         output = []
@@ -639,20 +610,12 @@ class GitLab(object):
         return self.__api_post(f"/users/{user_id}/impersonation_tokens", data=data).json()["token"]
 
     # Get Gitlab list releases
-    def gl_list_releases(self, repo_id):
-        return self.__api_get(f"/projects/{repo_id}/releases").json()
-
-    # Get Gitlab list releases
     def gl_get_release(self, repo_id, tag_name):
         return self.__api_get(f"/projects/{repo_id}/releases/{tag_name}").json()
 
     def gl_create_release(self, repo_id, data):
         path = f"/projects/{repo_id}/releases"
         return self.__api_post(path, params=data).json()
-
-    def gl_update_release(self, repo_id, tag_name, data):
-        path = f"/projects/{repo_id}/releases/{tag_name}"
-        return self.__api_put(path, params=data).json()
 
     def gl_delete_release(self, repo_id, tag_name):
         path = f"/projects/{repo_id}/releases/{tag_name}"
