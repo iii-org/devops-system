@@ -283,7 +283,7 @@ class CheckMarx(object):
             return ret
 
         report_id = row.report_id
-        if report_id < 0:
+        if report_id is not None and report_id < 0:
             data_json, status_code = self.register_report(scan_id)
             report_id = data_json["data"]["reportId"]
         rst_id, rst_name = self.get_report_status(report_id)
