@@ -39,17 +39,9 @@ def __api_request(method, path, headers=None, params=None, data=None):
         params = {}
     if "Content-Type" not in headers:
         headers["Content-Type"] = "application/json"
-
+    auth = HTTPBasicAuth(config.get("SONARQUBE_ADMIN_TOKEN"), "")
     url = f"{config.get('SONARQUBE_INTERNAL_BASE_URL')}{path}"
-    output = util.api_request(
-        method,
-        url,
-        headers,
-        params,
-        data,
-        auth=HTTPBasicAuth(config.get("SONARQUBE_ADMIN_TOKEN"), ""),
-    )
-
+    output = util.api_request(method, url, headers=headers, params=params, data=data, auth=auth)
     logger.debug(
         f"SonarQube api {method} {url}, params={params.__str__()}, body={data},"
         f" response={output.status_code} {output.text}"
@@ -103,7 +95,7 @@ def sq_list_user(params):
 
 
 def sq_list_project(params):
-    return __api_post("/projects/search", params=params)
+    return __api_get("/projects/search", params=params)
 
 
 def sq_update_project_key(oldname, newname):
@@ -120,22 +112,24 @@ def sq_delete_project(project_name):
 
 
 def sq_list_member(project_name, params):
-    return __api_get(
-        f"/permissions/users?projectKey={project_name}" f"&permission=codeviewer&permission=user",
-        params=params,
-    )
+    # The 'permission' parameter must be one of admin, profileadmin, gateadmin, scan, provisioning.
+    return __api_get(f"/permissions/users?projectKey={project_name}", params=params)
 
 
 def sq_add_member(project_name, user_login):
-    __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=user")
-    return __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=codeviewer")
+    # The 'permission' parameter must be one of admin, profileadmin, gateadmin, scan, provisioning.
+    __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=admin")
+    return __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=scan")
 
 
 def sq_remove_member(project_name, user_login):
-    return __api_post(f"/permissions/remove_user?login={user_login}" f"&projectKey={project_name}&permission=user")
+    # The 'permission' parameter must be one of admin, profileadmin, gateadmin, scan, provisioning.
+    __api_post(f"/permissions/remove_user?login={user_login}" f"&projectKey={project_name}&permission=admin")
+    return __api_post(f"/permissions/remove_user?login={user_login}" f"&projectKey={project_name}&permission=scan")
 
 
 def sq_create_access_token(login):
+    # name 依實際建立機器人帳號時的名稱而改變
     params = {"login": login, "name": "iiidevops-bot"}
     return __api_post("/user_tokens/generate", params=params).json()["token"]
 
@@ -254,19 +248,8 @@ def get_code_length(project_name):
 
 
 # --------------------- Resources ---------------------
-class SonarqubeHistory(Resource):
-    @jwt_required
-    def get(self, project_name):
-        return util.success(
-            {
-                "link": f'{config.get("SONARQUBE_EXTERNAL_BASE_URL")}/dashboard?id={project_name}',
-                "history": sq_get_history_measures(project_name),
-            }
-        )
-
-
 class SonarqubeHistoryV2(MethodResource):
-    @doc(tags=["Plugin"], description="Get Sonarqube testing history.")
+    @doc(tags=["Plugin"], description="Get Sonarqube testing history.", security=util.security_params)
     @marshal_with(router_model.SonarqubeHistoryResponse)
     @jwt_required
     def get(self, project_name):
@@ -278,8 +261,14 @@ class SonarqubeHistoryV2(MethodResource):
         )
 
 
-class SonarqubeCodelen(Resource):
+class SonarqubeCodelenV2(MethodResource):
+    @doc(tags=["Plugin"], description="Get Sonarqube code length.", security=util.security_params)
+    @marshal_with(router_model.SonarqubeCodelenResponse)
     @jwt_required
     def get(self, project_name):
         result = get_code_length(project_name)
-        return util.success({"code_length": result.json()["component"]["measures"][0]["value"]})
+        measures = result.json()["component"]["measures"]
+        if len(measures) > 0:
+            return util.success({"code_length": measures[0]["value"]})
+        else:
+            return util.success({"code_length": 0})

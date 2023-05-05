@@ -23,6 +23,8 @@ import base64
 import pandas as pd
 from marshmallow import Schema, fields
 
+security_params = [{"bearer": []}]
+
 
 def base64decode(value):
     return str(base64.b64decode(str(value)).decode("utf-8"))

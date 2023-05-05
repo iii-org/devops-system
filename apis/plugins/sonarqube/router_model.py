@@ -30,3 +30,11 @@ class SonarqubeHistoryData(Schema):
 
 class SonarqubeHistoryResponse(CommonBasicResponse):
     data = fields.Nested(SonarqubeHistoryData, required=True)
+
+
+class SonarqubeCodelenData(Schema):
+    code_length = fields.Int(doc="code length", example=0)
+
+
+class SonarqubeCodelenResponse(CommonBasicResponse):
+    data = fields.Nested(SonarqubeCodelenData, required=True)
