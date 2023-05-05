@@ -623,7 +623,7 @@ def create_bot(project_id):
         "role_id": role.BOT.id,
         "status": "enable",
     }
-    u = user.create_user(args, sso=True)
+    u = user.create_user(args)
     user_id = u["user_id"]
     project_add_member(project_id, user_id)
     git_user_id = u["repository_user_id"]

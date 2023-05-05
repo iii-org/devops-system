@@ -267,7 +267,7 @@ def initialize(db_uri):
         "role_id": role.ADMIN.id,
         "status": "enable",
     }
-    user.create_user(args, sso=True)
+    user.create_user(args)
     logger.logger.info("Initial admin created.")
     migrate.init()
     my_uuid = devops_version.set_deployment_uuid()
@@ -732,4 +732,5 @@ def start_prod_extra_funcs():
 
 if __name__ == "__main__":
     start_prod()
+    # socketio.run(app, host="0.0.0.0", port=10009)
     socketio.run(app, host="0.0.0.0", port=10009, debug=config.get("DEBUG"), use_reloader=config.get("USE_RELOADER"))

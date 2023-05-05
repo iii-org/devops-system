@@ -31,7 +31,7 @@ security_params = [{"bearer": []}]
 # --------------------- Resources ---------------------
 
 
-@doc(tags=["User"], description="Login API", security=security_params)
+@doc(tags=["User"], description="Login API")
 @use_kwargs(router_model.LoginSchema, location=("json"))
 @marshal_with(router_model.LoginResponse)  # marshalling
 class LoginV2(MethodResource):
@@ -83,10 +83,10 @@ class PostSingleUserV2(MethodResource):
     @jwt_required
     def post(self, **kwargs):
         role.require_admin("Only admins can create user.")
-        return util.success(create_user(kwargs, sso=True))
+        return util.success(create_user(kwargs))
 
 
-@doc(tags=["User"], description="SingleUser API")
+@doc(tags=["User"], description="SingleUser API", security=security_params)
 class GetSingleUserV2(MethodResource):
     @marshal_with(router_model.GetSingleUserResponse)
     @jwt_required
@@ -102,7 +102,7 @@ class GetSingleUserV2(MethodResource):
     @jwt_required
     def delete(self, user_id):
         role.require_admin("Only admin can delete user.")
-        return util.success(delete_user(user_id, sso=True))
+        return util.success(delete_user(user_id))
 
     @use_kwargs(router_model.PutSingleUserSchema, location="form")
     @marshal_with(router_model.SingleUserResponse)
@@ -141,7 +141,7 @@ class SingleUser(Resource):
     @jwt_required
     def delete(self, user_id):
         role.require_admin("Only admin can delete user.")
-        return util.success(delete_user(user_id, sso=True))
+        return util.success(delete_user(user_id))
 
     @jwt_required
     def post(self):
@@ -156,7 +156,7 @@ class SingleUser(Resource):
         parser.add_argument("status", type=str)
         parser.add_argument("force", type=bool)
         args = parser.parse_args()
-        return util.success(create_user(args, sso=True))
+        return util.success(create_user(args))
 
 
 class UserList(Resource):

@@ -210,7 +210,7 @@ def update_user(user_id, args, from_ad=False):
                 return util.respond(400, "old_password is empty", error=apiError.wrong_password())
             if is_password_verify is False:
                 return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
-        res = update_external_passwords(user_id, args["password"], args["old_password"], sso=True)
+        res = update_external_passwords(user_id, args["password"])
         h = SHA256.new()
         h.update(args["password"].encode())
         new_password = h.hexdigest()
@@ -226,7 +226,7 @@ def update_user(user_id, args, from_ad=False):
             user.password = new_password
         # Change Email
         if args["email"] is not None:
-            err = update_external_email(user_id, user.name, args["email"], sso=True)
+            err = update_external_email(user_id, user.name, args["email"])
             if err is not None:
                 logger.exception(err)
             new_email = args["email"]
@@ -234,7 +234,7 @@ def update_user(user_id, args, from_ad=False):
             user.email = new_email
         if args["name"] is not None:
             user.name = args["name"]
-            update_external_name(user_id, args["name"], user.login, user.email, sso=True)
+            update_external_name(user_id, args["name"])
         if args["phone"] is not None:
             user.phone = args["phone"]
         if args["title"] is not None:
@@ -254,7 +254,7 @@ def update_user(user_id, args, from_ad=False):
         db.session.commit()
         # Putting here to avoid not commit session error
         if args.get("status") is not None:
-            operate_external_user(user_id, status, sso=True)
+            operate_external_user(user_id, status)
     return util.success(res)
 
 
@@ -270,7 +270,12 @@ def generate_random_password() -> str:
     return password
 
 
-def update_external_passwords(user_id, new_pwd, old_pwd, sso=False):
+def update_external_passwords(user_id, new_pwd):
+    """
+    The only server needs to update pwd is `key_cloak`,
+    while updating `redmine` is necessary because it does't connect with `keyclock` server for now.
+    """
+
     def update_error_handle(service: str):
         """
         In case new_pwd not valid in certain service, setting a default_ad_service as new_pwd in that service and send mail to them.
@@ -284,15 +289,6 @@ def update_external_passwords(user_id, new_pwd, old_pwd, sso=False):
                 "args_generator": lambda pwd: (user_relation.plan_user_id, pwd),
                 "update_func": redmine.rm_update_password,
             },
-            "gitlab": {
-                "args_generator": lambda pwd: (user_relation.repository_user_id, pwd),
-                "update_func": gitlab.gl_update_password,
-            },
-            "sonarqube": {"args_generator": lambda pwd: (user_login, pwd), "update_func": sonarqube.sq_update_password},
-            "harbor": {
-                "args_generator": lambda pwd, org_pwd: (user_relation.harbor_user_id, pwd, org_pwd),
-                "update_func": harbor.hb_update_user_password,
-            },
         }
         GENERATE_CREATE_NOTIFY_MSG = lambda service: {
             "alert_level": 1,
@@ -302,12 +298,8 @@ def update_external_passwords(user_id, new_pwd, old_pwd, sso=False):
             "type_parameters": {"user_ids": [user_id]},
         }
         service_func_info_mapping = service_mapping[service]
-        if service == "harbor":
-            args = service_func_info_mapping["args_generator"](new_pwd, old_pwd)
-            reset_args = service_func_info_mapping["args_generator"](default_ad_service, old_pwd)
-        else:
-            args = service_func_info_mapping["args_generator"](new_pwd)
-            reset_args = service_func_info_mapping["args_generator"](default_ad_service)
+        args = service_func_info_mapping["args_generator"](new_pwd)
+        reset_args = service_func_info_mapping["args_generator"](default_ad_service)
 
         update_pwd_func = service_func_info_mapping["update_func"]
         ret = update_pwd_func(*args)
@@ -343,7 +335,6 @@ def update_external_passwords(user_id, new_pwd, old_pwd, sso=False):
     login_account = model.User.query.filter_by(id=user_id).first().login
     updated_fail_service_pwd_mapping = {}
     try:
-        user_login = nx_get_user(id=user_id).login
         user_relation = nx_get_user_plugin_relation(user_id=user_id)
         if user_relation is None:
             return util.respond(
@@ -351,7 +342,7 @@ def update_external_passwords(user_id, new_pwd, old_pwd, sso=False):
                 "Error when updating password",
                 error=apiError.user_not_found(user_id),
             )
-        services = ["key_cloak", "redmine"] if sso else ["redmine", "gitlab", "sonarqube", "harbor"]
+        services = ["key_cloak", "redmine"]
         for service in services:
             update_error_handle(service)
             logger.info(f"Account:{login_account} update {service} finish.")
@@ -509,62 +500,32 @@ def update_newpassword(user_id, kwargs):
         return e
 
 
-def update_external_email(user_id, user_name, new_email, sso=False):
+def update_external_email(user_id, user_name, new_email):
     user_relation = nx_get_user_plugin_relation(user_id=user_id)
     if user_relation is None:
         return util.respond(400, "Error when updating email", error=apiError.user_not_found(user_id))
     redmine_user_id = user_relation.plan_user_id
     redmine.rm_update_email(redmine_user_id, new_email)
 
-    if sso:
-        key_cloak_id = user_relation.key_cloak_user_id
-        key_cloak.update_user(key_cloak_id, {"email": new_email})
-    else:
-        gitlab_user_id = user_relation.repository_user_id
-        gitlab.gl_update_email(gitlab_user_id, new_email)
-
-        gitlab_user_email_list = gitlab.gl_get_user_email(gitlab_user_id).json()
-        need_to_delete_email = [email["id"] for email in gitlab_user_email_list if email["email"] != new_email]
-        for gitlab_email_id in need_to_delete_email:
-            gitlab.gl_delete_user_email(gitlab_user_id, gitlab_email_id)
-
-        harbor_user_id = user_relation.harbor_user_id
-        harbor.hb_update_user_email(harbor_user_id, user_name, new_email)
+    key_cloak_id = user_relation.key_cloak_user_id
+    key_cloak.update_user(key_cloak_id, {"email": new_email})
 
 
-def update_external_name(user_id, new_name, login, email, sso=False):
+def update_external_name(user_id, new_name):
     relation = nx_get_user_plugin_relation(user_id=user_id)
     redmine.rm_update_user_name(relation.plan_user_id, new_name)
-    if sso:
-        key_cloak_id = relation.key_cloak_user_id
-        key_cloak.update_user(key_cloak_id, {"lastName": new_name})
-    else:
-        gitlab.gl_update_user_name(relation.repository_user_id, new_name)
-        harbor.hb_update_user_email(relation.harbor_user_id, new_name, email)
-        sonarqube.sq_update_user_name(login, new_name)
+
+    key_cloak_id = relation.key_cloak_user_id
+    key_cloak.update_user(key_cloak_id, {"lastName": new_name})
 
 
-def operate_external_user(user_id, disabled, sso=False):
+def operate_external_user(user_id, disabled):
     active_id = 3 if disabled else 1
     relation = nx_get_user_plugin_relation(user_id=user_id)
     redmine.rm_update_user_active(relation.plan_user_id, active_id)
-    if sso:
-        key_cloak_id = relation.key_cloak_user_id
-        key_cloak.update_user(key_cloak_id, {"enabled": not disabled})
-    else:
-        gitlab.gl_update_user_state(relation.repository_user_id, disabled)
 
-
-# def block_external_user(user_id):
-#     relation = nx_get_user_plugin_relation(user_id=user_id)
-#     redmine.rm_update_user_active(relation.plan_user_id, 3)
-#     gitlab.gl_update_user_state(relation.repository_user_id, True)
-
-
-# def unblock_external_user(user_id):
-#     relation = nx_get_user_plugin_relation(user_id=user_id)
-#     redmine.rm_update_user_active(relation.plan_user_id, 1)
-#     gitlab.gl_update_user_state(relation.repository_user_id, False)
+    key_cloak_id = relation.key_cloak_user_id
+    key_cloak.update_user(key_cloak_id, {"enabled": not disabled})
 
 
 def try_to_delete(delete_method, obj):
@@ -576,7 +537,7 @@ def try_to_delete(delete_method, obj):
 
 
 @record_activity(ActionType.DELETE_USER)
-def delete_user(user_id, sso=False):
+def delete_user(user_id):
     if user_id == 1:
         raise apiError.NotAllowedError("You cannot delete the system admin.")
     pj_list = get_project_list(user_id)
@@ -606,10 +567,7 @@ def delete_user(user_id, sso=False):
 
     try_to_delete(gitlab.gl_delete_user, relation.repository_user_id)
     try_to_delete(redmine.rm_delete_user, relation.plan_user_id)
-    if sso:
-        try_to_delete(key_cloak.delete_user, relation.key_cloak_user_id)
-    else:
-        try_to_delete(harbor.hb_delete_user, relation.harbor_user_id)
+    try_to_delete(key_cloak.delete_user, relation.key_cloak_user_id)
     try_to_delete(sonarqube.sq_deactivate_user, user_login)
     try:
         for pur_row in pj_ur_rls:
@@ -628,6 +586,12 @@ def delete_user(user_id, sso=False):
     db.session.delete(del_user)
     db.session.commit()
     return None
+
+
+def delete_db_user(user_id: int):
+    del_user = model.User.query.filter_by(id=user_id).one()
+    db.session.delete(del_user)
+    db.session.commit()
 
 
 def change_user_status(user_id, args):
@@ -650,12 +614,15 @@ def change_user_status(user_id, args):
         )
 
 
-##### Create User #####
+########## Create User ##########
+
+
 @record_activity(ActionType.CREATE_USER)
-def create_user(args: dict[str, Any], sso: bool = False) -> dict[str, Any]:
+def create_user(args: dict[str, Any]) -> dict[str, Any]:
+    """Due to keyclock issue, do not need to create harbor's user."""
     logger.info("Creating user...")
-    check_create_user_args(args, sso)
-    server_user_id_mapping = create_user_in_servers(args, sso)
+    check_create_user_args(args)
+    server_user_id_mapping = create_user_in_servers(args)
     logger.info("User created.")
 
     return {
@@ -663,15 +630,14 @@ def create_user(args: dict[str, Any], sso: bool = False) -> dict[str, Any]:
         "key_cloak_user_id": server_user_id_mapping.get("key_cloak", {}).get("id"),
         "plan_user_id": server_user_id_mapping["redmine"]["id"],
         "repository_user_id": server_user_id_mapping["gitlab"]["id"],
-        "harbor_user_id": server_user_id_mapping.get("harbor", {}).get("id"),
         "kubernetes_sa_name": server_user_id_mapping["k8s"]["id"],
     }
 
 
-def check_create_user_args(args: dict[str, Any], sso: bool) -> None:
+def check_create_user_args(args: dict[str, Any]) -> None:
     check_create_user_login_valid(args["login"])
     check_create_user_pwd_valid(args["password"], args.get("from_ad", False))
-    check_create_user_login_email_unique(args["login"], args["email"], args.get("force", False), sso)
+    check_create_user_login_email_unique(args["login"], args["email"], args.get("force", False))
 
 
 def check_create_user_login_valid(login_name: str) -> None:
@@ -699,13 +665,9 @@ def check_create_user_pwd_valid(user_source_password: str, from_ad: bool) -> Non
     logger.info("Password is valid.")
 
 
-def check_create_user_login_email_unique(login_name: str, email: str, force: bool, sso: bool) -> None:
+def check_create_user_login_email_unique(login_name: str, email: str, force: bool) -> None:
     check_create_user_login_email_unique_db(login_name, email)
-    if sso:
-        check_create_user_login_email_unique_keycloak(login_name, email, force)
-    else:
-        check_create_user_login_email_unique_hb(login_name, email, force)
-
+    check_create_user_login_email_unique_keycloak(login_name, email, force)
     check_create_user_login_email_unique_redmine(login_name, email, force)
     check_create_user_login_email_unique_gitlab(login_name, email, force)
     check_create_user_login_email_unique_k8s(login_name, email, force)
@@ -848,7 +810,7 @@ def check_create_user_login_email_unique_sonarqube(login_name: str, force: bool)
     logger.info("Account name not used in SonarQube or force is True.")
 
 
-def create_user_in_servers(args: dict[str, Any], sso: bool) -> dict[str, dict[str:Any]]:
+def create_user_in_servers(args: dict[str, Any]) -> dict[str, dict[str:Any]]:
     """
     k8s: Use name to delete instead of id
     Sonarqube: Can not be delete, can only deactivate(and use name instead)
@@ -857,18 +819,15 @@ def create_user_in_servers(args: dict[str, Any], sso: bool) -> dict[str, dict[st
         "redmine": {"id": None, "delete_func": redmine.rm_delete_user},
         "gitlab": {"id": None, "delete_func": gitlab.gl_delete_user},
         "k8s": {"id": None, "delete_func": kubernetesClient.delete_service_account},
-        "harbor": {"id": None, "delete_func": harbor.hb_delete_user},
         "key_cloak": {"id": None, "delete_func": key_cloak.delete_user},
         "sonarqube": {"id": None, "delete_func": sonarqube.sq_deactivate_user},
+        "db": {"id": None, "delete_func": delete_db_user},
     }
     role_id = args["role_id"]
     is_admin = role_id == role.ADMIN.id
     logger.info(f"is_admin is {is_admin}")
     try:
-        if sso:
-            server_user_id_mapping["key_cloak"]["id"] = create_user_in_key_cloak(args, is_admin)
-        else:
-            server_user_id_mapping["harbor"]["id"] = create_user_in_harbor(args, is_admin)
+        server_user_id_mapping["key_cloak"]["id"] = create_user_in_key_cloak(args, is_admin)
         server_user_id_mapping["redmine"]["id"] = create_user_in_redmine(args, is_admin)
         server_user_id_mapping["gitlab"]["id"] = create_user_in_gitlab(args, is_admin)
         server_user_id_mapping["k8s"]["id"] = create_user_in_k8s(args, is_admin)
@@ -891,12 +850,6 @@ def create_user_in_key_cloak(args: dict[str, Any], is_admin: bool) -> int:
     key_cloak_id = key_cloak.create_user(args, is_admin=is_admin)
     logger.info(f"Keycloak user created, id={key_cloak_id}")
     return key_cloak_id
-
-
-def create_user_in_harbor(args: dict[str, Any], is_admin: bool) -> int:
-    harbor_user_id = harbor.hb_create_user(args, is_admin=is_admin)
-    logger.info(f"Harbor user created, id={harbor_user_id}")
-    return harbor_user_id
 
 
 def create_user_in_redmine(args: dict[str, Any], is_admin: bool) -> int:
@@ -979,7 +932,6 @@ def create_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]], 
         user_id=user_id,
         plan_user_id=server_user_id_mapping["redmine"]["id"],
         repository_user_id=server_user_id_mapping["gitlab"]["id"],
-        harbor_user_id=server_user_id_mapping["harbor"]["id"],
         kubernetes_sa_name=server_user_id_mapping["k8s"]["id"],
         key_cloak_user_id=server_user_id_mapping["key_cloak"]["id"],
     )
@@ -998,6 +950,9 @@ def create_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]], 
     db.session.add(row)
     db.session.commit()
     logger.info(f"Nexus user_message_type created.")
+
+
+########## Create User End ##########
 
 
 def user_list(filters):
