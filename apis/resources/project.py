@@ -328,7 +328,7 @@ def create_project_in_servers(args: dict[str, Any]) -> dict[str : dict[str, Any]
     services = ["redmine", "gitlab", "harbor", "sonarqube", "key_cloak"]
     targets = {
         "redmine": redmine.rm_create_project,
-        "gitlab": gitlab.gl_create_project,
+        "gitlab": gitlab.create_project,
         "harbor": harbor.hb_create_project,
         "sonarqube": sonarqube.sq_create_project,
         "key_cloak": key_cloak.create_group,

@@ -456,6 +456,9 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
     out = {}
     duplicate_tools = {}
     pj = gl.projects.get(repository_id)
+    if pj.empty_repo:
+        return {}
+
     project_branches = pj.branches.list(all=True)
     all_branch = [_.name for _ in project_branches]
     stages_info = tm_get_pipeline_default_branch(repository_id, is_default_branch=False)
