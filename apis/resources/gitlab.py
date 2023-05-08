@@ -945,6 +945,56 @@ class GitLab(object):
         commit_msg = self.single_commit(repo_id, sha)["title"]
         return self.create_commit(repo_id, branch, commit_msg)
 
+    ## variable
+    def gl_get_all_global_variable(self):
+        return self.__api_get("/admin/ci/variables").json()
+
+    def gl_get_global_variable(self, key: str):
+        return self.__api_get(f"/admin/ci/variables/{key}").json()
+
+    def gl_create_global_variable(self, data: dict[str, str]):
+        """
+        param: data:
+        - key: key of the variable
+        - value: content of the variable
+        - variable_type: env_var / file
+        """
+        return self.__api_post("/admin/ci/variables", data=data).json()
+
+    def gl_update_global_variable(self, key: str, data: dict[str, str]):
+        """
+        param: data:
+        - value(str): content of the variable
+        - variable_type(str): env_var / file
+        - protected(bool):
+        - masked(bool):
+        """
+        return self.__api_put(f"/admin/ci/variables/{key}", data=data).json()
+
+    def gl_delete_global_variable(self, key: str):
+        return self.__api_delete(f"/admin/ci/variables/{key}").json()
+
+    def gl_get_pj_variable(self, repo_id: int):
+        return self.__api_get(f"/projects/{repo_id}/variables").json
+
+    def gl_create_pj_variable(self, repo_id: int, data: dict[str, str]):
+        """
+        param: data:
+        - key(str): key of the variable
+        - value(str): content of the variable
+        - variable_type(str): env_var / file
+        - protected(bool):
+        - masked(bool):
+        """
+        return self.__api_post(f"/projects/{repo_id}/variables", data=data).json
+
+    def gl_delete_pj_variable(self, repo_id: int, key: str):
+        return self.__api_delete(f"/projects/{repo_id}/variables/{key}").json
+
+    def create_pj_variable(self, repo_id: int, key: str, value: str):
+        value_info = {"key": key, "value": value, "variable_type": "env_var", "protected": True}
+        return self.gl_create_pj_variable(repo_id, value_info)
+
 
 def single_file(
     file_path: str,

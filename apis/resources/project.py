@@ -630,10 +630,18 @@ def create_bot(project_id):
     git_access_token = gitlab.gl_create_access_token(git_user_id)
     sonar_access_token = sonarqube.sq_create_access_token(login)
 
-    # Add bot secrets to rancher
-    create_kubernetes_namespace_secret(project_id, "gitlab-bot", {"git-token": git_access_token})
-    create_kubernetes_namespace_secret(project_id, "sonar-bot", {"sonar-token": sonar_access_token})
-    create_kubernetes_namespace_secret(project_id, "nexus-bot", {"username": login, "password": password})
+    # Add bot secrets to gitlab pj env
+    pj_repo_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first().git_repository_id
+    gitlab.create_pj_variable(pj_repo_id, "GITLAB_TOKEN", git_access_token)
+    gitlab.create_pj_variable(pj_repo_id, "SONAR_TOKEN", sonar_access_token)
+    gitlab.create_pj_variable(pj_repo_id, "USERNAME", login)
+    gitlab.create_pj_variable(pj_repo_id, "PASSWORD", password)
+    # gitlab.create_pj_variable(pj_repo_id, "HARBOR_ROBOT", password)
+    # gitlab.create_pj_variable(pj_repo_id, "HARBOR_ROBOT_SECRET", password)
+
+    # create_kubernetes_namespace_secret(project_id, "gitlab-bot", {"git-token": git_access_token})
+    # create_kubernetes_namespace_secret(project_id, "sonar-bot", {"sonar-token": sonar_access_token})
+    # create_kubernetes_namespace_secret(project_id, "nexus-bot", {"username": login, "password": password})
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
@@ -753,8 +761,10 @@ def nexus_update_project(project_id, args):
 def try_to_delete(delete_method, argument):
     try:
         delete_method(argument)
-    except DevOpsError as e:
-        if e.status_code != 404:
+    except Exception as e:
+        if (hasattr(e, "status_code") and e.status_code != 404) or (
+            hasattr(e, "response_code") and e.response_code != 404
+        ):
             raise e
 
 
@@ -835,9 +845,9 @@ def delete_bot(project_id):
     if row is None:
         return
     user.delete_user(row.user_id)
-    delete_kubernetes_namespace_secret(project_id, "gitlab-bot")
-    delete_kubernetes_namespace_secret(project_id, "sonar-bot")
-    delete_kubernetes_namespace_secret(project_id, "nexus-bot")
+    # delete_kubernetes_namespace_secret(project_id, "gitlab-bot")
+    # delete_kubernetes_namespace_secret(project_id, "sonar-bot")
+    # delete_kubernetes_namespace_secret(project_id, "nexus-bot")
 
 
 def get_project_info(project_id):
