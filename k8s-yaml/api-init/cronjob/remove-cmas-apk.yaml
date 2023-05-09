@@ -4,7 +4,7 @@ metadata:
   name: remove-cmas-apk
 spec:
   concurrencyPolicy: Forbid
-  schedule: "0 0 * * *"
+  schedule: "0 16 * * *"
   successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 0
   jobTemplate:
