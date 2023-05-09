@@ -1018,8 +1018,9 @@ class GitLab(object):
         - key(str): key of the variable
         - value(str): content of the variable
         - variable_type(str): env_var / file
-        - protected(bool):
-        - masked(bool):
+        - protected(bool): only export variable on protected branch
+        - masked(bool): value will be masked in job logs
+        - raw: treated special character as the start of a reference to another variable
         """
         return self.__api_post(f"/projects/{repo_id}/variables", data=data).json
 
@@ -1027,7 +1028,7 @@ class GitLab(object):
         return self.__api_delete(f"/projects/{repo_id}/variables/{key}").json
 
     def create_pj_variable(self, repo_id: int, key: str, value: str, attribute: dict[str, Any] = {}):
-        data = {"variable_type": "env_var", "protected": False, "masked": True}
+        data = {"variable_type": "env_var", "protected": False, "masked": True, "raw": True}
         data |= attribute
         data.update({"key": key, "value": value})
         return self.gl_create_pj_variable(repo_id, data)

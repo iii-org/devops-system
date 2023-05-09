@@ -734,6 +734,77 @@ def hb_ping_registries(args):
     __api_post("/registries/ping", data=data)
 
 
+###### robot account ######
+
+
+def hb_get_project_robot_accounts(robot_name: str = None) -> list:
+    """
+    params: robot_name without prefix(root$)
+        =: full search, =~ fuzzy search, = [min~max] range search
+    """
+    if robot_name is None:
+        return __api_get("/robots").json()
+
+    return __api_get("/robots", params={"q": f"name={robot_name}"}).json()
+
+
+def hb_create_project_robot_account(kwargs: dict[str, Any]):
+    """
+    Since the user's account won't be created in the harbor,
+    an alternative solution is to create a robot account that can perform the necessary image pull and push operations during the pipeline.
+
+    :params: kwargs
+    - project_name: project's name
+    - name: [srr]
+    - description: [str]
+
+    :return:
+    - name: name of robot account
+    - secret: token of the robot account
+    """
+
+    data = {
+        "name": kwargs["login"],
+        "description": kwargs["name"],
+        "disable": False,
+        "duration": -1,
+        "level": "system",
+        "permissions": [
+            {
+                "access": [
+                    {"resource": "repository", "action": "list"},
+                    {"resource": "repository", "action": "pull"},
+                    {"resource": "repository", "action": "push"},
+                    {"resource": "artifact", "action": "read"},
+                    {"resource": "artifact", "action": "list"},
+                    {"resource": "artifact-label", "action": "create"},
+                    {"resource": "tag", "action": "create"},
+                    {"resource": "tag", "action": "list"},
+                    {"resource": "scan", "action": "create"},
+                    {"resource": "scan", "action": "stop"},
+                ],
+                "kind": "project",
+                "namespace": kwargs["project_name"],
+            }
+        ],
+    }
+    return __api_post("/robots", data=data).json()
+
+
+def hb_delete_project_robot_account(robot_id: int):
+    return __api_delete(f"/robots/{robot_id}")
+
+
+def delete_project_robot_account(project_id: int):
+    robot_name = f"project_bot_{project_id}"
+    match_robot_names_info = hb_get_project_robot_accounts(robot_name)
+    for match_robot_name_info in match_robot_names_info:
+        hb_delete_project_robot_account(match_robot_name_info["id"])
+
+
+############
+
+
 class HarborRelease:
     @jwt_required
     def get_list_artifacts(self, project_name, repository_name):

@@ -46,7 +46,7 @@ from plugins.cmas import cmas_main as cmas
 from .gitlab import gitlab, unprotect_project
 from .redmine import redmine
 from resources.monitoring import Monitoring
-from resources.harbor import harbor_scan
+from resources.harbor import harbor_scan, hb_create_project_robot_account, delete_project_robot_account
 from resources import sync_project
 from resources.project_relation import get_all_sons_project, get_plan_id
 from flask_apispec import doc
@@ -611,9 +611,13 @@ def project_add_subadmin(project_id, user_id):
 
 
 def create_bot(project_id):
-    # Create project BOT
+    """
+    Since the user's account won't be created in the harbor,
+    an alternative solution is to create a robot account that can perform the necessary image pull and push operations during the pipeline.
+    """
     login = f"project_bot_{project_id}"
     password = util.get_random_alphanumeric_string(6, 3)
+    project_name = model.Project.query.get(project_id).name
     args = {
         "name": f"專案管理機器人{project_id}號",
         "email": f"project_bot_{project_id}@nowhere.net",
@@ -622,8 +626,11 @@ def create_bot(project_id):
         "password": password,
         "role_id": role.BOT.id,
         "status": "enable",
+        "project_name": project_name,
     }
     u = user.create_user(args)
+    hb_robot_info = hb_create_project_robot_account(args)
+
     user_id = u["user_id"]
     project_add_member(project_id, user_id)
     git_user_id = u["repository_user_id"]
@@ -636,12 +643,8 @@ def create_bot(project_id):
     gitlab.create_pj_variable(pj_repo_id, "SONAR_TOKEN", sonar_access_token)
     gitlab.create_pj_variable(pj_repo_id, "USERNAME", login)
     gitlab.create_pj_variable(pj_repo_id, "PASSWORD", password)
-    # gitlab.create_pj_variable(pj_repo_id, "HARBOR_ROBOT", password)
-    # gitlab.create_pj_variable(pj_repo_id, "HARBOR_ROBOT_SECRET", password)
-
-    # create_kubernetes_namespace_secret(project_id, "gitlab-bot", {"git-token": git_access_token})
-    # create_kubernetes_namespace_secret(project_id, "sonar-bot", {"sonar-token": sonar_access_token})
-    # create_kubernetes_namespace_secret(project_id, "nexus-bot", {"username": login, "password": password})
+    gitlab.create_pj_variable(pj_repo_id, "HARBOR_ROBOT", hb_robot_info["name"])
+    gitlab.create_pj_variable(pj_repo_id, "HARBOR_ROBOT_SECRET", hb_robot_info["secret"])
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
@@ -845,6 +848,7 @@ def delete_bot(project_id):
     if row is None:
         return
     user.delete_user(row.user_id)
+    delete_project_robot_account(project_id)
     # delete_kubernetes_namespace_secret(project_id, "gitlab-bot")
     # delete_kubernetes_namespace_secret(project_id, "sonar-bot")
     # delete_kubernetes_namespace_secret(project_id, "nexus-bot")
