@@ -186,6 +186,7 @@ class NexusIssue:
                 "name": redmine_issue.status.name,
             },
             "tags": get_issue_tags(redmine_issue.id),
+            "watchers": redmine_issue.watchers._resources
         }
         if hasattr(redmine_issue, "project"):
             project_id = nexus.nx_get_project_plugin_relation(rm_project_id=redmine_issue.project.id).project_id
