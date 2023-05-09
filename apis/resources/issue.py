@@ -58,6 +58,7 @@ from resources.redis import (
     get_single_issue_pj_user_relation,
 )
 from datetime import date
+import copy
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {"1": "文字", "2": "英數字", "3": "英文字", "4": "數字"}
@@ -1540,7 +1541,7 @@ def get_issue_list_by_user(user_id, args):
     else:
         default_filters = get_custom_filters_by_args(args, user_id=nx_user.plan_user_id)
     # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    if (args.get("from") not in ["author_id", "assigned_to_id"]) or (
+    if (args.get("from") not in ["author_id", "assigned_to_id", "watche_id"]) or (
         (args.get("search") and default_filters.get("issue_id") is None) or args.get("has_tag_issue", False)
     ):
         return []
@@ -1570,6 +1571,11 @@ def get_issue_list_by_user(user_id, args):
             output.append(issue)
 
         total_count += all_issues.total_count
+
+    if args['from'] == 'watche_id':
+        cp_output = copy.deepcopy(output)
+        output = []
+        output = [o for o in cp_output if o['watchers'] != [] ]
 
     if args["limit"] and args["offset"] is not None:
         page_dict = util.get_pagination(total_count, args["limit"], args["offset"])
@@ -1635,7 +1641,7 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None, childre
         default_filters["project_id"] = project_id
     if args:
         if user_id:
-            if args.get("from") in ["author_id", "assigned_to_id"]:
+            if args.get("from") in ["author_id", "assigned_to_id", 'watch_id']:
                 default_filters[args["from"]] = user_id
             # 如果 from 已經指定 assigned_to_id，但是 params 又有 assigned_to_id 的時候，要從 args 刪除
             if args.get("assigned_to_id") and args.get("from") == "assigned_to_id":
