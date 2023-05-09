@@ -19,7 +19,9 @@ from resources import apiError, gitlab
 from resources.apiError import DevOpsError
 from datetime import date
 from resources import logger
-import pandas as pd
+from flask_apispec import marshal_with, doc, use_kwargs
+from flask_apispec.views import MethodResource
+from . import router_model
 
 
 def cm_get_config(key):
@@ -355,33 +357,45 @@ checkmarx = CheckMarx()
 
 
 # --------------------- Resources ---------------------
-class GetCheckmarxProject(Resource):
+class GetCheckmarxProjectV2(MethodResource):
+    @doc(tags=["Checkmarx"], description="Get Checkmarx Project ID", security=util.security_params)
+    # @use_kwargs(router_model.CreateCheckmarxScan)
+    @marshal_with(router_model.GetCheckmarxProjectResponse)  # marshalling
     @jwt_required
     def get(self, project_id):
         cm_project_id = checkmarx.get_latest("cm_project_id", project_id)
         return util.success({"cm_project_id": cm_project_id})
 
 
-class CreateCheckmarxScan(Resource):
+class CreateCheckmarxScanV2(MethodResource):
+    @doc(tags=["Checkmarx"], description="Create Checkmarx Scan", security=util.security_params)
+    @use_kwargs(router_model.CreateCheckmarxScan)
+    # @marshal_with(router_model.CreateCheckmarxScanResponse)  # marshalling
     @jwt_required
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("cm_project_id", type=int, required=True)
-        parser.add_argument("repo_id", type=int, required=True)
-        parser.add_argument("scan_id", type=int, required=True)
-        parser.add_argument("branch", type=str, required=True)
-        parser.add_argument("commit_id", type=str, required=True)
-        args = parser.parse_args()
-        return checkmarx.create_scan(args)
+    def post(self, **kwargs):
+        # parser = reqparse.RequestParser()
+        # parser.add_argument("cm_project_id", type=int, required=True)
+        # parser.add_argument("repo_id", type=int, required=True)
+        # parser.add_argument("scan_id", type=int, required=True)
+        # parser.add_argument("branch", type=str, required=True)
+        # parser.add_argument("commit_id", type=str, required=True)
+        # args = parser.parse_args()
+        return checkmarx.create_scan(kwargs)
 
 
-class GetCheckmarxScans(Resource):
+class GetCheckmarxScansV2(MethodResource):
+    @doc(tags=["Checkmarx"], description="Get Checkmarx Scans", security=util.security_params)
+    # @use_kwargs(router_model.CreateCheckmarxScan)
+    @marshal_with(router_model.GetCheckmarxScansResponse)  # marshalling
     @jwt_required
     def get(self, project_id):
         return util.success(checkmarx.list_scans(project_id))
 
 
-class GetCheckmarxLatestScan(Resource):
+class GetCheckmarxLatestScanV2(MethodResource):
+    @doc(tags=["Checkmarx"], description="Get Checkmarx Latest Scan ID", security=util.security_params)
+    # @use_kwargs(router_model.CreateCheckmarxScan)
+    @marshal_with(router_model.GetCheckmarxLatestScanResponse)  # marshalling
     @jwt_required
     def get(self, project_id):
         scan_id = checkmarx.get_latest("scan_id", project_id)
@@ -391,7 +405,10 @@ class GetCheckmarxLatestScan(Resource):
             return util.respond(204)
 
 
-class GetCheckmarxLatestScanStats(Resource):
+class GetCheckmarxLatestScanStatsV2(MethodResource):
+    @doc(tags=["Checkmarx"], description="Get Checkmarx Latest Scan statistics", security=util.security_params)
+    # @use_kwargs(router_model.CreateCheckmarxScan)
+    @marshal_with(router_model.GetCheckmarxScanStatisticsResponse)  # marshalling
     @jwt_required
     def get(self, project_id):
         scan_id = checkmarx.get_latest("scan_id", project_id)
@@ -404,7 +421,10 @@ class GetCheckmarxLatestScanStats(Resource):
             raise DevOpsError(400, stats)
 
 
-class GetCheckmarxLatestReport(Resource):
+class GetCheckmarxLatestReportV2(MethodResource):
+    @doc(tags=["Checkmarx"], description="Download Checkmarx Latest Report.", security=util.security_params)
+    # @use_kwargs(router_model.CreateCheckmarxScan)
+    # @marshal_with(router_model.GetCheckmarxLatestReportResponse)  # marshalling
     @jwt_required
     def get(self, project_id):
         report_id = checkmarx.get_latest("report_id", project_id)
@@ -413,13 +433,17 @@ class GetCheckmarxLatestReport(Resource):
         return checkmarx.get_report(report_id)
 
 
-class GetCheckmarxReport(Resource):
+class GetCheckmarxReportV2(MethodResource):
+    @doc(tags=["Checkmarx"], description="Download Checkmarx Report.", security=util.security_params)
     @jwt_required
     def get(self, report_id):
         return checkmarx.get_report(report_id)
 
 
-class GetCheckmarxScanStatus(Resource):
+class GetCheckmarxScanStatusV2(MethodResource):
+    @doc(tags=["Checkmarx"], description="Get Checkmarx Scan Status.", security=util.security_params)
+    # @use_kwargs(router_model.CreateCheckmarxScan)
+    @marshal_with(router_model.GetCheckmarxScanStatusResponse)  # marshalling
     @jwt_required
     def get(self, scan_id):
         status_id, name = checkmarx.get_scan_status(scan_id)
@@ -434,20 +458,29 @@ class GetCheckmarxScanStatus(Resource):
         return util.success(result)
 
 
-class RegisterCheckmarxReport(Resource):
+class RegisterCheckmarxReportV2(MethodResource):
+    @doc(tags=["Checkmarx"], description="Get Checkmarx Report ID.", security=util.security_params)
+    # @use_kwargs(router_model.CreateCheckmarxScan)
+    @marshal_with(router_model.RegisterCheckmarxReportResponse)  # marshalling
     @jwt_required
     def post(self, scan_id):
         return checkmarx.register_report(scan_id)
 
 
-class GetCheckmarxReportStatus(Resource):
+class GetCheckmarxReportStatusV2(MethodResource):
+    @doc(tags=["Checkmarx"], description="Get Checkmarx Report Status.", security=util.security_params)
+    # @use_kwargs(router_model.CreateCheckmarxScan)
+    @marshal_with(router_model.GetCheckmarxReportStatusResponse)  # marshalling
     @jwt_required
     def get(self, scan_id):
         status_id, value = checkmarx.get_report_status(scan_id)
         return util.success({"id": status_id, "value": value})
 
 
-class GetCheckmarxScanStatistics(Resource):
+class GetCheckmarxScanStatisticsV2(MethodResource):
+    @doc(tags=["Checkmarx"], description="Get Checkmarx Scan Statistics.", security=util.security_params)
+    # @use_kwargs(router_model.CreateCheckmarxScan)
+    @marshal_with(router_model.GetCheckmarxScanStatisticsResponse)  # marshalling
     @jwt_required
     def get(self, scan_id):
         stats = checkmarx.get_scan_statistics(scan_id)
@@ -457,7 +490,10 @@ class GetCheckmarxScanStatistics(Resource):
             raise DevOpsError(400, stats)
 
 
-class CancelCheckmarxScan(Resource):
+class CancelCheckmarxScanV2(MethodResource):
+    @doc(tags=["Checkmarx"], description="Canel Checkmarx Scan.", security=util.security_params)
+    # @use_kwargs(router_model.CreateCheckmarxScan)
+    @marshal_with(router_model.CancelCheckmarxScanResponse)  # marshalling
     @jwt_required
     def post(self, scan_id):
         status_code = checkmarx.cancel_scan(scan_id)

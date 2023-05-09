@@ -6,30 +6,41 @@ ui_route = ["Checkmarx"]
 
 def router(api, add_resource):
     # runner API
-    api.add_resource(checkmarx_main.CreateCheckmarxScan, "/checkmarx/create_scan")
+    api.add_resource(checkmarx_main.CreateCheckmarxScanV2, "/v2/checkmarx/create_scan")
+    add_resource(checkmarx_main.CreateCheckmarxScanV2, "public")
     api.add_resource(
-        checkmarx_main.GetCheckmarxProject,
-        "/checkmarx/get_cm_project_id/<sint:project_id>",
+        checkmarx_main.GetCheckmarxProjectV2,
+        "/v2/checkmarx/get_cm_project_id/<sint:project_id>",
     )
-
+    add_resource(checkmarx_main.GetCheckmarxProjectV2, "public")
     #
-    api.add_resource(checkmarx_main.GetCheckmarxScans, "/checkmarx/scans/<sint:project_id>")
+    api.add_resource(checkmarx_main.GetCheckmarxScansV2, "/v2/checkmarx/scans/<sint:project_id>")
+    add_resource(checkmarx_main.GetCheckmarxScansV2, "public")
     api.add_resource(
-        checkmarx_main.GetCheckmarxLatestScan,
-        "/checkmarx/latest_scan/<sint:project_id>",
+        checkmarx_main.GetCheckmarxLatestScanV2,
+        "/v2/checkmarx/latest_scan/<sint:project_id>",
     )
+    add_resource(checkmarx_main.GetCheckmarxLatestScanV2, "public")
     api.add_resource(
-        checkmarx_main.GetCheckmarxLatestScanStats,
-        "/checkmarx/latest_scan_stats/<sint:project_id>",
+        checkmarx_main.GetCheckmarxLatestScanStatsV2,
+        "/v2/checkmarx/latest_scan_stats/<sint:project_id>",
     )
+    add_resource(checkmarx_main.GetCheckmarxLatestScanStatsV2, "public")
     api.add_resource(
-        checkmarx_main.GetCheckmarxLatestReport,
-        "/checkmarx/latest_report/<sint:project_id>",
+        checkmarx_main.GetCheckmarxLatestReportV2,
+        "/v2/checkmarx/latest_report/<sint:project_id>",
     )
-    api.add_resource(checkmarx_main.GetCheckmarxReport, "/checkmarx/report/<report_id>")
-    api.add_resource(checkmarx_main.GetCheckmarxScanStatus, "/checkmarx/scan_status/<scan_id>")
-    api.add_resource(checkmarx_main.GetCheckmarxScanStatistics, "/checkmarx/scan_stats/<scan_id>")
-    api.add_resource(checkmarx_main.RegisterCheckmarxReport, "/checkmarx/report/<scan_id>")
-    api.add_resource(checkmarx_main.GetCheckmarxReportStatus, "/checkmarx/report_status/<report_id>")
-    api.add_resource(checkmarx_main.CancelCheckmarxScan, "/checkmarx/scan/<scan_id>/cancel")
+    add_resource(checkmarx_main.GetCheckmarxLatestReportV2, "public")
+    api.add_resource(checkmarx_main.GetCheckmarxReportV2, "/v2/checkmarx/report/<report_id>")
+    add_resource(checkmarx_main.GetCheckmarxReportV2, "public")
+    api.add_resource(checkmarx_main.GetCheckmarxScanStatusV2, "/v2/checkmarx/scan_status/<scan_id>")
+    add_resource(checkmarx_main.GetCheckmarxScanStatusV2, "public")
+    api.add_resource(checkmarx_main.GetCheckmarxScanStatisticsV2, "/v2/checkmarx/scan_stats/<scan_id>")
+    add_resource(checkmarx_main.GetCheckmarxScanStatisticsV2, "public")
+    api.add_resource(checkmarx_main.RegisterCheckmarxReportV2, "/v2/checkmarx/report/<scan_id>")
+    add_resource(checkmarx_main.RegisterCheckmarxReportV2, "public")
+    api.add_resource(checkmarx_main.GetCheckmarxReportStatusV2, "/v2/checkmarx/report_status/<report_id>")
+    add_resource(checkmarx_main.GetCheckmarxReportStatusV2, "public")
+    api.add_resource(checkmarx_main.CancelCheckmarxScanV2, "/v2/checkmarx/scan/<scan_id>/cancel")
+    add_resource(checkmarx_main.CancelCheckmarxScanV2, "public")
     api.add_resource(checkmarx_main.CronjobScan, "/checkmarx/cronjob_scan")
