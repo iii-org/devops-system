@@ -47,12 +47,15 @@ TEMPLATE_FOLDER_NAME = "pj_push_template"
 
 TEMPLATE_GROUP_DICT = {
     "iiidevops-templates": "Public Templates",
+    # "iiidevops": "Public Templates",
     "local-templates": "Local Templates",
 }
 
 TEMPLATE_SUPPORT_VERSION = None
 with open("apis/resources/template/template_support_version.json") as file:
     TEMPLATE_SUPPORT_VERSION = json.load(file)
+
+FILTER_OUT_PIPELINE_FILE_INFO_CONDITION = lambda k: k not in ["stages"] and not k.startswith(".")
 
 
 def __tm_get_tag_info(pj, tag_name):
@@ -87,7 +90,7 @@ def __tm_get_tag_info(pj, tag_name):
     return tag_info_dict
 
 
-def __tm_get_pipe_yamlfile_name(pj, tag_name=None, branch_name=None, commit_id=None):
+def __tm_get_pipe_file_name(pj, tag_name=None, branch_name=None, commit_id=None):
     pipe_yaml_file_name = None
     if tag_name is None and branch_name is None and commit_id is None:
         ref = pj.default_branch
@@ -99,22 +102,22 @@ def __tm_get_pipe_yamlfile_name(pj, tag_name=None, branch_name=None, commit_id=N
     elif commit_id is not None:
         ref = commit_id
     for item in pj.repository_tree(ref=ref):
-        if item["path"] == ".rancher-pipeline.yml":
-            pipe_yaml_file_name = ".rancher-pipeline.yml"
-        elif item["path"] == ".rancher-pipeline.yaml":
-            pipe_yaml_file_name = ".rancher-pipeline.yaml"
+        if item["path"] == ".gitlab-ci.yml":
+            pipe_yaml_file_name = ".gitlab-ci.yml"
+        elif item["path"] == ".gitlab-ci.yaml":
+            pipe_yaml_file_name = ".gitlab-ci.yaml"
     return pipe_yaml_file_name
 
 
 def tm_get_git_pipeline_json(pj, tag_name=None, commit_id=None):
     if tag_name is None and commit_id is None:
-        pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
+        pipe_yaml_file_name = __tm_get_pipe_file_name(pj)
         ref = pj.default_branch
     elif commit_id:
-        pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj, commit_id=commit_id)
+        pipe_yaml_file_name = __tm_get_pipe_file_name(pj, commit_id=commit_id)
         ref = commit_id
     else:
-        pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj, tag_name=tag_name)
+        pipe_yaml_file_name = __tm_get_pipe_file_name(pj, tag_name=tag_name)
         tag_info_dict = __tm_get_tag_info(pj, tag_name)
         ref = tag_info_dict["commit_id"]
 
@@ -311,18 +314,6 @@ def fetch_and_update_template_cache():
     return output
 
 
-def __update_stage_when_plugin_disable(stage):
-    if stage.get("iiidevops") is not None:
-        for software in support_software_json:
-            if software.get("template_key") == stage.get("iiidevops") and software.get("plugin_disabled") is True:
-                if "when" not in stage:
-                    stage["when"] = {"branch": {"include": []}}
-                stage_when = stage.get("when", {}).get("branch", {}).get("include", {})
-                stage_when.clear()
-                stage_when.append("skip")
-    return stage
-
-
 def lock_project(pj_name, info):
     pj_row = Project.query.filter_by(name=pj_name).first()
     pj_row.is_lock = True
@@ -401,7 +392,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
     template_pj = gl.projects.get(template_repository_id)
     secret_temp_http_url = tm_get_secret_url(template_pj)
     tag_info_dict = __tm_get_tag_info(template_pj, tag_name)
-    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(template_pj, tag_name=tag_name)
+    pipe_yaml_file_name = __tm_get_pipe_file_name(template_pj, tag_name=tag_name)
     pip_set_json = tm_read_pipe_set_json(template_pj, tag_name)
 
     pj = gl.projects.get(user_repository_id)
@@ -417,44 +408,6 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
             f"{TEMPLATE_FOLDER_NAME}/{pj.path}",
         ]
     )
-    pipe_json = None
-    with open(f"{TEMPLATE_FOLDER_NAME}/{pj.path}/{pipe_yaml_file_name}") as file:
-        pipe_json = yaml.safe_load(file)
-        for stage in pipe_json["stages"]:
-            if "steps" in stage:
-                for step in stage["steps"]:
-                    for fun_key, fun_value in step.items():
-                        # Replace System parameters, like harbor.host, registry.
-                        if fun_key == "applyAppConfig":
-                            for ans_key in fun_value["answers"].keys():
-                                if ans_key in template_replace_dict:
-                                    fun_value["answers"][ans_key] = template_replace_dict[ans_key]
-                                # Replace by pipeline_settings.json default value
-                                if "arguments" in pip_set_json:
-                                    for argument in pip_set_json["arguments"]:
-                                        if "default_value" in argument and argument["key"] == ans_key:
-                                            fun_value["answers"][ans_key] = argument["default_value"]
-                                # Replace by user input parameter.
-                                if arguments is not None and ans_key in arguments:
-                                    if type(arguments) is str:
-                                        arguments = ast.literal_eval(arguments)
-                                    for arg_key, arg_value in arguments.items():
-                                        if arg_key is not None and ans_key == arg_key:
-                                            fun_value["answers"][ans_key] = arg_value
-
-                            # Add volume uuid in DB and Web answer.
-                            if fun_value.get("answers", {}).get("volumeMounts.uuid") is not None:
-                                fun_value["answers"]["volumeMounts.uuid"] = uuids
-
-                        elif fun_key == "envFrom":
-                            pass
-                        else:
-                            for parm_key in fun_value.keys():
-                                if parm_key in template_replace_dict:
-                                    fun_value[parm_key] = template_replace_dict[parm_key]
-            stage = __update_stage_when_plugin_disable(stage)
-    with open(f"{TEMPLATE_FOLDER_NAME}/{pj.path}/{pipe_yaml_file_name}", "w") as file:
-        yaml.dump(pipe_json, file, sort_keys=False)
     set_git_username_config(f"{TEMPLATE_FOLDER_NAME}/{pj.path}")
     tm_git_commit_push(pj.path, secret_pj_http_url, TEMPLATE_FOLDER_NAME, "範本 commit", force=force)
 
@@ -503,6 +456,9 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
     out = {}
     duplicate_tools = {}
     pj = gl.projects.get(repository_id)
+    if pj.empty_repo:
+        return {}
+
     project_branches = pj.branches.list(all=True)
     all_branch = [_.name for _ in project_branches]
     stages_info = tm_get_pipeline_default_branch(repository_id, is_default_branch=False)
@@ -594,73 +550,61 @@ def get_tool_name(stage):
     return tool_name
 
 
-def handle_stage_format_helper(stage, column):
-    if isinstance(stage.get(column), dict):
-        return True
-    elif isinstance(stage.get(column), list):
-        return stage[column]
-    else:
-        return []
+def update_pipeline_info_branches(stage, pipeline_soft, branch, enable_key_name, exist_branches):
+    had_update_branch = False
+    tool_name = stage.get("stage")
+    if pipeline_soft["key"] == tool_name:
+        execute_stages = stage["only"]
+        if pipeline_soft[enable_key_name] and branch not in execute_stages:
+            execute_stages.append(branch)
+            had_update_branch = True
+        elif not pipeline_soft[enable_key_name] and branch in execute_stages:
+            execute_stages.remove(branch)
+            had_update_branch = True
 
+        execute_stages = [branch for branch in execute_stages if branch in exist_branches]
+        if len(execute_stages) == 0:
+            execute_stages.append("skip")
+            had_update_branch = True
+        elif len(execute_stages) > 1 and "skip" in execute_stages:
+            execute_stages.remove("skip")
+            had_update_branch = True
+        stage["only"] = execute_stages
 
-def handle_stage_format(stage):
-    stage_copy = stage.copy()
-    for column in ["when", "branch", "include"]:
-        ret = handle_stage_format_helper(stage_copy, column)
-        if ret is True:
-            stage_copy = stage_copy.get(column)
-        else:
-            return ret
-    return []
-
-
-def update_branches(stage, pipline_soft, branch, enable_key_name, exist_branches):
-    had_update_branche = False
-    if get_tool_name(stage) is not None and pipline_soft["key"] == get_tool_name(stage):
-        if "when" not in stage:
-            stage["when"] = {"branch": {"include": []}}
-        stage_when = handle_stage_format(stage)
-        if pipline_soft[enable_key_name] and branch not in stage_when:
-            stage_when.append(branch)
-            had_update_branche = True
-        elif pipline_soft[enable_key_name] is False and branch in stage_when:
-            stage_when.remove(branch)
-            had_update_branche = True
-
-        stage_when = [branch for branch in stage_when if branch in exist_branches]
-        if len(stage_when) == 0:
-            stage_when.append("skip")
-            had_update_branche = True
-        elif len(stage_when) > 1 and "skip" in stage_when:
-            stage_when.remove("skip")
-            had_update_branche = True
-        stage["when"] = {"branch": {"include": stage_when}}
-    return had_update_branche
+    return had_update_branch
 
 
 def tm_update_pipline_branches(user_account, repository_id, data, default=True, run=False):
-    if run is None:
-        run = False
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return
-    exist_branch_list = [br.name for br in pj.branches.list(all=True)]
+
+    pipe_yaml_file_name = __tm_get_pipe_file_name(pj)
+    if pipe_yaml_file_name is None:
+        return
 
     # Update default branch's pipeline
+    exist_branch_list = [br.name for br in pj.branches.list(all=True)]
     default_branch = pj.default_branch
     had_update_branche = False
     all_branches = [br.name for br in pj.branches.list(all=True)]
     need_running_branches = [i for i in list(data.keys()) if i in all_branches]
-    pipe_yaml_file_name = __tm_get_pipe_yamlfile_name(pj)
-    if pipe_yaml_file_name is None:
-        return
+
     f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=default_branch)
-    default_pipe_json = yaml.safe_load(f.decode())
-    for stage in default_pipe_json["stages"]:
+
+    """
+    yaml.safe_load(base64.b64decode(get_yaml_data["content"]).decode("utf-8"))
+    """
+    pipe_dict = yaml.safe_load(f.decode())
+
+    for stage_name, stage_info in pipe_dict.items():
+        if not FILTER_OUT_PIPELINE_FILE_INFO_CONDITION(stage_name):
+            continue
+
         if default:
             for put_pipe_soft in data["stages"]:
-                had_update_branche |= update_branches(
-                    stage,
+                has_update_file |= update_pipeline_info_branches(
+                    stage_info,
                     put_pipe_soft,
                     pj.default_branch,
                     "has_default_branch",
@@ -669,27 +613,21 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
         else:
             for input_branch, multi_software in data.items():
                 for input_soft_enable in multi_software:
-                    had_update_branche |= update_branches(
-                        stage,
+                    has_update_file |= update_pipeline_info_branches(
+                        stage_info,
                         input_soft_enable,
                         input_branch,
                         "enable",
                         exist_branch_list,
                     )
     if had_update_branche:
-        if not run or default or (run and default_branch not in need_running_branches):
-            next_run = pipeline.get_pipeline_next_run(repository_id)
-            print(f"next_run: {next_run}")
-
-        f.content = yaml.dump(default_pipe_json, sort_keys=False)
+        f.content = yaml.dump(pipe_dict, sort_keys=False)
         f.save(
             branch=default_branch,
             author_email="system@iiidevops.org.tw",
             author_name="iiidevops",
-            commit_message=f"{user_account} 編輯 {default_branch} 分支 .rancher-pipeline.yaml",
+            commit_message=f"{user_account} 編輯 {default_branch} 分支 .gitlab-ci.yaml ({'run' if run and default_branch in need_running_branches else 'store'})",
         )
-        if not run or default or (run and default_branch not in need_running_branches):
-            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=default_branch)
 
     # Sync default branch pipeline.yml to other branches, seperate to two parts to avoid not delete all branches
     for br_name in need_running_branches:
@@ -698,12 +636,11 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
             repository_id,
             pipe_yaml_file_name,
             br_name,
-            default_pipe_json,
+            pipe_dict,
             not_run=not run,
         )
     # Rest of branches
-    # rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches + [default_branch]])
-    rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches])
+    rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches + [default_branch]])
     thread = threading.Thread(
         target=sync_branches,
         args=(
@@ -711,7 +648,7 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
             repository_id,
             pipe_yaml_file_name,
             rest_branch_names,
-            default_pipe_json,
+            pipe_dict,
         ),
     )
     thread.start()
@@ -735,23 +672,16 @@ def sync_branch(
     had_update_branche = pipe_json != updated_pipe_json
     pipe_json = updated_pipe_json
     if had_update_branche:
-        if not_run:
-            next_run = pipeline.get_pipeline_next_run(repository_id)
-            print(f"next_run: {next_run}")
-        logger.logger.info(f"{br_name} not run : {not_run}")
         f.content = yaml.dump(pipe_json, sort_keys=False)
         f.save(
             branch=br_name,
             author_email="system@iiidevops.org.tw",
             author_name="iiidevops",
-            commit_message=f"{user_account} 編輯 {br_name} 分支 .rancher-pipeline.yaml",
+            commit_message=f"{user_account} 編輯 {br_name} 分支 .gitlab-ci.yaml ({'run' if not not_run else 'store'})",
         )
-        if not_run:
-            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br_name)
-            print(f"stop_and_delete: {next_run}")
 
 
-def initial_rancher_pipline_info(repository_id):
+def initial_gitlab_pipline_info(repository_id):
     try:
         pj = gl.projects.get(repository_id)
     except GitlabGetError as e:
@@ -767,82 +697,85 @@ def initial_rancher_pipline_info(repository_id):
         )
     if __check_git_project_is_empty(pj):
         return {}
+
     default_branch = pj.default_branch
-    pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=default_branch)
+    if branch_name is None:
+        branch_name = default_branch
+    pipe_yaml_name = __tm_get_pipe_file_name(pj, branch_name=default_branch)
     if pipe_yaml_name is None:
         return {}
     f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=default_branch)
-    return {"default_branch": default_branch, "pipe_dict": yaml.safe_load(f.decode())}
+    pipe_dict = yaml.safe_load(f.decode())
+    pipe_dict = {k: v for k, v in pipe_dict.items() if FILTER_OUT_PIPELINE_FILE_INFO_CONDITION(k)}
+    return {"default_branch": default_branch, "pipe_dict": pipe_dict}
 
 
-def update_nonexist_key_rancher_file(repository_id: int):
-    """
-    更新 iiidevops 鍵值不存在的 .rancher-pipeline.yml 檔案
+def initial_gitlab_pipline_info(repository_id, branch_name=None):
+    try:
+        pj = gl.projects.get(repository_id)
+    except GitlabGetError as e:
+        if "Project Not Found" in e.error_message:
+            lock_project(
+                nexus.nx_get_project(id=nexus.nx_get_project_plugin_relation(repo_id=repository_id).project_id).name,
+                "Gitlab",
+            )
+        raise DevOpsError(
+            404,
+            "Gitlab project not found.",
+            error=apiError.repository_id_not_found(repository_id),
+        )
+    if __check_git_project_is_empty(pj):
+        return {}
 
-    :param repository_id:
-    :return:
-    """
-    initial_info = initial_rancher_pipline_info(repository_id)
+    default_branch = pj.default_branch
+    if branch_name is None:
+        branch_name = default_branch
+    pipe_yaml_name = __tm_get_pipe_file_name(pj, branch_name=default_branch)
+    if pipe_yaml_name is None:
+        return {}
+    f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=default_branch)
+    pipe_dict = yaml.safe_load(f.decode())
+    pipe_dict = {k: v for k, v in pipe_dict.items() if FILTER_OUT_PIPELINE_FILE_INFO_CONDITION(k)}
+    return {"default_branch": default_branch, "pipe_dict": pipe_dict}
 
+
+def tm_get_pipeline_default_branch(repository_id: int, is_default_branch: bool = True) -> dict[str:Any]:
+    initial_info = initial_gitlab_pipline_info(repository_id)
     if not initial_info:
         return initial_info
 
-    pipe_dict = initial_info["pipe_dict"]
+    disabled_plugin_softwares = PluginSoftware.query.filter_by(disabled=True).all()
+    skip_record_tools = [disabled_plugin_software.name for disabled_plugin_software in disabled_plugin_softwares] + [
+        "initial-pipeline"
+    ]
 
-    # It will be removed if all project rancher.pipline.yml is in new type.
-    for stage in pipe_dict["stages"]:
-        if stage.get("iiidevops") is None:
-            update_pj_rancher_pipline(repository_id)
-            break
-
-
-def tm_get_pipeline_default_branch(repository_id, is_default_branch=True):
-    # update_nonexist_key_rancher_file(repository_id)
-    initial_info = initial_rancher_pipline_info(repository_id)
-    disable_list = []
-    if PluginSoftware.query.filter_by(disabled=True).first():
-        rows = PluginSoftware.query.filter_by(disabled=True).all()
-        disable_list = [row.name if row.name != "sbom" else "anchore" for row in rows]
-
-    if not initial_info:
-        return initial_info
-
-    default_branch = initial_info["default_branch"]
+    software_dict = {_["template_key"]: _ for _ in support_software_json}
+    default_branch, file_stages = initial_info["default_branch"], initial_info["pipe_dict"]
     stages_info = {"default_branch": default_branch, "stages": []}
     return_stages = []
-    file_stages = initial_info["pipe_dict"]["stages"]
 
-    fetch_latest_plugin_status()  # update plugin enable status
-    software_dict = {_["template_key"]: _ for _ in support_software_json}
+    for _, stage_info in file_stages.items():
+        tool = stage_info["stage"]
+        if tool in skip_record_tools:
+            continue
 
-    for stage in file_stages:
         single_stage = {"has_default_branch": False}
-        tool = stage["iiidevops"]
-
         software = software_dict.get(tool, None)
-        if software and (not software.get("plugin_disabled") or tool == "deployed-environments"):
+        if software:
             single_stage["name"] = software["display"]
             single_stage["key"] = software["template_key"]
-
         else:
-            if tool != "initial-pipeline":
-                # Exclude case: initial-pipeline
-                single_stage["name"] = tool
-                single_stage["key"] = tool
+            single_stage["name"] = tool
+            single_stage["key"] = tool
 
-        if "when" in stage:
-            include_branches = stage["when"]["branch"].get("include", [])
+        if "only" in stage_info:
+            include_branches = stage_info["only"]
             if is_default_branch:
                 single_stage["has_default_branch"] = default_branch in include_branches
             else:
                 single_stage["branches"] = include_branches
 
-        if (
-            single_stage not in return_stages
-            and single_stage.get("name", False)
-            and single_stage.get("name") not in disable_list
-        ):
-            # 沒有 name 的 stage 表示是 initial-pipeline 的 stage
+        if single_stage not in return_stages:
             return_stages.append(single_stage)
 
     stages_info["stages"] = return_stages
@@ -859,7 +792,7 @@ def update_pj_rancher_pipline(repository_id):
     #     is_turn_off_push = True
     for br in pj.branches.list(all=True):
         try:
-            pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
+            pipe_yaml_name = __tm_get_pipe_file_name(pj, branch_name=br.name)
             f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
             pipe_dict = yaml.safe_load(f.decode())
             temp_list = []
@@ -903,23 +836,12 @@ def update_pj_rancher_pipline(repository_id):
             branch=br.name,
             author_email="system@iiidevops.org.tw",
             author_name="iiidevops",
-            commit_message=f'Add "iiidevops" in branch {br.name} .rancher-pipeline.yml.',
+            commit_message=f'Add "iiidevops" in branch {br.name} .gitlab-ci.yml.',
         )
         pipeline.stop_and_delete_pipeline(repository_id, next_run)
     # if is_turn_off_push:
     #     pipeline.turn_push_on(repository_id)
     # sleep(1)
-
-
-def update_project_rancher_pipline():
-    projects = Project.query.all()
-    project_id_list = [pj.id for pj in projects]
-    project_id_list.remove(-1)
-    for pj_id in project_id_list:
-        logger.logger.info(f"project_id : {pj_id}")
-        repository_id = nexus.nx_get_repository_id(pj_id)
-        update_pj_rancher_pipline(repository_id)
-        logger.logger.info(f"{pj_id} update completely")
 
 
 def update_pj_plugin_status(plugin_name, disable):
@@ -934,7 +856,7 @@ def update_pj_plugin_status(plugin_name, disable):
             continue
         branch_name_list = [br.name for br in pj.branches.list(all=True)]
         for br in pj.branches.list(all=True):
-            pipe_yaml_name = __tm_get_pipe_yamlfile_name(pj, branch_name=br.name)
+            pipe_yaml_name = __tm_get_pipe_file_name(pj, branch_name=br.name)
             f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
             pipe_dict = yaml.safe_load(f.decode())
             match = False
@@ -956,16 +878,14 @@ def update_pj_plugin_status(plugin_name, disable):
                         stage_when.remove("skip")
             # Do not commit if plugin_name has not match any stage.
             if match:
-                next_run = pipeline.get_pipeline_next_run(repository_id)
                 f.content = yaml.dump(pipe_dict, sort_keys=False)
                 process = "啟用" if not disable else "停用"
                 f.save(
                     branch=br.name,
                     author_email="system@iiidevops.org.tw",
                     author_name="iiidevops",
-                    commit_message=f"UI 編輯 .rancher-pipeline.yaml {process} {plugin_name}.",
+                    commit_message=f"UI 編輯 .gitlab-ci.yaml {process} {plugin_name}.",
                 )
-                pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
 # --------------------- Resources ---------------------
@@ -1013,7 +933,7 @@ class ProjectPipelineBranches(Resource):
     def put(self, repository_id):
         parser = reqparse.RequestParser()
         parser.add_argument("detail", type=dict)
-        parser.add_argument("run", type=bool)
+        parser.add_argument("run", type=bool, default=False)
         args = parser.parse_args()
         # Remove duplicate args
         for branch, pip_info in args["detail"].items():

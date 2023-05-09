@@ -328,7 +328,7 @@ def create_project_in_servers(args: dict[str, Any]) -> dict[str : dict[str, Any]
     services = ["redmine", "gitlab", "harbor", "sonarqube", "key_cloak"]
     targets = {
         "redmine": redmine.rm_create_project,
-        "gitlab": gitlab.gl_create_project,
+        "gitlab": gitlab.create_project,
         "harbor": harbor.hb_create_project,
         "sonarqube": sonarqube.sq_create_project,
         "key_cloak": key_cloak.create_group,
@@ -630,10 +630,18 @@ def create_bot(project_id):
     git_access_token = gitlab.gl_create_access_token(git_user_id)
     sonar_access_token = sonarqube.sq_create_access_token(login)
 
-    # Add bot secrets to rancher
-    create_kubernetes_namespace_secret(project_id, "gitlab-bot", {"git-token": git_access_token})
-    create_kubernetes_namespace_secret(project_id, "sonar-bot", {"sonar-token": sonar_access_token})
-    create_kubernetes_namespace_secret(project_id, "nexus-bot", {"username": login, "password": password})
+    # Add bot secrets to gitlab pj env
+    pj_repo_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first().git_repository_id
+    gitlab.create_pj_variable(pj_repo_id, "GITLAB_TOKEN", git_access_token)
+    gitlab.create_pj_variable(pj_repo_id, "SONAR_TOKEN", sonar_access_token)
+    gitlab.create_pj_variable(pj_repo_id, "USERNAME", login)
+    gitlab.create_pj_variable(pj_repo_id, "PASSWORD", password)
+    # gitlab.create_pj_variable(pj_repo_id, "HARBOR_ROBOT", password)
+    # gitlab.create_pj_variable(pj_repo_id, "HARBOR_ROBOT_SECRET", password)
+
+    # create_kubernetes_namespace_secret(project_id, "gitlab-bot", {"git-token": git_access_token})
+    # create_kubernetes_namespace_secret(project_id, "sonar-bot", {"sonar-token": sonar_access_token})
+    # create_kubernetes_namespace_secret(project_id, "nexus-bot", {"username": login, "password": password})
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
@@ -753,8 +761,10 @@ def nexus_update_project(project_id, args):
 def try_to_delete(delete_method, argument):
     try:
         delete_method(argument)
-    except DevOpsError as e:
-        if e.status_code != 404:
+    except Exception as e:
+        if (hasattr(e, "status_code") and e.status_code != 404) or (
+            hasattr(e, "response_code") and e.response_code != 404
+        ):
             raise e
 
 
@@ -798,7 +808,7 @@ def delete_project_helper(project_id):
     key_cloak_group_id = relation.key_cloak_group_id
     project_name = nexus.nx_get_project(id=project_id).name
 
-    delete_bot(project_id, sso=True)
+    delete_bot(project_id)
 
     try_to_delete(gitlab.gl_delete_project, gitlab_project_id)
     try_to_delete(redmine.rm_delete_project, redmine_project_id)
@@ -830,14 +840,14 @@ def delete_project_helper(project_id):
         shutil.rmtree(project_nfs_file_path)
 
 
-def delete_bot(project_id, sso=False):
+def delete_bot(project_id):
     row = model.ProjectUserRole.query.filter_by(project_id=project_id, role_id=role.BOT.id).first()
     if row is None:
         return
-    user.delete_user(row.user_id, sso=sso)
-    delete_kubernetes_namespace_secret(project_id, "gitlab-bot")
-    delete_kubernetes_namespace_secret(project_id, "sonar-bot")
-    delete_kubernetes_namespace_secret(project_id, "nexus-bot")
+    user.delete_user(row.user_id)
+    # delete_kubernetes_namespace_secret(project_id, "gitlab-bot")
+    # delete_kubernetes_namespace_secret(project_id, "sonar-bot")
+    # delete_kubernetes_namespace_secret(project_id, "nexus-bot")
 
 
 def get_project_info(project_id):
