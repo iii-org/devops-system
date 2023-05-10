@@ -8,7 +8,10 @@ import model
 import util as util
 from model import db
 from resources import apiTest, role, apiError
-
+from flask_apispec import marshal_with, doc, use_kwargs
+from flask_apispec.views import MethodResource
+from plugins import handle_plugin
+from . import router_model
 # noinspection PyTypeChecker
 from resources.test_generated_issue import tgi_feed_postman
 
@@ -133,51 +136,73 @@ def pm_save_result(args):
 
 
 # --------------------- Resources ---------------------
-class ExportToPostman(Resource):
+class ExportToPostmanV2(MethodResource):
+    @doc(tags=["Postman"], description="Export to Postman", security=util.security_params)
+    @use_kwargs(router_model.ExportToPostmanGet, location="query")
+    @marshal_with(router_model.ExportToPostmanGetRes)
+    @handle_plugin("postman")
     @jwt_required
-    def get(self, project_id):
+    def get(self, project_id, **kwargs):
         role.require_in_project(project_id, "You don't have permission to create collection.")
-        parser = reqparse.RequestParser()
-        parser.add_argument("target", type=str, required=True, location="args")
-        args = parser.parse_args()
-        target = args["target"]
+        # parser = reqparse.RequestParser()
+        # parser.add_argument("target", type=str, required=True, location="args")
+        # args = parser.parse_args()
+        target = kwargs["target"]
         return export_to_postman(project_id, target)
 
 
-class PostmanResults(Resource):
+class PostmanResultsV2(MethodResource):
+    @doc(tags=["Postman"], description="Get Postman Results", security=util.security_params)
+    # @use_kwargs(router_model.PostmanResultsGet, location="query")
+    @marshal_with(router_model.PostmanResultsGetRes)
+    @handle_plugin("postman")
     @jwt_required
     def get(self, project_id):
         return util.success(apiTest.list_results(project_id))
 
 
-class PostmanReport(Resource):
+class PostmanScanReportV2(MethodResource):
+    @doc(tags=["Postman"], description="Get Postman Scan Report", security=util.security_params)
+    # @use_kwargs(router_model.PostmanReportGet, location="query")
+    @marshal_with(router_model.PostmanReportGetRes)
+    @handle_plugin("postman")
     @jwt_required
     def get(self, id):
         return apiTest.get_test_result(id)
 
+
+class PostmanReportV2(MethodResource):
+    @doc(tags=["Postman"], description="Modified Postman Scan Report", security=util.security_params)
+    @use_kwargs(router_model.PostmanReportPut)
+    @marshal_with(router_model.PostmanReportPutRes)
+    @handle_plugin("postman")
     @jwt_required
-    def put(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("scan_id", type=int, required=True)
-        parser.add_argument("project_id", type=int, required=True)
-        parser.add_argument("total", type=int, required=True)
-        parser.add_argument("fail", type=int, required=True)
-        parser.add_argument("report", type=str, required=True)
-        parser.add_argument("status", type=str)
-        parser.add_argument("logs", type=str)
-        args = parser.parse_args()
-        role.require_in_project(project_id=args["project_id"])
-        pm_save_result(args)
+    def put(self, **kwargs):
+        # parser = reqparse.RequestParser()
+        # parser.add_argument("scan_id", type=int, required=True)
+        # parser.add_argument("project_id", type=int, required=True)
+        # parser.add_argument("total", type=int, required=True)
+        # parser.add_argument("fail", type=int, required=True)
+        # parser.add_argument("report", type=str, required=True)
+        # parser.add_argument("status", type=str)
+        # parser.add_argument("logs", type=str)
+        # args = parser.parse_args()
+        role.require_in_project(project_id=kwargs["project_id"])
+        pm_save_result(kwargs)
         return util.success()
 
+    @doc(tags=["Postman"], description="Create Postman Scan Report", security=util.security_params)
+    @use_kwargs(router_model.PostmanReportPost)
+    @marshal_with(router_model.PostmanReportPostRes)
+    @handle_plugin("postman")
     @jwt_required
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("project_id", type=int, required=True)
-        parser.add_argument("branch", type=str, required=True)
-        parser.add_argument("commit_id", type=str, required=True)
-        parser.add_argument("status", type=str)
-        parser.add_argument("logs", type=str)
-        args = parser.parse_args()
-        role.require_in_project(project_id=args["project_id"])
-        return util.success({"scan_id": pm_create_scan(args)})
+    def post(self, **kwargs):
+        # parser = reqparse.RequestParser()
+        # parser.add_argument("project_id", type=int, required=True)
+        # parser.add_argument("branch", type=str, required=True)
+        # parser.add_argument("commit_id", type=str, required=True)
+        # parser.add_argument("status", type=str)
+        # parser.add_argument("logs", type=str)
+        # args = parser.parse_args()
+        role.require_in_project(project_id=kwargs["project_id"])
+        return util.success({"scan_id": pm_create_scan(kwargs)})
