@@ -10,7 +10,7 @@ from resources import apiError
 
 
 class ExcalidrawsV2(MethodResource):
-    @doc(tags=["Excalidraw"], description="Create a excalidraw.")
+    @doc(tags=["Excalidraw"], description="Create a excalidraw.", security=util.security_params)
     @use_kwargs(router_model.ExcalidrawCreateSchema, location="form")
     @marshal_with(router_model.ExcalidrawPostRes)
     @handle_plugin("excalidraw")
@@ -19,7 +19,7 @@ class ExcalidrawsV2(MethodResource):
         kwargs["issue_ids"] = None if kwargs.get("issue_ids") == "" else kwargs.get("issue_ids")
         return util.success(excalidraw.create_excalidraw(kwargs))
 
-    @doc(tags=["Excalidraw"], description="Get excalidraws.")
+    @doc(tags=["Excalidraw"], description="Get excalidraws.", security=util.security_params)
     @use_kwargs(router_model.ExcalidrawGetSchema, location="query")
     @marshal_with(router_model.ExcalidrawGetRes)
     @handle_plugin("excalidraw")
@@ -29,14 +29,14 @@ class ExcalidrawsV2(MethodResource):
 
 
 class ExcalidrawV2(MethodResource):
-    @doc(tags=["Excalidraw"], description="Delete an excalidraw.")
+    @doc(tags=["Excalidraw"], description="Delete an excalidraw.", security=util.security_params)
     @marshal_with(util.CommonResponse)
     @handle_plugin("excalidraw")
     @jwt_required
     def delete(self, excalidraw_id):
         return util.success(excalidraw.delete_excalidraw(excalidraw_id))
 
-    @doc(tags=["Excalidraw"], description="Update an excalidraw.")
+    @doc(tags=["Excalidraw"], description="Update an excalidraw.", security=util.security_params)
     @use_kwargs(router_model.ExcalidrawPatchSchema, location="form")
     @marshal_with(router_model.ExcalidrawPatchRes)
     @handle_plugin("excalidraw")
@@ -46,7 +46,7 @@ class ExcalidrawV2(MethodResource):
 
 
 class SyncExcalidrawDBV2(MethodResource):
-    @doc(tags=["Sync"], description="Remove unused data in excalidraw's DB.")
+    @doc(tags=["Sync"], description="Remove unused data in excalidraw's DB.", security=util.security_params)
     @handle_plugin("excalidraw")
     @jwt_required_cronjob
     def post(self):
@@ -54,7 +54,7 @@ class SyncExcalidrawDBV2(MethodResource):
 
 
 class CheckExcalidrawAliveV2(MethodResource):
-    @doc(tags=["Excalidraw"], description="Check excalidraw server is alive.")
+    @doc(tags=["Excalidraw"], description="Check excalidraw server is alive.", security=util.security_params)
     @marshal_with(router_model.CheckExcalidrawAliveRes)
     @handle_plugin("excalidraw")
     @jwt_required
@@ -63,7 +63,7 @@ class CheckExcalidrawAliveV2(MethodResource):
 
 
 class ExcalidrawsFilesV2(MethodResource):
-    @doc(tags=["Excalidraw"], description="Put excalidraw Files info")
+    @doc(tags=["Excalidraw"], description="Put excalidraw Files info", security=util.security_params)
     @use_kwargs(router_model.ExcalidrawFilePostSchema, location="json")
     @marshal_with(util.CommonResponse)
     @handle_plugin("excalidraw")
@@ -73,7 +73,7 @@ class ExcalidrawsFilesV2(MethodResource):
 
 
 class ExcalidrawsHistoryV2(MethodResource):
-    @doc(tags=["Excalidraw"], description="Get excalidraw record by excalidraw_id.")
+    @doc(tags=["Excalidraw"], description="Get excalidraw record by excalidraw_id.", security=util.security_params)
     @marshal_with(router_model.ExcalidrawHistoryGetRes)
     @handle_plugin("excalidraw")
     @jwt_required
@@ -88,7 +88,7 @@ class ExcalidrawsHistoryV2(MethodResource):
         excalidraw.update_excalidraw_history(excalidraw_id)
         return util.success()
 
-    @doc(tags=["Excalidraw"], description="Compare excalidraw and store in db. (Get out)")
+    @doc(tags=["Excalidraw"], description="Compare excalidraw and store in db. (Get out)", security=util.security_params)
     @marshal_with(util.CommonResponse)
     @handle_plugin("excalidraw")
     @jwt_required
@@ -98,7 +98,7 @@ class ExcalidrawsHistoryV2(MethodResource):
 
 
 class ExcalidrawsVersionRestoreV2(MethodResource):
-    @doc(tags=["Excalidraw"], description="restore excalidraw value by user assigned.")
+    @doc(tags=["Excalidraw"], description="restore excalidraw value by user assigned.", security=util.security_params)
     @marshal_with(util.CommonResponse)
     @handle_plugin("excalidraw")
     @jwt_required
@@ -107,7 +107,7 @@ class ExcalidrawsVersionRestoreV2(MethodResource):
 
 
 class GetExcalidrawIDV2(MethodResource):
-    @doc(tags=["Excalidraw"], description="get excalidraw id.")
+    @doc(tags=["Excalidraw"], description="get excalidraw id.", security=util.security_params)
     @marshal_with(router_model.ExcalidrawGetIDRes)
     @handle_plugin("excalidraw")
     def get(self, room_key):
