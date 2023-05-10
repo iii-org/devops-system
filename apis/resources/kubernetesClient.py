@@ -15,7 +15,7 @@ from kubernetes.stream import stream as k8s_stream
 
 # from resources.handler.jwt import create_access_token
 from datetime import timedelta
-from util import read_json_file
+from util import read_json_file, get_deploy_timezone
 
 import config
 import resources.apiError as apiError
@@ -38,16 +38,17 @@ iii_env_default = system_parameter["secret"] + system_parameter["registry"]
 env_normal_type = ["Opaque"]
 
 DEFAULT_NAMESPACE = "default"
+DEFAULT_SEC_CONTEXT = "home"
 SYSTEM_SECRET_NAMESPACE = "iiidevops-env-secret"
 CRONJOB_WHITELIST = ["anchore-grypedb-update-job-by-day"]
 
 
 class ApiK8sClient:
-    def __init__(self, configuration=None, configuration_file=None):
+    def __init__(self, configuration=None, configuration_file=None, context="default"):
         if configuration_file is not None:
-            configuration = k8s_config.load_kube_config(config_file=configuration_file)
+            configuration = k8s_config.load_kube_config(config_file=configuration_file, context=context)
         elif configuration is None:
-            configuration = k8s_config.load_kube_config()
+            configuration = k8s_config.load_kube_config(context=context)
 
         self.configuration = configuration
         self.api_k8s_client = k8s_client.ApiClient(configuration=configuration)
@@ -56,9 +57,12 @@ class ApiK8sClient:
         self.app_v1 = k8s_client.AppsV1Api(self.api_k8s_client)
         self.networking_v1 = k8s_client.NetworkingV1Api(self.api_k8s_client)
         self.batch_v1 = k8s_client.BatchV1Api(self.api_k8s_client)
-        # 20230118 為取得 storage class 資訊而新增下列一行程式
         self.storage_v1 = k8s_client.StorageV1Api(self.api_k8s_client)
-        # 20230118 為取得 storage class 資訊而新增上列一行程式
+
+    # initial with different k8s context
+    @classmethod
+    def from_context(cls, configuration=None, configuration_file=None, context=DEFAULT_SEC_CONTEXT):
+        return cls(configuration, configuration_file, context)
 
     # api  version
     def get_api_resources(self):
@@ -602,7 +606,7 @@ def apply_cronjob_yamls():
         if retry >= MAX_RETRY_APPLY_CRONJOB:
             logger.critical(f"Cannot delete existing cronjob {cronjob_name}!" f" Cronjob is not applied.")
 
-    api_k8s_client = ApiK8sClient()
+    api_k8s_client = ApiK8sClient.from_context()
     k8s_cronjob_name_list = get_k8s_cronjob_name_list(api_k8s_client)
     logger.info(f"Exist cronjob list {k8s_cronjob_name_list}")
     need_removed_cronjob_list = [
@@ -617,6 +621,10 @@ def apply_cronjob_yamls():
             if file.endswith(".yaml") or file.endswith(".yml"):
                 with open(os.path.join(root, file)) as f:
                     json_file = yaml.safe_load(f)
+
+                    # Set execute timezone
+                    timezone = get_deploy_timezone()
+                    json_file["spec"]["timeZone"] = timezone
                     cronjob_name = json_file["metadata"]["name"]
                     logger.info(f"Remove {cronjob_name}")
 
@@ -633,7 +641,7 @@ def apply_cronjob_yamls():
                                 break
                 try:
                     logger.info(f"Recreate {cronjob_name}")
-                    k8s_utils.create_from_yaml(api_k8s_client.get_api_client(), os.path.join(root, file))
+                    k8s_utils.create_from_dict(api_k8s_client.get_api_client(), json_file)
                     logger.info(f"Recreate {cronjob_name} done")
                 except k8s_utils.FailToCreateError as e:
                     print("e1")
