@@ -18,6 +18,9 @@ from model import db, ProjectPluginRelation
 from plugins import get_plugin_config
 from resources import apiError, gitlab
 from resources.apiError import DevOpsError
+from flask_apispec import marshal_with, doc, use_kwargs
+from flask_apispec.views import MethodResource
+from . import router_model
 
 
 def cm_get_config(key):
@@ -318,47 +321,63 @@ def remove_apk():
 # --------------------- Resources ---------------------
 
 
-class CMASTask(Resource):
+class CMASTasksV2(MethodResource):
     # Get all tasks
+    @doc(tags=["CMAS"], description="Get CMAS all Tasks", security=util.security_params)
+    # @use_kwargs(router_model.CreateCheckmarxScan)
+    @marshal_with(router_model.CMASTaskGetResponse)  # marshalling
     @jwt_required
     def get(self, repository_id):
         return util.success(get_tasks(repository_id))
 
     # Create new tasks
+    @doc(tags=["CMAS"], description="Create new  CMAS Task", security=util.security_params)
+    @use_kwargs(router_model.CMASTaskPost)
+    @marshal_with(router_model.CMASTaskPostResponse)  # marshalling
     @jwt_required
-    def post(self, repository_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument("task_id", type=str, required=True)
-        parser.add_argument("branch", type=str, required=True)
-        parser.add_argument("commit_id", type=str, required=True)
-        parser.add_argument("a_mode", type=int, required=True)
-        parser.add_argument("a_ert", type=int, required=True)
-        args = parser.parse_args()
-        return create_task(args, repository_id)
-
-    def put(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("task_id", type=str, required=True)
-        parser.add_argument("upload_id", type=int)
-        parser.add_argument("size", type=int)
-        parser.add_argument("sha256", type=str)
-        parser.add_argument("stats", type=str)
-        parser.add_argument("scan_final_status", type=str)
-        parser.add_argument("logs", type=str)
-
-        args = parser.parse_args()
-        return update_task(args, args.pop("task_id"))
+    def post(self, repository_id, **kwargs):
+        # parser = reqparse.RequestParser()
+        # parser.add_argument("task_id", type=str, required=True)
+        # parser.add_argument("branch", type=str, required=True)
+        # parser.add_argument("commit_id", type=str, required=True)
+        # parser.add_argument("a_mode", type=int, required=True)
+        # parser.add_argument("a_ert", type=int, required=True)
+        # args = parser.parse_args()
+        return create_task(kwargs, repository_id)
 
 
-class CMASRemote(Resource):
+class CMASTaskV2(MethodResource):
+    @doc(tags=["CMAS"], description="Modified CMAS Task", security=util.security_params)
+    @use_kwargs(router_model.CMASTaskPut)
+    @marshal_with(router_model.CMASTaskPutResponse)  # marshalling
+    def put(self, **kwargs):
+        # parser = reqparse.RequestParser()
+        # parser.add_argument("task_id", type=str, required=True)
+        # parser.add_argument("upload_id", type=int)
+        # parser.add_argument("size", type=int)
+        # parser.add_argument("sha256", type=str)
+        # parser.add_argument("stats", type=str)
+        # parser.add_argument("scan_final_status", type=str)
+        # parser.add_argument("logs", type=str)
+        # args = parser.parse_args()
+        return update_task(kwargs, kwargs.pop("task_id"))
+
+
+class CMASRemoteV2(MethodResource):
     # get task status
+    @doc(tags=["CMAS"], description="Get CMAS Task status.", security=util.security_params)
+    # @use_kwargs(router_model.CMASRemoteGet)
+    @marshal_with(router_model.CMASRemoteGetResponse)  # marshalling
     @jwt_required
     def get(self, task_id):
         return util.success(CMAS(task_id).query_report_task())
 
 
-class CMASDonwload(Resource):
+class CMASDonwloadV2(MethodResource):
     # Download reports
+    @doc(tags=["CMAS"], description="Donwload CMAS Report.", security=util.security_params)
+    # @use_kwargs(router_model.CMASRemoteGet)
+    # @marshal_with(router_model.CMASRemoteGetResponse)  # marshalling
     @jwt_required
     def get(self, task_id, file_type):
         if file_type == "pdf":
@@ -367,13 +386,19 @@ class CMASDonwload(Resource):
             return CMAS(task_id).return_content()
 
 
-class CMASSecret(Resource):
+class CMASSecretV2(MethodResource):
+    @doc(tags=["CMAS"], description="Get CMAS Secret.", security=util.security_params)
+    # @use_kwargs(router_model.CMASSecretGet)
+    @marshal_with(router_model.CMASSecretGetResponse)  # marshalling
     @jwt_required
     def get(self):
         return get_secrets()
 
 
-class CMASAPKREmove(Resource):
+class CMASAPKREmoveV2(MethodResource):
+    @doc(tags=["CMAS"], description="Remove CMAS APK.", security=util.security_params)
+    # @use_kwargs(router_model.CMASSecretGet)
+    # @marshal_with(router_model.CMASSecretGetResponse)  # marshalling
     @jwt_required_cronjob
     def post(self):
         return remove_apk()
