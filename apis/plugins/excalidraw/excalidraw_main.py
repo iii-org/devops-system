@@ -80,7 +80,7 @@ class ExcalidrawsHistoryV2(MethodResource):
     def get(self, excalidraw_id):
         return util.success(excalidraw.get_excalidraw_history(excalidraw_id))
 
-    @doc(tags=["Excalidraw"], description="Automatic sync excalidraw. (Get in)")
+    @doc(tags=["Excalidraw"], description="Automatic sync excalidraw. (Get in)", security=util.security_params)
     @marshal_with(util.CommonResponse)
     @handle_plugin("excalidraw")
     @jwt_required
