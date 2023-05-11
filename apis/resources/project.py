@@ -182,8 +182,8 @@ def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disabl
         redmine_project_id = row.plugin_relation.plan_project_id # Test re-push son_project list
         nexus_project = get_nexux_project(row_project=row,user_id=user_id,role=role, sync=sync, user_name=user_name, extra_data=extra_data, pj_members_count=pj_members_count)
         if parent_son:
-            project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first().id
-            son = get_son_project_by_redmine_id(project_id,role,user_id,extra_data, pj_members_count, user_name,sync, start=True)            
+            project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first().project_id
+            son = get_son_project_by_redmine_id(project_id, role,user_id,extra_data, pj_members_count, user_name,sync, start=True)            
             nexus_project['children'] = son.get('children', [])
         ret.append(nexus_project)
     logging.info('Successful get all project')
