@@ -586,7 +586,7 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
     # Update default branch's pipeline
     exist_branch_list = [br.name for br in pj.branches.list(all=True)]
     default_branch = pj.default_branch
-    had_update_branche = False
+    has_update_file = False
     all_branches = [br.name for br in pj.branches.list(all=True)]
     need_running_branches = [i for i in list(data.keys()) if i in all_branches]
 
@@ -620,7 +620,8 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
                         "enable",
                         exist_branch_list,
                     )
-    if had_update_branche:
+
+    if has_update_file:
         f.content = yaml.dump(pipe_dict, sort_keys=False)
         f.save(
             branch=default_branch,
@@ -629,7 +630,7 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
             commit_message=f"{user_account} 編輯 {default_branch} 分支 .gitlab-ci.yaml ({'run' if run and default_branch in need_running_branches else 'store'})",
         )
 
-    # Sync default branch pipeline.yml to other branches, seperate to two parts to avoid not delete all branches
+    # Sync default branch pipeline.yml to other branches, separate to two parts to avoid not delete all branches
     for br_name in need_running_branches:
         sync_branch(
             user_account,
@@ -639,6 +640,7 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
             pipe_dict,
             not_run=not run,
         )
+
     # Rest of branches
     rest_branch_names = sorted([br for br in all_branches if br not in need_running_branches + [default_branch]])
     thread = threading.Thread(
@@ -669,9 +671,9 @@ def sync_branch(
 ):
     f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br_name)
     pipe_json = yaml.safe_load(f.decode())
-    had_update_branche = pipe_json != updated_pipe_json
+    had_update_branch = pipe_json != updated_pipe_json
     pipe_json = updated_pipe_json
-    if had_update_branche:
+    if had_update_branch:
         f.content = yaml.dump(pipe_json, sort_keys=False)
         f.save(
             branch=br_name,
