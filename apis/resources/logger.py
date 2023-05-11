@@ -1,7 +1,8 @@
 import logging
 from logging import handlers
 
-from flask import has_request_context
+from flask import current_app, has_request_context
+from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 
 
 class DevOpsFilter(logging.Filter):
@@ -10,8 +11,6 @@ class DevOpsFilter(logging.Filter):
         record.user_name = ""
         if has_request_context():
             try:
-                from resources.handler.jwt import get_jwt_identity
-
                 jwt = get_jwt_identity()
             except RuntimeError:
                 jwt = None
@@ -19,8 +18,8 @@ class DevOpsFilter(logging.Filter):
                 record.user_id = 1
                 record.user_name = "system"
             else:
-                # with current_app.app_context():
-                #     verify_jwt_in_request()
+                with current_app.app_context():
+                    verify_jwt_in_request()
                 record.user_id = jwt["user_id"]
                 record.user_name = jwt["user_account"]
         else:
