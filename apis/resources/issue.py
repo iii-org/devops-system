@@ -1221,19 +1221,25 @@ def delete_issue(issue_id, delete_excalidraw=False):
     return "success"
 
 
-def get_issue_datetime_status(project_id):
+def get_issue_datetime_status(project_id:str) -> dict[str, int]:
     kwargs = {}
-    df_issue = pd.DataFrame(
-        get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
-    )
-    df_issue = df_issue[df_issue["is_closed"] == False]
-    df_issue_date = df_issue[["id", "start_date", "due_date"]]
-    total_num = df_issue.shape[0]
-    no_due_date_num = df_issue_date[df_issue_date["due_date"].isnull()].shape[0]
-    df_has_due_date = df_issue_date[df_issue_date["due_date"].notnull()]
-    df_has_due_date["now"] = str(date.today())
-    expire_num = df_has_due_date[df_has_due_date["due_date"] < df_has_due_date["now"]].shape[0]
-    normal_num = df_has_due_date[df_has_due_date["due_date"] > df_has_due_date["now"]].shape[0]
+    no_due_date_num, expire_num, normal_num= 0, 0, 0
+    issues_list = get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
+    issue_info={'id':[], 'start_date':[], 'due_date':[]}
+    for issue_ in issues_list:
+        if issue_['is_closed'] == False:
+            issue_info['id'].append(issue_['id'])
+            issue_info['start_date'].append(issue_['start_date'])
+            issue_info['due_date'].append(issue_['due_date'])
+
+    total_num = len(issue_info['id'])
+    for issue_due_date in issue_info.get('due_date', []):
+        if issue_due_date is None :
+            no_due_date_num += 1
+        if issue_due_date is not None:
+            expire_num += 1 if issue_due_date < str(date.today()) else None
+            normal_num += 1 if issue_due_date > str(date.today()) else None
+
     output = {
         "total_num": total_num,
         "no_due_date_num": no_due_date_num,
@@ -1913,10 +1919,9 @@ def get_issue_progress_or_statistics_by_project(project_id, args, progress=False
 def calculate_issue_progress(filters, issue_status, output, args=None):
     redmine_issues = redmine_lib.redmine.issue.filter(**filters)
     for issue in redmine_issues:
-        print(issue)
         if args.get("due_date_status"):
             due_date = args["due_date_status"]
-            df_due_date, bool_has_due_date, bool_no_due_date = has_or_no_due_date(issue)
+            dt_due_date, bool_has_due_date, bool_no_due_date = has_or_no_due_date(issue)
             if due_date == "null":
                 if bool_has_due_date:
                     continue
@@ -1924,15 +1929,15 @@ def calculate_issue_progress(filters, issue_status, output, args=None):
                 if bool_no_due_date:
                     continue
                 else:
-                    df_check = df_due_date[1] > df_due_date["now"]
-                    if df_check.iloc[0]:
+                    df_check = dt_due_date['due_date'] > dt_due_date["now"]
+                    if df_check:
                         continue
             elif due_date == "normal":
                 if bool_no_due_date:
                     continue
                 else:
-                    df_check = df_due_date[1] < df_due_date["now"]
-                    if df_check.iloc[0]:
+                    df_check = dt_due_date['due_date'] < dt_due_date["now"]
+                    if df_check:
                         continue
         if issue.status.id in issue_status:
             output[issue.status.name] += 1
@@ -1941,12 +1946,13 @@ def calculate_issue_progress(filters, issue_status, output, args=None):
 
 
 def has_or_no_due_date(issue):
-    df = pd.DataFrame(issue)
-    df_due_date = df[(df[0] == "due_date")]
-    df_due_date["now"] = str(date.today())
-    bool_has_due_date = df_due_date[1].notnull().iloc[0]
-    bool_no_due_date = df_due_date[1].isnull().iloc[0]
-    return df_due_date, bool_has_due_date, bool_no_due_date
+    dt = dict (issue)
+    dt_due_date = {'due_date': None, 'now':None}
+    dt_due_date['due_date'] = dt['due_date']
+    dt_due_date['now'] = str(date.today())
+    bool_has_due_date = True if  dt_due_date['due_date'] is not None else False
+    bool_no_due_date = True if dt_due_date['due_date'] is None else False
+    return dt_due_date, bool_has_due_date, bool_no_due_date
 
 
 def calculate_issue_statistics(filters, issue_status, output_keys, output, args=None):
