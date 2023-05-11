@@ -27,7 +27,7 @@ METRICS = (
     ",duplicated_blocks,duplicated_lines_density"
 )
 PAGE_SIZE = 1000
-SONAR_SCAN_PATH = "sonar-scanner4.7.0/bin"
+SONAR_SCAN_PATH = "sonar-scanner-4.8.0/bin"
 # ./sonar-scanner -Dsonar.host.url='{config.get("SONARQUBE_EXTERNAL_BASE_URL")}' -Dsonar.login='{config.get("SONARQUBE_ADMIN_TOKEN")}' -Dsonar.projectKey='projectkey' -Dsonar.projectName='projectnewname'
 SONAR_DEFAULT_EXTERNAL_PROVIDER = "oidc"
 
@@ -113,18 +113,20 @@ def sq_delete_project(project_name):
 
 def sq_list_member(project_name, params):
     # The 'permission' parameter must be one of admin, profileadmin, gateadmin, scan, provisioning.
-    return __api_get(f"/permissions/users?projectKey={project_name}", params=params)
+    return __api_get(
+        f"/permissions/users?projectKey={project_name}" f"&permission=scan",
+        params=params,
+    )
 
 
 def sq_add_member(project_name, user_login):
     # The 'permission' parameter must be one of admin, profileadmin, gateadmin, scan, provisioning.
-    __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=admin")
+    # __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=admin")
     return __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=scan")
 
 
 def sq_remove_member(project_name, user_login):
     # The 'permission' parameter must be one of admin, profileadmin, gateadmin, scan, provisioning.
-    __api_post(f"/permissions/remove_user?login={user_login}" f"&projectKey={project_name}&permission=admin")
     return __api_post(f"/permissions/remove_user?login={user_login}" f"&projectKey={project_name}&permission=scan")
 
 
@@ -212,7 +214,7 @@ def sq_get_history_measures(project_name):
         fetch[date]["issue_link"] = gitlab.commit_id_to_url(project_id, commit_id)
 
     # Write new data into db
-    for (date, measures) in fetch.items():
+    for date, measures in fetch.items():
         if date == latest:
             continue
         new = model.Sonarqube(project_name=project_name, date=date, measures=json.dumps(measures))
