@@ -179,7 +179,7 @@ def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disabl
     rows, counts = get_project_rows_by_user(user_id, disable, args=args)
     ret = []
     for row in rows:
-        redmine_project_id = row.plugin_relation.plan_project_id
+        redmine_project_id = row.plugin_relation.plan_project_id # Test re-push son_project list
         nexus_project = get_nexux_project(row_project=row,user_id=user_id,role=role, sync=sync, user_name=user_name, extra_data=extra_data, pj_members_count=pj_members_count)
         if parent_son:
             project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first().id
