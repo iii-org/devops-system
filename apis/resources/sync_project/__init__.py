@@ -510,7 +510,7 @@ def sonarqube_process(projects_name, check_bot_list):
             user_row = nexus.nx_get_user(id=user_id)
             logger.logger.info(f"Create sonarqube project: {pj.name}.")
             sonarqube.sq_create_project(pj.name, pj.display)
-            logger.logger.info("Create membership in harbor project")
+            logger.logger.info("Create membership in sonarqube project")
             sonarqube.sq_add_member(pj.name, user_row.login)
             check_bot_list.append(pj.id)
 
