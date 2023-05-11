@@ -526,8 +526,8 @@ def generate_temp_pipeline_tool(tool_name, enable):
 
 def get_tool_name(stage):
     """
-    It will delete when all rancher_pipline.yml has iiidevops.
-    Only updating pipline_branch will use.
+    It will delete when all rancher_pipeline.yml has iiidevops.
+    Only updating pipeline_branch will use.
     """
     if stage.get("iiidevops") is not None:
         tool_name = stage["iiidevops"]
