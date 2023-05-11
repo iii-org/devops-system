@@ -501,8 +501,8 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
         if sorted(all_branch) == sorted(branch_list):
             continue
 
-        positive_temp_tool = generate_temp_pipline_tool(key, True)
-        negative_temp_tool = generate_temp_pipline_tool(key, False)
+        positive_temp_tool = generate_temp_pipeline_tool(key, True)
+        negative_temp_tool = generate_temp_pipeline_tool(key, False)
 
         for branch in all_branch:
             for temp_tool in [positive_temp_tool, negative_temp_tool]:
@@ -516,7 +516,7 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
     return out
 
 
-def generate_temp_pipline_tool(tool_name, enable):
+def generate_temp_pipeline_tool(tool_name, enable):
     return {
         "key": tool_name.split(",")[0],
         "name": tool_name.split(",")[1],
