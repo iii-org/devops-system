@@ -7,12 +7,7 @@ from resources.handler.jwt import jwt_required
 from flask_restful import Resource, reqparse
 from flask_socketio import Namespace, join_room, leave_room
 from resources import role
-from resources.apiError import (
-    DevOpsError,
-    argument_error,
-    not_enough_authorization,
-    resource_not_found,
-)
+from resources.apiError import DevOpsError, argument_error
 from resources.notification_message import (
     close_notification_message,
     create_notification_message,

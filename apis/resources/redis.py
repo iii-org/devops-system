@@ -1,4 +1,5 @@
 import json
+import model
 from datetime import datetime
 from typing import Any, Optional
 from flask_jwt_extended import get_jwt_identity
@@ -15,6 +16,7 @@ SERVER_ALIVE_KEY = "system_all_alive"
 TEMPLATE_CACHE = "template_list_cache"
 SHOULD_UPDATE_TEMPLATE = "should_update_template"
 ISSUE_PJ_USER_RELATION_KEY = "issue_pj_user_relation"
+PLUGINS_SOFTWARE_SWITCH = "plugins_software_switch"
 
 
 class RedisOperator:
@@ -192,11 +194,20 @@ def add_issue_relation(parent_issue_id, son_issue_id):
 
 
 # Issue project user realtion Cache
+"""
+Don't need this redis table if we do not repley on redmine.
+"""
+
+
 def get_single_issue_pj_user_relation(issue_id: int) -> dict[int, Any]:
     redis_data = redis_op.dict_get_certain(ISSUE_PJ_USER_RELATION_KEY, issue_id)
     if not redis_data:
         return {}
     out = json.loads(redis_data)
+
+    pj_obj = model.Project.query.filter_by(id=out["project_id"]).first()
+    if pj_obj is not None:
+        out["project_users"] = [str(user["id"]) for user in pj_obj.users]
     return out
 
 
@@ -216,7 +227,7 @@ def remove_issue_pj_user_relations() -> None:
 
 def check_user_has_permission_to_see_issue(issue_id: int) -> bool:
     pj_users = get_single_issue_pj_user_relation(int(issue_id)).get("project_users", "")
-    return str(get_jwt_identity()["user_id"]) in pj_users.split(",")
+    return str(get_jwt_identity()["user_id"]) in pj_users
 
 
 # Project issue calculate Cache
@@ -299,3 +310,29 @@ def get_template_caches_all():
 
 def count_template_number():
     return redis_op.dict_len(TEMPLATE_CACHE)
+
+
+# plugins software_switch
+def update_plugins_software_switch(plugins_name: str, disabled: bool):
+    return redis_op.dict_set_certain(PLUGINS_SOFTWARE_SWITCH, plugins_name, str(disabled).lower())
+
+
+def get_plugins_software_switch_all() -> dict[str, Any]:
+    return redis_op.dict_get_all(PLUGINS_SOFTWARE_SWITCH)
+
+
+def delete_plugins_software_switch() -> None:
+    """
+    Delete all plugins software switch.
+
+    :return: None
+    """
+    redis_op.dict_delete_all(PLUGINS_SOFTWARE_SWITCH)
+
+
+def update_plugins_software_switch_all(data: dict) -> None:
+    logger.logger.info(f"Before data {redis_op.dict_get_all(PLUGINS_SOFTWARE_SWITCH)}")
+    if data:
+        delete_plugins_software_switch()
+        for key in data.keys():
+            update_plugins_software_switch(key, data[key])

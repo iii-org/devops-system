@@ -29,3 +29,8 @@ class Plugin(Resource):
         args = parser.parse_args()
         plugins.update_plugin_config(plugin_name, args)
         return util.respond(204)
+
+
+class PluginsCronjob(Resource):
+    def get(self):
+        return util.success(plugins.update_project_plugin_status())

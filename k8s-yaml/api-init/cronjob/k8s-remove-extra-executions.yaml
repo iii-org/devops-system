@@ -1,12 +1,12 @@
-apiVersion: batch/v1
+apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: sync-issue-alert
+  name: k8s-remove-extra-executions
 spec:
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 0
-  schedule: "1 16 * * *"
+  schedule: "0 16 * * *"
   jobTemplate:
     spec:
       backoffLimit: 0
@@ -19,5 +19,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request POST 'http://devopsapi-service:10009/sync_issue_alert'
+            - curl --location --request POST 'http://devopsapi-service:10009/monitoring/k8s/remove_extra_executions'
           restartPolicy: OnFailure
