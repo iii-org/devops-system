@@ -10,7 +10,7 @@ class DevOpsFilter(logging.Filter):
         record.user_name = ""
         if has_request_context():
             try:
-                from flask_jwt_extended import get_jwt_identity
+                from resources.handler.jwt import get_jwt_identity
                 jwt = get_jwt_identity()
             except RuntimeError:
                 jwt = None
