@@ -255,7 +255,7 @@ def get_notification_message_list(args, admin=False):
     return out_dict
 
 
-def create_notification_message(args, user_id=None):
+def create_notification_message(args: object, user_id: object = None) -> object:
     if user_id is None:
         user_id = get_jwt_identity()["user_id"]
     # Do not need to create same notification message if previous one is on read and alert level is 102 or 301
@@ -291,6 +291,9 @@ def close_notification_message(message_id):
         if NotificationMessageReply.query.filter_by(message_id=message_id, user_id=user_id).first() is None:
             args = {"message_ids": [message_id]}
             create_notification_message_reply_slip(user_id, args)
+
+
+def notification_message_set_close(message_id):
     row = NotificationMessage.query.filter_by(id=message_id).first()
     row.close = True
     db.session.commit()
@@ -323,6 +326,7 @@ def create_notification_message_reply_slip(user_id, args):
     db.session.add_all(row_list)
     db.session.commit()
     for message_id in args["message_ids"]:
+        notification_message_set_close(message_id)
         emit(
             "read_message",
             message_id,
