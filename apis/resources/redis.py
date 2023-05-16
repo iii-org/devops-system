@@ -136,14 +136,14 @@ def update_server_alive(alive):
     return redis_op.str_set(SERVER_ALIVE_KEY, alive)
 
 # Issue watch list by user Cache
-def get_user_issue_watcher_list(user_id=None):
+def get_user_issue_watcher_list(user_id: int=None)-> list[int] or None:
     user_watcher_list = redis_op.str_get(USER_WATCH_ISSUE_LIST)
     if user_watcher_list is not None:
         out = json.loads(user_watcher_list).get(str(user_id), None)
         return out
     return  None
 
-def set_user_issue_watcher_list(issue_list):
+def set_user_issue_watcher_list(issue_list: list) -> None:
     return redis_op.str_set(USER_WATCH_ISSUE_LIST, json.dumps(issue_list))
     
 

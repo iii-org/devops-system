@@ -705,13 +705,17 @@ class IssueRemoveWatcher(MethodResource):
 
 
 class WatchIssueByUser(MethodResource):
+    @doc(tags=["Issue"], description="List all issue list that the user watched")
     @jwt_required()
     @use_kwargs(router_model.WatchIssueListSchema, location="query")
     def get(self, **kwargs):
-        nx_issue_params = defaultdict()
-        user_watche_list = get_user_issue_watcher_list(kwargs['user_id'])
         output = []
-        for issue in user_watche_list:
+        nx_issue_params = defaultdict()
+        user_watch_issue_list = get_user_issue_watcher_list(kwargs['user_id'])
+        if user_watch_issue_list is None:
+            return util.success(output)
+
+        for issue in user_watch_issue_list:
             nx_issue_params['redmine_issue'] = redmine_lib.redmine.issue.get(issue)
             issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
             output.append(issue)
@@ -719,6 +723,6 @@ class WatchIssueByUser(MethodResource):
         if kwargs.get('limit') and kwargs.get('offset') is not None:
             page_dict = util.get_pagination(len(output), kwargs["limit"], kwargs["offset"])
             output = {"issue_list": output, "page": page_dict}
-            return output
+            return util.success(output)
             
-        return output
+        return util.success(output)
