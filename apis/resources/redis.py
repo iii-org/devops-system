@@ -15,7 +15,7 @@ SERVER_ALIVE_KEY = "system_all_alive"
 TEMPLATE_CACHE = "template_list_cache"
 SHOULD_UPDATE_TEMPLATE = "should_update_template"
 ISSUE_PJ_USER_RELATION_KEY = "issue_pj_user_relation"
-
+USER_WATCH_ISSUE_LIST = 'user_watch_issue_list'
 
 class RedisOperator:
     def __init__(self):
@@ -135,6 +135,17 @@ def get_server_alive():
 def update_server_alive(alive):
     return redis_op.str_set(SERVER_ALIVE_KEY, alive)
 
+# Issue watch list by user Cache
+def get_user_issue_watcher_list(user_id=None):
+    user_watcher_list = redis_op.str_get(USER_WATCH_ISSUE_LIST)
+    if user_watcher_list is not None:
+        out = json.loads(user_watcher_list).get(str(user_id), None)
+        return out
+    return  None
+
+def set_user_issue_watcher_list(issue_list):
+    return redis_op.str_set(USER_WATCH_ISSUE_LIST, json.dumps(issue_list))
+    
 
 # Issue Family Cache
 def get_all_issue_relations():

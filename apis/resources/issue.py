@@ -1541,7 +1541,7 @@ def get_issue_list_by_user(user_id, args):
     else:
         default_filters = get_custom_filters_by_args(args, user_id=nx_user.plan_user_id)
     # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    if (args.get("from") not in ["author_id", "assigned_to_id", "watche_id"]) or (
+    if (args.get("from") not in ["author_id", "assigned_to_id", "watcher_id"]) or (
         (args.get("search") and default_filters.get("issue_id") is None) or args.get("has_tag_issue", False)
     ):
         return []
@@ -1572,10 +1572,10 @@ def get_issue_list_by_user(user_id, args):
 
         total_count += all_issues.total_count
 
-    if args['from'] == 'watche_id':
+    if args['from'] == 'watcher_id':
         cp_output = copy.deepcopy(output)
-        output = []
-        output = [o for o in cp_output if o['watchers'] != [] ]
+        output = [o for o in cp_output if o['watchers']!=[]]
+        total_count = len(cp_output[0]['watchers'])
 
     if args["limit"] and args["offset"] is not None:
         page_dict = util.get_pagination(total_count, args["limit"], args["offset"])
@@ -1641,7 +1641,7 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None, childre
         default_filters["project_id"] = project_id
     if args:
         if user_id:
-            if args.get("from") in ["author_id", "assigned_to_id", 'watch_id']:
+            if args.get("from") in ["author_id", "assigned_to_id", 'watcher_id']:
                 default_filters[args["from"]] = user_id
             # 如果 from 已經指定 assigned_to_id，但是 params 又有 assigned_to_id 的時候，要從 args 刪除
             if args.get("assigned_to_id") and args.get("from") == "assigned_to_id":
@@ -1691,6 +1691,7 @@ def handle_allowed_keywords(default_filters, args):
         "priority_id",
         "parent_id",
         "issue_id",
+        # "watcher_user_id"
     ]
     for key in allowed_keywords:
         if args.get(key, None):
@@ -3416,23 +3417,4 @@ class IssueSocket(Namespace):
     def on_leave(self, data):
         leave_room(data["project_id"])
         print("leave", data["project_id"])
-
-
-class IssueWatcherV2(MethodResource):
-    @doc(tags=["Issue"], description="Adding a issue watcher.")
-    @jwt_required()
-    def post(self, **kwargs):
-        rm_user_id = {'user_id': model.UserPluginRelation.query.filter_by(user_id=get_jwt_identity()['user_id']) .first().plan_user_id}
-        # redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=["children"])
-        add_issue_watcher(kwargs['issue_id'], rm_user_id)
-        return util.success()
-
-
-    @doc(tags=["Issue"], description="Remove a issue watcher.")
-    @jwt_required()
-    def delete(self, **kwargs):
-        rm_user_id =  model.UserPluginRelation.query.filter_by(user_id=get_jwt_identity()['user_id']) .first().plan_user_id
-        remove_issue_watcher(kwargs['issue_id'], rm_user_id)
-        # redmine_issue = redmine_lib.redmine.issue.get(issue_id, include=["children"])
-        return util.success()
 
