@@ -94,7 +94,7 @@ class Mail:
         text["Disposition-Notification-To"] = self.smtp_emission_address
 
         # 判斷是否有 embed image base64 若有將其轉成 CID 的方式，因為 GMAIL 及 OUTLOOK 皆不支援 embed image base64
-        i_types: list = ["png", "jpg", "jpeg"]
+        i_types: list = ["png", "jpg", "jpeg", "gif", "webp", "svg+xml"]
         for i_type in i_types:
             split_str = "data:image/" + i_type + ";base64,"
             if split_str in html_content:
