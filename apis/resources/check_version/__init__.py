@@ -11,7 +11,7 @@ import json
 from resources.project import get_pj_id_by_name
 import importlib
 from datetime import datetime
-from resources.rancher import create_pipeline_execution
+from typing import Any
 
 
 # Black and white project list default format
@@ -176,12 +176,6 @@ def update_pipieline_file(pj_id, version):
 
             if change:
                 next_run = pipeline.get_pipeline_next_run(gl_pj_id)
-                create_pipeline_execution(gl_pj_id, branch, next_run)
-                # is_turn_off_push = False
-                # if pipeline.get_pipeline_trigger_webhook_push(gl_pj_id):
-                #     pipeline.turn_push_off(gl_pj_id)
-                #     is_turn_off_push = True
-                #     sleep(5)
                 pipe_dict["stages"] = pipe_stages
                 f.content = yaml.dump(pipe_dict, sort_keys=False)
                 f.save(
@@ -192,9 +186,6 @@ def update_pipieline_file(pj_id, version):
                 )
                 pipeline.stop_and_delete_pipeline(gl_pj_id, next_run, branch=branch)
                 sleep(30)
-                # if is_turn_off_push:
-                #     pipeline.turn_push_on(gl_pj_id)
-                # sleep(2)
 
             logger.logger.info(f"Change: {change}")
             logger.logger.info(f"Updating {gl_pj_id} tool version in branch({branch}) done.")
@@ -208,3 +199,58 @@ def update_pipieline_file(pj_id, version):
             else:
                 update_project_pipeline_version(pj_id, message=error_msg)
                 continue
+
+
+def check_and_update_template_pj_pipeline_file(pipieline_file_dict: dict[str, Any]) -> dict[str, Any]:
+    if not pipieline_file_dict:
+        return pipieline_file_dict
+
+    pipe_stages = pipieline_file_dict.get("stages")
+    if pipe_stages is None:
+        raise Exception()
+
+    change = False
+    for i in range(LATEST_VERSION):
+        version = i + 1
+        version_pk = importlib.import_module(f"resources.check_version.{version}")
+        pipe_stages, change = update_pipeline_file_content(pipe_stages, version_pk)
+
+    if change:
+        logger.logger.info("Project pipeline yaml has beem changed.")
+
+    pipieline_file_dict["stages"] = pipe_stages
+    return pipieline_file_dict
+
+
+def update_pipeline_file_content(pipieline_file_stage_dict: dict[str, Any], version_pk: Any):
+    change = False
+    runner_version_mapping, image_version_mapping = version_pk.RUNNER_VERSION_MAPPING, version_pk.IMAGE_VERSION_MAPPING
+    extra_func = version_pk.extra_func if hasattr(version_pk, "extra_func") else None
+    if extra_func is not None:
+        pipieline_file_stage_dict, change = extra_func(pipieline_file_stage_dict, change)
+
+    for pipe_stage in pipieline_file_stage_dict:
+        pipe_stage_step = pipe_stage["steps"][0]
+
+        # Update runner version mapping
+        iii_stage = runner_version_mapping.get(pipe_stage.get("iiidevops"))
+        if iii_stage is not None:
+            pipe_stage_app_config = pipe_stage_step.get("applyAppConfig")
+            if pipe_stage_app_config is not None and pipe_stage_app_config["version"] != iii_stage["version"]:
+                pipe_stage_app_config["answers"] = iii_stage.get("answers", {}) | pipe_stage_app_config.get(
+                    "answers", {}
+                )
+                pipe_stage_app_config["version"] = iii_stage["version"]
+                change = True
+
+        # Update image version mapping
+        pipe_stage_script_config = pipe_stage_step.get("runScriptConfig")
+        if pipe_stage_script_config is not None:
+            temp = pipe_stage_script_config.get("image", "").split(":")
+            image_repo, image_tag = temp[0], temp[-1]
+            replace_image_tag = image_version_mapping.get(image_repo.split("/")[-1])
+            if replace_image_tag is not None and replace_image_tag != image_tag:
+                pipe_stage_script_config["image"] = f"{image_repo}:{replace_image_tag}"
+                change = True
+
+    return pipieline_file_stage_dict, change
