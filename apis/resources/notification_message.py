@@ -444,10 +444,10 @@ def get_notification_is_open(user_id, message_id):
     if is_not_open:
         args = {"message_ids": [message_id]}
         create_notification_message_reply_slip(user_id, args)
-        if len(choose_send_to_who(message_id)) <= 1:
-            row = NotificationMessage.query.filter_by(id=message_id).first()
-            row.close = True
-            db.session.commit()
+        # if len(choose_send_to_who(message_id)) <= 1:
+        #     row = NotificationMessage.query.filter_by(id=message_id).first()
+        #     row.close = True
+        #     db.session.commit()
 
     return not is_not_open
 
