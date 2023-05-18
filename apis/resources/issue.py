@@ -3,6 +3,7 @@ import json
 from collections import defaultdict
 from datetime import datetime, date, timedelta
 from distutils.util import strtobool
+from time import sleep
 from typing import Optional
 
 from redminelib import Redmine
@@ -26,7 +27,7 @@ from resources.tag import get_tag
 from accessories import redmine_lib
 from data.nexus_project import NexusProject
 from enums.action_type import ActionType
-from model import db, IssueExtensions, CustomIssueFilter
+from model import IssueTag, db, IssueExtensions, CustomIssueFilter
 from resources.apiError import DevOpsError
 from resources.redmine import redmine, get_redmine_obj
 from resources import project as project_module, project, role
@@ -2525,6 +2526,15 @@ def delete_issue_relation(relation_id, user_account):
         broadcast=True,
     )
 
+def delete_issue_tag(tag_id: int) -> None:
+    all_issue = model.IssueTag.query.filter(model.IssueTag.tag_id != []) #.filter(model.IssueTag.tag_id.in_())  .filter_by(issue_id=2381)
+    for issue in all_issue:
+        if tag_id in issue.tag_id:
+            issue.tag_id.remove(tag_id)
+            model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({'tag_id':issue.tag_id})
+            db.session.commit()
+            sleep(1)
+            continue
 
 def check_issue_closable(issue_id):
     # loop 離開標誌

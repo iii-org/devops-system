@@ -65,3 +65,7 @@ def issue_url(api, add_resource):
     api.add_resource(view.WatchIssueByUser, "/user/<sint:user_id>/issues/watch/list")
     # api.add_resource(view.WatchIssueByUser, "/v2/user/<sint:user_id>/issues/watch/list")
     add_resource(view.WatchIssueByUser, "public")
+
+    # api.add_resource(view.WatchIssueByUser, "/user/<sint:user_id>/issues/watch/list")
+    api.add_resource(view.IssueTag, "/issue/tag/<sint:tag_id>")
+    add_resource(view.IssueTag, "public")

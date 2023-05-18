@@ -34,7 +34,8 @@ from resources.issue import (
     get_all_sons,
     find_head_and_close_issues,
     add_issue_watcher,
-    remove_issue_watcher
+    remove_issue_watcher,
+    delete_issue_tag
 )
 from resources.system_parameter import check_upload_type
 from resources.excalidraw import get_excalidraw_by_issue_id
@@ -726,3 +727,9 @@ class WatchIssueByUser(MethodResource):
             return util.success(output)
             
         return util.success(output)
+
+class IssueTag(MethodResource):
+    @doc(tags=["Issue"], description="Delete specify issue tag.")
+    @jwt_required()
+    def delete(self, tag_id):
+        return util.success(delete_issue_tag(tag_id))
