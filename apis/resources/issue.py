@@ -3,6 +3,7 @@ import json
 from collections import defaultdict
 from datetime import datetime, date, timedelta
 from distutils.util import strtobool
+from time import sleep
 from typing import Optional
 
 from redminelib import Redmine
@@ -26,7 +27,7 @@ from resources.tag import get_tag
 from accessories import redmine_lib
 from data.nexus_project import NexusProject
 from enums.action_type import ActionType
-from model import db, IssueExtensions, CustomIssueFilter
+from model import IssueTag, db, IssueExtensions, CustomIssueFilter
 from resources.apiError import DevOpsError
 from resources.redmine import redmine, get_redmine_obj
 from resources import project as project_module, project, role
@@ -59,6 +60,7 @@ from resources.redis import (
     check_user_has_permission_to_see_issue,
 )
 from datetime import date
+import copy
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {"1": "文字", "2": "英數字", "3": "英文字", "4": "數字"}
@@ -187,6 +189,7 @@ class NexusIssue:
                 "name": redmine_issue.status.name,
             },
             "tags": get_issue_tags(redmine_issue.id),
+            "watchers": redmine_issue.watchers._resources
         }
         if hasattr(redmine_issue, "project"):
             project_id = nexus.nx_get_project_plugin_relation(rm_project_id=redmine_issue.project.id).project_id
@@ -1130,7 +1133,7 @@ def update_issue(issue_id, args, operator_id=None):
     if attachment_list is not None:
         args["uploads"] = attachment_list
 
-    personal_redmine_obj.rm_update_issue(issue_id, args)
+    personal_redmine_obj.rm_update_issue(issue_id, args) 
 
     # Update cache
     if update_cache_issue_family:
@@ -1242,6 +1245,11 @@ def get_issue_datetime_status(project_id):
     }
     return output
 
+def add_issue_watcher(isse_id: int, user_id: dict):
+    return redmine.rm_add_watcher(isse_id, user_id)
+
+def remove_issue_watcher(issue_id: int, user_id: dict):
+    return redmine.rm_remove_watcher(issue_id, user_id)
 
 def get_issue_by_project(project_id, args):
     if util.is_dummy_project(project_id):
@@ -1650,6 +1658,7 @@ def handle_allowed_keywords(default_filters, args):
         "priority_id",
         "parent_id",
         "issue_id",
+        # "watcher_user_id"
     ]
     for key in allowed_keywords:
         if args.get(key, None):
@@ -2482,6 +2491,18 @@ def delete_issue_relation(relation_id, user_account):
         broadcast=True,
     )
 
+def delete_issue_tag(tag_id: int) -> None:
+    all_issue = model.IssueTag.query.filter(model.IssueTag.tag_id != []) #.filter(model.IssueTag.tag_id.in_())  .filter_by(issue_id=2381)
+    for issue in all_issue:
+        if tag_id in issue.tag_id:
+            issue.tag_id.remove(tag_id)
+            if issue.tag_id:
+                model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({'tag_id':issue.tag_id})
+            else:
+                model.IssueTag.query.filter_by(issue_id=issue.issue_id).delete()
+            db.session.commit()
+            sleep(1)
+            continue
 
 def check_issue_closable(issue_id):
     # loop 離開標誌
@@ -3369,3 +3390,4 @@ class IssueSocket(Namespace):
     def on_leave(self, data):
         leave_room(data["project_id"])
         print("leave", data["project_id"])
+
