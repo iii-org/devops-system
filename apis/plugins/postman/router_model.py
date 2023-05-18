@@ -170,7 +170,6 @@ class PostmanReportGetRes(CommonBasicResponse):
 
 
 class PostmanReportPut(Schema):
-    target = fields.Str(required=True, doc="target", example="")
     scan_id = fields.Int(required=True, doc="scan id", example=1)
     project_id = fields.Int(required=True, doc="Project", example=1)
     total = fields.Int(required=True, doc="total", example=12)
