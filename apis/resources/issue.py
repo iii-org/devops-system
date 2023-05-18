@@ -1542,7 +1542,7 @@ def get_issue_list_by_user(user_id, args):
     else:
         default_filters = get_custom_filters_by_args(args, user_id=nx_user.plan_user_id)
     # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
-    if (args.get("from") not in ["author_id", "assigned_to_id", "watcher_id"]) or (
+    if (args.get("from") not in ["author_id", "assigned_to_id"]) or (
         (args.get("search") and default_filters.get("issue_id") is None) or args.get("has_tag_issue", False)
     ):
         return []
@@ -1572,11 +1572,6 @@ def get_issue_list_by_user(user_id, args):
             output.append(issue)
 
         total_count += all_issues.total_count
-
-    if args['from'] == 'watcher_id':
-        cp_output = copy.deepcopy(output)
-        output = [o for o in cp_output if o['watchers']!=[]]
-        total_count = len(cp_output[0]['watchers'])
 
     if args["limit"] and args["offset"] is not None:
         page_dict = util.get_pagination(total_count, args["limit"], args["offset"])
@@ -1642,7 +1637,7 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None, childre
         default_filters["project_id"] = project_id
     if args:
         if user_id:
-            if args.get("from") in ["author_id", "assigned_to_id", 'watcher_id']:
+            if args.get("from") in ["author_id", "assigned_to_id"]:
                 default_filters[args["from"]] = user_id
             # 如果 from 已經指定 assigned_to_id，但是 params 又有 assigned_to_id 的時候，要從 args 刪除
             if args.get("assigned_to_id") and args.get("from") == "assigned_to_id":
@@ -2531,7 +2526,10 @@ def delete_issue_tag(tag_id: int) -> None:
     for issue in all_issue:
         if tag_id in issue.tag_id:
             issue.tag_id.remove(tag_id)
-            model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({'tag_id':issue.tag_id})
+            if issue.tag_id:
+                model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({'tag_id':issue.tag_id})
+            else:
+                model.IssueTag.query.filter_by(issue_id=issue.issue_id).delete()
             db.session.commit()
             sleep(1)
             continue

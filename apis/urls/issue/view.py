@@ -668,38 +668,50 @@ class SyncIssueFamiliesV2(MethodResource):
         return util.success(sync_issue_relation())
 
 class IssueWatcherV2(MethodResource):
-    @doc(tags=["Issue"], description="Adding a issue watcher.")
+    @doc(tags=["Issue"], description="Adding a issue watch to user.")
     @use_kwargs(router_model.WatcherIssueSchema, location="query")
     @jwt_required()
     def post(self, **kwargs):
+        # redis_op.dict_set_all('Test', {1:"a", 2:'b'})
+        # a = redis_op.dict_get_all('Test')
+        # b =redis_op.dict_get_certain('Test', 'a')
+        # print(type(a), a)
+        # print(type(b), b)
+        # return 
         user_id, issue_id = kwargs.get('user_id', get_jwt_identity()['user_id']), kwargs['issue_id']
         rm_user_id = {'user_id': UserPluginRelation.query.filter_by(user_id=user_id) .first().plan_user_id}
         try:
             add_issue_watcher(issue_id, rm_user_id)
-            user_watch_list = get_user_issue_watcher_list(user_id)
+            all_watcher_info = get_user_issue_watcher_list()
+            user_watch_list = all_watcher_info.get(str(user_id), None)
             if user_watch_list is None:
-                set_user_issue_watcher_list({user_id: [issue_id]})
+                all_watcher_info[str(user_id)] = [issue_id]
+                set_user_issue_watcher_list(all_watcher_info)
             else:
                 if issue_id not in user_watch_list:
                     user_watch_list.append(issue_id)
-                set_user_issue_watcher_list({user_id: user_watch_list})
+                    all_watcher_info[str(user_id)] = user_watch_list
+                    set_user_issue_watcher_list(all_watcher_info)
         except Exception as e:
             logging.info(e)
             
         return util.success()
 
 class IssueRemoveWatcher(MethodResource):
-    @doc(tags=["Issue"], description="Remove a issue watcher.")
+    @doc(tags=["Issue"], description="Remove a issue watcher from user.")
     @jwt_required()
     def delete(self, **kwargs):
         user_id, issue_id = kwargs['user_id'], kwargs['issue_id']
         rm_user_id = UserPluginRelation.query.filter_by(user_id=user_id) .first().plan_user_id
         try:
             remove_issue_watcher(issue_id,rm_user_id)
-            user_watch_list = get_user_issue_watcher_list(user_id)
+            all_watcher_info = get_user_issue_watcher_list()
+            user_watch_list = all_watcher_info.get(str(user_id), None)
             if user_watch_list is not None:
-                user_watch_list.remove(issue_id)
-                set_user_issue_watcher_list({user_id: user_watch_list})
+                if issue_id in user_watch_list:
+                    user_watch_list.remove(issue_id)
+                    all_watcher_info[str(user_id)] = user_watch_list
+                    set_user_issue_watcher_list(all_watcher_info)
         except Exception as e:
             logging.info(e)
         return util.success()
@@ -712,11 +724,12 @@ class WatchIssueByUser(MethodResource):
     def get(self, **kwargs):
         output = []
         nx_issue_params = defaultdict()
-        user_watch_issue_list = get_user_issue_watcher_list(kwargs['user_id'])
-        if user_watch_issue_list is None:
+        all_watcher_info = get_user_issue_watcher_list()
+        user_watch_list = all_watcher_info.get(str(kwargs['user_id']), None)
+        if user_watch_list is None:
             return util.success(output)
 
-        for issue in user_watch_issue_list:
+        for issue in user_watch_list:
             nx_issue_params['redmine_issue'] = redmine_lib.redmine.issue.get(issue)
             issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
             output.append(issue)
