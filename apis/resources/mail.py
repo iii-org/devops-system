@@ -48,6 +48,7 @@ class Mail:
                 "Connection refused, port or server are incorrect.",
                 error=apiError.login_email_error(),
             )
+        server.ehlo()
         server.starttls()
 
         if account is not None and password is not None:
