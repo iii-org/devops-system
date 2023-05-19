@@ -32,7 +32,6 @@ stages:
       include:
       - master
       - jonathan
-      - project_issue
       - develop
 - name: Test--Checkmarx source code scan
   iiidevops: checkmarx
@@ -53,7 +52,6 @@ stages:
     branch:
       include:
       - master
-      - project_issue
       - develop
 - name: Deploy--Set Web environment variables
   iiidevops: deployed-environments
@@ -79,13 +77,10 @@ stages:
       include:
       - master
       - jonathan
-      - subissue
       - sso
-      - project_issue
       - develop
       - son-project-issue
       - ics
-      - rm_watch
       - rm-watch
       - sp
 - name: Build--Build and push docker image
@@ -108,13 +103,10 @@ stages:
       include:
       - master
       - jonathan
-      - subissue
       - sso
-      - project_issue
       - develop
       - son-project-issue
       - ics
-      - rm_watch
       - rm-watch
       - sp
 - name: Build--Scan docker image
@@ -133,13 +125,10 @@ stages:
       include:
       - master
       - jonathan
-      - subissue
       - sso
-      - project_issue
       - develop
       - son-project-issue
       - ics
-      - rm_watch
       - rm-watch
       - sp
 - name: Build--Copy Image
@@ -174,13 +163,10 @@ stages:
       include:
       - master
       - jonathan
-      - subissue
       - sso
-      - project_issue
       - develop
       - son-project-issue
       - ics
-      - rm_watch
       - rm-watch
       - sp
 - name: Deploy--Web
@@ -208,13 +194,10 @@ stages:
       include:
       - master
       - jonathan
-      - subissue
       - sso
-      - project_issue
       - develop
       - son-project-issue
       - ics
-      - rm_watch
       - rm-watch
       - sp
 - name: Deploy--Wait Web deployment
@@ -240,13 +223,10 @@ stages:
       include:
       - master
       - jonathan
-      - subissue
       - sso
-      - project_issue
       - develop
       - son-project-issue
       - ics
-      - rm_watch
       - rm-watch
       - sp
 - name: Test--Anchore SBOM
@@ -332,9 +312,6 @@ stages:
     branch:
       include:
       - master
-      - subissue
-      - project_issue
-      - develop
 - name: Test--SideeX
   iiidevops: sideex
   steps:
