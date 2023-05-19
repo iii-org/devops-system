@@ -725,10 +725,10 @@ class WatchIssueByUser(MethodResource):
         output = []
         nx_issue_params = defaultdict()
         all_watcher_info = get_user_issue_watcher_list()
-        user_watch_list = all_watcher_info.get(str(kwargs['user_id']), None)
-        if user_watch_list is None:
+        if not all_watcher_info :
             return util.success(output)
 
+        user_watch_list = all_watcher_info.get(str(kwargs['user_id']), None)
         for issue in user_watch_list:
             nx_issue_params['redmine_issue'] = redmine_lib.redmine.issue.get(issue)
             issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()

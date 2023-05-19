@@ -8,7 +8,7 @@ import redis
 
 import config
 from resources import logger
-
+from collections import defaultdict
 
 ISSUE_FAMILIES_KEY = "issue_families"
 PROJECT_ISSUE_CALCULATE_KEY = "project_issue_calculation"
@@ -143,7 +143,9 @@ def get_user_issue_watcher_list()-> list[int] or None:
     if user_watcher_list is not None:
         out = json.loads(user_watcher_list)
         return out
-    return  None
+    else:
+        set_user_issue_watcher_list(defaultdict())
+        return  defaultdict()
 
 def set_user_issue_watcher_list(issue_list: list) -> None:
     return redis_op.str_set(USER_WATCH_ISSUE_LIST, json.dumps(issue_list))
