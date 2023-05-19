@@ -53,6 +53,7 @@ stages:
       include:
       - master
       - develop
+      - jonathan
 - name: Deploy--Set Web environment variables
   iiidevops: deployed-environments
   steps:
