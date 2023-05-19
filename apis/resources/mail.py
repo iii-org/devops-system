@@ -112,7 +112,7 @@ class Mail:
                     part["Content-Disposition"] = 'attachment; filename="%s"' % image_file
                     part["Content-ID"] = image_file
                     text.attach(part)
-        text.attach(MIMEText(markdown_content, "plain", "utf-8"))
+        # text.attach(MIMEText(markdown_content, "plain", "utf-8"))
         text.attach(MIMEText(html_content, "html", "utf-8"))
         if self.server is not None:
             logger.logger.info(f"Sending Mail to {receiver}, title: {title}")
