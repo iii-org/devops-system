@@ -672,12 +672,6 @@ class IssueWatcherV2(MethodResource):
     @use_kwargs(router_model.WatcherIssueSchema, location="query")
     @jwt_required()
     def post(self, **kwargs):
-        # redis_op.dict_set_all('Test', {1:"a", 2:'b'})
-        # a = redis_op.dict_get_all('Test')
-        # b =redis_op.dict_get_certain('Test', 'a')
-        # print(type(a), a)
-        # print(type(b), b)
-        # return 
         user_id, issue_id = kwargs.get('user_id', get_jwt_identity()['user_id']), kwargs['issue_id']
         rm_user_id = {'user_id': UserPluginRelation.query.filter_by(user_id=user_id) .first().plan_user_id}
         try:
@@ -725,7 +719,7 @@ class WatchIssueByUser(MethodResource):
         output = []
         nx_issue_params = defaultdict()
         all_watcher_info = get_user_issue_watcher_list()
-        if not all_watcher_info :
+        if not all_watcher_info:
             return util.success(output)
 
         user_watch_list = all_watcher_info.get(str(kwargs['user_id']), None)

@@ -67,5 +67,5 @@ def issue_url(api, add_resource):
     add_resource(view.WatchIssueByUser, "public")
 
     # api.add_resource(view.WatchIssueByUser, "/user/<sint:user_id>/issues/watch/list")
-    api.add_resource(view.IssueTag, "/issue/tag/<sint:tag_id>")
+    api.add_resource(view.IssueTag, "/issue/remove/all/tag/<sint:tag_id>")
     add_resource(view.IssueTag, "public")

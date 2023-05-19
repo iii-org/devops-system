@@ -2496,12 +2496,9 @@ def delete_issue_tag(tag_id: int) -> None:
     for issue in all_issue:
         if tag_id in issue.tag_id:
             issue.tag_id.remove(tag_id)
-            if issue.tag_id:
-                model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({'tag_id':issue.tag_id})
-            else:
-                model.IssueTag.query.filter_by(issue_id=issue.issue_id).delete()
+            model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({'tag_id':issue.tag_id})
             db.session.commit()
-            sleep(1)
+            sleep(0.5)
             continue
 
 def check_issue_closable(issue_id):

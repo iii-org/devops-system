@@ -144,10 +144,10 @@ def get_user_issue_watcher_list()-> list[int] or None:
         out = json.loads(user_watcher_list)
         return out
     else:
-        set_user_issue_watcher_list(defaultdict())
-        return  defaultdict()
+        set_user_issue_watcher_list({})
+        return  {}
 
-def set_user_issue_watcher_list(issue_list: list) -> None:
+def set_user_issue_watcher_list(issue_list: dict) -> None:
     return redis_op.str_set(USER_WATCH_ISSUE_LIST, json.dumps(issue_list))
     
 
