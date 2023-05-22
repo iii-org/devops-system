@@ -4,22 +4,22 @@
   "is_pipeline": true,
   "keys": [
     {
-      "key": "client-secret",
+      "key": "CMX_CLIENT_SECRET",
       "type": "string",
       "store": "secret_all"
     },
     {
-      "key": "cm-url",
+      "key": "CMX_URL",
       "type": "string",
       "store": "secret_all"
     },
     {
-      "key": "username",
+      "key": "CMX_USERNAME",
       "type": "string",
       "store": "secret_all"
     },
     {
-      "key": "password",
+      "key": "CMX_PASSWORD",
       "type": "password",
       "store": "secret_all"
     }

@@ -5,22 +5,22 @@
   "is_pipeline": true,
   "keys": [
     {
-      "key": "wi_scc_url",
+      "key": "WIE_SCC_URL",
       "type": "string",
       "store": "secret_all"
     },
     {
-      "key": "wi_dast_url",
+      "key": "WIE_DAST_URL",
       "type": "string",
       "store": "secret_all"
     },
     {
-      "key": "wi-username",
+      "key": "WIE_USERNAME",
       "type": "string",
       "store": "secret_all"
     },
     {
-      "key": "wi-password",
+      "key": "WIE_PASSWORD",
       "type": "password",
       "store": "secret_all"
     }

@@ -4,17 +4,17 @@
     "is_pipeline": true,
     "keys": [
         {
-            "key": "authKey",
+            "key": "CMAS_AUTHKEY",
             "type": "string",
             "store": "secret_all"
         },
         {
-            "key": "cm-url",
+            "key": "CMAS_URL",
             "type": "string",
             "store": "secret_all"
         },
         {
-            "key": "a_report_type",
+            "key": "CMAS_A_REPORT_TYPE",
             "type": "string",
             "store": "secret_all"
         }

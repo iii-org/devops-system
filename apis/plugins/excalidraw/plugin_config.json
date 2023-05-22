@@ -6,37 +6,37 @@
         {
             "key": "excalidraw-url",
             "type": "string",
-            "store": "secret_system"
+            "store": "db"
         },
         {
             "key": "excalidraw-socket-url",
             "type": "string",
-            "store": "secret_system"
+            "store": "db"
         },
         {
             "key": "excalidraw-db-account",
             "type": "string",
-            "store": "secret_system"
+            "store": "db"
         },
         {
             "key": "excalidraw-db-password",
             "type": "password",
-            "store": "secret_system"
+            "store": "db"
         },
         {
             "key": "excalidraw-db-host",
             "type": "string",
-            "store": "secret_system"
+            "store": "db"
         },
         {
             "key": "excalidraw-db-port",
             "type": "string",
-            "store": "secret_system"
+            "store": "db"
         },
         {
             "key": "excalidraw-db-database",
             "type": "string",
-            "store": "secret_system"
+            "store": "db"
         }
     ]
 }
