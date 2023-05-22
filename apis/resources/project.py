@@ -184,7 +184,7 @@ def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disabl
     ret = []
     for row in rows:
         if row not in db.session:
-            db.session.merge(row)
+            row = db.session.merge(row)
         redmine_project_id = row.plugin_relation.plan_project_id
         nexus_project = get_nexux_project(row_project=row,user_id=user_id,role=role, sync=sync, user_name=user_name, extra_data=extra_data, pj_members_count=pj_members_count)
         if parent_son:
