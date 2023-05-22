@@ -131,10 +131,14 @@ def get_son_project_by_redmine_id(project_id: int,role, user_id: int,extra_data,
         start_project = {"children": []}
 
     son_ids = [row.son_id for row in model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).all()]
+    logging.info(f"project_id: {project_id}, son_ids: {son_ids}")
+    if get_jwt_identity()["role_id"] != 5:
+        logging.info(f"role_id: {get_jwt_identity()['role_id']}")
+        son_ids = check_son_project_belong_to_by_userid(user_id=get_jwt_identity()["user_id"], son_id_list=son_ids)
+        logging.info(f"project_id: {project_id}, son_ids: {son_ids}")
     for son_id in son_ids:
-        if get_jwt_identity()["role_id"] != 5:
-            son_ids = check_son_project_belong_to_by_userid(user_id=get_jwt_identity()["user_id"], son_id_list=son_ids)
         son = get_son_project_by_redmine_id(son_id,role, user_id, extra_data, pj_members_count,user_name,sync, False)
+        logging.info(f"son_id: {son_id}, project_data: {son}")
         start_project["children"].append(son)
     return start_project
 
