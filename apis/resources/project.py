@@ -188,9 +188,10 @@ def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disabl
         redmine_project_id = row.plugin_relation.plan_project_id
         nexus_project = get_nexux_project(row_project=row,user_id=user_id,role=role, sync=sync, user_name=user_name, extra_data=extra_data, pj_members_count=pj_members_count)
         if parent_son:
-            project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first().id
+            project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first().project_id
             son = get_son_project_by_redmine_id(project_id,role,user_id,extra_data, pj_members_count, user_name,sync, start=True)            
             nexus_project['children'] = son.get('children', [])
+            logger.logger.info(f"row_id: {row.id}, redmine_project_id: {redmine_project_id}, project_id: {project_id}")
         ret.append(nexus_project)
     logging.info('Successful get all project')
     if limit is not None and offset is not None:
