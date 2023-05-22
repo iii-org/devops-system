@@ -1369,7 +1369,7 @@ def get_match_issue_infos_from_head(issue_ids: list[int], by_user_permission: bo
         if head_id in head_ids:
             head_id_index = head_ids.index(head_id)
             res[head_id_index]["children"] = __get_trace_issues_info_with_duplicate_head(
-                res[head_id_index]["children"], all_trace_issues[1:]
+                res[head_id_index].get("children", []), all_trace_issues[1:]
             )
         else:
             head_ids.append(head_id)
