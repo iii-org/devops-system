@@ -156,7 +156,7 @@ class HarborRegistriesV2(MethodResource):
     @use_kwargs(router_model.HarborRegistryAdd)
     @marshal_with(router_model.HarborRegistryAddResponse)
     @jwt_required
-    def post(self):
+    def post(self, **kwargs):
         role.require_admin()
         # parser = reqparse.RequestParser()
         # parser.add_argument("name", type=str, required=True)
@@ -168,7 +168,7 @@ class HarborRegistriesV2(MethodResource):
         # parser.add_argument("description", type=str)
         # parser.add_argument("insecure", type=bool)
         # args = parser.parse_args()
-        return util.success({"registry_id": hb_create_registries(args)})
+        return util.success({"registry_id": hb_create_registries(kwargs)})
 
 
 # class HarborRegistriesPing(Resource):
@@ -185,7 +185,9 @@ class HarborRegistriesV2(MethodResource):
 
 
 class HarborReplicationPolicyV2(MethodResource):
-    @doc(tags=["Harbor Replication Policy"], description="Get Harbor Replication Policy.", security=util.security_params)
+    @doc(
+        tags=["Harbor Replication Policy"], description="Get Harbor Replication Policy.", security=util.security_params
+    )
     # @use_kwargs(router_model.HarborRegistryPing, location=("args"))
     @marshal_with(router_model.HarborReplicationPolicyResponse)
     @jwt_required
@@ -193,7 +195,11 @@ class HarborReplicationPolicyV2(MethodResource):
         policies = hb_get_replication_policy(replication_policy_id)
         return util.success(policies)
 
-    @doc(tags=["Harbor Replication Policy"], description="Modified Harbor Replication Policy.", security=util.security_params)
+    @doc(
+        tags=["Harbor Replication Policy"],
+        description="Modified Harbor Replication Policy.",
+        security=util.security_params,
+    )
     @use_kwargs(router_model.HarborReplicationPolicyPut)
     @marshal_with(router_model.HarborReplicationPolicyPutResponse)
     @jwt_required
@@ -209,7 +215,11 @@ class HarborReplicationPolicyV2(MethodResource):
         # args = parser.parse_args()
         return util.success({"replication_policy_id": hb_put_replication_policy(kwargs, replication_policy_id)})
 
-    @doc(tags=["Harbor Replication Policy"], description="Delete Harbor Replication Policy.", security=util.security_params)
+    @doc(
+        tags=["Harbor Replication Policy"],
+        description="Delete Harbor Replication Policy.",
+        security=util.security_params,
+    )
     # @use_kwargs(router_model.HarborReplicationPolicyPut, location=("args"))
     @marshal_with(router_model.HarborReplicationPolicyDelResponse)
     @jwt_required
@@ -218,7 +228,11 @@ class HarborReplicationPolicyV2(MethodResource):
 
 
 class HarborReplicationPolicesV2(MethodResource):
-    @doc(tags=["Harbor Replication Policy"], description="Get Harbor Replication Policies.", security=util.security_params)
+    @doc(
+        tags=["Harbor Replication Policy"],
+        description="Get Harbor Replication Policies.",
+        security=util.security_params,
+    )
     @use_kwargs(router_model.HarborReplicationPolicesGet, location=("query"))
     @marshal_with(router_model.HarborReplicationPolicesResponse)
     @jwt_required
@@ -229,7 +243,11 @@ class HarborReplicationPolicesV2(MethodResource):
         policies = hb_get_replication_policies(kwargs)
         return util.success(policies)
 
-    @doc(tags=["Harbor Replication Policy"], description="Get Harbor Replication Policies.", security=util.security_params)
+    @doc(
+        tags=["Harbor Replication Policy"],
+        description="Get Harbor Replication Policies.",
+        security=util.security_params,
+    )
     @use_kwargs(router_model.HarborReplicationPolicyAdd)
     @marshal_with(router_model.HarborReplicationPolicyAddResponse)
     @jwt_required
@@ -247,8 +265,11 @@ class HarborReplicationPolicesV2(MethodResource):
 
 
 class HarborReplicationExecutionV2(MethodResource):
-    @doc(tags=["Harbor Replication Execution"], description="Execution Harbor Replication Policy.",
-         security=util.security_params)
+    @doc(
+        tags=["Harbor Replication Execution"],
+        description="Execution Harbor Replication Policy.",
+        security=util.security_params,
+    )
     @use_kwargs(router_model.HarborReplicationExecution)
     @marshal_with(router_model.HarborReplicationExecutionResponse)
     @jwt_required
@@ -259,8 +280,11 @@ class HarborReplicationExecutionV2(MethodResource):
         output = hb_execute_replication_policy(kwargs.get("policy_id"))
         return util.success({"image_uri": output})
 
-    @doc(tags=["Harbor Replication Execution"], description="Get Harbor Replication Policy Execution.",
-         security=util.security_params)
+    @doc(
+        tags=["Harbor Replication Execution"],
+        description="Get Harbor Replication Policy Execution.",
+        security=util.security_params,
+    )
     @use_kwargs(router_model.HarborReplicationExecution, location=("query"))
     @marshal_with(router_model.HarborReplicationExecutionGetResponse)
     @jwt_required
@@ -273,8 +297,11 @@ class HarborReplicationExecutionV2(MethodResource):
 
 
 class HarborReplicationExecutionTasksV2(MethodResource):
-    @doc(tags=["Harbor Replication Execution"], description="Get Harbor Replication Policy Execution Tasks.",
-         security=util.security_params)
+    @doc(
+        tags=["Harbor Replication Execution"],
+        description="Get Harbor Replication Policy Execution Tasks.",
+        security=util.security_params,
+    )
     # @use_kwargs(router_model.HarborReplicationExecution, location=("args"))
     @marshal_with(router_model.HarborReplicationExecutionTasksResponse)
     @jwt_required
@@ -285,8 +312,11 @@ class HarborReplicationExecutionTasksV2(MethodResource):
 
 
 class HarborReplicationExecutionTaskLogV2(MethodResource):
-    @doc(tags=["Harbor Replication Execution"], description="Get Harbor Replication Policy Execution Tasks.",
-         security=util.security_params)
+    @doc(
+        tags=["Harbor Replication Execution"],
+        description="Get Harbor Replication Policy Execution Tasks.",
+        security=util.security_params,
+    )
     # @use_kwargs(router_model.HarborReplicationExecution, location=("args"))
     @marshal_with(router_model.HarborReplicationExecutionTaskLogResponse)
     @jwt_required
@@ -296,8 +326,11 @@ class HarborReplicationExecutionTaskLogV2(MethodResource):
 
 
 class HarborCopyImageReTagV2(MethodResource):
-    @doc(tags=["Harbor Copy Image"], description="Get Harbor Replication Policy Execution Tasks.",
-         security=util.security_params)
+    @doc(
+        tags=["Harbor Copy Image"],
+        description="Get Harbor Replication Policy Execution Tasks.",
+        security=util.security_params,
+    )
     @use_kwargs(router_model.HarborCopyImageReTag, location=("form"))
     @marshal_with(router_model.HarborCopyImageReTagResponse)
     @jwt_required

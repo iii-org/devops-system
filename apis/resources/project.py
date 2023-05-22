@@ -654,8 +654,8 @@ def create_bot(project_id):
     pj_repo_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first().git_repository_id
     gitlab.create_pj_variable(pj_repo_id, "GITLAB_TOKEN", git_access_token)
     gitlab.create_pj_variable(pj_repo_id, "SONAR_TOKEN", sonar_access_token)
-    gitlab.create_pj_variable(pj_repo_id, "USERNAME", login)
-    gitlab.create_pj_variable(pj_repo_id, "PASSWORD", password)
+    gitlab.create_pj_variable(pj_repo_id, "BOT_USERNAME", login)
+    gitlab.create_pj_variable(pj_repo_id, "BOT_PASSWORD", password)
     gitlab.create_pj_variable(pj_repo_id, "HARBOR_ROBOT", hb_robot_info["name"])
     gitlab.create_pj_variable(pj_repo_id, "HARBOR_ROBOT_SECRET", hb_robot_info["secret"])
 

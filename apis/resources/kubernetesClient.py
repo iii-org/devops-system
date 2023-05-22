@@ -38,13 +38,13 @@ iii_env_default = system_parameter["secret"] + system_parameter["registry"]
 env_normal_type = ["Opaque"]
 
 DEFAULT_NAMESPACE = "default"
-DEFAULT_SEC_CONTEXT = "home"
+DEFAULT_SEC_CONTEXT = "system"
 SYSTEM_SECRET_NAMESPACE = "iiidevops-env-secret"
 CRONJOB_WHITELIST = ["anchore-grypedb-update-job-by-day"]
 
 
 class ApiK8sClient:
-    def __init__(self, configuration=None, configuration_file=None, context="default"):
+    def __init__(self, configuration=None, configuration_file=None, context="runner"):
         if configuration_file is not None:
             configuration = k8s_config.load_kube_config(config_file=configuration_file, context=context)
         elif configuration is None:
