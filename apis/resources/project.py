@@ -53,7 +53,7 @@ from resources import sync_project
 from resources.project_relation import get_all_sons_project, get_plan_id
 from flask_apispec import doc
 from flask_apispec.views import MethodResource
-from resources import role, logger
+from resources import role
 from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
 import config
 import pandas as pd
@@ -131,14 +131,10 @@ def get_son_project_by_redmine_id(project_id: int,role, user_id: int,extra_data,
         start_project = {"children": []}
 
     son_ids = [row.son_id for row in model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).all()]
-    logger.logger.info(f"project_id: {project_id}, son_ids: {son_ids}")
     if get_jwt_identity()["role_id"] != 5:
-        logger.logger.info(f"role_id: {get_jwt_identity()['role_id']}")
         son_ids = check_son_project_belong_to_by_userid(user_id=get_jwt_identity()["user_id"], son_id_list=son_ids)
-        logger.logger.info(f"project_id: {project_id}, son_ids: {son_ids}")
     for son_id in son_ids:
         son = get_son_project_by_redmine_id(son_id,role, user_id, extra_data, pj_members_count,user_name,sync, False)
-        logger.logger.info(f"son_id: {son_id}, project_data: {son}")
         start_project["children"].append(son)
     return start_project
 
@@ -191,7 +187,6 @@ def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disabl
             project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first().project_id
             son = get_son_project_by_redmine_id(project_id,role,user_id,extra_data, pj_members_count, user_name,sync, start=True)            
             nexus_project['children'] = son.get('children', [])
-            logger.logger.info(f"row_id: {row.id}, redmine_project_id: {redmine_project_id}, project_id: {project_id}")
         ret.append(nexus_project)
     logging.info('Successful get all project')
     if limit is not None and offset is not None:
