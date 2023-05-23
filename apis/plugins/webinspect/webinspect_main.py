@@ -155,7 +155,7 @@ class Request:
 
 class WIESCC(Request):
     def __init__(self):
-        self.url = wie_get_config("wi_scc_url")
+        self.url = wie_get_config("WIE_SCC_URL")
         self.cookie_jar = RequestsCookieJar()
         self.auth_token = self.__generate_auth_token()
         self.scc_token = self.__generate_scc_token()
@@ -165,7 +165,7 @@ class WIESCC(Request):
         }
 
     def __generate_auth_token(self) -> str:
-        login_pwd_str = f'{wie_get_config("wi-username")}:{wie_get_config("wi-password")}'
+        login_pwd_str = f'{wie_get_config("WIE_USERNAME")}:{wie_get_config("WIE_PASSWORD")}'
         b_login_pwd_str = base64.b64encode(login_pwd_str.encode("utf-8"))
         return b_login_pwd_str.decode("utf-8")
 
@@ -298,7 +298,7 @@ class WIESCC(Request):
 
 class WIEDAST(Request):
     def __init__(self):
-        self.url = wie_get_config("wi_dast_url")
+        self.url = wie_get_config("WIE_DAST_URL")
         self.__check_dast_token()
 
     def __check_dast_token(self):
@@ -320,7 +320,7 @@ class WIEDAST(Request):
             "POST",
             "/api/v2/auth",
             headers={"Content-Type": "application/json"},
-            data={"username": wie_get_config("wi-username"), "password": wie_get_config("wi-password")},
+            data={"username": wie_get_config("WIE_USERNAME"), "password": wie_get_config("WIE_PASSWORD")},
         )
         return ret.json()["token"]
 

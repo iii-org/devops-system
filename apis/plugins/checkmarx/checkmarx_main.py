@@ -32,7 +32,7 @@ def cm_get_config(key):
 
 
 def build_url(path):
-    return f'{cm_get_config("cm-url")}{path}'
+    return f'{cm_get_config("CMX_URL")}{path}'
 
 
 class CheckMarx(object):
@@ -48,12 +48,12 @@ class CheckMarx(object):
     def login(self):
         url = build_url("/auth/identity/connect/token")
         data = {
-            "userName": cm_get_config("username"),
-            "password": cm_get_config("password"),
+            "userName": cm_get_config("CMX_USERNAME"),
+            "password": cm_get_config("CMX_PASSWORD"),
             "grant_type": "password",
             "scope": "sast_rest_api",
             "client_id": "resource_owner_client",
-            "client_secret": cm_get_config("client-secret"),
+            "client_secret": cm_get_config("CMX_CLIENT_SECRET"),
         }
         self.access_token = requests.post(url, data).json().get("access_token")
         self.expire_at = time.time() + 1800  # 0.5 hour

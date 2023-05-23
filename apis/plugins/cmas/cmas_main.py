@@ -31,13 +31,13 @@ def cm_get_config(key):
 
 
 def build_url(path):
-    return f'{cm_get_config("cm-url")}{path}'
+    return f'{cm_get_config("CMAS_URL")}{path}'
 
 
 class CMAS(object):
     def __init__(self, task_id):
         self.task = check_cmas_exist(task_id)
-        self.auth_key = cm_get_config("authKey")
+        self.auth_key = cm_get_config("CMAS_AUTHKEY")
 
     def __api_request(self, method, path, headers={}, params=(), data={}):
         url = build_url(path)
@@ -163,9 +163,9 @@ class CMAS(object):
 
 def get_secrets():
     return {
-        "auth_key": cm_get_config("authKey"),
-        "cm_url": cm_get_config("cm-url"),
-        "a_report_type": cm_get_config("a_report_type"),
+        "auth_key": cm_get_config("CMAS_AUTHKEY"),
+        "cm_url": cm_get_config("CMAS_URL"),
+        "a_report_type": cm_get_config("CMAS_A_REPORT_TYPE"),
     }
 
 
@@ -275,7 +275,7 @@ def create_task(args, repository_id):
         scan_final_status=None,
         finished=False,
         a_mode=args["a_mode"],
-        a_report_type=cm_get_config("a_report_type"),
+        a_report_type=cm_get_config("CMAS_A_REPORT_TYPE"),
         a_ert=args["a_ert"],
     )
     db.session.add(new)
