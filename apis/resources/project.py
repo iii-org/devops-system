@@ -132,9 +132,9 @@ def get_son_project_by_redmine_id(project_id: int,role, user_id: int,extra_data,
         start_project = {"children": []}
 
     son_ids = [row.son_id for row in model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).all()]
+    if get_jwt_identity()["role_id"] != 5:
+        son_ids = check_son_project_belong_to_by_userid(user_id=get_jwt_identity()["user_id"], son_id_list=son_ids)
     for son_id in son_ids:
-        if get_jwt_identity()["role_id"] != 5:
-            son_ids = check_son_project_belong_to_by_userid(user_id=get_jwt_identity()["user_id"], son_id_list=son_ids)
         son = get_son_project_by_redmine_id(son_id,role, user_id, extra_data, pj_members_count,user_name,sync, False)
         start_project["children"].append(son)
     return start_project
@@ -180,6 +180,8 @@ def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disabl
     rows, counts = get_project_rows_by_user(user_id, disable, args=args)
     ret = []
     for row in rows:
+        if row not in db.session:
+            row = db.session.merge(row)
         redmine_project_id = row.plugin_relation.plan_project_id
         nexus_project = get_nexux_project(row_project=row,user_id=user_id,role=role, sync=sync, user_name=user_name, extra_data=extra_data, pj_members_count=pj_members_count)
         if parent_son:
