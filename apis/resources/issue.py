@@ -189,7 +189,7 @@ class NexusIssue:
                 "name": redmine_issue.status.name,
             },
             "tags": get_issue_tags(redmine_issue.id),
-            "watchers": redmine_issue.watchers._resources
+            "watchers": redmine_issue.watchers._resources,
         }
         if hasattr(redmine_issue, "project"):
             project_id = nexus.nx_get_project_plugin_relation(rm_project_id=redmine_issue.project.id).project_id
@@ -1133,7 +1133,7 @@ def update_issue(issue_id, args, operator_id=None):
     if attachment_list is not None:
         args["uploads"] = attachment_list
 
-    personal_redmine_obj.rm_update_issue(issue_id, args) 
+    personal_redmine_obj.rm_update_issue(issue_id, args)
 
     # Update cache
     if update_cache_issue_family:
@@ -1245,11 +1245,14 @@ def get_issue_datetime_status(project_id):
     }
     return output
 
+
 def add_issue_watcher(isse_id: int, user_id: dict):
     return redmine.rm_add_watcher(isse_id, user_id)
 
+
 def remove_issue_watcher(issue_id: int, user_id: dict):
     return redmine.rm_remove_watcher(issue_id, user_id)
+
 
 def get_issue_by_project(project_id, args):
     if util.is_dummy_project(project_id):
@@ -1409,7 +1412,7 @@ def __get_trace_issues_info_with_duplicate_head(target_children_issues: list[dic
         for _target_children_issue in _target_children_issues:
             if _target_children_issue["id"] == issue_id:
                 return __get_trace_issues_info_with_duplicate_head(
-                    _target_children_issue["children"], issue_id_list[1:]
+                    _target_children_issue.get("children", []), issue_id_list[1:]
                 )
 
         _target_children_issues.append(__get_trace_issues_info({}, issue_id_list))
@@ -2491,15 +2494,19 @@ def delete_issue_relation(relation_id, user_account):
         broadcast=True,
     )
 
+
 def delete_issue_tag(tag_id: int) -> None:
-    all_issue = model.IssueTag.query.filter(model.IssueTag.tag_id != []) #.filter(model.IssueTag.tag_id.in_())  .filter_by(issue_id=2381)
+    all_issue = model.IssueTag.query.filter(
+        model.IssueTag.tag_id != []
+    )  # .filter(model.IssueTag.tag_id.in_())  .filter_by(issue_id=2381)
     for issue in all_issue:
         if tag_id in issue.tag_id:
             issue.tag_id.remove(tag_id)
-            model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({'tag_id':issue.tag_id})
+            model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({"tag_id": issue.tag_id})
             db.session.commit()
             sleep(0.5)
             continue
+
 
 def check_issue_closable(issue_id):
     # loop 離開標誌
@@ -3387,4 +3394,3 @@ class IssueSocket(Namespace):
     def on_leave(self, data):
         leave_room(data["project_id"])
         print("leave", data["project_id"])
-
