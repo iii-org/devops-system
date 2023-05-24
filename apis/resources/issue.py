@@ -1411,7 +1411,7 @@ def __get_trace_issues_info_with_duplicate_head(target_children_issues: list[dic
     for issue_id in issue_id_list:
         for _target_children_issue in _target_children_issues:
             if _target_children_issue["id"] == issue_id:
-                return __get_trace_issues_info_with_duplicate_head(
+                _target_children_issue["children"] = __get_trace_issues_info_with_duplicate_head(
                     _target_children_issue.get("children", []), issue_id_list[1:]
                 )
 
