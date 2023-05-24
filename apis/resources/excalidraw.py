@@ -41,7 +41,7 @@ def excalidraw_get_config(key):
 
 
 def get_excalidraw_url(excalidraw):
-    excalidraw_url = excalidraw_get_config("excalidraw-url")
+    excalidraw_url = excalidraw_get_config("EXCLD_URL")
     return f"{excalidraw_url}/#room={excalidraw.room},{excalidraw.key}"
 
 
@@ -134,7 +134,7 @@ def create_excalidraw(args):
         "name": name,
         "project_id": project_id,
         "created_at": str(datetime_now),
-        "url": f'{excalidraw_get_config("excalidraw-url")}/#room={room},{key}',
+        "url": f'{excalidraw_get_config("EXCLD_URL")}/#room={room},{key}',
         "issue_ids": [int(issue_id) for issue_id in issue_ids.split(",")] if has_issue_ids else [],
     }
 
@@ -314,11 +314,11 @@ def save_file_info(kwargs):
 
 
 def load_excalidraw_key_value():
-    database = excalidraw_get_config("excalidraw-db-database")
-    user = excalidraw_get_config("excalidraw-db-account")
-    password = excalidraw_get_config("excalidraw-db-password")
-    host = excalidraw_get_config("excalidraw-db-host")
-    port = excalidraw_get_config("excalidraw-db-port")
+    database = excalidraw_get_config("EXCLD_DB_DATABASE")
+    user = excalidraw_get_config("EXCLD_DB_ACCOUNT")
+    password = excalidraw_get_config("EXCLD_DB_PASSWORD")
+    host = excalidraw_get_config("EXCLD_DB_HOST")
+    port = excalidraw_get_config("EXCLD_DB_PORT")
     conn = psycopg2.connect(database=database, user=user, password=password, host=host, port=port)
     return conn
 
@@ -546,8 +546,8 @@ def sync_excalidraw_db():
 
 
 def check_excalidraw_alive(excalidraw_url=None, excalidraw_socket_url=None):
-    excalidraw_url = excalidraw_url or excalidraw_get_config("excalidraw-url")
-    excalidraw_socket_url = excalidraw_socket_url or excalidraw_get_config("excalidraw-socket-url")
+    excalidraw_url = excalidraw_url or excalidraw_get_config("EXCLD_URL")
+    excalidraw_socket_url = excalidraw_socket_url or excalidraw_get_config("EXCLD_SOCKET_URL")
 
     not_alive_services = []
     ret = {"alive": True, "services": {"API": True, "UI": True, "Socket": True}}

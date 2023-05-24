@@ -53,7 +53,7 @@ class CheckMarx(object):
             "grant_type": "password",
             "scope": "sast_rest_api",
             "client_id": "resource_owner_client",
-            "client_secret": cm_get_config("CMX_CLIENT_SECRET"),
+            "client_secret": cm_get_config("CMX_SECRET"),
         }
         self.access_token = requests.post(url, data).json().get("access_token")
         self.expire_at = time.time() + 1800  # 0.5 hour

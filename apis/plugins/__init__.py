@@ -13,14 +13,13 @@ from os.path import dirname, join, exists
 
 from kubernetes.client import ApiException
 
-import subprocess
-from subprocess import Popen, PIPE
+from subprocess import PIPE
 import threading
 import model
 from resources import apiError
 from resources import role
 from resources import template
-from resources import gitlab
+from resources.gitlab import gitlab
 from enums.action_type import ActionType
 from resources.activity import record_activity
 from resources.apiError import DevOpsError
@@ -28,8 +27,6 @@ from resources.kubernetesClient import (
     read_namespace_secret,
     SYSTEM_SECRET_NAMESPACE,
     DEFAULT_NAMESPACE,
-    create_namespace_secret,
-    patch_namespace_secret,
     delete_namespace_secret,
 )
 from resources.rancher import rancher
@@ -38,13 +35,9 @@ from resources.notification_message import (
     get_unclose_notification_message,
     create_notification_message,
 )
-from resources.kubernetesClient import ApiK8sClient, add_secrets_to_all_namespace
+from resources.kubernetesClient import ApiK8sClient
 from resources.router import update_plugin_hidden
-from resources.redis import (
-    update_plugins_software_switch_all,
-    get_plugins_software_switch_all,
-    delete_plugins_software_switch,
-)
+from resources.redis import update_plugins_software_switch_all, get_plugins_software_switch_all
 from typing import Any
 
 SYSTEM_SECRET_PREFIX = "system-secret-"
@@ -98,7 +91,6 @@ ENTERPRISE_PLUGINS = {"sbom": {"func": sbom_validation}}
 
 class PluginKeyStore(Enum):
     DB = "db"  # Store in db
-    SECRET_SYSTEM = "secret_system"  # Store in secret only for system admin
     SECRET_ALL = "secret_all"  # Store in secret in all namespaces
 
 
@@ -145,25 +137,41 @@ def system_secret_name(plugin_name):
 
 def get_plugin_global_variable_from_gitlab(plugin_name: str):
     plugin_keys_info = get_plugin_config_file(plugin_name)["keys"]
-    env_keys = [
-        f'{plugin_name}_{plugin_key_info["key"]}'
+    env_key_value_mapping = {
+        plugin_key_info["key"]: None
         for plugin_key_info in plugin_keys_info
         if plugin_key_info["store"] == "secret_all"
-    ]
-    if not env_keys:
+    }
+    if not env_key_value_mapping:
         return {}
 
     all_gitlab_global_variables = gitlab.gl_get_all_global_variable()
-    ret = {
-        all_gitlab_global_variable["key"]: all_gitlab_global_variable["value"]
-        for all_gitlab_global_variable in all_gitlab_global_variables
-        if all_gitlab_global_variable["key"] in env_keys
-    }
-    return ret
+    
+    for all_gitlab_global_variable in all_gitlab_global_variables:
+        if all_gitlab_global_variable["key"] in env_key_value_mapping:
+            env_key_value_mapping[all_gitlab_global_variable["key"]] = all_gitlab_global_variable["value"]
+
+    return env_key_value_mapping
 
 
 def update_plugin_global_variable_to_gitlab(plugin_name: str, arguments: dict[str, Any]):
-    pass
+    plugin_keys_infos = get_plugin_config_file(plugin_name)["keys"]
+    env_info_mapping = {
+        plugin_keys_info["key"]: plugin_keys_info["type"] for plugin_keys_info in plugin_keys_infos}
+    
+    all_gitlab_global_variables = gitlab.gl_get_all_global_variable()
+    all_gitlab_global_variables_keys = [all_gitlab_global_variable["key"] for all_gitlab_global_variable in all_gitlab_global_variables]
+
+    for key, value in arguments.items():
+        if key in env_info_mapping:
+            masked = env_info_mapping[key] == "password"
+
+            value_detail = {"value": value, "variable_type": "env_var", "protected": False, "masked": masked, "raw": True}
+            if key not in all_gitlab_global_variables_keys:
+                value_detail["key"] = key
+                gitlab.gl_create_global_variable(value_detail)
+            else:
+                gitlab.gl_update_global_variable(key, value_detail)
 
 
 def get_plugin_config(plugin_name):
@@ -238,8 +246,7 @@ def update_plugin_argument(
     if db_arguments:
         update_plugin_config_in_db(plugin_name, db_arguments)
     elif system_variables:
-        update_plugin_global_variable_to_gitlab
-        pass
+        update_plugin_global_variable_to_gitlab(plugin_name, system_variables)
 
 
 def update_plugin_disable_argument(plugin_name: str, args: dict[str, Any], is_first_import: bool = False):

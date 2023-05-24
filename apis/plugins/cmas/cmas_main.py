@@ -6,9 +6,8 @@ import os
 import requests
 from flask import send_file
 from resources.handler.jwt import jwt_required, jwt_required_cronjob
-from flask_restful import Resource, reqparse
+from flask_restful import reqparse
 from sqlalchemy import desc
-from sqlalchemy.exc import NoResultFound
 
 import shutil
 import model

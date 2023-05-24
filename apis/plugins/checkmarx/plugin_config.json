@@ -4,8 +4,8 @@
   "is_pipeline": true,
   "keys": [
     {
-      "key": "CMX_CLIENT_SECRET",
-      "type": "string",
+      "key": "CMX_SECRET",
+      "type": "password",
       "store": "secret_all"
     },
     {
