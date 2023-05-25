@@ -641,7 +641,7 @@ def apply_cronjob_yamls():
                                 break
                 try:
                     logger.info(f"Recreate {cronjob_name}")
-                    k8s_utils.create_from_dict(api_k8s_client.get_api_client(), json_file)
+                    k8s_utils.create_from_dict(api_k8s_client.get_api_client(), json_file, namespace="iiidevops")
                     logger.info(f"Recreate {cronjob_name} done")
                 except k8s_utils.FailToCreateError as e:
                     print("e1")
@@ -759,7 +759,7 @@ def delete_namespace(project_name):
 
 
 def create_service_account(login_sa_name):
-    sa = ApiK8sClient().create_namespaced_service_account(
+    sa = ApiK8sClient.from_context().create_namespaced_service_account(
         "account",
         k8s_client.V1ServiceAccount(metadata=k8s_client.V1ObjectMeta(name=login_sa_name)),
     )
@@ -767,20 +767,20 @@ def create_service_account(login_sa_name):
 
 
 def delete_service_account(login_sa_name):
-    sa = ApiK8sClient().delete_namespaced_service_account(login_sa_name, "account")
+    sa = ApiK8sClient.from_context().delete_namespaced_service_account(login_sa_name, "account")
     return sa
 
 
 def list_service_account():
     list_service_accouts = []
-    for sa in ApiK8sClient().list_namespaced_service_account("account").items:
+    for sa in ApiK8sClient.from_context().list_namespaced_service_account("account").items:
         list_service_accouts.append(sa.metadata.name)
     return list_service_accouts
 
 
 def get_service_account_config(sa_name):
     list_nodes = []
-    api_k8s_client = ApiK8sClient()
+    api_k8s_client = ApiK8sClient.from_context()
     for node in api_k8s_client.list_node().items:
         ip = None
         hostname = None
