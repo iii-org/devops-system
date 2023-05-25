@@ -722,14 +722,15 @@ def list_work_node():
     return list_nodes
 
 
-def create_iiidevops_env_secret_namespace():
-    if "iiidevops-env-secret" not in list_namespace():
-        create_namespace("iiidevops-env-secret")
+# def create_iiidevops_env_secret_namespace():
+#     if "iiidevops-env-secret" not in list_namespace():
+#         create_namespace("iiidevops-env-secret")
 
 
-def create_namespace(project_name):
+def create_namespace(project_name, use_context=False):
+    api_k8s_client = ApiK8sClient() if not use_context else ApiK8sClient.from_context()
     try:
-        ApiK8sClient().create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
+        api_k8s_client.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -739,10 +740,11 @@ def get_namespace(project_name):
     return ApiK8sClient().read_namespace(project_name)
 
 
-def list_namespace():
+def list_namespace(use_context=False):
+    api_k8s_client = ApiK8sClient() if not use_context else ApiK8sClient.from_context()
     try:
         list_namespaces = []
-        for namespace in ApiK8sClient().list_namespace().items:
+        for namespace in api_k8s_client.list_namespace().items:
             list_namespaces.append(namespace.metadata.name)
         return list_namespaces
     except apiError.DevOpsError as e:
@@ -759,6 +761,9 @@ def delete_namespace(project_name):
 
 
 def create_service_account(login_sa_name):
+    if "account" not in list_namespace(use_context=True):
+        create_namespace("account", use_context=True)
+
     sa = ApiK8sClient.from_context().create_namespaced_service_account(
         "account",
         k8s_client.V1ServiceAccount(metadata=k8s_client.V1ObjectMeta(name=login_sa_name)),

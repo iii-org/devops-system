@@ -138,15 +138,13 @@ def system_secret_name(plugin_name):
 def get_plugin_global_variable_from_gitlab(plugin_name: str):
     plugin_keys_info = get_plugin_config_file(plugin_name)["keys"]
     env_key_value_mapping = {
-        plugin_key_info["key"]: None
-        for plugin_key_info in plugin_keys_info
-        if plugin_key_info["store"] == "secret_all"
+        plugin_key_info["key"]: "" for plugin_key_info in plugin_keys_info if plugin_key_info["store"] == "secret_all"
     }
     if not env_key_value_mapping:
         return {}
 
     all_gitlab_global_variables = gitlab.gl_get_all_global_variable()
-    
+
     for all_gitlab_global_variable in all_gitlab_global_variables:
         if all_gitlab_global_variable["key"] in env_key_value_mapping:
             env_key_value_mapping[all_gitlab_global_variable["key"]] = all_gitlab_global_variable["value"]
@@ -156,17 +154,24 @@ def get_plugin_global_variable_from_gitlab(plugin_name: str):
 
 def update_plugin_global_variable_to_gitlab(plugin_name: str, arguments: dict[str, Any]):
     plugin_keys_infos = get_plugin_config_file(plugin_name)["keys"]
-    env_info_mapping = {
-        plugin_keys_info["key"]: plugin_keys_info["type"] for plugin_keys_info in plugin_keys_infos}
-    
+    env_info_mapping = {plugin_keys_info["key"]: plugin_keys_info["type"] for plugin_keys_info in plugin_keys_infos}
+
     all_gitlab_global_variables = gitlab.gl_get_all_global_variable()
-    all_gitlab_global_variables_keys = [all_gitlab_global_variable["key"] for all_gitlab_global_variable in all_gitlab_global_variables]
+    all_gitlab_global_variables_keys = [
+        all_gitlab_global_variable["key"] for all_gitlab_global_variable in all_gitlab_global_variables
+    ]
 
     for key, value in arguments.items():
         if key in env_info_mapping:
-            masked = env_info_mapping[key] == "password"
+            masked = env_info_mapping[key] == "password" and value != ""
 
-            value_detail = {"value": value, "variable_type": "env_var", "protected": False, "masked": masked, "raw": True}
+            value_detail = {
+                "value": value,
+                "variable_type": "env_var",
+                "protected": False,
+                "masked": masked,
+                "raw": True,
+            }
             if key not in all_gitlab_global_variables_keys:
                 value_detail["key"] = key
                 gitlab.gl_create_global_variable(value_detail)
