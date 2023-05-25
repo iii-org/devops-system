@@ -2,12 +2,14 @@ from typing import Any
 from keycloak import KeycloakAdmin, KeycloakOpenID
 from keycloak.exceptions import KeycloakGetError, KeycloakAuthenticationError
 from resources.logger import logger
+import config
 
-
-KEYCLOAK_URL = "https://keycloak.dev7.iiidevops.org"
+# KEYCLOAK_URL = "https://keycloak.dev7.iiidevops.org"
+KEYCLOAK_URL = config.get("KEYCLOAK_URL")
 REALM_NAME = "IIIdevops"
 CLIENT_ID = "iiidevops"
-CLIENT_SECRET_KEY = "efthPokNU2GxizYkK68Ivg3w8fG7Ocr3"
+# CLIENT_SECRET_KEY = "X4v7E9O3brnAwumQabigvxAPEuANPpXd"
+CLIENT_SECRET_KEY = config.get("KEYCLOAK_SECRET_KEY")
 AM_REALM_ROLE_NAME = "admin"
 
 # Root url: change to dev4
