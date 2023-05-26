@@ -1374,6 +1374,7 @@ def get_match_issue_infos_from_head(issue_ids: list[int], by_user_permission: bo
             res[head_id_index]["children"] = __get_trace_issues_info_with_duplicate_head(
                 res[head_id_index].get("children", []), all_trace_issues[1:]
             )
+            res[head_id_index]["has_children"] = True
         else:
             head_ids.append(head_id)
             res.append(__get_trace_issues_info({}, all_trace_issues))
@@ -1414,7 +1415,8 @@ def __get_trace_issues_info_with_duplicate_head(target_children_issues: list[dic
                 _target_children_issue["children"] = __get_trace_issues_info_with_duplicate_head(
                     _target_children_issue.get("children", []), issue_id_list[1:]
                 )
-
+                _target_children_issue["has_children"] = True
+                return target_children_issues
         _target_children_issues.append(__get_trace_issues_info({}, issue_id_list))
         break
 
