@@ -1425,6 +1425,7 @@ def __get_trace_issues_info(res: dict[int, int], issue_list: list[int]):
     issue_info = redmine.rm_get_issue(issue_list[0], False)
     res = common_project_issue_info_serializer(issue_info, True)
     if len(issue_list) == 1:
+        res["has_children"] = False
         return res
     res["children"] = [__get_trace_issues_info({}, issue_list[1:])]
     return res
