@@ -62,10 +62,10 @@ def issue_url(api, add_resource):
     api.add_resource(view.IssueRemoveWatcher, "/v2/<int:issue_id>/watchers/<int:user_id>")
     add_resource(view.IssueRemoveWatcher, "public")
 
-    api.add_resource(view.WatchIssueByUser, "/user/<sint:user_id>/issues/watch/list")
+    api.add_resource(view.WatchIssueByUser, "/v2/user/<sint:user_id>/issues/watch/list")
     # api.add_resource(view.WatchIssueByUser, "/v2/user/<sint:user_id>/issues/watch/list")
     add_resource(view.WatchIssueByUser, "public")
 
     # api.add_resource(view.WatchIssueByUser, "/user/<sint:user_id>/issues/watch/list")
-    api.add_resource(view.IssueTag, "/issue/remove/all/tag/<sint:tag_id>")
+    api.add_resource(view.IssueTag, "/v2/issue/remove/all/tag/<sint:tag_id>")
     add_resource(view.IssueTag, "public")
