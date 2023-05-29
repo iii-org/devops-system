@@ -14,9 +14,10 @@ def insert_default_value_in_lock():
 
 
 def insert_default_value_in_system_parameter():
-    mail_setting = redmine.rm_get_mail_setting()
-    email_address = redmine.rm_get_or_set_emission_email_address(None)
-    mail_setting["emission_email_address"] = email_address["message"]
+    mail_setting = {}
+    # mail_setting = redmine.rm_get_mail_setting()
+    # email_address = redmine.rm_get_or_set_emission_email_address(None)
+    # mail_setting["emission_email_address"] = email_address["message"]
 
     data_list = [
         {

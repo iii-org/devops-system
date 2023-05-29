@@ -51,8 +51,8 @@ from resources.notification_message import create_notification_message
 
 GITLAB_NOTFOUND = exceptions
 GITLAB_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
-DEFAULT_REPO = "iiidevops-templates"
-iiidevops_system_group = ["iiidevops-templates", "local-templates", "iiidevops-catalog"]
+DEFAULT_REPO = "iiidevops"
+iiidevops_system_group = ["iiidevops-templates", "local-templates"]
 
 Maintainer = 40
 """

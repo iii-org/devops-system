@@ -4,42 +4,42 @@
   "is_pipeline": false,
   "keys": [
     {
-      "key": "host",
+      "key": "AD_HOST",
       "type": "string",
-      "store": "secret_system"
+      "store": "db"
     },
     {
-      "key": "ou",
+      "key": "AD_OU",
       "type": "string",
-      "store": "secret_system"
+      "store": "db"
     },
     {
-      "key": "domain",
+      "key": "AD_DOMAIN",
       "type": "string",
-      "store": "secret_system"
+      "store": "db"
     },
     {
-      "key": "account",
+      "key": "AD_ACCOUNT",
       "type": "string",
-      "store": "secret_system"
+      "store": "db"
     },
     {
-      "key": "password",
+      "key": "AD_PASSWORD",
       "type": "password",
-      "store": "secret_system"
+      "store": "db"
     },
     {
-      "key": "default_password",
+      "key": "AD_DEFAULT_PASSWORD",
       "type": "password",
-      "store": "secret_system"
+      "store": "db"
     },
     {
-      "key": "connect_timeout",
+      "key": "AD_CONNECT_TIMEOUT",
       "type": "string",
-      "store": "secret_system"
+      "store": "db"
     },
     {
-      "key": "default_role_id",
+      "key": "AD_DEFAULT_ROLE_ID",
       "type": "select",
       "options": [
         {
@@ -59,11 +59,11 @@
           "name": "QA"
         }
       ],
-      "store": "secret_system",
+      "store": "db",
       "placeholder": "Please Select default role ID"
     },
     {
-      "key": "ssl",
+      "key": "AD_SSL",
       "type": "select",
       "options": [
         {
@@ -75,11 +75,11 @@
           "name": "False"
         }
       ],
-      "store": "secret_system",
+      "store": "db",
       "value": false
     },
     {
-      "key": "ssl_validate",
+      "key": "AD_SSL_VALIDATE",
       "type": "select",
       "options": [
         {
@@ -96,10 +96,10 @@
         }
       ],
       "value": "NONE",
-      "store": "secret_system"
+      "store": "db"
     },
     {
-      "key": "ssl_protocol",
+      "key": "AD_SSL_PROTOCOL",
       "type": "select",
       "options": [
         {
@@ -124,12 +124,12 @@
         }
       ],
       "value": "PROTOCOL_TLSv1_2",
-      "store": "secret_system"
+      "store": "db"
     },
     {
-      "key": "ca_certs_data",
+      "key": "AD_CA_CERTS_DATA",
       "type": "password",
-      "store": "secret_system",
+      "store": "db",
       "value": ""
     }
   ]

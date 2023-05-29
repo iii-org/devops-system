@@ -4,39 +4,39 @@
     "is_pipeline": false,
     "keys": [
         {
-            "key": "excalidraw-url",
+            "key": "EXCLD_URL",
             "type": "string",
-            "store": "secret_system"
+            "store": "db"
         },
         {
-            "key": "excalidraw-socket-url",
+            "key": "EXCLD_SOCKET_URL",
             "type": "string",
-            "store": "secret_system"
+            "store": "db"
         },
         {
-            "key": "excalidraw-db-account",
+            "key": "EXCLD_DB_ACCOUNT",
             "type": "string",
-            "store": "secret_system"
+            "store": "db"
         },
         {
-            "key": "excalidraw-db-password",
+            "key": "EXCLD_DB_PASSWORD",
             "type": "password",
-            "store": "secret_system"
+            "store": "db"
         },
         {
-            "key": "excalidraw-db-host",
+            "key": "EXCLD_DB_HOST",
             "type": "string",
-            "store": "secret_system"
+            "store": "db"
         },
         {
-            "key": "excalidraw-db-port",
+            "key": "EXCLD_DB_PORT",
             "type": "string",
-            "store": "secret_system"
+            "store": "db"
         },
         {
-            "key": "excalidraw-db-database",
+            "key": "EXCLD_DB_DATABASE",
             "type": "string",
-            "store": "secret_system"
+            "store": "db"
         }
     ]
 }

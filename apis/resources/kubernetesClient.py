@@ -38,13 +38,13 @@ iii_env_default = system_parameter["secret"] + system_parameter["registry"]
 env_normal_type = ["Opaque"]
 
 DEFAULT_NAMESPACE = "default"
-DEFAULT_SEC_CONTEXT = "home"
+DEFAULT_SEC_CONTEXT = "system"
 SYSTEM_SECRET_NAMESPACE = "iiidevops-env-secret"
 CRONJOB_WHITELIST = ["anchore-grypedb-update-job-by-day"]
 
 
 class ApiK8sClient:
-    def __init__(self, configuration=None, configuration_file=None, context="default"):
+    def __init__(self, configuration=None, configuration_file=None, context="runner"):
         if configuration_file is not None:
             configuration = k8s_config.load_kube_config(config_file=configuration_file, context=context)
         elif configuration is None:
@@ -641,7 +641,7 @@ def apply_cronjob_yamls():
                                 break
                 try:
                     logger.info(f"Recreate {cronjob_name}")
-                    k8s_utils.create_from_dict(api_k8s_client.get_api_client(), json_file)
+                    k8s_utils.create_from_dict(api_k8s_client.get_api_client(), json_file, namespace="iiidevops")
                     logger.info(f"Recreate {cronjob_name} done")
                 except k8s_utils.FailToCreateError as e:
                     print("e1")
@@ -722,14 +722,15 @@ def list_work_node():
     return list_nodes
 
 
-def create_iiidevops_env_secret_namespace():
-    if "iiidevops-env-secret" not in list_namespace():
-        create_namespace("iiidevops-env-secret")
+# def create_iiidevops_env_secret_namespace():
+#     if "iiidevops-env-secret" not in list_namespace():
+#         create_namespace("iiidevops-env-secret")
 
 
-def create_namespace(project_name):
+def create_namespace(project_name, use_context=False):
+    api_k8s_client = ApiK8sClient() if not use_context else ApiK8sClient.from_context()
     try:
-        ApiK8sClient().create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
+        api_k8s_client.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -739,10 +740,11 @@ def get_namespace(project_name):
     return ApiK8sClient().read_namespace(project_name)
 
 
-def list_namespace():
+def list_namespace(use_context=False):
+    api_k8s_client = ApiK8sClient() if not use_context else ApiK8sClient.from_context()
     try:
         list_namespaces = []
-        for namespace in ApiK8sClient().list_namespace().items:
+        for namespace in api_k8s_client.list_namespace().items:
             list_namespaces.append(namespace.metadata.name)
         return list_namespaces
     except apiError.DevOpsError as e:
@@ -759,7 +761,10 @@ def delete_namespace(project_name):
 
 
 def create_service_account(login_sa_name):
-    sa = ApiK8sClient().create_namespaced_service_account(
+    if "account" not in list_namespace(use_context=True):
+        create_namespace("account", use_context=True)
+
+    sa = ApiK8sClient.from_context().create_namespaced_service_account(
         "account",
         k8s_client.V1ServiceAccount(metadata=k8s_client.V1ObjectMeta(name=login_sa_name)),
     )
@@ -767,20 +772,20 @@ def create_service_account(login_sa_name):
 
 
 def delete_service_account(login_sa_name):
-    sa = ApiK8sClient().delete_namespaced_service_account(login_sa_name, "account")
+    sa = ApiK8sClient.from_context().delete_namespaced_service_account(login_sa_name, "account")
     return sa
 
 
 def list_service_account():
     list_service_accouts = []
-    for sa in ApiK8sClient().list_namespaced_service_account("account").items:
+    for sa in ApiK8sClient.from_context().list_namespaced_service_account("account").items:
         list_service_accouts.append(sa.metadata.name)
     return list_service_accouts
 
 
 def get_service_account_config(sa_name):
     list_nodes = []
-    api_k8s_client = ApiK8sClient()
+    api_k8s_client = ApiK8sClient.from_context()
     for node in api_k8s_client.list_node().items:
         ip = None
         hostname = None

@@ -290,7 +290,6 @@ def check_sq_pj(projects_name):
 
 
 def check_k8s_ns(projects_name):
-    rancher.rancher.rc_get_project_id()
     k8s_ns_list = kubernetesClient.list_namespace()
     return list(set(projects_name) - set(k8s_ns_list))
 

@@ -13,13 +13,13 @@ from os.path import dirname, join, exists
 
 from kubernetes.client import ApiException
 
-import subprocess
-from subprocess import Popen, PIPE
+from subprocess import PIPE
 import threading
 import model
 from resources import apiError
 from resources import role
 from resources import template
+from resources.gitlab import gitlab
 from enums.action_type import ActionType
 from resources.activity import record_activity
 from resources.apiError import DevOpsError
@@ -27,8 +27,6 @@ from resources.kubernetesClient import (
     read_namespace_secret,
     SYSTEM_SECRET_NAMESPACE,
     DEFAULT_NAMESPACE,
-    create_namespace_secret,
-    patch_namespace_secret,
     delete_namespace_secret,
 )
 from resources.rancher import rancher
@@ -37,13 +35,10 @@ from resources.notification_message import (
     get_unclose_notification_message,
     create_notification_message,
 )
-from resources.kubernetesClient import ApiK8sClient, add_secrets_to_all_namespace
+from resources.kubernetesClient import ApiK8sClient
 from resources.router import update_plugin_hidden
-from resources.redis import (
-    update_plugins_software_switch_all,
-    get_plugins_software_switch_all,
-    delete_plugins_software_switch,
-)
+from resources.redis import update_plugins_software_switch_all, get_plugins_software_switch_all
+from typing import Any
 
 SYSTEM_SECRET_PREFIX = "system-secret-"
 
@@ -96,7 +91,6 @@ ENTERPRISE_PLUGINS = {"sbom": {"func": sbom_validation}}
 
 class PluginKeyStore(Enum):
     DB = "db"  # Store in db
-    SECRET_SYSTEM = "secret_system"  # Store in secret only for system admin
     SECRET_ALL = "secret_all"  # Store in secret in all namespaces
 
 
@@ -141,33 +135,65 @@ def system_secret_name(plugin_name):
     return f"{SYSTEM_SECRET_PREFIX}{plugin_name}"
 
 
+def get_plugin_global_variable_from_gitlab(plugin_name: str):
+    plugin_keys_info = get_plugin_config_file(plugin_name)["keys"]
+    env_key_value_mapping = {
+        plugin_key_info["key"]: "" for plugin_key_info in plugin_keys_info if plugin_key_info["store"] == "secret_all"
+    }
+    if not env_key_value_mapping:
+        return {}
+
+    all_gitlab_global_variables = gitlab.gl_get_all_global_variable()
+
+    for all_gitlab_global_variable in all_gitlab_global_variables:
+        if all_gitlab_global_variable["key"] in env_key_value_mapping:
+            env_key_value_mapping[all_gitlab_global_variable["key"]] = all_gitlab_global_variable["value"]
+
+    return env_key_value_mapping
+
+
+def update_plugin_global_variable_to_gitlab(plugin_name: str, arguments: dict[str, Any]):
+    plugin_keys_infos = get_plugin_config_file(plugin_name)["keys"]
+    env_info_mapping = {plugin_keys_info["key"]: plugin_keys_info["type"] for plugin_keys_info in plugin_keys_infos}
+
+    all_gitlab_global_variables = gitlab.gl_get_all_global_variable()
+    all_gitlab_global_variables_keys = [
+        all_gitlab_global_variable["key"] for all_gitlab_global_variable in all_gitlab_global_variables
+    ]
+
+    for key, value in arguments.items():
+        if key in env_info_mapping:
+            masked = env_info_mapping[key] == "password" and value != ""
+
+            value_detail = {
+                "value": value,
+                "variable_type": "env_var",
+                "protected": False,
+                "masked": masked,
+                "raw": True,
+            }
+            if key not in all_gitlab_global_variables_keys:
+                value_detail["key"] = key
+                gitlab.gl_create_global_variable(value_detail)
+            else:
+                gitlab.gl_update_global_variable(key, value_detail)
+
+
 def get_plugin_config(plugin_name):
     config = get_plugin_config_file(plugin_name)
     db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one()
     db_arguments = json.loads(db_row.parameter) or {}
-    system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name)) or {}
-    global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name) or {}
+    system_variables = get_plugin_global_variable_from_gitlab(plugin_name)
 
     value_store_mapping = {
         PluginKeyStore.DB: db_arguments,
-        PluginKeyStore.SECRET_SYSTEM: system_secrets,
-        PluginKeyStore.SECRET_ALL: global_secrets,
+        PluginKeyStore.SECRET_ALL: system_variables,
     }
     ret = {"name": plugin_name, "arguments": [], "disabled": db_row.disabled}
 
     for item in config["keys"]:
-        key = item["key"]
-        item_value = item.get("value")
-        store = PluginKeyStore(item["store"])
-        value = None
-        if store in value_store_mapping:
-            value = value_store_mapping[store].get(key, None)
-        else:
-            value = f'Wrong store location: {item["store"]}'
-
-        # if value is not assign, assign default value
-        if value is None and item_value is not None:
-            value = item_value
+        key, item_value, store = item["key"], item.get("value"), PluginKeyStore(item["store"])
+        value = value_store_mapping[store].get(key) if store in value_store_mapping else item_value
 
         o = {
             "key": key,
@@ -186,161 +212,128 @@ def get_plugin_config(plugin_name):
     return ret
 
 
-@record_activity(ActionType.ENABLE_PLUGIN)
-def enable_plugin_config(plugin_name):
-    db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one()
-    db_row.disabled = False
-    model.db.session.commit()
-
-
-@record_activity(ActionType.DISABLE_PLUGIN)
-def disable_plugin_config(plugin_name):
-    db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one()
-    db_row.disabled = True
-    model.db.session.commit()
-
-
 def update_plugin_config(plugin_name, args):
     patch_secret = False
-    system_secrets_not_exist = False
     config = get_plugin_config_file(plugin_name)
-    db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one()
-    db_arguments = json.loads(db_row.parameter)
-    if db_arguments is None:
-        db_arguments = {}
-    system_secrets = read_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name))
-    global_secrets = read_namespace_secret(DEFAULT_NAMESPACE, plugin_name) or {}
-    if system_secrets is None:
-        system_secrets_not_exist = True
-        system_secrets = {}
+    system_variables = get_plugin_global_variable_from_gitlab(plugin_name)
+
     key_map = {}
     for item in config["keys"]:
         key_map[item["key"]] = {"store": item["store"], "type": item["type"]}
+
     if args.get("disabled") is not None:
-        from resources.excalidraw import check_excalidraw_alive
-        from plugins.ad.ad_main import check_ad_alive
-
-        plugin_alive_mapping = {
-            "excalidraw": {
-                "func": check_excalidraw_alive,
-                "alert_monitring_id": 1001,
-                "parameters": {
-                    "excalidraw_url": args.get("arguments").get("excalidraw-url")
-                    if args.get("arguments") is not None
-                    else None,
-                    "excalidraw_socket_url": args.get("arguments").get("excalidraw-socket-url")
-                    if args.get("arguments") is not None
-                    else None,
-                },
-            },
-            "ad": {
-                "func": check_ad_alive,
-                "alert_monitring_id": 1002,
-                "parameters": {"ldap_parameter": args.get("arguments", {})},
-            },
-        }
-        if not args["disabled"]:
-            # Excalidraw first create
-            if plugin_name == "excalidraw" and system_secrets_not_exist:
-                excalidraw_url = plugin_alive_mapping["excalidraw"]["parameters"]["excalidraw_url"]
-                excalidraw_socket_url = plugin_alive_mapping["excalidraw"]["parameters"]["excalidraw_socket_url"]
-
-                if excalidraw_url is None or excalidraw_socket_url is None:
-                    raise DevOpsError(
-                        400,
-                        "Argument: excalidraw-url or excalidraw-socket-url can not be blank in first create.",
-                        error=apiError.argument_error("disabled"),
-                    )
-
-                elif not check_excalidraw_alive(
-                    excalidraw_url=excalidraw_url,
-                    excalidraw_socket_url=excalidraw_socket_url,
-                )["alive"]:
-                    services = check_excalidraw_alive(
-                        excalidraw_url=excalidraw_url,
-                        excalidraw_socket_url=excalidraw_socket_url,
-                    ).get("services")
-                    services_txt = ""
-                    for _ in services:
-                        if not services[_]:
-                            services_txt += f"{_}, "
-
-                    raise DevOpsError(
-                        400,
-                        f"Excalidraw's {services_txt.rstrip()[:-1]} are not alive.",
-                        error=apiError.argument_error("argument"),
-                    )
-
-            # check plugin server alive before set disabled to false.
-            plugin_alive_func = plugin_alive_mapping.get(plugin_name, {}).get("func")
-            if plugin_alive_func is not None:
-                kwargs = plugin_alive_mapping.get(plugin_name, {}).get("parameters", {})
-                alive = plugin_alive_func(**kwargs)["alive"]
-                if not alive:
-                    raise DevOpsError(
-                        400,
-                        "Plugin is not alive",
-                        error=apiError.plugin_server_not_alive(plugin_name),
-                    )
-
-            # Validate enterprise plugin
-            if plugin_name in ENTERPRISE_PLUGINS:
-                ENTERPRISE_PLUGINS[plugin_name]["func"]()
-
-        else:
-            # Read alert_message of plugin server is not alive then send notification.
-            plugin_alive_id = plugin_alive_mapping.get(plugin_name, {}).get("alert_monitring_id")
-            if plugin_alive_id is not None:
-                not_alive_messages = get_unclose_notification_message(plugin_alive_id)
-                if not_alive_messages is not None and len(not_alive_messages) > 0:
-                    for not_alive_message in not_alive_messages:
-                        close_notification_message(not_alive_message["id"])
-                    create_notification_message(
-                        {
-                            "alert_level": 1,
-                            "title": f"Close {plugin_name} alert",
-                            "message": f"Close {plugin_name} not alive alert, because plugin has been disabled.",
-                            "type_ids": [4],
-                            "type_parameters": {"role_ids": [5]},
-                        },
-                        user_id=1,
-                    )
-
-        update_plugin_hidden(plugin_name, args["disabled"])
+        update_plugin_disable_argument(plugin_name, args, not system_variables)
 
     if args.get("arguments") is not None:
-        for argument in args["arguments"]:
-            if argument not in key_map:
-                raise DevOpsError(
-                    400,
-                    f"Argument {argument} is not in the argument list of plugin {plugin_name}.",
-                    error=apiError.argument_error(argument),
-                )
-            store = PluginKeyStore(key_map[argument]["store"])
-            if store == PluginKeyStore.DB:
-                db_arguments[argument] = str(args["arguments"][argument])
-            elif store == PluginKeyStore.SECRET_SYSTEM:
-                if system_secrets_not_exist:
-                    create_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), {})
-                    system_secrets_not_exist = False
-                system_secrets[argument] = str(args["arguments"][argument])
-                patch_secret = True
-            elif store == PluginKeyStore.SECRET_ALL:
-                global_secrets[argument] = str(args["arguments"][argument])
-    if patch_secret:
-        patch_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name), system_secrets)
-    add_secrets_to_all_namespace(plugin_name, global_secrets)
-    # rancher.rc_add_secrets_to_all_namespaces(plugin_name, global_secrets)
+        update_plugin_argument(plugin_name, args, key_map, system_variables)
 
-    # Putting here to avoid not commit session error
-    db_row.parameter = json.dumps(db_arguments)
-    db_row.update_at = datetime.utcnow()
-    model.db.session.commit()
-    if args.get("disabled") is not None:
-        if bool(args["disabled"]):
-            disable_plugin_config(plugin_name)
-        else:
-            enable_plugin_config(plugin_name)
+
+def update_plugin_argument(
+    plugin_name: str, args: dict[str, Any], key_map: dict[str, Any], system_variables: dict[str, Any]
+):
+    db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one()
+    db_arguments = json.loads(db_row.parameter) or {}
+
+    for argument in args["arguments"]:
+        if argument not in key_map:
+            raise DevOpsError(
+                400,
+                f"Argument {argument} is not in the argument list of plugin {plugin_name}.",
+                error=apiError.argument_error(argument),
+            )
+        store = PluginKeyStore(key_map[argument]["store"])
+        if store == PluginKeyStore.DB:
+            db_arguments[argument] = str(args["arguments"][argument])
+
+        elif store == PluginKeyStore.SECRET_ALL:
+            system_variables[argument] = str(args["arguments"][argument])
+
+    if db_arguments:
+        update_plugin_config_in_db(plugin_name, db_arguments)
+    elif system_variables:
+        update_plugin_global_variable_to_gitlab(plugin_name, system_variables)
+
+
+def update_plugin_disable_argument(plugin_name: str, args: dict[str, Any], is_first_import: bool = False):
+    from resources.excalidraw import check_excalidraw_alive
+    from plugins.ad.ad_main import check_ad_alive
+
+    plugin_alive_mapping = {
+        "excalidraw": {
+            "func": check_excalidraw_alive,
+            "alert_monitring_id": 1001,
+            "parameters": {
+                "excalidraw_url": args.get("arguments").get("excalidraw-url")
+                if args.get("arguments") is not None
+                else None,
+                "excalidraw_socket_url": args.get("arguments").get("excalidraw-socket-url")
+                if args.get("arguments") is not None
+                else None,
+            },
+        },
+        "ad": {
+            "func": check_ad_alive,
+            "alert_monitring_id": 1002,
+            "parameters": {"ldap_parameter": args.get("arguments", {})},
+        },
+    }
+    disabled = args["disabled"]
+    if not disabled:
+        check_plugin_alive(plugin_name, plugin_alive_mapping, is_first_import)
+        if plugin_name in ENTERPRISE_PLUGINS:
+            ENTERPRISE_PLUGINS[plugin_name]["func"]()
+        enable_plugin_config(plugin_name)
+    else:
+        plugin_alive_id = plugin_alive_mapping.get(plugin_name, {}).get("alert_monitring_id")
+        read_plugin_alert_msg(plugin_name, plugin_alive_id)
+        disable_plugin_config(plugin_name)
+
+    update_plugin_hidden(plugin_name, disabled)
+
+
+def check_plugin_alive(plugin_name: str, plugin_alive_mapping: dict[str, Any], is_first_import: bool):
+    # First time import excalidraw (It can move to @use_kwargs)
+    if plugin_name == "excalidraw" and is_first_import:
+        excalidraw_url = plugin_alive_mapping["excalidraw"]["parameters"]["excalidraw_url"]
+        excalidraw_socket_url = plugin_alive_mapping["excalidraw"]["parameters"]["excalidraw_socket_url"]
+
+        if excalidraw_url is None or excalidraw_socket_url is None:
+            raise DevOpsError(
+                400,
+                "Argument: excalidraw-url or excalidraw-socket-url can not be blank in first create.",
+                error=apiError.argument_error("disabled"),
+            )
+
+    # check plugin server alive before set disabled to false.
+    plugin_alive_func = plugin_alive_mapping.get(plugin_name, {}).get("func")
+    if plugin_alive_func is not None:
+        kwargs = plugin_alive_mapping.get(plugin_name, {}).get("parameters", {})
+        alive = plugin_alive_func(**kwargs)["alive"]
+        if not alive:
+            raise DevOpsError(
+                400,
+                "Plugin is not alive",
+                error=apiError.plugin_server_not_alive(plugin_name),
+            )
+
+
+def read_plugin_alert_msg(plugin_name: str, plugin_alive_id: int):
+    # Read alert_message of plugin server is not alive then send notification.
+    if plugin_alive_id is not None:
+        not_alive_messages = get_unclose_notification_message(plugin_alive_id)
+        if not_alive_messages is not None and len(not_alive_messages) > 0:
+            for not_alive_message in not_alive_messages:
+                close_notification_message(not_alive_message["id"])
+            create_notification_message(
+                {
+                    "alert_level": 1,
+                    "title": f"Close {plugin_name} alert",
+                    "message": f"Close {plugin_name} not alive alert, because plugin has been disabled.",
+                    "type_ids": [4],
+                    "type_parameters": {"role_ids": [5]},
+                },
+                user_id=1,
+            )
 
 
 def delete_plugin_row(plugin_name):
@@ -449,3 +442,26 @@ def update_project_plugin_status():
                     ),
                 ).start()
     update_plugins_software_switch_all(plugin_json)
+
+
+@record_activity(ActionType.ENABLE_PLUGIN)
+def enable_plugin_config(plugin_name):
+    db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one()
+    db_row.disabled = False
+    db_row.update_at = datetime.utcnow()
+    model.db.session.commit()
+
+
+@record_activity(ActionType.DISABLE_PLUGIN)
+def disable_plugin_config(plugin_name):
+    db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one()
+    db_row.disabled = True
+    db_row.update_at = datetime.utcnow()
+    model.db.session.commit()
+
+
+def update_plugin_config_in_db(plugin_name: str, db_arguments: dict[str, Any]):
+    db_row = model.PluginSoftware.query.filter_by(name=plugin_name).one()
+    db_row.parameter = json.dumps(db_arguments)
+    db_row.update_at = datetime.utcnow()
+    model.db.session.commit()

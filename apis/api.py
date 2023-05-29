@@ -691,12 +691,6 @@ def start_prod():
         # jsonwebtoken.init_app(app)
         initialize(config.get("SQLALCHEMY_DATABASE_URI"))
         migrate.run()
-        kubernetesClient.create_iiidevops_env_secret_namespace()
-        with app.app_context():  # Prevent error appear(Working outside of application context.)
-            kubernetesClient.create_cron_job_token_in_secret()
-
-        threading.Thread(target=kubernetesClient.apply_cronjob_yamls).start()
-        logger.logger.info("Apply k8s-yaml cronjob.")
 
         # Template init
         if should_update_template_cache():
@@ -722,6 +716,14 @@ def start_prod_extra_funcs():
     The execution of these functions does not affect the server's startup.
     """
     try:
+        logger.logger.info("Create token in k8s secret and apply cronjob.")
+        # kubernetesClient.create_iiidevops_env_secret_namespace()
+        with app.app_context():  # Prevent error appear(Working outside of application context.)
+            kubernetesClient.create_cron_job_token_in_secret()
+
+        threading.Thread(target=kubernetesClient.apply_cronjob_yamls).start()
+        logger.logger.info("Apply k8s-yaml cronjob.")
+
         logger.logger.info("Starting register version center.")
         # Register in version center
         devops_version.login()
@@ -733,5 +735,4 @@ def start_prod_extra_funcs():
 
 if __name__ == "__main__":
     start_prod()
-    # socketio.run(app, host="0.0.0.0", port=10009)
     socketio.run(app, host="0.0.0.0", port=10009, debug=config.get("DEBUG"), use_reloader=config.get("USE_RELOADER"))
