@@ -35,7 +35,8 @@ from resources.issue import (
     find_head_and_close_issues,
     add_issue_watcher,
     remove_issue_watcher,
-    delete_issue_tag
+    delete_issue_tag,
+    sync_issue_watcher_list
 )
 from resources.system_parameter import check_upload_type
 from resources.excalidraw import get_excalidraw_by_issue_id
@@ -740,3 +741,8 @@ class IssueTag(MethodResource):
     @jwt_required()
     def delete(self, tag_id):
         return util.success(delete_issue_tag(tag_id))
+
+class IssueSyncRedis(MethodResource):
+    @doc(tags=["Issue"], description="Sync issue watch list to Redis")
+    def get(self):
+        return util.success(sync_issue_watcher_list())

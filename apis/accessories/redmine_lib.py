@@ -66,3 +66,7 @@ def rm_delete_relation(relation_id, user_account=None):
     if user_account is not None:
         redmine = rm_impersonate(user_account)
     redmine.issue_relation.delete(relation_id)
+
+def rm_get_all_issue():
+    issues = redmine.issue.all(include=['watchers'])
+    return issues

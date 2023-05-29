@@ -5,7 +5,8 @@ from datetime import datetime, date, timedelta
 from distutils.util import strtobool
 from time import sleep
 from typing import Optional
-
+from collections import defaultdict
+import logging
 from redminelib import Redmine
 import pandas as pd
 from flask_socketio import Namespace, emit, join_room, leave_room
@@ -33,7 +34,7 @@ from resources.redmine import redmine, get_redmine_obj
 from resources import project as project_module, project, role
 from resources.activity import record_activity
 from resources import tag as tag_py
-from resources.user import user_list_by_project
+from resources.user import user_list_by_project, user_list_by_project, get_user_id_from_redmine_id
 from resources import logger
 from resources.lock import get_lock_status
 from resources.project_relation import (
@@ -58,9 +59,11 @@ from resources.redis import (
     update_issue_pj_user_relation,
     get_single_issue_pj_user_relation,
     check_user_has_permission_to_see_issue,
+    set_user_issue_watcher_list
 )
 from datetime import date
 import copy
+from resources.user import user_list_by_project, get_user_id_from_redmine_id
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {"1": "文字", "2": "英數字", "3": "英文字", "4": "數字"}
@@ -1252,6 +1255,24 @@ def add_issue_watcher(isse_id: int, user_id: dict):
 
 def remove_issue_watcher(issue_id: int, user_id: dict):
     return redmine.rm_remove_watcher(issue_id, user_id)
+
+
+def sync_issue_watcher_list(): # %%%
+    set_user_issue_watcher_list(defaultdict())
+    user_watcher_list = defaultdict()
+    try:
+        for issue in redmine_lib.rm_get_all_issue():
+            issue_watcher_info = issue.watchers._resources
+            for info in issue_watcher_info:
+                user_id = get_user_id_from_redmine_id(info.get('id'))
+                if user_watcher_list.get(str(user_id), None) is None:
+                    user_watcher_list[str(user_id)] = [issue.id]
+                else:
+                    user_watcher_list[str(user_id)].append(issue.id)
+    except Exception as e:
+        logging.info(e)
+    set_user_issue_watcher_list(user_watcher_list)
+    logging.info('Success sync watcher list to redis.')
 
 
 def get_issue_by_project(project_id, args):

@@ -1,0 +1,23 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: sync-issue-watcher-list
+spec:
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 0
+  schedule: "*59 * * * *"
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          containers:
+          - name: curl
+            image: curlimages/curl:7.76.1
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/sh
+            - -c
+            - curl --location --request GET 'http://devopsapi-service:10009/v2/issues/sync_watch_list'
+          restartPolicy: OnFailure
