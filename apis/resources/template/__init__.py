@@ -216,22 +216,22 @@ def get_tag_info_list_from_pj(pj, group_name):
     tag_list = []
     for tag in pj.tags.list(all=True):
         if group_name == "iiidevops-templates" and TEMPLATE_SUPPORT_VERSION is not None:
-            for temp_name, temp_value in TEMPLATE_SUPPORT_VERSION.items():
-                if temp_name == pj.name:
-                    status = __compare_tag_version(
-                        tag.name,
-                        temp_value.get("start_version"),
-                        temp_value.get("end_version"),
+            template_support_version_info = TEMPLATE_SUPPORT_VERSION.get(pj.name)
+
+            if template_support_version_info is not None:
+                status = __compare_tag_version(
+                    tag.name,
+                    template_support_version_info.get("start_version"),
+                    template_support_version_info.get("end_version"),
+                )
+                if status:
+                    tag_list.append(
+                        {
+                            "name": tag.name,
+                            "commit_id": tag.commit["id"],
+                            "commit_time": tag.commit["committed_date"],
+                        }
                     )
-                    if status:
-                        tag_list.append(
-                            {
-                                "name": tag.name,
-                                "commit_id": tag.commit["id"],
-                                "commit_time": tag.commit["committed_date"],
-                            }
-                        )
-                    break
         else:
             tag_list.append(
                 {
@@ -275,6 +275,14 @@ def update_redis_template_cache(pj, group_name, pip_set_json, tag_list):
     )
 
 
+def check_gitlab_pj_setting_json_exist(gitlab_pj: Gitlab) -> bool:
+    iiidevops_folder = gitlab_pj.repository_tree(path="iiidevops", all=True)
+    for file in iiidevops_folder:
+        if file["name"] == "pipeline_settings.json":
+            return True
+    return False
+
+
 def fetch_and_update_template_cache():
     logger.logger.info("Start updating template cache.")
     output = [
@@ -286,7 +294,7 @@ def fetch_and_update_template_cache():
         if group.name in TEMPLATE_GROUP_DICT:
             for group_project in get_all_group_projects(group):
                 pj = gl.projects.get(group_project.id)
-                if pj.empty_repo:
+                if pj.empty_repo or not check_gitlab_pj_setting_json_exist(pj):
                     continue
                 tag_list = get_tag_info_list_from_pj(pj, group.name)
                 pip_set_json = tm_read_pipe_set_json(pj)
