@@ -4,12 +4,12 @@ metadata:
   name: sync-issue-watcher-list
 spec:
   concurrencyPolicy: Forbid
-  successfulJobsHistoryLimit: 0
-  failedJobsHistoryLimit: 0
-  schedule: "*59 * * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  schedule: "*/59 * * * *"
   jobTemplate:
     spec:
-      backoffLimit: 0
+      backoffLimit: 1
       template:
         spec:
           containers:
