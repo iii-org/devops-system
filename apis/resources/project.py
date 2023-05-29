@@ -122,10 +122,21 @@ def check_son_project_belong_to_by_userid(user_id: int, son_id_list: list) -> li
     son_id_list = [user_project_id[0] for user_project_id in user_project_id_list if user_project_id[0] in son_id_list]
     return son_id_list
 
-def get_son_project_by_redmine_id(project_id: int,role, user_id: int,extra_data, pj_members_count,user_name,sync, start: bool = False) -> dict[str:Any]:
+
+def get_son_project_by_redmine_id(
+    project_id: int, role, user_id: int, extra_data, pj_members_count, user_name, sync, start: bool = False
+) -> dict[str:Any]:
     if not start:
         row_project = model.Project.query.filter_by(id=project_id).first()
-        start_project = get_nexux_project(row_project=row_project,user_id=user_id,role=role, sync=sync, user_name=user_name, extra_data=extra_data, pj_members_count=pj_members_count)
+        start_project = get_nexux_project(
+            row_project=row_project,
+            user_id=user_id,
+            role=role,
+            sync=sync,
+            user_name=user_name,
+            extra_data=extra_data,
+            pj_members_count=pj_members_count,
+        )
         start_project["children"] = []
     else:
         start_project = {"children": []}
@@ -134,41 +145,44 @@ def get_son_project_by_redmine_id(project_id: int,role, user_id: int,extra_data,
     if get_jwt_identity()["role_id"] != 5:
         son_ids = check_son_project_belong_to_by_userid(user_id=get_jwt_identity()["user_id"], son_id_list=son_ids)
     for son_id in son_ids:
-        son = get_son_project_by_redmine_id(son_id,role, user_id, extra_data, pj_members_count,user_name,sync, False)
+        son = get_son_project_by_redmine_id(son_id, role, user_id, extra_data, pj_members_count, user_name, sync, False)
         start_project["children"].append(son)
     return start_project
 
-def get_nexux_project(row_project: object, user_id:int,role: str, sync:bool, user_name:str, extra_data:bool, pj_members_count:bool) -> dict[str: Any]:
-        start_project = NexusProject().set_project_row(row_project).set_starred_info(user_id)
-        redmine_project_id = row_project.plugin_relation.plan_project_id
-        if role == "pm":
-            try:
-                if sync:
-                    project_object = redmine_lib.redmine.project.get(redmine_project_id)
-                else:
-                    project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
-                rm_project = {
-                    "updated_on": project_object.updated_on,
-                    "id": project_object.id,
-                }
-            except (ResourceNotFoundError, ForbiddenError):
-                # When Redmin project was missing
-                sync_project.lock_project(start_project.name, "Redmine")
-                rm_project = {"updated_on": datetime.utcnow().isoformat(), "id": -1}
 
-            start_project = start_project.fill_pm_extra_fields(rm_project, user_name, sync)
-        if extra_data:
-            start_project = start_project.fill_extra_fields()
+def get_nexux_project(
+    row_project: object, user_id: int, role: str, sync: bool, user_name: str, extra_data: bool, pj_members_count: bool
+) -> dict[str:Any]:
+    start_project = NexusProject().set_project_row(row_project).set_starred_info(user_id)
+    redmine_project_id = row_project.plugin_relation.plan_project_id
+    if role == "pm":
+        try:
+            if sync:
+                project_object = redmine_lib.redmine.project.get(redmine_project_id)
+            else:
+                project_object = redmine_lib.rm_impersonate(user_name).project.get(redmine_project_id)
+            rm_project = {
+                "updated_on": project_object.updated_on,
+                "id": project_object.id,
+            }
+        except (ResourceNotFoundError, ForbiddenError):
+            # When Redmin project was missing
+            sync_project.lock_project(start_project.name, "Redmine")
+            rm_project = {"updated_on": datetime.utcnow().isoformat(), "id": -1}
 
-        if pj_members_count:
-            start_project = start_project.set_project_members()
-        return start_project.to_json()
+        start_project = start_project.fill_pm_extra_fields(rm_project, user_name, sync)
+    if extra_data:
+        start_project = start_project.fill_extra_fields()
+
+    if pj_members_count:
+        start_project = start_project.set_project_members()
+    return start_project.to_json()
 
 
 def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disable: bool = None, sync: bool = False):
-    '''
-    List all project when role is equal to simple, so avoid do something if role == simple. 
-    '''
+    """
+    List all project when role is equal to simple, so avoid do something if role == simple.
+    """
     limit = args.get("limit")
     offset = args.get("offset")
     extra_data = args.get("test_result", "false") == "true"
@@ -182,13 +196,25 @@ def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disabl
         if row not in db.session:
             row = db.session.merge(row)
         redmine_project_id = row.plugin_relation.plan_project_id
-        nexus_project = get_nexux_project(row_project=row,user_id=user_id,role=role, sync=sync, user_name=user_name, extra_data=extra_data, pj_members_count=pj_members_count)
+        nexus_project = get_nexux_project(
+            row_project=row,
+            user_id=user_id,
+            role=role,
+            sync=sync,
+            user_name=user_name,
+            extra_data=extra_data,
+            pj_members_count=pj_members_count,
+        )
         if parent_son:
-            project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first().project_id
-            son = get_son_project_by_redmine_id(project_id,role,user_id,extra_data, pj_members_count, user_name,sync, start=True)            
-            nexus_project['children'] = son.get('children', [])
+            project_id = (
+                model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first().project_id
+            )
+            son = get_son_project_by_redmine_id(
+                project_id, role, user_id, extra_data, pj_members_count, user_name, sync, start=True
+            )
+            nexus_project["children"] = son.get("children", [])
         ret.append(nexus_project)
-    logging.info('Successful get all project')
+    logging.info("Successful get all project")
     if limit is not None and offset is not None:
         page_dict = util.get_pagination(counts, limit, offset)
         return {"project_list": ret, "page": page_dict}
@@ -212,7 +238,7 @@ def get_project_rows_by_user(user_id, disable, args={}):
         if args.get("pj_due_date_end", False)
         else None
     )
-    root: bool = args.get('root')
+    root: bool = args.get("root")
 
     query: Query = model.Project.query.options(joinedload(model.Project.user_role, innerjoin=True))
     # 如果不是admin（也就是一般RD/PM/QA），取得 user_id 有參加的 project 列表
@@ -234,8 +260,8 @@ def get_project_rows_by_user(user_id, disable, args={}):
         query: Query = query.filter(
             or_(
                 Project.owner_id.in_(owner_ids),
-                Project.display.like(f"%{search}%"),
-                Project.name.like(f"%{search}%"),
+                Project.display.ilike(f"%{search}%"),
+                Project.name.ilike(f"%{search}%"),
             )
         )
         stared_project_objects: list[Project] = [
@@ -263,7 +289,10 @@ def get_project_rows_by_user(user_id, disable, args={}):
             if pj_due_start <= star_project.due_date <= pj_due_end
         ]
     if root is True:
-        sons_project_list = [son[0] for son in model.ProjectParentSonRelation.query.with_entities(model.ProjectParentSonRelation.son_id).all()]
+        sons_project_list = [
+            son[0]
+            for son in model.ProjectParentSonRelation.query.with_entities(model.ProjectParentSonRelation.son_id).all()
+        ]
         query: Query = query.filter(Project.id.notin_(sons_project_list))
 
     # Remove dump_project and stared_project
