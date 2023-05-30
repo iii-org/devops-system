@@ -693,7 +693,8 @@ def get_issue(issue_id, with_children=True, journals=True, operator_id=None):
             Due to redmine system that allows users to access children issues they do not have permission to view,
             so need to examine the data of issue_pj_user_relation from redis
             """
-            if check_user_has_permission_to_see_issue(children_issue["id"]):
+
+            if get_jwt_identity()["role_id"] == role.ADMIN.id or check_user_has_permission_to_see_issue(children_issue["id"]):
                 children_detail.append(get_issue_assign_to_detail(children_issue))
         issue["children"] = children_detail
     return __deal_with_issue_redmine_output(issue, closed_statuses)
