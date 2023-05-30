@@ -691,33 +691,33 @@ def sync_branch(
         )
 
 
-def initial_gitlab_pipline_info(repository_id):
-    try:
-        pj = gl.projects.get(repository_id)
-    except GitlabGetError as e:
-        if "Project Not Found" in e.error_message:
-            lock_project(
-                nexus.nx_get_project(id=nexus.nx_get_project_plugin_relation(repo_id=repository_id).project_id).name,
-                "Gitlab",
-            )
-        raise DevOpsError(
-            404,
-            "Gitlab project not found.",
-            error=apiError.repository_id_not_found(repository_id),
-        )
-    if __check_git_project_is_empty(pj):
-        return {}
+# def initial_gitlab_pipline_info(repository_id):
+#     try:
+#         pj = gl.projects.get(repository_id)
+#     except GitlabGetError as e:
+#         if "Project Not Found" in e.error_message:
+#             lock_project(
+#                 nexus.nx_get_project(id=nexus.nx_get_project_plugin_relation(repo_id=repository_id).project_id).name,
+#                 "Gitlab",
+#             )
+#         raise DevOpsError(
+#             404,
+#             "Gitlab project not found.",
+#             error=apiError.repository_id_not_found(repository_id),
+#         )
+#     if __check_git_project_is_empty(pj):
+#         return {}
 
-    default_branch = pj.default_branch
-    if branch_name is None:
-        branch_name = default_branch
-    pipe_yaml_name = __tm_get_pipe_file_name(pj, branch_name=default_branch)
-    if pipe_yaml_name is None:
-        return {}
-    f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=default_branch)
-    pipe_dict = yaml.safe_load(f.decode())
-    pipe_dict = {k: v for k, v in pipe_dict.items() if FILTER_OUT_PIPELINE_FILE_INFO_CONDITION(k)}
-    return {"default_branch": default_branch, "pipe_dict": pipe_dict}
+#     default_branch = pj.default_branch
+#     if branch_name is None:
+#         branch_name = default_branch
+#     pipe_yaml_name = __tm_get_pipe_file_name(pj, branch_name=default_branch)
+#     if pipe_yaml_name is None:
+#         return {}
+#     f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=default_branch)
+#     pipe_dict = yaml.safe_load(f.decode())
+#     pipe_dict = {k: v for k, v in pipe_dict.items() if FILTER_OUT_PIPELINE_FILE_INFO_CONDITION(k)}
+#     return {"default_branch": default_branch, "pipe_dict": pipe_dict}
 
 
 def initial_gitlab_pipline_info(repository_id, branch_name=None):
@@ -765,12 +765,14 @@ def tm_get_pipeline_default_branch(repository_id: int, is_default_branch: bool =
     return_stages = []
 
     for _, stage_info in file_stages.items():
-        tool = stage_info["stage"]
-        if tool in skip_record_tools:
+        if isinstance(stage_info, list):
+            continue
+        tool = stage_info["variables"]
+        if tool['iiidevops'] in skip_record_tools:
             continue
 
         single_stage = {"has_default_branch": False}
-        software = software_dict.get(tool, None)
+        software = software_dict.get(tool['iiidevops'], None)
         if software:
             single_stage["name"] = software["display"]
             single_stage["key"] = software["template_key"]
