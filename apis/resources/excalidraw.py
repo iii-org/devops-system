@@ -212,7 +212,7 @@ def update_excalidraw(excalidraw_id, name=None, issue_ids=None):
 
     if issue_ids is not None:
         plan_project_id = project.get_plan_project_id(project_id)
-        redmine_issues = redmine_lib.redmine.issue.filter(project_id=plan_project_id)
+        redmine_issues = redmine_lib.redmine.issue.filter(project_id=plan_project_id, status_id="*")
         exist_issue_ids = [redmine_issue.id for redmine_issue in redmine_issues]
         if issue_ids != "":
             issue_ids = list(map(lambda x: int(x), issue_ids.split(",")))
