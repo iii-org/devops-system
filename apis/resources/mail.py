@@ -40,7 +40,7 @@ class Mail:
         server = None
 
         try:
-            server = smtplib.SMTP(domain, port, timeout=3)
+            server = smtplib.SMTP(domain, port, timeout=30)
         except Exception as e:
             logger.logger.exception(str(e))
             raise apiError.DevOpsError(
