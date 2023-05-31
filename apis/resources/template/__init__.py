@@ -454,8 +454,12 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
                                 if parm_key in template_replace_dict:
                                     fun_value[parm_key] = template_replace_dict[parm_key]
             stage = __update_stage_when_plugin_disable(stage)
+    from resources.check_version import check_and_update_template_pj_pipeline_file
+
+    updated_pipe_json = check_and_update_template_pj_pipeline_file(pipe_json)
+
     with open(f"{TEMPLATE_FOLDER_NAME}/{pj.path}/{pipe_yaml_file_name}", "w") as file:
-        yaml.dump(pipe_json, file, sort_keys=False)
+        yaml.dump(updated_pipe_json, file, sort_keys=False)
     set_git_username_config(f"{TEMPLATE_FOLDER_NAME}/{pj.path}")
     tm_git_commit_push(pj.path, secret_pj_http_url, TEMPLATE_FOLDER_NAME, "範本 commit", force=force)
 

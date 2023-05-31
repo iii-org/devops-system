@@ -3,8 +3,10 @@ import json
 from collections import defaultdict
 from datetime import datetime, date, timedelta
 from distutils.util import strtobool
+from time import sleep
 from typing import Optional
-
+from collections import defaultdict
+import logging
 from redminelib import Redmine
 import pandas as pd
 from flask_socketio import Namespace, emit, join_room, leave_room
@@ -26,13 +28,13 @@ from resources.tag import get_tag
 from accessories import redmine_lib
 from data.nexus_project import NexusProject
 from enums.action_type import ActionType
-from model import db, IssueExtensions, CustomIssueFilter
+from model import IssueTag, db, IssueExtensions, CustomIssueFilter
 from resources.apiError import DevOpsError
 from resources.redmine import redmine, get_redmine_obj
 from resources import project as project_module, project, role
 from resources.activity import record_activity
 from resources import tag as tag_py
-from resources.user import user_list_by_project
+from resources.user import user_list_by_project, user_list_by_project, get_user_id_from_redmine_id
 from resources import logger
 from resources.lock import get_lock_status
 from resources.project_relation import (
@@ -57,8 +59,11 @@ from resources.redis import (
     update_issue_pj_user_relation,
     get_single_issue_pj_user_relation,
     check_user_has_permission_to_see_issue,
+    set_user_issue_watcher_list
 )
 from datetime import date
+import copy
+from resources.user import user_list_by_project, get_user_id_from_redmine_id
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {"1": "文字", "2": "英數字", "3": "英文字", "4": "數字"}
@@ -187,6 +192,7 @@ class NexusIssue:
                 "name": redmine_issue.status.name,
             },
             "tags": get_issue_tags(redmine_issue.id),
+            "watchers": redmine_issue.watchers._resources,
         }
         if hasattr(redmine_issue, "project"):
             project_id = nexus.nx_get_project_plugin_relation(rm_project_id=redmine_issue.project.id).project_id
@@ -687,8 +693,8 @@ def get_issue(issue_id, with_children=True, journals=True, operator_id=None):
             Due to redmine system that allows users to access children issues they do not have permission to view,
             so need to examine the data of issue_pj_user_relation from redis
             """
-            issue_belong_pj_users = get_single_issue_pj_user_relation(children_issue["id"]).get("project_users", "")
-            if str(get_jwt_identity()["user_id"]) in issue_belong_pj_users.split(","):
+
+            if get_jwt_identity()["role_id"] == role.ADMIN.id or check_user_has_permission_to_see_issue(children_issue["id"]):
                 children_detail.append(get_issue_assign_to_detail(children_issue))
         issue["children"] = children_detail
     return __deal_with_issue_redmine_output(issue, closed_statuses)
@@ -1244,6 +1250,32 @@ def get_issue_datetime_status(project_id):
     return output
 
 
+def add_issue_watcher(isse_id: int, user_id: dict):
+    return redmine.rm_add_watcher(isse_id, user_id)
+
+
+def remove_issue_watcher(issue_id: int, user_id: dict):
+    return redmine.rm_remove_watcher(issue_id, user_id)
+
+
+def sync_issue_watcher_list(): # %%%
+    set_user_issue_watcher_list(defaultdict())
+    user_watcher_list = defaultdict()
+    try:
+        for issue in redmine_lib.rm_get_all_issue():
+            issue_watcher_info = issue.watchers._resources
+            for info in issue_watcher_info:
+                user_id = get_user_id_from_redmine_id(info.get('id'))
+                if user_watcher_list.get(str(user_id), None) is None:
+                    user_watcher_list[str(user_id)] = [issue.id]
+                else:
+                    user_watcher_list[str(user_id)].append(issue.id)
+    except Exception as e:
+        logging.info(e)
+    set_user_issue_watcher_list(user_watcher_list)
+    logging.info('Success sync watcher list to redis.')
+
+
 def get_issue_by_project(project_id, args):
     if util.is_dummy_project(project_id):
         return []
@@ -1332,7 +1364,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
         return output
 
     # Parse filter_issues
-    output = [common_project_issue_info_serializer(issue, args.get("with_point", False)) for issue in output]
+    output = [common_project_issue_info_serializer(issue, args.get("with_point", False), download) for issue in output]
 
     if download:
         return output
@@ -1362,8 +1394,9 @@ def get_match_issue_infos_from_head(issue_ids: list[int], by_user_permission: bo
         if head_id in head_ids:
             head_id_index = head_ids.index(head_id)
             res[head_id_index]["children"] = __get_trace_issues_info_with_duplicate_head(
-                res[head_id_index]["children"], all_trace_issues[1:]
+                res[head_id_index].get("children", []), all_trace_issues[1:]
             )
+            res[head_id_index]["has_children"] = True
         else:
             head_ids.append(head_id)
             res.append(__get_trace_issues_info({}, all_trace_issues))
@@ -1401,10 +1434,11 @@ def __get_trace_issues_info_with_duplicate_head(target_children_issues: list[dic
     for issue_id in issue_id_list:
         for _target_children_issue in _target_children_issues:
             if _target_children_issue["id"] == issue_id:
-                return __get_trace_issues_info_with_duplicate_head(
-                    _target_children_issue["children"], issue_id_list[1:]
+                _target_children_issue["children"] = __get_trace_issues_info_with_duplicate_head(
+                    _target_children_issue.get("children", []), issue_id_list[1:]
                 )
-
+                _target_children_issue["has_children"] = True
+                return target_children_issues
         _target_children_issues.append(__get_trace_issues_info({}, issue_id_list))
         break
 
@@ -1415,12 +1449,13 @@ def __get_trace_issues_info(res: dict[int, int], issue_list: list[int]):
     issue_info = redmine.rm_get_issue(issue_list[0], False)
     res = common_project_issue_info_serializer(issue_info, True)
     if len(issue_list) == 1:
+        res["has_children"] = False
         return res
     res["children"] = [__get_trace_issues_info({}, issue_list[1:])]
     return res
 
 
-def common_project_issue_info_serializer(issue: dict[str, Any], with_point: bool = False):
+def common_project_issue_info_serializer(issue: dict[str, Any], with_point: bool = False, download: bool = False):
     issue["name"] = issue.pop("subject")
 
     if issue.get("fixed_version") is None:
@@ -1447,9 +1482,12 @@ def common_project_issue_info_serializer(issue: dict[str, Any], with_point: bool
     else:
         issue["author"] = {}
 
-    has_children = check_issue_has_son(
-        str(issue["id"]), by_user_permission=get_jwt_identity()["role_id"] != role.ADMIN.id
-    )
+    if download:
+        by_user_permission = False
+    else:
+        by_user_permission = get_jwt_identity()["role_id"] != role.ADMIN.id
+
+    has_children = check_issue_has_son(str(issue["id"]), by_user_permission=by_user_permission)
     issue["is_closed"] = issue["status"]["id"] in NexusIssue.get_closed_statuses()
     issue["issue_link"] = f"{config.get('REDMINE_EXTERNAL_BASE_URL')}/issues/{issue['id']}"
     issue["family"] = issue.get("parent") is not None or issue.get("relations") != [] or has_children
@@ -1648,6 +1686,7 @@ def handle_allowed_keywords(default_filters, args):
         "priority_id",
         "parent_id",
         "issue_id",
+        # "watcher_user_id"
     ]
     for key in allowed_keywords:
         if args.get(key, None):
@@ -1820,7 +1859,6 @@ def get_issue_children(redmine_issue, redmine_obj: Redmine, args: dict[str, Any]
         children_issue_ids = [str(child.id) for child in redmine_issue.children]
         if args.get("issue_id") is not None:
             children_issue_ids = list(set(children_issue_ids).intersection(args["issue_id"]))
-
         args["issue_id"] = ",".join(children_issue_ids)
         filter_kwargs = {
             "status_id": "*",
@@ -2482,6 +2520,19 @@ def delete_issue_relation(relation_id, user_account):
     )
 
 
+def delete_issue_tag(tag_id: int) -> None:
+    all_issue = model.IssueTag.query.filter(
+        model.IssueTag.tag_id != []
+    )  # .filter(model.IssueTag.tag_id.in_())  .filter_by(issue_id=2381)
+    for issue in all_issue:
+        if tag_id in issue.tag_id:
+            issue.tag_id.remove(tag_id)
+            model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({"tag_id": issue.tag_id})
+            db.session.commit()
+            sleep(0.5)
+            continue
+
+
 def check_issue_closable(issue_id):
     # loop 離開標誌
     exit_flag = False
@@ -2690,7 +2741,7 @@ class DownloadIssueAsExcel:
         redmine_issue = redmine_lib.rm_impersonate(self.user_name, sync=True).issue.get(
             value["id"], include=["children"]
         )
-        children = get_issue_children(redmine_issue, redmine_lib.rm_impersonate(self.user_name, sync=True))
+        children = get_issue_children(redmine_issue, redmine_lib.rm_impersonate(self.user_name, sync=True), {})
         for index, child in enumerate(children):
             row = self.__generate_row_issue_for_excel(f"{super_index}_{index + 1}", child)
             self.result.append(row)
@@ -2780,18 +2831,13 @@ def sync_issue_relation():
     issue_family, issue_pj_user_relations = {}, {}
     for project in model.Project.query.all():
         plan_id, pj_id = get_plan_id(project.id), project.id
-        pj_users = [str(user["id"]) for user in project.users]
         if plan_id != -1:
             try:
                 all_issues, _ = redmine.rm_list_issues(
                     params={"project_id": plan_id, "status_id": "*", "subproject_id": "!*"}
                 )
                 for issue in all_issues:
-                    issue_rel_info = {
-                        "plan_project_id": plan_id,
-                        "project_id": pj_id,
-                        "project_users": ",".join(pj_users),
-                    }
+                    issue_rel_info = {"plan_project_id": plan_id, "project_id": pj_id}
                     issue_rel_info = json.dumps(issue_rel_info, default=str)
                     issue_pj_user_relations[issue["id"]] = issue_rel_info
                     if issue.get("parent") is not None:

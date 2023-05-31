@@ -465,7 +465,7 @@ class IssueFilterByProject(Resource):
 class DownloadProjectExecuteV2(MethodResource):
     # download/execute
     @doc(tags=["Issue"], description="Execute download project's issues as excel.")
-    @use_kwargs(router_model.DownloadProjectSchema, location="form")
+    @use_kwargs(router_model.DownloadProjectSchema, location="json")
     @marshal_with(util.CommonResponse)
     @jwt_required()
     def post(self, project_id, **kwargs):
@@ -586,6 +586,8 @@ class ListMyProjects(Resource):
         parser.add_argument("pj_due_date_start", type=str, location="args")
         parser.add_argument("pj_due_date_end", type=str, location="args")
         parser.add_argument("test_result", type=str, location="args")
+        parser.add_argument("root", type=bool, location="args")
+        parser.add_argument("parent_son", type=bool, location="args")
         args = parser.parse_args()
         disabled = None
         if args.get("disabled") is not None:

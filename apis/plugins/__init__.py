@@ -39,6 +39,11 @@ from resources.notification_message import (
 )
 from resources.kubernetesClient import ApiK8sClient
 from resources.router import update_plugin_hidden
+from resources.redis import (
+    update_plugins_software_switch_all,
+    get_plugins_software_switch_all,
+    delete_plugins_software_switch,
+)
 
 SYSTEM_SECRET_PREFIX = "system-secret-"
 
@@ -301,15 +306,6 @@ def update_plugin_config(plugin_name, args):
                         user_id=1,
                     )
 
-        #  Update Project Plugin Status
-        if bool(config.get("is_pipeline", True)):
-            threading.Thread(
-                target=template.update_pj_plugin_status,
-                args=(
-                    (plugin_name if plugin_name != "sbom" else "anchore"),
-                    args["disabled"],
-                ),
-            ).start()
         update_plugin_hidden(plugin_name, args["disabled"])
 
     if args.get("arguments") is not None:
@@ -432,3 +428,23 @@ def handle_plugin(plugin):
         return wrap
 
     return decorator
+
+
+#  Update Project Plugin Status
+def update_project_plugin_status():
+    switches = get_plugins_software_switch_all()
+    plugins = model.PluginSoftware.query.all()
+    plugin_json: dict = {}
+    for plugin in plugins:
+        config = get_plugin_config_file(plugin.name)
+        if bool(config.get("is_pipeline", True)):
+            plugin_json[plugin.name] = plugin.disabled
+            if str(plugin.disabled).lower() != switches.get(plugin.name):
+                threading.Thread(
+                    target=template.update_pj_plugin_status,
+                    args=(
+                        (plugin.name if plugin.name != "sbom" else "anchore"),
+                        plugin.disabled,
+                    ),
+                ).start()
+    update_plugins_software_switch_all(plugin_json)

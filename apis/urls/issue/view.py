@@ -1,3 +1,4 @@
+import logging
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -32,10 +33,19 @@ from resources.issue import (
     get_issue_children,
     get_all_sons,
     find_head_and_close_issues,
+    add_issue_watcher,
+    remove_issue_watcher,
+    delete_issue_tag,
+    sync_issue_watcher_list
 )
 from resources.system_parameter import check_upload_type
 from resources.excalidraw import get_excalidraw_by_issue_id
 from resources import role
+from model import UserPluginRelation
+from resources.redis import redis_op
+from resources.redis import get_user_issue_watcher_list, set_user_issue_watcher_list
+import json
+from collections import defaultdict
 
 ##### Issue single #####
 
@@ -657,3 +667,82 @@ class SyncIssueFamiliesV2(MethodResource):
     @jwt_required()
     def post(self):
         return util.success(sync_issue_relation())
+
+class IssueWatcherV2(MethodResource):
+    @doc(tags=["Issue"], description="Adding a issue watch to user.")
+    @use_kwargs(router_model.WatcherIssueSchema, location="query")
+    @jwt_required()
+    def post(self, **kwargs):
+        user_id, issue_id = kwargs.get('user_id', get_jwt_identity()['user_id']), kwargs['issue_id']
+        rm_user_id = {'user_id': UserPluginRelation.query.filter_by(user_id=user_id) .first().plan_user_id}
+        try:
+            add_issue_watcher(issue_id, rm_user_id)
+            all_watcher_info = get_user_issue_watcher_list()
+            user_watch_list = all_watcher_info.get(str(user_id), None)
+            if user_watch_list is None:
+                all_watcher_info[str(user_id)] = [issue_id]
+                set_user_issue_watcher_list(all_watcher_info)
+            else:
+                if issue_id not in user_watch_list:
+                    user_watch_list.append(issue_id)
+                    all_watcher_info[str(user_id)] = user_watch_list
+                    set_user_issue_watcher_list(all_watcher_info)
+        except Exception as e:
+            logging.info(e)
+            
+        return util.success()
+
+class IssueRemoveWatcher(MethodResource):
+    @doc(tags=["Issue"], description="Remove a issue watcher from user.")
+    @jwt_required()
+    def delete(self, **kwargs):
+        user_id, issue_id = kwargs['user_id'], kwargs['issue_id']
+        rm_user_id = UserPluginRelation.query.filter_by(user_id=user_id) .first().plan_user_id
+        try:
+            remove_issue_watcher(issue_id,rm_user_id)
+            all_watcher_info = get_user_issue_watcher_list()
+            user_watch_list = all_watcher_info.get(str(user_id), None)
+            if user_watch_list is not None:
+                if issue_id in user_watch_list:
+                    user_watch_list.remove(issue_id)
+                    all_watcher_info[str(user_id)] = user_watch_list
+                    set_user_issue_watcher_list(all_watcher_info)
+        except Exception as e:
+            logging.info(e)
+        return util.success()
+
+
+class WatchIssueByUser(MethodResource):
+    @doc(tags=["Issue"], description="List all issue list that the user watched")
+    @jwt_required()
+    @use_kwargs(router_model.WatchIssueListSchema, location="query")
+    def get(self, **kwargs):
+        output = []
+        nx_issue_params = defaultdict()
+        all_watcher_info = get_user_issue_watcher_list()
+        if not all_watcher_info:
+            return util.success(output)
+
+        user_watch_list = all_watcher_info.setdefault(str(kwargs['user_id']), [])
+        for issue in user_watch_list:
+            nx_issue_params['redmine_issue'] = redmine_lib.redmine.issue.get(issue)
+            issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
+            output.append(issue)
+
+        if kwargs.get('limit') and kwargs.get('offset') is not None:
+            page_dict = util.get_pagination(len(output), kwargs["limit"], kwargs["offset"])
+            output = {"issue_list": output, "page": page_dict}
+            return util.success(output)
+            
+        return util.success(output)
+
+class IssueTag(MethodResource):
+    @doc(tags=["Issue"], description="Delete specify issue tag.")
+    @jwt_required()
+    def delete(self, tag_id):
+        return util.success(delete_issue_tag(tag_id))
+
+class IssueSyncRedis(MethodResource):
+    @doc(tags=["Issue"], description="Sync issue watch list to Redis")
+    def get(self):
+        return util.success(sync_issue_watcher_list())

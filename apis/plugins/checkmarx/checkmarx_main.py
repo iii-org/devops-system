@@ -7,7 +7,7 @@ import requests
 from flask import send_file
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, reqparse
-from sqlalchemy import desc, or_
+from sqlalchemy import desc, or_, func
 from sqlalchemy.exc import NoResultFound
 
 import nexus
@@ -283,7 +283,7 @@ class CheckMarx(object):
             return ret
 
         report_id = row.report_id
-        if report_id < 0:
+        if report_id is not None and report_id < 0:
             data_json, status_code = self.register_report(scan_id)
             report_id = data_json["data"]["reportId"]
         rst_id, rst_name = self.get_report_status(report_id)
@@ -503,16 +503,24 @@ class CronjobScan(Resource):
         return util.success()
 
 
-def checkamrx_keep_report(repo_id, keep_record:int = 5):
-    rows = Model.query.filter_by(repo_id=repo_id).order_by(desc(Model.run_at)).all()
+def checkamrx_keep_report(repo_id, keep_record: int = 5):
+    scan = Model.query.with_entities(func.min(Model.run_at).label("run_at")
+                                     ).filter(Model.repo_id == repo_id,
+                                              Model.report_id > 0
+                                              ).group_by(Model.repo_id).first()
+    if scan:
+        rows = Model.query.filter(Model.repo_id == repo_id,
+                                  Model.run_at >= scan.run_at
+                                  ).order_by(desc(Model.run_at)
+                                             ).all()
+    else:
+        rows = Model.query.filter_by(repo_id=repo_id).order_by(desc(Model.run_at)).all()
     utcnow = datetime.datetime.utcnow()
     if rows:
         report_count = 0
         scan_list =[row.scan_id for row in rows]
         for scan_id in scan_list:
             row = Model.query.filter_by(scan_id=scan_id).one()
-            if row not in db.session:
-                row = db.session.merge(row)
             # 原始的pdf檔可能已經失效,將scan_final_status改成null後,將觸發前端重新去要pdf檔
             # 最近30天內及最新的五筆
             if report_count < keep_record and utcnow - datetime.timedelta(days=30) <= row.run_at:
@@ -524,12 +532,16 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                     if status_id in {7, 8, 9}:
                         if status_id == 7:  # Finished
                             row.stats = json.dumps(checkmarx.get_scan_statistics(row.scan_id))
-                            # row.report_id = checkmarx.register_report(row.scan_id)
-                            # rep_status_id, value = checkmarx.get_report_status(row.report_id, False)
-                            # if rep_status_id == 2:  # 1:InProcess, 2:Created
-                            #     row.finished_at = datetime.datetime.utcnow()
-                            #     row.finished = True
-                            #     report_count += 1
+                            # report_change = False
+                            if row.report_id is None or row.report_id < 0:
+                                row.report_id = checkmarx.register_report(row.scan_id, False)
+                                logger.logger.info(f"scan: {row.scan_id}, report_id: {row.report_id}")
+                            if row.report_id is not None and row.report_id > 0:
+                                rep_status_id, value = checkmarx.get_report_status(str(row.report_id), False)
+                                if rep_status_id == 2:  # 1:InProcess, 2:Created
+                                    row.finished_at = datetime.datetime.utcnow()
+                                    row.finished = True
+                                    logger.logger.info(f"scan: {row.scan_id}, rep_status_id: {rep_status_id}")
                         if status_id == 9:  # Failed
                             row.logs = json.dumps(details)
                         row.scan_final_status = status_name
@@ -540,7 +552,7 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report_id {row.report_id}")
                     if status_id in [1, 2, 3] or (status_id == 7 and row.report_id < 0 and row.finished):
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status")
-                        checkmarx.register_report(row.scan_id)
+                        row.report_id = checkmarx.register_report(row.scan_id, False)
                         report_count += 1
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s report")
                     elif status_id == 7 and row.report_id < 0 and row.finished is None:
@@ -548,15 +560,11 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                         report_count += 1
                         logger.logger.info(f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status}")
                     elif status_id == 7 and row.report_id != -1:
-                        if row.finished_at is None:
-                            row.scan_final_status = None
-                            row.report_id = -1
-                            logger.logger.info(
-                                f"Updating checkmarx scan: {row.scan_id}'s status {row.scan_final_status} and report_id {row.report_id}")
                         report_count += 1
                 except Exception as e:
                     logger.logger.exception(str(e))
             else:
+                logger.logger.info(f"scan: {row.scan_id}, rep_status_id: {row.report_id}")
                 # 將report_id改成-1,前端就不會產生下載的icon,也無法進行下載
                 row.report_id = -1
                 if row.finished is None:
@@ -567,4 +575,7 @@ def checkamrx_keep_report(repo_id, keep_record:int = 5):
                     row.scan_final_status = "Deleted"
                 if row.scan_final_status == "Scanning" or row.scan_final_status == "Queued":
                     row.scan_final_status = "Canceled"
+                logger.logger.info(f"scan: {row.scan_id}, rep_status_id: {row.report_id}")
+            if row not in db.session:
+                db.session.merge(row)
             db.session.commit()

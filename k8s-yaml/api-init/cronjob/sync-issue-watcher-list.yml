@@ -1,15 +1,15 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: checkmark-scan
+  name: sync-issue-watcher-list
 spec:
   concurrencyPolicy: Forbid
-  successfulJobsHistoryLimit: 0
-  failedJobsHistoryLimit: 0
-  schedule: "0 16 * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  schedule: "*/59 * * * *"
   jobTemplate:
     spec:
-      backoffLimit: 0
+      backoffLimit: 1
       template:
         spec:
           containers:
@@ -19,5 +19,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request GET 'http://devopsapi-service:10009/checkmarx/cronjob_scan'
+            - curl --location --request GET 'http://devopsapi-service:10009/v2/issues/sync_watch_list'
           restartPolicy: OnFailure

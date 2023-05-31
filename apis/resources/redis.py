@@ -1,4 +1,5 @@
 import json
+import model
 from datetime import datetime
 from typing import Any, Optional
 from flask_jwt_extended import get_jwt_identity
@@ -7,7 +8,7 @@ import redis
 
 import config
 from resources import logger
-
+from collections import defaultdict
 
 ISSUE_FAMILIES_KEY = "issue_families"
 PROJECT_ISSUE_CALCULATE_KEY = "project_issue_calculation"
@@ -15,7 +16,8 @@ SERVER_ALIVE_KEY = "system_all_alive"
 TEMPLATE_CACHE = "template_list_cache"
 SHOULD_UPDATE_TEMPLATE = "should_update_template"
 ISSUE_PJ_USER_RELATION_KEY = "issue_pj_user_relation"
-
+PLUGINS_SOFTWARE_SWITCH = "plugins_software_switch"
+USER_WATCH_ISSUE_LIST = 'user_watch_issue_list'
 
 class RedisOperator:
     def __init__(self):
@@ -135,6 +137,19 @@ def get_server_alive():
 def update_server_alive(alive):
     return redis_op.str_set(SERVER_ALIVE_KEY, alive)
 
+# Issue watch list by user Cache
+def get_user_issue_watcher_list()-> list[int] or None:
+    user_watcher_list = redis_op.str_get(USER_WATCH_ISSUE_LIST)
+    if user_watcher_list is not None:
+        out = json.loads(user_watcher_list)
+        return out
+    else:
+        set_user_issue_watcher_list({})
+        return  {}
+
+def set_user_issue_watcher_list(issue_list: dict) -> None:
+    return redis_op.str_set(USER_WATCH_ISSUE_LIST, json.dumps(issue_list))
+    
 
 # Issue Family Cache
 def get_all_issue_relations():
@@ -192,11 +207,20 @@ def add_issue_relation(parent_issue_id, son_issue_id):
 
 
 # Issue project user realtion Cache
+"""
+Don't need this redis table if we do not repley on redmine.
+"""
+
+
 def get_single_issue_pj_user_relation(issue_id: int) -> dict[int, Any]:
     redis_data = redis_op.dict_get_certain(ISSUE_PJ_USER_RELATION_KEY, issue_id)
     if not redis_data:
         return {}
     out = json.loads(redis_data)
+
+    pj_obj = model.Project.query.filter_by(id=out["project_id"]).first()
+    if pj_obj is not None:
+        out["project_users"] = [str(user["id"]) for user in pj_obj.users]
     return out
 
 
@@ -216,7 +240,7 @@ def remove_issue_pj_user_relations() -> None:
 
 def check_user_has_permission_to_see_issue(issue_id: int) -> bool:
     pj_users = get_single_issue_pj_user_relation(int(issue_id)).get("project_users", "")
-    return str(get_jwt_identity()["user_id"]) in pj_users.split(",")
+    return str(get_jwt_identity()["user_id"]) in pj_users
 
 
 # Project issue calculate Cache
@@ -299,3 +323,29 @@ def get_template_caches_all():
 
 def count_template_number():
     return redis_op.dict_len(TEMPLATE_CACHE)
+
+
+# plugins software_switch
+def update_plugins_software_switch(plugins_name: str, disabled: bool):
+    return redis_op.dict_set_certain(PLUGINS_SOFTWARE_SWITCH, plugins_name, str(disabled).lower())
+
+
+def get_plugins_software_switch_all() -> dict[str, Any]:
+    return redis_op.dict_get_all(PLUGINS_SOFTWARE_SWITCH)
+
+
+def delete_plugins_software_switch() -> None:
+    """
+    Delete all plugins software switch.
+
+    :return: None
+    """
+    redis_op.dict_delete_all(PLUGINS_SOFTWARE_SWITCH)
+
+
+def update_plugins_software_switch_all(data: dict) -> None:
+    logger.logger.info(f"Before data {redis_op.dict_get_all(PLUGINS_SOFTWARE_SWITCH)}")
+    if data:
+        delete_plugins_software_switch()
+        for key in data.keys():
+            update_plugins_software_switch(key, data[key])

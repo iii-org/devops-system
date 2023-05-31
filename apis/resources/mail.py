@@ -9,6 +9,7 @@ from model import db, SystemParameter
 import config
 import markdown
 import base64
+from typing import Any
 
 
 class Mail:
@@ -39,7 +40,7 @@ class Mail:
         server = None
 
         try:
-            server = smtplib.SMTP(domain, port, timeout=3)
+            server = smtplib.SMTP(domain, port, timeout=30)
         except Exception as e:
             logger.logger.exception(str(e))
             raise apiError.DevOpsError(
@@ -84,16 +85,16 @@ class Mail:
             else config.get("DEPLOYER_NODE_IP")
         )
         markdown_content = message.strip()
-        html_content = markdown.markdown(markdown_content, extensions=['codehilite'])
+        html_content = markdown.markdown(markdown_content, extensions=["codehilite"])
         # create a multipart email message
-        text = MIMEMultipart('alternative')
+        text = MIMEMultipart("alternative")
         text["Subject"] = f"[{domain}] {title}"
         text["From"] = self.smtp_emission_address
         text["To"] = receiver
         text["Disposition-Notification-To"] = self.smtp_emission_address
 
         # 判斷是否有 embed image base64 若有將其轉成 CID 的方式，因為 GMAIL 及 OUTLOOK 皆不支援 embed image base64
-        i_types: list = ["png", "jpg", "jpeg"]
+        i_types: list = ["png", "jpg", "jpeg", "gif", "webp", "svg+xml"]
         for i_type in i_types:
             split_str = "data:image/" + i_type + ";base64,"
             if split_str in html_content:
@@ -106,12 +107,12 @@ class Mail:
                         image = images[i].split('"')[0]
                     image_file = "image" + str(i) + "." + i_type
                     # base64 to cid
-                    html_content = html_content.replace(split_str + image, "cid:"+ image_file)
+                    html_content = html_content.replace(split_str + image, "cid:" + image_file)
                     part = MIMEImage(base64.b64decode(image), Name=image_file)
-                    part['Content-Disposition'] = 'attachment; filename="%s"' % image_file
-                    part['Content-ID'] = image_file
+                    part["Content-Disposition"] = 'attachment; filename="%s"' % image_file
+                    part["Content-ID"] = image_file
                     text.attach(part)
-        text.attach(MIMEText(markdown_content, "plain", "utf-8"))
+        # text.attach(MIMEText(markdown_content, "plain", "utf-8"))
         text.attach(MIMEText(html_content, "html", "utf-8"))
         if self.server is not None:
             logger.logger.info(f"Sending Mail to {receiver}, title: {title}")
@@ -143,3 +144,22 @@ def get_basic_mail_info():
 def mail_server_is_open():
     mail_config = SystemParameter.query.filter_by(name="mail_config").first()
     return mail_config is not None and mail_config.active
+
+
+def generate_issue_hook_title_and_content(issue_info: dict[str, Any], commit_info: dict[str, Any]):
+    title = f'[{issue_info["project"]["name"]} - {issue_info["tracker"]["name"]} #{issue_info["id"]}] ({issue_info["status"]["name"].capitalize()}) {issue_info["subject"]}'
+
+    content = f"""
+<u>III DevOps Email Notifications</u>
+
+Please check the issues at III DevOps or ([{config.get("DEPLOYMENT_NAME")}](http://{config.get("DEPLOYMENT_NAME")}/))
+
+議題 [</u>{issue_info["id"]}</u>](http://{config.get("DEPLOYMENT_NAME")}/#/project/issues/{issue_info["id"]}) 已被 {commit_info["author_name"]} 更新。
+
+***
+
+- Commit:[{commit_info["short_id"]}]({commit_info["url"]}) {commit_info["title"]}
+
+***
+"""
+    return title, content

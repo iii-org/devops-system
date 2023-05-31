@@ -723,7 +723,13 @@ def create_iiidevops_env_secret_namespace():
 
 def create_namespace(project_name):
     try:
-        ApiK8sClient().create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
+        ApiK8sClient().create_namespace(
+            k8s_client.V1Namespace(
+                metadata=k8s_client.V1ObjectMeta(
+                    name=project_name, annotations={"scheduler.alpha.kubernetes.io/node-selector": "iiidevops=user"}
+                )
+            )
+        )
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
