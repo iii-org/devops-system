@@ -37,3 +37,11 @@ def user_url(api, add_resource):
 
     api.add_resource(view.UserNewpasswordInfoV2, "/v2/user/<int:user_id>/newpasswordinfo")
     add_resource(view.UserNewpasswordInfoV2, "public")
+    
+    api.add_resource(view.GenerateTokenFromKeycloakV2, "/v2/user/generate_token")
+    add_resource(view.GenerateTokenFromKeycloakV2, "private")
+    
+    api.add_resource(view.UserCheckStatusV2, "/v2/user/check_login")
+    add_resource(view.UserCheckStatusV2, "private")
+
+

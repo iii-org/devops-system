@@ -3,15 +3,22 @@ from keycloak import KeycloakAdmin, KeycloakOpenID
 from keycloak.exceptions import KeycloakGetError, KeycloakAuthenticationError
 from resources.logger import logger
 import config
+import re
+import uuid
+from werkzeug.wrappers import Response
 
 KEYCLOAK_URL = config.get("KEYCLOAK_URL")
 REALM_NAME = "IIIdevops"
-CLIENT_ID = "iiidevops"
 CLIENT_SECRET_KEY = config.get("KEYCLOAK_SECRET_KEY")
+CLIENT_ID = "iiidevops"
 AM_REALM_ROLE_NAME = "admin"
 KEYCLOAK_ADMIN_ACCOUNT = config.get("KEYCLOAK_ADMIN_ACCOUNT")
 KEYCLOAK_ADMIN_PASSWORD = config.get("KEYCLOAK_ADMIN_PASSWORD")
 
+III_BASE_URL = config.get("III_BASE_URL")
+REDIRECT_URL = f"{III_BASE_URL}/prod-api/v2/user/generate_token"
+TOKEN = "jwtToken"
+REFRESH_TOKEN = "refreshToken"
 # Root url: change to dev4
 
 
@@ -31,6 +38,14 @@ class KeyCloak:
             realm_name=REALM_NAME,
             client_secret_key=CLIENT_SECRET_KEY,
         )
+
+    ##### auth url ######
+    def generate_login_url(self):
+        random_string = generate_random_state()
+        keycloak_login_url = self.keycloak_openid.auth_url(
+            redirect_uri=REDIRECT_URL, scope="openid", state=random_string
+        )
+        return keycloak_login_url
 
     ##### user ######
     def create_user(self, args: dict[str, Any], force: bool = False, is_admin: bool = False) -> int:
@@ -106,7 +121,16 @@ class KeyCloak:
         return ret
 
     ##### token ######
-    def get_token_by_account_pwd(self, account: str, pwd: str, scope="openid") -> dict[str, Any]:
+    def get_token_by_code(self, code: str, scope: str = "openid") -> dict[str, Any]:
+        try:
+            token = self.keycloak_openid.token(code=code, grant_type="authorization_code", redirect_uri=REDIRECT_URL)
+        except KeycloakAuthenticationError as e:
+            logger.exception("Fail to authorize token, error_msg: {str(e)}")
+            token = {}
+        return token
+
+
+    def get_token_by_account_pwd(self, account: str, pwd: str, scope: str = "openid") -> dict[str, Any]:
         try:
             token = self.keycloak_openid.token(account, pwd, scope=scope)
         except KeycloakAuthenticationError as e:
@@ -114,7 +138,7 @@ class KeyCloak:
             token = {}
         return token
 
-    def get_user_info_by_token(self, access_token: str) -> dict[str:Any]:
+    def get_user_info_by_token(self, access_token: str) -> dict[str, Any]:
         try:
             ret = self.keycloak_openid.introspect(access_token)
         except Exception as e:
@@ -122,7 +146,7 @@ class KeyCloak:
             ret = {}
         return ret
 
-    def get_token_by_refresh_token(self, refresh_token: str) -> dict[str:Any]:
+    def get_token_by_refresh_token(self, refresh_token: str) -> dict[str, Any]:
         try:
             token = self.keycloak_openid.refresh_token(refresh_token)
         except Exception as e:
@@ -206,3 +230,36 @@ class KeyCloak:
 
 
 key_cloak = KeyCloak()
+
+
+def generate_random_state():
+    '''
+    Generate random string to match xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    '''
+    uuid_string = str(uuid.uuid4())
+    pattern = r'(\w{8})(\w{4})(\w{4})(\w{4})(\w{12})'
+    formatted_uuid = re.sub(pattern, r'\1-\2-\3-\4-\5', uuid_string)
+    return formatted_uuid
+
+
+def set_tokens_in_cookies_and_return_response(access_token: str, refresh_token: str, response_content: Any = None) -> Response:
+    '''
+    Need to return make_response object. otherwse cookie might not set successuflly
+    '''
+    from flask import make_response, redirect
+    response_content = response_content or redirect(III_BASE_URL)
+    domain = III_BASE_URL.split("://")[-1]
+    domain = domain.split(":")[0]
+    resp = make_response(response_content)
+    resp.set_cookie(TOKEN, access_token, domain=domain)
+    resp.set_cookie(REFRESH_TOKEN, refresh_token, domain=domain)
+    
+    return resp
+
+
+def generate_token_by_code_and_set_cookie(code: str) -> Response:
+    print(f"code: {code}")
+    token_info = key_cloak.get_token_by_code(code)
+    access_token, refresh_token = token_info.get("access_token", ""), token_info.get("refresh_token", "")
+    return set_tokens_in_cookies_and_return_response(access_token, refresh_token)
+

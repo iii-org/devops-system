@@ -2,7 +2,7 @@ from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 
 # from resources.handler.jwt import jwt_required
-from resources.handler.jwt import get_jwt_identity, jwt_required
+from resources.handler.jwt import get_jwt_identity, jwt_required, check_login_status_and_return_refresh_token
 from flask_restful import Resource, reqparse
 import util
 from urls.user import router_model
@@ -26,6 +26,7 @@ from resources import harbor, role
 from . import router_model
 import json
 from model import db, User
+from resources.keycloak import generate_token_by_code_and_set_cookie, set_tokens_in_cookies_and_return_response
 
 security_params = [{"bearer": []}]
 # --------------------- Resources ---------------------
@@ -269,3 +270,26 @@ class UserNewpasswordInfoV2(MethodResource):
             return util.success()
         else:
             return util.respond(400, msg)
+
+
+
+class GenerateTokenFromKeycloakV2(MethodResource):
+    @doc(tags=["User"], description="For keycloack call this API to generate access token")
+    @use_kwargs(router_model.GenerateTokenFromKeycloakSchema, location="query")
+    def get(self, **kwargs):
+        ''''
+        :return: redirect to frontend page
+        '''
+        resp = generate_token_by_code_and_set_cookie(kwargs["code"])
+        return resp
+
+
+class UserCheckStatusV2(MethodResource):
+    @doc(tags=["User"], description="Check user login or not")
+    def get(self):
+        ret, token_info = util.success(), check_login_status_and_return_refresh_token()
+
+        if not token_info:
+            return ret
+        return set_tokens_in_cookies_and_return_response(
+            token_info["access_token"], token_info["refresh_token"], ret)

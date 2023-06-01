@@ -2,6 +2,7 @@
 # https://github.com/iii-org/devops-system/wiki/ErrorCodes
 
 from werkzeug.exceptions import HTTPException
+from typing import Any
 
 
 def build(err_code, message, details=None):
@@ -343,12 +344,12 @@ custom_errors = {
 }
 
 # 31: Authorization validation
-def authorization_not_found():
-    return build(3101, "Missing Authorization Header")
+def authorization_not_found(redirect_url: str) -> dict[str, Any]:
+    return build(3101, "Missing Authorization Header", {"redirect_url": redirect_url})
 
 
-def invalid_token(token: str):
-    return build(3102, "Invalid token", {"token": token})
+def invalid_token(token: str, redirect_url: str):
+    return build(3102, "Invalid token", {"token": token, "redirect_url": redirect_url})
 
 
 def decode_token_user_not_found(token: str, user: str):

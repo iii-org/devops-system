@@ -280,3 +280,14 @@ class NewpasswordResponse(Schema):
     new_pwd = fields.Str(required=True)
     server = fields.Str(required=True)
     old_pwd = fields.Str(required=False)
+
+
+### Generate token From keycloak
+
+#################################### Schema ####################################
+
+########## API Action ##########
+
+class GenerateTokenFromKeycloakSchema(Schema):
+    code = fields.Str(required=True)
+    state = fields.Str()
