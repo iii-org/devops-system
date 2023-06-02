@@ -767,12 +767,12 @@ def tm_get_pipeline_default_branch(repository_id: int, is_default_branch: bool =
     for _, stage_info in file_stages.items():
         if isinstance(stage_info, list):
             continue
-        tool = stage_info["variables"]
-        if tool['iiidevops'] in skip_record_tools:
+        tool = stage_info["variables"]['iiidevops']
+        if tool in skip_record_tools:
             continue
 
         single_stage = {"has_default_branch": False}
-        software = software_dict.get(tool['iiidevops'], None)
+        software = software_dict.get(tool, None)
         if software:
             single_stage["name"] = software["display"]
             single_stage["key"] = software["template_key"]

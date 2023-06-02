@@ -8,9 +8,8 @@ from pathlib import Path
 import ipaddress
 from typing import Any, Union
 
-import pytz
+
 import requests
-from dateutil import tz
 from resources.handler.jwt import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 from gitlab import Gitlab, exceptions
@@ -568,6 +567,12 @@ class GitLab(object):
                 "since": since,
                 "page": page,
             },
+        ).json()
+
+    def create_commit(self, project_id, branch, commit_message, actions=[]):
+        return self.__api_post(
+            f"/projects/{project_id}/repository/commits",
+            data={"branch": branch, "commit_message": commit_message, "actions": actions},
         ).json()
 
     def gl_get_commits_by_author(self, project_id, branch, filter=None):
