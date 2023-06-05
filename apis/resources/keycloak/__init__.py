@@ -6,6 +6,7 @@ import config
 import re
 import uuid
 from werkzeug.wrappers import Response
+from util import get_ui_origin
 
 KEYCLOAK_URL = config.get("KEYCLOAK_URL")
 REALM_NAME = "IIIdevops"
@@ -15,8 +16,7 @@ AM_REALM_ROLE_NAME = "admin"
 KEYCLOAK_ADMIN_ACCOUNT = config.get("KEYCLOAK_ADMIN_ACCOUNT")
 KEYCLOAK_ADMIN_PASSWORD = config.get("KEYCLOAK_ADMIN_PASSWORD")
 
-III_BASE_URL = config.get("III_BASE_URL")
-REDIRECT_URL = f"{III_BASE_URL}/v2/user/generate_token"
+REDIRECT_URL = f'{config.get("III_BASE_URL")}/v2/user/generate_token'
 TOKEN = "jwtToken"
 REFRESH_TOKEN = "refreshToken"
 # Root url: change to dev4
@@ -45,7 +45,7 @@ class KeyCloak:
         keycloak_login_url = self.keycloak_openid.auth_url(
             redirect_uri=REDIRECT_URL, scope="openid", state=random_string
         )
-        logger.info(f"REDIRECT_URL: {REDIRECT_URL}")
+        logger.info(f"redirect_url: {REDIRECT_URL}")
         return keycloak_login_url
 
     ##### user ######
@@ -124,7 +124,6 @@ class KeyCloak:
     ##### token ######
     def get_token_by_code(self, code: str, scope: str = "openid") -> dict[str, Any]:
         try:
-            logger.info(f"REDIRECT_URL: {REDIRECT_URL}")
             token = self.keycloak_openid.token(code=code, grant_type="authorization_code", redirect_uri=REDIRECT_URL)
         except KeycloakAuthenticationError as e:
             logger.exception("Fail to authorize token, error_msg: {str(e)}")
@@ -249,8 +248,9 @@ def set_tokens_in_cookies_and_return_response(access_token: str, refresh_token: 
     Need to return make_response object. otherwse cookie might not set successuflly
     '''
     from flask import make_response, redirect
-    response_content = response_content or redirect(III_BASE_URL)
-    domain = III_BASE_URL.split("://")[-1]
+    iii_base_url = get_ui_origin()
+    response_content = response_content or redirect(iii_base_url)
+    domain = iii_base_url.split("://")[-1]
     domain = domain.split(":")[0]
     resp = make_response(response_content)
     resp.set_cookie(TOKEN, access_token, domain=domain)
