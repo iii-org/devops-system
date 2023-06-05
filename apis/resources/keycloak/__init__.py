@@ -45,6 +45,7 @@ class KeyCloak:
         keycloak_login_url = self.keycloak_openid.auth_url(
             redirect_uri=REDIRECT_URL, scope="openid", state=random_string
         )
+        logger.info(f"REDIRECT_URL: {REDIRECT_URL}")
         return keycloak_login_url
 
     ##### user ######
@@ -123,6 +124,7 @@ class KeyCloak:
     ##### token ######
     def get_token_by_code(self, code: str, scope: str = "openid") -> dict[str, Any]:
         try:
+            logger.info(f"REDIRECT_URL: {REDIRECT_URL}")
             token = self.keycloak_openid.token(code=code, grant_type="authorization_code", redirect_uri=REDIRECT_URL)
         except KeycloakAuthenticationError as e:
             logger.exception("Fail to authorize token, error_msg: {str(e)}")
@@ -253,12 +255,12 @@ def set_tokens_in_cookies_and_return_response(access_token: str, refresh_token: 
     resp = make_response(response_content)
     resp.set_cookie(TOKEN, access_token, domain=domain)
     resp.set_cookie(REFRESH_TOKEN, refresh_token, domain=domain)
-    
+    logger.info("Setting cookie successfully.")
     return resp
 
 
 def generate_token_by_code_and_set_cookie(code: str) -> Response:
-    print(f"code: {code}")
+    logger.info(f"code: {code}")
     token_info = key_cloak.get_token_by_code(code)
     access_token, refresh_token = token_info.get("access_token", ""), token_info.get("refresh_token", "")
     return set_tokens_in_cookies_and_return_response(access_token, refresh_token)
