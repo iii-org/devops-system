@@ -16,7 +16,7 @@ KEYCLOAK_ADMIN_ACCOUNT = config.get("KEYCLOAK_ADMIN_ACCOUNT")
 KEYCLOAK_ADMIN_PASSWORD = config.get("KEYCLOAK_ADMIN_PASSWORD")
 
 III_BASE_URL = config.get("III_BASE_URL")
-REDIRECT_URL = f"{III_BASE_URL}/prod-api/v2/user/generate_token"
+REDIRECT_URL = f"{III_BASE_URL}/v2/user/generate_token"
 TOKEN = "jwtToken"
 REFRESH_TOKEN = "refreshToken"
 # Root url: change to dev4
