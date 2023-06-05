@@ -290,9 +290,7 @@ class UserCheckStatusV2(MethodResource):
         """ 
         This API is the first API that UI would call. 
         Set the UI origin in this API in order to redirect to the correct UI URL after logging in.
-        """
-        util.set_ui_origin()
-        
+        """ 
         ret, token_info = util.success(), check_login_status_and_return_refresh_token()
 
         if not token_info:

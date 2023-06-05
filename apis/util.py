@@ -23,20 +23,11 @@ import base64
 import pandas as pd
 from marshmallow import Schema, fields
 from flask import request as flask_request
-from flask import _request_ctx_stack
 import config
 
 security_params = [{"bearer": []}]
 
-######## ui origin  ########
-get_ui_origin = lambda: getattr(_request_ctx_stack.top, "url_origin", config.get("III_BASE_URL"))
 
-def set_ui_origin():
-    ui_origin = flask_request.referrer
-    _request_ctx_stack.top.url_origin = ui_origin
-    logger.logger.info(f"Setting ui_origin: {ui_origin}.")
-
-#################################
 
 def base64decode(value):
     return str(base64.b64decode(str(value)).decode("utf-8"))

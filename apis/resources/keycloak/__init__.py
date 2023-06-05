@@ -19,6 +19,7 @@ KEYCLOAK_ADMIN_PASSWORD = config.get("KEYCLOAK_ADMIN_PASSWORD")
 REDIRECT_URL = f'{config.get("III_BASE_URL")}/v2/user/generate_token'
 TOKEN = "jwtToken"
 REFRESH_TOKEN = "refreshToken"
+UI_ORIGIN = "ui_origin"
 # Root url: change to dev4
 
 
@@ -245,16 +246,21 @@ def generate_random_state():
 
 def set_tokens_in_cookies_and_return_response(access_token: str, refresh_token: str, response_content: Any = None) -> Response:
     '''
-    Need to return make_response object. otherwse cookie might not set successuflly
+    - Need to return make_response object. otherwse cookie might not set successuflly.
+    - Set the UI origin in this API in order to redirect to the correct UI URL after logging in.
     '''
-    from flask import make_response, redirect
+    from flask import make_response, redirect, request
     iii_base_url = get_ui_origin()
-    response_content = response_content or redirect(iii_base_url)
+    if response_content is None:
+        base_url = request.cookies.get(UI_ORIGIN) or iii_base_url
+        response_content =  redirect(base_url)
+    
     domain = iii_base_url.split("://")[-1]
     domain = domain.split(":")[0]
     resp = make_response(response_content)
     resp.set_cookie(TOKEN, access_token, domain=domain)
     resp.set_cookie(REFRESH_TOKEN, refresh_token, domain=domain)
+    resp.set_cookie(UI_ORIGIN, iii_base_url, domain=domain)
     logger.info("Setting cookie successfully.")
     return resp
 
