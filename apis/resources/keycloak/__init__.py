@@ -6,7 +6,6 @@ import config
 import re
 import uuid
 from werkzeug.wrappers import Response
-from util import get_ui_origin
 
 KEYCLOAK_URL = config.get("KEYCLOAK_URL")
 REALM_NAME = "IIIdevops"
