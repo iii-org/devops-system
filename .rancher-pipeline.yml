@@ -86,6 +86,7 @@ stages:
       - sp
       - pipeline-test
       - sso-keycloak
+      - pipeline-bug
 - name: Build--Build and push docker image
   iiidevops: deployed-environments
   steps:
@@ -114,6 +115,7 @@ stages:
       - sp
       - pipeline-test
       - sso-keycloak
+      - pipeline-bug
 - name: Build--Scan docker image
   iiidevops: deployed-environments
   steps:
@@ -138,6 +140,7 @@ stages:
       - sp
       - pipeline-test
       - sso-keycloak
+      - pipeline-bug
 - name: Build--Copy Image
   iiidevops: deployed-environments
   steps:
@@ -178,6 +181,7 @@ stages:
       - sp
       - pipeline-test
       - sso-keycloak
+      - pipeline-bug
 - name: Deploy--Web
   iiidevops: deployed-environments
   steps:
@@ -211,6 +215,7 @@ stages:
       - sp
       - pipeline-test
       - sso-keycloak
+      - pipeline-bug
 - name: Deploy--Wait Web deployment
   iiidevops: deployed-environments
   steps:
@@ -242,6 +247,7 @@ stages:
       - sp
       - pipeline-test
       - sso-keycloak
+      - pipeline-bug
 - name: Test--Anchore SBOM
   iiidevops: anchore
   steps:
