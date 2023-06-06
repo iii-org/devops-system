@@ -40,7 +40,7 @@ def insert_env_file_in_env():
         env_files_folder = env_files_folder / f"{current_branch}.env"
         load_dotenv(env_files_folder)
         
-        handle_db_url()
+    handle_db_url()
         
 
 def get(key):
