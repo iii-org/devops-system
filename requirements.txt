@@ -41,3 +41,5 @@ setuptools==65.5.1
 ecdsa==0.18.0 
 python-jose==3.3.0 
 python-keycloak==2.13.2
+python-dotenv==0.20.0
+https://github.com/iii-org/devops-system-module/archive/refs/heads/master.zip
