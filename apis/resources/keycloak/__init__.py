@@ -4,12 +4,10 @@ from keycloak.exceptions import KeycloakGetError, KeycloakAuthenticationError
 from resources.logger import logger
 import config
 
-KEYCLOAK_URL = "https://keycloak.dev7.iiidevops.org"
-# KEYCLOAK_URL = config.get("KEYCLOAK_URL")
+KEYCLOAK_URL = config.get("KEYCLOAK_URL")
 REALM_NAME = "IIIdevops"
 CLIENT_ID = "iiidevops"
-CLIENT_SECRET_KEY = "X4v7E9O3brnAwumQabigvxAPEuANPpXd"
-# CLIENT_SECRET_KEY = config.get("KEYCLOAK_SECRET_KEY")
+CLIENT_SECRET_KEY = config.get("KEYCLOAK_SECRET_KEY")
 AM_REALM_ROLE_NAME = "admin"
 KEYCLOAK_ADMIN_ACCOUNT = config.get("KEYCLOAK_ADMIN_ACCOUNT")
 KEYCLOAK_ADMIN_PASSWORD = config.get("KEYCLOAK_ADMIN_PASSWORD")
