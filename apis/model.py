@@ -1188,6 +1188,18 @@ class GitlabSourceCodeLens(db.Model):
     updated_at = Column(DateTime)
 
 
+# 20230606 新增 Pipeline Course
+class PipelineCourse(db.Model):
+    id = Column(Integer, primary_key=True)
+    branch = Column(String)
+    commit_id = Column(String)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
+    source_code_num = Column(Integer)
+    commit_count = Column(Integer)
+    created_at = Column(DateTime)
+# 20230606 新增 Pipeline Course
+
+
 class PipelineUpdateVersion(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True)
     version = Column(Integer)
