@@ -22,6 +22,8 @@ if str(Path(__file__).parent) not in sys.path:
     sys.path.insert(1, str(Path(__file__).parent))
 
 import config
+config.insert_env_file_in_env()
+
 import migrate
 import model
 import plugins

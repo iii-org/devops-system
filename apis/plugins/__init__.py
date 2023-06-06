@@ -29,7 +29,6 @@ from resources.kubernetesClient import (
     DEFAULT_NAMESPACE,
     delete_namespace_secret,
 )
-from resources.rancher import rancher
 from resources.notification_message import (
     close_notification_message,
     get_unclose_notification_message,

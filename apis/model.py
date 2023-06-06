@@ -788,11 +788,10 @@ class AlertMessage(db.Model):
             "gitlab",
             "harbor",
             "sonarqube",
-            "rancher",
             "github",
         ]:
             raise AssertionError(
-                "Resource_type must in system / kubernetes / redmine / gitlab / harbor / sonarqube / rancher / github."
+                "Resource_type must in system / kubernetes / redmine / gitlab / harbor / sonarqube / github."
             )
         return resource_type
 
