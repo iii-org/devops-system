@@ -249,7 +249,7 @@ def set_tokens_in_cookies_and_return_response(access_token: str, refresh_token: 
     - Set the UI origin in this API in order to redirect to the correct UI URL after logging in.
     '''
     from flask import make_response, redirect, request
-    iii_base_url = get_ui_origin()
+    iii_base_url = config.get("III_BASE_URL")
     if response_content is None:
         base_url = request.cookies.get(UI_ORIGIN) or iii_base_url
         response_content =  redirect(base_url)
@@ -259,7 +259,10 @@ def set_tokens_in_cookies_and_return_response(access_token: str, refresh_token: 
     resp = make_response(response_content)
     resp.set_cookie(TOKEN, access_token, domain=domain)
     resp.set_cookie(REFRESH_TOKEN, refresh_token, domain=domain)
-    resp.set_cookie(UI_ORIGIN, iii_base_url, domain=domain)
+
+    if response_content is not None:
+        ui_origin = request.referrer or iii_base_url
+        resp.set_cookie(UI_ORIGIN, ui_origin, domain=domain)
     logger.info("Setting cookie successfully.")
     return resp
 
