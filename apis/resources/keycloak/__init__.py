@@ -6,6 +6,7 @@ import config
 import re
 import uuid
 from werkzeug.wrappers import Response
+from flask import make_response, request, redirect
 
 KEYCLOAK_URL = config.get("KEYCLOAK_URL")
 REALM_NAME = "IIIdevops"
@@ -242,28 +243,34 @@ def generate_random_state():
     formatted_uuid = re.sub(pattern, r'\1-\2-\3-\4-\5', uuid_string)
     return formatted_uuid
 
+def get_domain_and_iii_base_url():
+    iii_base_url = config.get("III_BASE_URL")
+    domain = iii_base_url.split("://")[-1]
+    domain = domain.split(":")[0]
+    return domain, iii_base_url
 
-def set_tokens_in_cookies_and_return_response(access_token: str, refresh_token: str, response_content: Any = None) -> Response:
+
+def set_tokens_in_cookies_and_return_response(access_token: str, refresh_token: str, response_content: Any) -> Response:
     '''
     - Need to return make_response object. otherwse cookie might not set successuflly.
     - Set the UI origin in this API in order to redirect to the correct UI URL after logging in.
     '''
-    from flask import make_response, redirect, request
-    iii_base_url = config.get("III_BASE_URL")
-    if response_content is None:
-        base_url = request.cookies.get(UI_ORIGIN) or iii_base_url
-        response_content =  redirect(base_url)
+    domain, _ = get_domain_and_iii_base_url()
     
-    domain = iii_base_url.split("://")[-1]
-    domain = domain.split(":")[0]
     resp = make_response(response_content)
     resp.set_cookie(TOKEN, access_token, domain=domain)
     resp.set_cookie(REFRESH_TOKEN, refresh_token, domain=domain)
 
-    if response_content is not None:
-        ui_origin = request.referrer or iii_base_url
-        resp.set_cookie(UI_ORIGIN, ui_origin, domain=domain)
-    logger.info("Setting cookie successfully.")
+    logger.info(f"Setting cookie successfully ({domain}).")
+    return resp
+
+def set_ui_origin_in_cookie_and_return_response(resp: Response) -> Response:
+    domain, iii_base_url = get_domain_and_iii_base_url()
+    ui_origin = request.referrer or iii_base_url
+    
+    resp.set_cookie(UI_ORIGIN, ui_origin, domain=domain)
+
+    logger.info(f"Setting redirect url ({ui_origin}).")
     return resp
 
 
@@ -271,5 +278,11 @@ def generate_token_by_code_and_set_cookie(code: str) -> Response:
     logger.info(f"code: {code}")
     token_info = key_cloak.get_token_by_code(code)
     access_token, refresh_token = token_info.get("access_token", ""), token_info.get("refresh_token", "")
-    return set_tokens_in_cookies_and_return_response(access_token, refresh_token)
+    
+    iii_base_url = request.cookies.get(UI_ORIGIN) or config.get("III_BASE_URL")
+
+    response_content = redirect(iii_base_url)
+    logger.info(f"Actually redirect url ({iii_base_url}).")
+    
+    return set_tokens_in_cookies_and_return_response(access_token, refresh_token, response_content)
 

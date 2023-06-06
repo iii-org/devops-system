@@ -1,8 +1,8 @@
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 
-# from resources.handler.jwt import jwt_required
-from resources.handler.jwt import get_jwt_identity, jwt_required, check_login_status_and_return_refresh_token
+from resources import apiError
+from resources.handler.jwt import get_jwt_identity, jwt_required, check_login_status_and_return_refresh_token, return_jwt_token_if_exist, REDIRECT_URL
 from flask_restful import Resource, reqparse
 import util
 from urls.user import router_model
@@ -23,10 +23,11 @@ from resources.user import (
     update_newpassword,
 )
 from resources import harbor, role
+from flask import make_response
 from . import router_model
 import json
 from model import db, User
-from resources.keycloak import generate_token_by_code_and_set_cookie, set_tokens_in_cookies_and_return_response
+from resources.keycloak import generate_token_by_code_and_set_cookie, set_tokens_in_cookies_and_return_response, set_ui_origin_in_cookie_and_return_response
 
 security_params = [{"bearer": []}]
 # --------------------- Resources ---------------------
@@ -287,13 +288,23 @@ class GenerateTokenFromKeycloakV2(MethodResource):
 class UserCheckStatusV2(MethodResource):
     @doc(tags=["User"], description="Check user login or not")
     def get(self):
-        """ 
+        """
         This API is the first API that UI would call. 
         Set the UI origin in this API in order to redirect to the correct UI URL after logging in.
         """ 
-        ret, token_info = util.success(), check_login_status_and_return_refresh_token()
+        access_token = return_jwt_token_if_exist()
+        if access_token is None:
+            resp = make_response(apiError.authorization_not_found(REDIRECT_URL), 401)
+            return set_ui_origin_in_cookie_and_return_response(resp)
+        
+        login_info = check_login_status_and_return_refresh_token(access_token)
 
-        if not token_info:
-            return ret
+        if login_info["account_exist"]:
+            return util.success()
+        
+        if login_info["token_invalid"]:
+            resp = make_response(apiError.invalid_token(access_token, REDIRECT_URL), 401)
+            return set_ui_origin_in_cookie_and_return_response(resp)
+
         return set_tokens_in_cookies_and_return_response(
-            token_info["access_token"], token_info["refresh_token"], ret)
+            login_info["access_token"], login_info["refresh_token"], util.success())
