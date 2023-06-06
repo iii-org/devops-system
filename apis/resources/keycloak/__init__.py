@@ -244,7 +244,7 @@ def generate_random_state():
     return formatted_uuid
 
 def get_domain_and_iii_base_url():
-    iii_base_url = config.get("III_BASE_URL")
+    iii_base_url = request.referrer or config.get("III_BASE_URL")
     domain = iii_base_url.split("://")[-1]
     domain = domain.split(":")[0]
     return domain, iii_base_url
