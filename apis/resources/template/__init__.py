@@ -558,9 +558,9 @@ def get_tool_name(stage):
     return tool_name
 
 
-def update_pipeline_info_branches(stage, pipeline_soft, branch, enable_key_name, exist_branches):
+def update_pipeline_info_branches(stage: list or dict, pipeline_soft: dict, branch: str, enable_key_name: str, exist_branches: list) -> bool:
     had_update_branch = False
-    tool_name = stage.get("stage")
+    tool_name = stage.get("stage") if isinstance(stage, dict) else stage[0].get("stage")
     if pipeline_soft["key"] == tool_name:
         execute_stages = stage["only"]
         if pipeline_soft[enable_key_name] and branch not in execute_stages:
@@ -582,7 +582,7 @@ def update_pipeline_info_branches(stage, pipeline_soft, branch, enable_key_name,
     return had_update_branch
 
 
-def tm_update_pipline_branches(user_account, repository_id, data, default=True, run=False):
+def tm_update_pipline_branches(user_account: str, repository_id: str, data: dict[list[str: Any]], default: bool=True, run: bool=False) -> None:
     pj = gl.projects.get(repository_id)
     if __check_git_project_is_empty(pj):
         return
@@ -664,19 +664,19 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
     thread.start()
 
 
-def sync_branches(user_account, repository_id, pipe_yaml_file_name, br_name_list, default_pipe_json):
+def sync_branches(user_account: str, repository_id: str, pipe_yaml_file_name: str, br_name_list: list, default_pipe_json: dict[list[str: Any]]) -> None:
     for br_name in br_name_list:
         sync_branch(user_account, repository_id, pipe_yaml_file_name, br_name, default_pipe_json)
 
 
 def sync_branch(
-    user_account,
-    repository_id,
-    pipe_yaml_file_name,
-    br_name,
-    updated_pipe_json,
-    not_run=True,
-):
+    user_account: str,
+    repository_id: str,
+    pipe_yaml_file_name: str,
+    br_name: str,
+    updated_pipe_json: dict[list[str: Any]],
+    not_run: bool=True,
+) -> None:
     f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=br_name)
     pipe_json = yaml.safe_load(f.decode())
     had_update_branch = pipe_json != updated_pipe_json
