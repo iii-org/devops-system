@@ -16,7 +16,7 @@ AM_REALM_ROLE_NAME = "admin"
 KEYCLOAK_ADMIN_ACCOUNT = config.get("KEYCLOAK_ADMIN_ACCOUNT")
 KEYCLOAK_ADMIN_PASSWORD = config.get("KEYCLOAK_ADMIN_PASSWORD")
 
-REDIRECT_URL = f'{config.get("III_BASE_URL")}/v2/user/generate_token'
+REDIRECT_URL = f'{config.get("III_BASE_URL")}/prod-api/v2/user/generate_token'
 TOKEN = "jwtToken"
 REFRESH_TOKEN = "refreshToken"
 UI_ORIGIN = "ui_origin"
@@ -245,8 +245,9 @@ def generate_random_state():
 
 def get_domain_and_iii_base_url():
     iii_base_url = request.referrer or config.get("III_BASE_URL")
-    domain = iii_base_url.split("://")[-1]
-    domain = domain.split(":")[0]
+    domain = iii_base_url.split("://")[-1].rstrip("/")
+
+    # domain = domain.split(":")[0]
     return domain, iii_base_url
 
 
@@ -267,7 +268,7 @@ def set_tokens_in_cookies_and_return_response(access_token: str, refresh_token: 
 def set_ui_origin_in_cookie_and_return_response(resp: Response) -> Response:
     domain, iii_base_url = get_domain_and_iii_base_url()
     ui_origin = request.referrer or iii_base_url
-    
+    print()
     resp.set_cookie(UI_ORIGIN, ui_origin, domain=domain)
 
     logger.info(f"Setting redirect url ({ui_origin}).")
@@ -278,7 +279,6 @@ def generate_token_by_code_and_set_cookie(code: str) -> Response:
     logger.info(f"code: {code}")
     token_info = key_cloak.get_token_by_code(code)
     access_token, refresh_token = token_info.get("access_token", ""), token_info.get("refresh_token", "")
-    
     iii_base_url = request.cookies.get(UI_ORIGIN) or config.get("III_BASE_URL")
 
     response_content = redirect(iii_base_url)
