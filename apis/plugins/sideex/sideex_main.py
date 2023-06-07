@@ -464,12 +464,12 @@ def commit_to_gitlab(project: objects.Project, files: list[dict[str, str]], comm
     gitlab.gitlab.create_multiple_file_commit(project, files, commit_message=commit_msg)
 
 
-def get_current_branch_commit(project_id, rec):
+def get_current_branch_commit(project_id):
     repository_id: int = nx_get_project_plugin_relation(nexus_project_id=project_id).git_repository_id
-    relation = nx_get_project_plugin_relation(repo_id=repository_id)
-    pipeline_outputs = rancher.rc_get_pipeline_executions(relation.ci_project_id, relation.ci_pipeline_id, limit=2)
-    branch = pipeline_outputs["data"][rec]["branch"]
-    commit_id = pipeline_outputs["data"][rec]["commit"]
+    commit_info = gitlab.gitlab.gl_get_latest_commit_from_all_branches(repository_id)
+
+    branch = commit_info["branch_name"]
+    commit_id = commit_info["short_id"]
     return branch, commit_id
 
 
@@ -517,7 +517,7 @@ def delete_json_configfile(project_id):
 
 
 def record_branch_commit_id(project_id):
-    branch, commit_id = get_current_branch_commit(project_id, 0)
+    branch, commit_id = get_current_branch_commit(project_id)
     commit_id = commit_id[0:7]
     while True:
         time.sleep(10)

@@ -14,3 +14,4 @@ deploy-config
 devops-data
 /devops_env
 apis/sync.ffs_db
+env/

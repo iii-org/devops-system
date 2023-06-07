@@ -234,14 +234,6 @@ class Rancher(object):
 rancher = Rancher()
 
 
-def get_all_appname_by_project(project_id):
-    project_name = str(model.Project.query.filter_by(id=project_id).first().name)
-    apps = rancher.rc_get_apps_all()
-    df_app = pd.DataFrame(apps)
-    df_project_app = df_app[df_app["targetNamespace"] == project_name]
-    result_list = [value["name"] for key, value in df_project_app.fillna("").T.to_dict().items()]
-    return result_list
-
 
 # --------------------- Resources ---------------------
 

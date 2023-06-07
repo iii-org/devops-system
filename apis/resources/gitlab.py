@@ -328,6 +328,23 @@ class GitLab(object):
         )
     """
 
+    def gl_get_latest_commit_from_all_branches(self, repo_id):
+        params = {
+            "page": 1,
+            "per_page": 1,
+            "sort": "update_desc"
+        }
+        output = self.__api_get(f"/projects/{repo_id}/repository/branches", params=params).json()[0]
+        return {
+            "branch_name": output["name"],
+            "last_commit_message": output["commit"]["message"],
+            "last_commit_time": output["commit"]["committed_date"],
+            "short_id": output["commit"]["short_id"][0:7],
+            "id": output["commit"]["id"],
+            "commit_url": commit_id_to_url(get_nexus_project_id(repo_id), output["commit"]["short_id"]),
+        }
+
+
     def gl_get_branches(self, repo_id):
         gl_total_branch_list = []
         total_pages = 1

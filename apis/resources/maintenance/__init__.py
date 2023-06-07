@@ -1,11 +1,9 @@
 from model import db, ProjectPluginRelation, Project
-from resources import rancher, role
+from resources import role
 import util
 import resources.apiError as apiError
-from resources.apiError import DevOpsError
-from flask_restful import Resource, reqparse
+from flask_restful import Resource
 from resources.handler.jwt import jwt_required
-from resources.rancher import rancher
 from resources.gitlab import gitlab
 import util
 
@@ -24,40 +22,6 @@ def add_system_tag(system_list, type):
     system_parameter = get_system_parameter()
     for system in system_list:
         system["system"] = system["name"] in system_parameter[type]
-
-
-# def update_db_rancher_projectid_and_pipelineid(force=None):
-#     # get all project
-#     rows = (
-#         db.session.query(ProjectPluginRelation, Project)
-#         .join(Project, ProjectPluginRelation.project_id == Project.id)
-#         .all()
-#     )
-#     rancher.rc_get_project_id()
-#     now_pipe_data = rancher.rc_get_project_pipeline()
-#     if force == "true":
-#         for now_pipe in now_pipe_data:
-#             rancher.rc_disable_project_pipeline(now_pipe["projectId"], now_pipe["id"])
-#         for row in rows:
-#             pj_info = gitlab.gl_get_project(row.ProjectPluginRelation.git_repository_id)
-#             rancher_pipeline_id = rancher.rc_enable_project_pipeline(pj_info["http_url_to_repo"])
-#             ppro = ProjectPluginRelation.query.filter_by(project_id=row.ProjectPluginRelation.project_id).first()
-#             ppro.ci_project_id = rancher.project_id
-#             ppro.ci_pipeline_id = rancher_pipeline_id
-#             db.session.commit()
-#     else:
-#         for now_pipe in now_pipe_data:
-#             for row in rows:
-#                 if now_pipe["repositoryUrl"].split("//")[1] == row.Project.http_url.split("//")[1] and (
-#                     now_pipe["projectId"] != row.ProjectPluginRelation.ci_project_id
-#                     or now_pipe["id"] != row.ProjectPluginRelation.ci_pipeline_id
-#                 ):
-#                     ppro = ProjectPluginRelation.query.filter_by(
-#                         project_id=row.ProjectPluginRelation.project_id
-#                     ).first()
-#                     ppro.ci_project_id = now_pipe["projectId"]
-#                     ppro.ci_pipeline_id = now_pipe["id"]
-#                     db.session.commit()
 
 
 def update_pj_httpurl():

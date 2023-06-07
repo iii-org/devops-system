@@ -57,7 +57,6 @@ from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
 import config
 import pandas as pd
 from .rancher import rancher
-from .rancher import get_all_appname_by_project
 from resources.keycloak import key_cloak
 from typing import Any
 
@@ -1572,10 +1571,10 @@ def delete_all_pods_and_services_by_app(project_id, app_name):
         for service_name in delete_list:
             delete_kubernetes_namespace_service(project_id, service_name)
 
-    while True:
-        app_list = get_all_appname_by_project(project_id)
-        if app_name not in app_list:
-            break
+    # while True:
+    #     app_list = get_all_appname_by_project(project_id)
+    #     if app_name not in app_list:
+    #         break
 
 
 def app_name_find_service_name(project_id, app_name):

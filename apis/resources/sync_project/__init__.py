@@ -13,7 +13,6 @@ from resources import (
     kubernetesClient,
     logger,
     project,
-    rancher,
     redmine,
     user,
 )
@@ -294,17 +293,6 @@ def check_k8s_ns(projects_name):
     return list(set(projects_name) - set(k8s_ns_list))
 
 
-# def check_pipeline_hooks():
-#     project_git_http_url = [
-#         pj_url[0]
-#         for pj_url in model.Project.query.filter(model.Project.id != -1).with_entities(model.Project.http_url).all()
-#     ]
-#     rancher.rancher.rc_get_project_id()
-#     pipeline_list = [pipeline["repositoryUrl"] for pipeline in rancher.rancher.rc_get_project_pipeline()]
-#     non_exist_pipeline = list(set(project_git_http_url) - set(pipeline_list))
-#     return non_exist_pipeline
-
-
 def check_project_relation(project_id):
     pj_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).all()
     if not pj_relation:
@@ -411,7 +399,6 @@ def k8s_namespace_process(projects_name, check_bot_list):
                 k8s_namespace_waiter(project_name)
                 logger.logger.info("Create k8s role binding")
                 kubernetesClient.create_role_binding(project_name, util.encode_k8s_sa(user_row.login))
-                # rancher.rancher.rc_add_namespace_into_rc_project(project_name)
             except ApiException as e:
                 if e.status == 409:
                     logger.logger.info("Kubernetes already has this identifier.")
