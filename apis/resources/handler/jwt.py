@@ -2,27 +2,23 @@ from flask import _request_ctx_stack, request, make_response
 from resources import apiError
 from model import User, db, ProjectUserRole
 from resources import role
-import util
-from resources.keycloak import key_cloak
-import datetime
+from resources.keycloak import key_cloak,  set_tokens_in_cookies_and_return_response, set_ui_origin_in_cookie_and_return_response
+
 from resources import apiError
 from typing import Any
 
 
-TOKEN = "jwtToken"
-REFRESH_TOKEN = "refreshToken"
 
-
-def __calculate_token_expired_datetime(sec: int):
-    now = datetime.datetime.now()
-    expired_datetime = now + datetime.timedelta(seconds=sec)
-    return expired_datetime
+# def __calculate_token_expired_datetime(sec: int):
+#     now = datetime.datetime.now()
+#     expired_datetime = now + datetime.timedelta(seconds=sec)
+#     return expired_datetime
 
 
 def return_jwt_token_if_exist():
     bearer_token = request.headers.get("Authorization")
     if bearer_token is None:
-        raise apiError.DevOpsError(401, "Missing Authorization Header.", error=apiError.authorization_not_found())
+        return None
 
     token = bearer_token.split(" ")[-1]
     return token
@@ -55,7 +51,7 @@ def jwt_required_cronjob(fn):
 
         token = key_cloak.get_token_by_refresh_token(refresh_token)
         if not token or token.get("access_token") is None:
-            raise apiError.DevOpsError(401, "Invalid refresh token.", error=apiError.invalid_token(refresh_token))
+            raise apiError.DevOpsError(401, "Invalid refresh token.", error=apiError.invalid_token(refresh_token, key_cloak.generate_login_url()))
 
         access_token = token.get("access_token")
         jwt_identity = __generate_jwt_identity_info_by_access_token(access_token)
@@ -69,25 +65,23 @@ def jwt_required_cronjob(fn):
 def jwt_required(fn):
     def wrapper(*args, **kwargs):
         access_token = return_jwt_token_if_exist()
-        user_info = key_cloak.get_user_info_by_token(access_token)
-        account = user_info.get("preferred_username")
+        if access_token is None:
+            resp = make_response(apiError.authorization_not_found(key_cloak.generate_login_url()), 401)
+            return set_ui_origin_in_cookie_and_return_response(resp)
+        
+        token_info = check_login_status_and_return_refresh_token(access_token)
 
-        if account is None:
-            refresh_token = request.cookies.get("refresh_token")
-            error_ret = apiError.DevOpsError(401, "Invalid token.", error=apiError.invalid_token(access_token))
-            if refresh_token:
-                token = key_cloak.get_token_by_refresh_token(refresh_token)
-                if not token:
-                    raise error_ret
-                access_token, refresh_token = token.get("access_token"), token.get("refresh_token")
-                access_expires_in_sec, refresh_expires_in_sec = token.get("expires_in"), token.get("refresh_expires_in")
-                resp = make_response()
-                resp.set_cookie(TOKEN, access_token, expires=__calculate_token_expired_datetime(access_expires_in_sec))
-                resp.set_cookie(
-                    REFRESH_TOKEN, refresh_token, expires=__calculate_token_expired_datetime(refresh_expires_in_sec)
-                )
-            else:
-                raise error_ret
+        if not token_info["account_exist"]:
+        
+            if token_info["token_invalid"]:
+                resp = make_response(apiError.invalid_token(access_token, key_cloak.generate_login_url()), 401)
+                return set_ui_origin_in_cookie_and_return_response(resp)
+
+            jwt_identity = __generate_jwt_identity_info_by_access_token(access_token)
+            _request_ctx_stack.top.jwt = jwt_identity
+
+            response_content = fn(*args, **kwargs)
+            return set_tokens_in_cookies_and_return_response(token_info["access_token"], token_info["refresh_token"], response_content)
 
         jwt_identity = __generate_jwt_identity_info_by_access_token(access_token)
         _request_ctx_stack.top.jwt = jwt_identity
@@ -95,6 +89,28 @@ def jwt_required(fn):
         return fn(*args, **kwargs)
 
     return wrapper
+
+
+def check_login_status_and_return_refresh_token(access_token: str) -> dict[str, Any]:
+    user_info = key_cloak.get_user_info_by_token(access_token)
+    account = user_info.get("preferred_username")
+    account_exist = account is not None
+    ret = {"account_exist": account_exist, "token_invalid": False}
+
+    if not account_exist:
+        refresh_token = request.cookies.get("refresh_token")
+        if refresh_token:
+            token_info = key_cloak.get_token_by_refresh_token(refresh_token)
+            if not token_info:
+                ret["token_invalid"] = True
+
+            ret.update({
+                "access_token": token_info.get("access_token"),
+                "refresh_token": token_info.get("refresh_token")
+            })
+        else:
+            ret["token_invalid"] = True
+    return ret
 
 
 def get_jwt_identity():
