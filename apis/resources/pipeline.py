@@ -112,6 +112,7 @@ class PipelineExecAction(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("pipelines_exec_run", type=int, required=True)
         parser.add_argument("action", type=str, required=True)
+        parser.add_argument("branch", type=str)
         args = parser.parse_args()
         return pipeline_exec_action(repository_id, args)
 
