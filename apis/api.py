@@ -55,7 +55,6 @@ from resources import (
     alert,
     trace_order,
     system_parameter,
-    maintenance,
     issue_display_field,
     policy,
 )
@@ -678,7 +677,7 @@ api.add_resource(policy.DBPSWDPolicyTypeList, "/db/pswd/policy/type_list")
 
 # backup
 try:
-    from backup import backup_url
+    from apis.urls.backup import backup_url
     backup_url(api, add_resource)
 except Exception:
     pass
