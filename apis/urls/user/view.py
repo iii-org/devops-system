@@ -2,7 +2,7 @@ from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 
 from resources import apiError
-from resources.handler.jwt import get_jwt_identity, jwt_required, check_login_status_and_return_refresh_token, return_jwt_token_if_exist, REDIRECT_URL
+from resources.handler.jwt import get_jwt_identity, jwt_required, check_login_status_and_return_refresh_token, return_jwt_token_if_exist
 from flask_restful import Resource, reqparse
 import util
 from urls.user import router_model
@@ -27,7 +27,7 @@ from flask import make_response
 from . import router_model
 import json
 from model import db, User
-from resources.keycloak import generate_token_by_code_and_set_cookie, set_tokens_in_cookies_and_return_response, set_ui_origin_in_cookie_and_return_response
+from resources.keycloak import generate_token_by_code_and_set_cookie, set_tokens_in_cookies_and_return_response, set_ui_origin_in_cookie_and_return_response, key_cloak
 
 security_params = [{"bearer": []}]
 # --------------------- Resources ---------------------
@@ -294,7 +294,7 @@ class UserCheckStatusV2(MethodResource):
         """ 
         access_token = return_jwt_token_if_exist()
         if access_token is None:
-            resp = make_response(apiError.authorization_not_found(REDIRECT_URL), 401)
+            resp = make_response(apiError.authorization_not_found(key_cloak.generate_login_url()), 401)
             return set_ui_origin_in_cookie_and_return_response(resp)
         
         login_info = check_login_status_and_return_refresh_token(access_token)
@@ -303,7 +303,7 @@ class UserCheckStatusV2(MethodResource):
             return util.success()
         
         if login_info["token_invalid"]:
-            resp = make_response(apiError.invalid_token(access_token, REDIRECT_URL), 401)
+            resp = make_response(apiError.invalid_token(access_token, key_cloak.generate_login_url()), 401)
             return set_ui_origin_in_cookie_and_return_response(resp)
 
         return set_tokens_in_cookies_and_return_response(

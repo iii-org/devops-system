@@ -16,7 +16,7 @@ AM_REALM_ROLE_NAME = "admin"
 KEYCLOAK_ADMIN_ACCOUNT = config.get("KEYCLOAK_ADMIN_ACCOUNT")
 KEYCLOAK_ADMIN_PASSWORD = config.get("KEYCLOAK_ADMIN_PASSWORD")
 
-REDIRECT_URL = f'{config.get("III_BASE_URL")}/prod-api/v2/user/generate_token'
+# REDIRECT_URL = f'{config.get("III_BASE_URL")}/v2/user/generate_token'
 TOKEN = "jwtToken"
 REFRESH_TOKEN = "refreshToken"
 UI_ORIGIN = "ui_origin"
@@ -42,11 +42,14 @@ class KeyCloak:
 
     ##### auth url ######
     def generate_login_url(self):
+        server_origin  = request.referrer or config.get("III_BASE_URL")
+        server_origin = server_origin.rstrip("/")
+        redirect_url = f'{server_origin}/prod-api/v2/user/generate_token'
         random_string = generate_random_state()
         keycloak_login_url = self.keycloak_openid.auth_url(
-            redirect_uri=REDIRECT_URL, scope="openid", state=random_string
+            redirect_uri=redirect_url, scope="openid", state=random_string
         )
-        logger.info(f"redirect_url: {REDIRECT_URL}")
+        logger.info(f"redirect_url: {redirect_url}")
         return keycloak_login_url
 
     ##### user ######
@@ -124,8 +127,11 @@ class KeyCloak:
 
     ##### token ######
     def get_token_by_code(self, code: str, scope: str = "openid") -> dict[str, Any]:
+        iii_base_url = request.cookies.get(UI_ORIGIN) or config.get("III_BASE_URL")
+        redirect_url = f'{iii_base_url}/prod-api/v2/user/generate_token'
+        logger.info(f"Keycloack authorization url: {redirect_url}")
         try:
-            token = self.keycloak_openid.token(code=code, grant_type="authorization_code", redirect_uri=REDIRECT_URL)
+            token = self.keycloak_openid.token(code=code, grant_type="authorization_code", redirect_uri=redirect_url)
         except KeycloakAuthenticationError as e:
             logger.exception("Fail to authorize token, error_msg: {str(e)}")
             token = {}
@@ -268,7 +274,7 @@ def set_tokens_in_cookies_and_return_response(access_token: str, refresh_token: 
 def set_ui_origin_in_cookie_and_return_response(resp: Response) -> Response:
     domain, iii_base_url = get_domain_and_iii_base_url()
     ui_origin = request.referrer or iii_base_url
-    print()
+    ui_origin = ui_origin.rstrip("/")
     resp.set_cookie(UI_ORIGIN, ui_origin, domain=domain)
 
     logger.info(f"Setting redirect url ({ui_origin}).")

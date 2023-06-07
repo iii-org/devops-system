@@ -8,8 +8,6 @@ from resources import apiError
 from typing import Any
 
 
-REDIRECT_URL = key_cloak.generate_login_url()
-
 
 # def __calculate_token_expired_datetime(sec: int):
 #     now = datetime.datetime.now()
@@ -53,7 +51,7 @@ def jwt_required_cronjob(fn):
 
         token = key_cloak.get_token_by_refresh_token(refresh_token)
         if not token or token.get("access_token") is None:
-            raise apiError.DevOpsError(401, "Invalid refresh token.", error=apiError.invalid_token(refresh_token, REDIRECT_URL))
+            raise apiError.DevOpsError(401, "Invalid refresh token.", error=apiError.invalid_token(refresh_token, key_cloak.generate_login_url()))
 
         access_token = token.get("access_token")
         jwt_identity = __generate_jwt_identity_info_by_access_token(access_token)
@@ -68,7 +66,7 @@ def jwt_required(fn):
     def wrapper(*args, **kwargs):
         access_token = return_jwt_token_if_exist()
         if access_token is None:
-            resp = make_response(apiError.authorization_not_found(REDIRECT_URL), 401)
+            resp = make_response(apiError.authorization_not_found(key_cloak.generate_login_url()), 401)
             return set_ui_origin_in_cookie_and_return_response(resp)
         
         token_info = check_login_status_and_return_refresh_token(access_token)
@@ -76,7 +74,7 @@ def jwt_required(fn):
         if not token_info["account_exist"]:
         
             if token_info["token_invalid"]:
-                resp = make_response(apiError.invalid_token(access_token, REDIRECT_URL), 401)
+                resp = make_response(apiError.invalid_token(access_token, key_cloak.generate_login_url()), 401)
                 return set_ui_origin_in_cookie_and_return_response(resp)
 
             jwt_identity = __generate_jwt_identity_info_by_access_token(access_token)
