@@ -691,6 +691,14 @@ api.add_resource(policy.DBPSWDPolicy, "/db/pswd/policy/check")
 api.add_resource(policy.DBPSWDPolicyTypeList, "/db/pswd/policy/type_list")
 
 
+# backup
+try:
+    from backup import backup_url
+    backup_url(api, add_resource)
+except Exception:
+    pass
+
+
 @app.route("/user/login", methods=["POST"])
 def login():
     from flask import request
