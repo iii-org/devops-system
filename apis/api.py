@@ -537,16 +537,6 @@ harbor_url(api, add_resource)
 
 # Maintenance
 # api.add_resource(maintenance.UpdateDbRcProjectPipelineId, "/maintenance/update_rc_pj_pipe_id")
-# api.add_resource(
-#     maintenance.SecretesIntoRcAll,
-#     "/maintenance/secretes_into_rc_all",
-#     "/maintenance/secretes_into_rc_all/<secret_name>",
-# )
-# api.add_resource(
-#     maintenance.RegistryIntoRcAll,
-#     "/maintenance/registry_into_rc_all",
-#     "/maintenance/registry_into_rc_all/<registry_name>",
-# )
 # api.add_resource(maintenance.UpdatePjHttpUrl, "/maintenance/update_pj_http_url")
 
 # Rancher
