@@ -45,6 +45,7 @@ def pipeline_exec_list(git_repository_id: int, limit: int = 10, start: int = 0) 
         pipeline_info["commit_id"] = sha[:8]
         pipeline_info["commit_url"] = commit_id_to_url(get_nexus_project_id(git_repository_id), sha)
         pipeline_info["execution_state"] = pipeline_info["status"].capitalize()
+        pipeline_info["last_test_time"] = pipeline_info.pop("updated_at", "")
         pipeline_info.update(
             gitlab.get_pipeline_jobs_status(git_repository_id, pipeline_info["id"], with_commit_msg=True)
         )
