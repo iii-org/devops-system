@@ -593,7 +593,6 @@ def create_project_store_in_db(
         plan_project_id=redmine_pj_id,
         git_repository_id=gitlab_pj_id,
         harbor_project_id=harbor_pj_id,
-        ci_project_id=rancher.project_id,
         key_cloak_group_id=key_cloak_group_id,
     )
     db.session.add(new_relation)
@@ -1557,7 +1556,7 @@ def get_plugin_usage(project_id):
 
 def delete_all_pods_and_services_by_app(project_id, app_name):
     # delete app
-    rancher.rc_del_app(app_name)
+    # rancher.rc_del_app(app_name)
 
     # delete all pods by app_name
     delete_list = app_name_find_pod_name(project_id, app_name)

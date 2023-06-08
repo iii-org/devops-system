@@ -1058,6 +1058,20 @@ class GitLab(object):
         return self.gl_create_pj_variable(repo_id, data)
 
 
+def get_ci_last_test_result(repo_id: int) -> dict[str, Any]:
+    ret = {"last_test_result": {"total": 0, "success": 0}, "last_test_time": ""}
+    latest_pipeline_info = gitlab.gl_list_pipelines(repo_id=repo_id, limit=1, start=0)
+    if not latest_pipeline_info:
+        return ret
+    
+    latest_pipeline_info = latest_pipeline_info[0]
+    latest_pipeline_jobs_status = gitlab.get_pipeline_jobs_status(repo_id=repo_id, pipeline_id=latest_pipeline_info["id"])
+    ret["last_test_result"] = latest_pipeline_jobs_status["status"]
+    ret["last_test_time"] = latest_pipeline_info["updated_at"]
+    
+    return ret
+
+
 def single_file(
     file_path: str,
     local_file_path: str,

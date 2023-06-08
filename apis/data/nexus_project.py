@@ -13,6 +13,7 @@ from model import ProjectUserRole
 from resources import user
 from resources.apiError import DevOpsError
 from accessories import redmine_lib
+from resources.gitlab import get_ci_last_test_result
 
 
 class NexusProject:
@@ -152,8 +153,8 @@ class NexusProject:
         return self
 
     def fill_extra_fields(self):
-        # self.__extra_fields.update(
-        #     get_ci_last_test_result(self.get_project_row().plugin_relation))
+        self.__extra_fields.update(
+            get_ci_last_test_result(self.get_project_row().plugin_relation.git_repository_id))
         return self
 
 

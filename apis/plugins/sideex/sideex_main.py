@@ -27,7 +27,6 @@ import resources.pipeline as pipeline
 from resources.activity import record_activity
 from enums.action_type import ActionType
 from resources import gitlab
-from resources.rancher import rancher
 from datetime import date
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
