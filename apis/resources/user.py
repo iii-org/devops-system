@@ -119,6 +119,9 @@ def get_all_user_info():
         .all()
     )
 
+def get_user_id_from_redmine_id(redmin_user_id: int):
+    user = model.UserPluginRelation.query.filter_by(plan_user_id=redmin_user_id).first()
+    return user.user_id
 
 def get_role_id(user_id):
     row = model.ProjectUserRole.query.filter_by(user_id=user_id).first()

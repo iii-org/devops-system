@@ -18,6 +18,8 @@ import re
 import os
 import config
 import model
+import logging
+from time import sleep
 import nexus
 import resources.apiError as apiError
 import resources.user as user
@@ -57,7 +59,10 @@ from resources.redis import (
     update_issue_pj_user_relation,
     get_single_issue_pj_user_relation,
     check_user_has_permission_to_see_issue,
+    set_user_issue_watcher_list
 )
+from resources.user import user_list_by_project, get_user_id_from_redmine_id
+
 from datetime import date
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
@@ -1247,6 +1252,32 @@ def get_issue_datetime_status(project_id:str) -> dict[str, int]:
         "normal_num": normal_num,
     }
     return output
+
+
+def add_issue_watcher(isse_id: int, user_id: dict):
+    return redmine.rm_add_watcher(isse_id, user_id)
+
+
+def remove_issue_watcher(issue_id: int, user_id: dict):
+    return redmine.rm_remove_watcher(issue_id, user_id)
+
+
+def sync_issue_watcher_list(): # %%%
+    set_user_issue_watcher_list(defaultdict())
+    user_watcher_list = defaultdict()
+    try:
+        for issue in redmine_lib.rm_get_all_issue():
+            issue_watcher_info = issue.watchers._resources
+            for info in issue_watcher_info:
+                user_id = get_user_id_from_redmine_id(info.get('id'))
+                if user_watcher_list.get(str(user_id), None) is None:
+                    user_watcher_list[str(user_id)] = [issue.id]
+                else:
+                    user_watcher_list[str(user_id)].append(issue.id)
+    except Exception as e:
+        logging.info(e)
+    set_user_issue_watcher_list(user_watcher_list)
+    logging.info('Success sync watcher list to redis.')
 
 
 def get_issue_by_project(project_id, args):
@@ -2487,6 +2518,19 @@ def delete_issue_relation(relation_id, user_account):
         to=output_list[0]["project"]["id"],
         broadcast=True,
     )
+
+
+def delete_issue_tag(tag_id: int) -> None:
+    all_issue = model.IssueTag.query.filter(
+        model.IssueTag.tag_id != []
+    )  # .filter(model.IssueTag.tag_id.in_())  .filter_by(issue_id=2381)
+    for issue in all_issue:
+        if tag_id in issue.tag_id:
+            issue.tag_id.remove(tag_id)
+            model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({"tag_id": issue.tag_id})
+            db.session.commit()
+            sleep(0.5)
+            continue
 
 
 def check_issue_closable(issue_id):

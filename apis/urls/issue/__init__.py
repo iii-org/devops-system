@@ -54,3 +54,19 @@ def issue_url(api, add_resource):
     add_resource(view.IssueCommitRelationV2, "public")
     api.add_resource(view.SyncIssueFamiliesV2, "/v2/issue/sync_issue_families")
     add_resource(view.SyncIssueFamiliesV2, "public")
+
+    # Issue watcher add and remove
+    api.add_resource(view.IssueWatcherV2, "/v2/<int:issue_id>/watchers")
+    add_resource(view.IssueWatcherV2, "public")
+
+    api.add_resource(view.IssueRemoveWatcher, "/v2/<int:issue_id>/watchers/<int:user_id>")
+    add_resource(view.IssueRemoveWatcher, "public")
+
+    api.add_resource(view.WatchIssueByUser, "/v2/user/<sint:user_id>/issues/watch/list")
+    add_resource(view.WatchIssueByUser, "public")
+
+    api.add_resource(view.IssueSyncRedis, "/v2/issues/sync_watch_list")
+    add_resource(view.IssueSyncRedis, "public")
+
+    api.add_resource(view.IssueTag, "/v2/issue/remove/all/tag/<sint:tag_id>")
+    add_resource(view.IssueTag, "public")

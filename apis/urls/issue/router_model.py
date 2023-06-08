@@ -313,3 +313,11 @@ class IssueCommitRelationDataResponse(Schema):
 
 class IssueCommitRelationResponse(CommonBasicResponse):
     data = fields.Nested(IssueCommitRelationDataResponse, required=True)
+
+########## watcher Scheam ##########
+class WatcherIssueSchema(Schema):
+    user_id = fields.Int(example=1)
+
+class WatchIssueListSchema(Schema):
+    limit = fields.Int(example=1)
+    offset = fields.Int(example=1)

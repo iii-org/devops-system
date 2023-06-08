@@ -264,6 +264,12 @@ class Redmine:
         output = self.__api_get("/issues/{0}".format(issue_id), params=params)
         return output.json()["issue"]
 
+    def rm_add_watcher(self, issue_id: int, user_id: int=None):
+        return  self.__api_post(f'/issues/{issue_id}/watchers', params=user_id)
+        
+    def rm_remove_watcher(self, issue_id: int, user_id: dict):
+        return self.__api_delete(f"/issues/{issue_id}/watchers/{user_id}")
+
     def rm_get_statistics(self, params):
         if "status_id" not in params:
             params["status_id"] = "*"
