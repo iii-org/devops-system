@@ -55,7 +55,6 @@ from flask import send_file
 import nexus
 from resources.redmine import redmine, get_redmine_obj
 import werkzeug
-import resources.rancher as rancher
 
 
 ##### Project Relation ######
@@ -1174,7 +1173,7 @@ class ProjectEnvironmentV2(MethodResource):
     @jwt_required
     def delete(self, project_id, branch_name):
         role.require_in_project(project_id, "Error while getting project info.")
-        return project.delete_rancher_app(project_id, branch_name)
+        return project.delete_kubernetes_namespace_dev_environment(project_id, branch_name)
 
 
 class ProjectEnvironment(Resource):
@@ -1191,7 +1190,7 @@ class ProjectEnvironment(Resource):
     @jwt_required
     def delete(self, project_id, branch_name):
         role.require_in_project(project_id, "Error while getting project info.")
-        return project.delete_rancher_app(project_id, branch_name)
+        return project.delete_kubernetes_namespace_dev_environment(project_id, branch_name)
 
 
 @doc(tags=["Pending"], description="Get specific project deployed environment's URL?")
@@ -1699,17 +1698,17 @@ class ReleaseV2(MethodResource):
 
 
 ##### Project Error Message ######
-class ProjectErrorMessageV2(MethodResource):
-    @doc(tags=["Release"], description="Get Helm error message.")
-    @jwt_required
-    def get(self, project_name):
-        js = rancher.rancher.rc_get_app_by_name(project_name)
-        if len(js) == 0:
-            return util.success("Can not find app")
-        for temp in js[0]["conditions"]:
-            if temp.get("reason") == "Error":
-                return util.success(temp.get("message"))
-        return util.success("No errors found")
+# class ProjectErrorMessageV2(MethodResource):
+#     @doc(tags=["Release"], description="Get Helm error message.")
+#     @jwt_required
+#     def get(self, project_name):
+#         js = rancher.rancher.rc_get_app_by_name(project_name)
+#         if len(js) == 0:
+#             return util.success("Can not find app")
+#         for temp in js[0]["conditions"]:
+#             if temp.get("reason") == "Error":
+#                 return util.success(temp.get("message"))
+#         return util.success("No errors found")
 
 
 ##### Issue's force tracker ######

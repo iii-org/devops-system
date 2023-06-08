@@ -34,7 +34,6 @@ from resources.notification_message import (
     get_unclose_notification_message,
     get_unread_notification_message_list,
 )
-from resources.rancher import rancher
 from resources.redis import update_server_alive
 from resources.redmine import redmine
 from resources.resource_storage import (

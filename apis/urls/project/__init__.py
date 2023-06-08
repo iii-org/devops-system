@@ -327,8 +327,8 @@ def project_url(api, add_resource):
     api.add_resource(view.ReleaseV2, "/v2/project/<project_id>/releases/<release_name>")
     add_resource(view.ReleaseV2, "private")
 
-    api.add_resource(view.ProjectErrorMessageV2, "/v2/project/error_message/<project_name>")
-    add_resource(view.ProjectErrorMessageV2, "private")
+    # api.add_resource(view.ProjectErrorMessageV2, "/v2/project/error_message/<project_name>")
+    # add_resource(view.ProjectErrorMessageV2, "private")
 
     # Issue's force tracker
     api.add_resource(view.IssueForceTrackerV2, "/v2/project/<sint:project_id>/force_trackers")
