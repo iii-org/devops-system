@@ -37,7 +37,7 @@ iii_env_default = system_parameter["secret"] + system_parameter["registry"]
 
 env_normal_type = ["Opaque"]
 
-DEFAULT_NAMESPACE = "default"
+DEFAULT_NAMESPACE = "iiidevops"
 DEFAULT_SEC_CONTEXT = "system"
 SYSTEM_SECRET_NAMESPACE = "iiidevops-env-secret"
 CRONJOB_WHITELIST = ["anchore-grypedb-update-job-by-day"]
@@ -591,12 +591,12 @@ MAX_RETRY_APPLY_CRONJOB = 30
 
 
 def get_k8s_cronjob_name_list(api_k8s_client):
-    return [cronjob_json.metadata.name for cronjob_json in api_k8s_client.list_namespaced_cron_job("default").items]
+    return [cronjob_json.metadata.name for cronjob_json in api_k8s_client.list_namespaced_cron_job(DEFAULT_NAMESPACE).items]
 
 
 def apply_cronjob_yamls():
     def remove_cronjob():
-        api_k8s_client.delete_namespaced_cron_job(cronjob_name, "default")
+        api_k8s_client.delete_namespaced_cron_job(cronjob_name, DEFAULT_NAMESPACE)
         retry = 0
         still_has_cj = True
         while retry < MAX_RETRY_APPLY_CRONJOB and still_has_cj:
@@ -631,17 +631,17 @@ def apply_cronjob_yamls():
                     if cronjob_name in k8s_cronjob_name_list:
                         need_removed_cronjob_list.remove(cronjob_name)
                         remove_cronjob()
-                        for j in api_k8s_client.list_namespaced_job("default").items:
+                        for j in api_k8s_client.list_namespaced_job(DEFAULT_NAMESPACE).items:
                             if f"{cronjob_name}-" in j.metadata.name:
-                                api_k8s_client.delete_namespaced_job(j.metadata.name, "default")
+                                api_k8s_client.delete_namespaced_job(j.metadata.name, DEFAULT_NAMESPACE)
                                 break
-                        for pod in api_k8s_client.list_namespaced_pod("default").items:
+                        for pod in api_k8s_client.list_namespaced_pod(DEFAULT_NAMESPACE).items:
                             if f"{cronjob_name}-" in pod.metadata.name:
-                                pod = api_k8s_client.delete_namespaced_pod(pod.metadata.name, "default")
+                                pod = api_k8s_client.delete_namespaced_pod(pod.metadata.name, DEFAULT_NAMESPACE)
                                 break
                 try:
                     logger.info(f"Recreate {cronjob_name}")
-                    k8s_utils.create_from_dict(api_k8s_client.get_api_client(), json_file, namespace="iiidevops")
+                    k8s_utils.create_from_dict(api_k8s_client.get_api_client(), json_file, namespace="iiidevops") # 轉namespace
                     logger.info(f"Recreate {cronjob_name} done")
                 except k8s_utils.FailToCreateError as e:
                     print("e1")
