@@ -1004,6 +1004,13 @@ class GitLab(object):
         commit_msg = self.single_commit(repo_id, sha)["title"]
         return self.create_commit(repo_id, branch, commit_msg)
 
+    def rerun_pipeline_job(self, repo_id: int, pipeline_id: int):
+        pipeline_info = self.gl_get_single_pipeline(repo_id, pipeline_id)
+        sha, branch = pipeline_info["sha"], pipeline_info["ref"]
+        commit_msg = self.single_commit(repo_id, sha)["title"]
+        return self.create_commit(repo_id, branch, commit_msg)
+
+
     ## variable
     def gl_get_all_global_variable(self):
         return self.__api_get("/admin/ci/variables").json()

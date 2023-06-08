@@ -26,7 +26,7 @@ def pipeline_exec_action(git_repository_id: int, args: dict[str, Union[int, str]
     """
     action, pipeline_id, branch = args["action"], args["pipelines_exec_run"], args.get("branch")
     if action == "rerun":
-        return gitlab.gl_rerun_pipeline_job(git_repository_id, pipeline_id)
+        return gitlab.rerun_pipeline_job(git_repository_id, pipeline_id)
     elif action == "stop":
         return gitlab.gl_stop_pipeline_job(git_repository_id, pipeline_id)
     elif action == "create":
