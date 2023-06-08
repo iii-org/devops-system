@@ -313,7 +313,6 @@ def remove_apk():
                 current_time = datetime.utcnow()
                 apk_datetime = datetime.fromtimestamp(os.path.getctime(apk_path))
                 if (current_time - apk_datetime).total_seconds() > 60 * 60 * 24:
-                    print(apk_path)
                     shutil.rmtree(path[0])
 
 

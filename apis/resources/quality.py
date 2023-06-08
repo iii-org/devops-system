@@ -227,7 +227,6 @@ def qu_get_testfile_list(project_id):
                             "the_last_test_result": the_last_result,
                         }
                     )
-    print(out_list)
     return out_list
 
 

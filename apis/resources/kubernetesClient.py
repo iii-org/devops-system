@@ -1301,14 +1301,14 @@ def map_ingress_with_host(rules):
                         info.append(
                             {
                                 "hostname_path": hostname + path.path,
-                                "service": f"{path.backend.service_name}:{path.backend.service_port}",
+                                "service": f"{path.backend.service.name}:{path.backend.service.port}",
                             }
                         )
                     else:
                         info.append(
                             {
                                 "hostname_path": path.path,
-                                "service": f"{path.backend.service_name}:{path.backend.service_port}",
+                                "service": f"{path.backend.service.name}:{path.backend.service.port}",
                             }
                         )
         return info

@@ -55,7 +55,7 @@ TEMPLATE_SUPPORT_VERSION = None
 with open("apis/resources/template/template_support_version.json") as file:
     TEMPLATE_SUPPORT_VERSION = json.load(file)
 
-FILTER_OUT_PIPELINE_FILE_INFO_CONDITION = lambda k: k not in ["stages"] and not k.startswith(".")
+FILTER_OUT_PIPELINE_FILE_INFO_CONDITION = lambda k: k not in ["stages", "include"] and not k.startswith(".")
 
 
 def __tm_get_tag_info(pj, tag_name):
@@ -558,9 +558,9 @@ def get_tool_name(stage):
     return tool_name
 
 
-def update_pipeline_info_branches(stage: list or dict, pipeline_soft: dict, branch: str, enable_key_name: str, exist_branches: list) -> bool:
+def update_pipeline_info_branches(stage: dict, pipeline_soft: dict, branch: str, enable_key_name: str, exist_branches: list) -> bool:
     had_update_branch = False
-    tool_name = stage.get("stage") if isinstance(stage, dict) else stage[0].get("stage")
+    tool_name = stage.get("variables", {}).get("iiidevops")
     if pipeline_soft["key"] == tool_name:
         execute_stages = stage["only"]
         if pipeline_soft[enable_key_name] and branch not in execute_stages:

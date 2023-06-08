@@ -1423,7 +1423,6 @@ class ProjectUserResourceConfigMapV2(MethodResource):
 class ProjectUserResourceConfigMap(Resource):
     @jwt_required
     def get(self, project_id, configmap_name):
-        print(configmap_name)
         role.require_in_project(project_id, "Error while getting project info.")
         return project.read_kubernetes_namespace_configmap(project_id, configmap_name)
 

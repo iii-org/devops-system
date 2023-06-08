@@ -2680,7 +2680,6 @@ class DownloadIssueAsExcel:
         return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
     def __append_main_issue(self):
-        print(self.args)
         output = get_issue_list_by_project_helper(
             self.project_id, self.args, download=True, operator_id=self.operator_id
         )
@@ -2831,7 +2830,6 @@ class DumpByIssue(Resource):
 class IssueByUserV2(MethodResource):
     @jwt_required
     def get(self, user_id, **kwargs):
-        print(kwargs)
         if kwargs.get("search") is not None and len(kwargs["search"]) < 2:
             output = []
         else:
