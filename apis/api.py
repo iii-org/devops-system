@@ -683,6 +683,14 @@ except Exception:
     pass
 
 
+# restore
+try:
+    from apis.urls.restore import restore_url
+    restore_url(api, add_resource)
+except Exception:
+    pass
+
+
 def start_prod():
     try:
         db.init_app(app)

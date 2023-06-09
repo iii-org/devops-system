@@ -1107,6 +1107,14 @@ def get_user_message_type(user_id):
     return row_to_dict(UserMessageType.query.filter_by(user_id=user_id).first())
 
 
+def get_user_json_by_login(login_name: str) -> dict:
+    return row_to_dict(model.User.query.filter(model.User.login == login_name).first())
+
+
+def get_user_json_by_email(email: str) -> dict:
+    return row_to_dict(model.User.query.filter(model.User.email == email).first())
+
+
 def update_user_message_types(user_id, args):
     users_message_type = UserMessageType.query.filter_by(user_id=user_id).first()
     if users_message_type is not None:
