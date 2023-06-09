@@ -2,7 +2,7 @@ from flask import _request_ctx_stack, request, make_response
 from resources import apiError
 from model import User, db, ProjectUserRole
 from resources import role
-from resources.keycloak import key_cloak,  set_tokens_in_cookies_and_return_response, set_ui_origin_in_cookie_and_return_response
+from resources.keycloak import key_cloak, set_tokens_in_cookies_and_return_response, set_ui_origin_in_cookie_and_return_response, REFRESH_TOKEN
 
 from resources import apiError
 from typing import Any
@@ -98,7 +98,7 @@ def check_login_status_and_return_refresh_token(access_token: str) -> dict[str, 
     ret = {"account_exist": account_exist, "token_invalid": False}
 
     if not account_exist:
-        refresh_token = request.cookies.get("refresh_token")
+        refresh_token = request.cookies.get(REFRESH_TOKEN)
         if refresh_token:
             token_info = key_cloak.get_token_by_refresh_token(refresh_token)
             if not token_info:
