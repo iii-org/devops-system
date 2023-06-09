@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import numbers
 import os
 import time
@@ -164,6 +165,7 @@ class ApiK8sClient:
         try:
             return self.core_v1.create_namespaced_secret(namespace, body)
         except apiError.DevOpsError as e:
+            logging.info(f'create_namespaced_secret: {e}')
             if e.status_code != 404:
                 raise e
 
@@ -1146,10 +1148,17 @@ def list_namespace_secrets(namespace):
             raise e
 
 
-def read_namespace_secret(namespace, secret_name):
+def check_k8s_init_status(namespace: str, secret_name: str, init_: bool=False):
+    if init_:
+        secret = ApiK8sClient.from_context().read_namespaced_secret(secret_name, namespace)
+        return secret
+    return ApiK8sClient.read_namespaced_secret(secret_name, namespace)
+
+
+def read_namespace_secret(namespace: str, secret_name: str, init_: bool=False):
+    secret_data = {}
     try:
-        secret_data = {}
-        secret = ApiK8sClient().read_namespaced_secret(secret_name, namespace)
+        secret = check_k8s_init_status(namespace, secret_name, init_=init_)
         if secret.data is None:
             return {}
         for key, value in secret.data.items():
@@ -1161,15 +1170,19 @@ def read_namespace_secret(namespace, secret_name):
         return None
 
 
-def create_namespace_secret(namespace, secret_name, secrets):
+def create_namespace_secret(namespace: str, secret_name: str, secrets, init_=False):
     for key, value in secrets.items():
         secrets[key] = base64.b64encode(bytes(value, encoding="utf-8")).decode("utf-8")
     try:
         body = k8s_client.V1Secret(
             metadata=k8s_client.V1ObjectMeta(namespace=namespace, name=secret_name),
             data=secrets,
-        )
-        ApiK8sClient().create_namespaced_secret(namespace, body)
+        )       
+        if init_:
+            ApiK8sClient.from_context().create_namespaced_secret(namespace, body)
+        else:
+            ApiK8sClient().create_namespaced_secret(namespace, body)
+
         return {}
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1191,9 +1204,13 @@ def patch_namespace_secret(namespace, secret_name, secrets):
             raise e
 
 
-def delete_namespace_secret(namespace, name):
+def delete_namespace_secret(namespace: str, name: str, init_=False) -> str:
     try:
-        secret = ApiK8sClient().delete_namespaced_secret(name, namespace)
+        # secret = check_k8s_init_status(namespace, name,init_=True)
+        if init_:
+            secret = ApiK8sClient().from_context().delete_namespaced_secret(name, namespace)
+        else:
+            secret = ApiK8sClient().delete_namespaced_secret(name, namespace)
         return secret.details.name
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1715,16 +1732,14 @@ def create_cron_job_token_in_secret():
     If we do not replace the old token when server is being redeployed,
         token sometime can not be used.
     """
-
-    # default or iiidevops? default中有存cornjob-bot
-
-    if read_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot"):  
-        delete_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot")
+    if read_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", init_=True):  
+        delete_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", init_=True)
+    logging.info('read_namespace_secret', read_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", init_=True))
     token = key_cloak.get_token_by_account_pwd(
         config.get("ADMIN_INIT_LOGIN"), config.get("ADMIN_INIT_PASSWORD"), scope="openid offline_access"
     )
 
-    create_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", {"cornjob-token": token["refresh_token"]})
+    create_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", {"cornjob-token": token["refresh_token"]}, init_=True)
 
 
 # gitlab ingress body
