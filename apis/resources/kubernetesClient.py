@@ -38,7 +38,7 @@ iii_env_default = system_parameter["secret"] + system_parameter["registry"]
 env_normal_type = ["Opaque"]
 
 DEFAULT_NAMESPACE = "default"
-DEFAULT_SEC_CONTEXT = "runner"
+DEFAULT_SEC_CONTEXT = "system"
 SYSTEM_SECRET_NAMESPACE = "iiidevops-env-secret"
 CRONJOB_WHITELIST = ["anchore-grypedb-update-job-by-day"]
 
