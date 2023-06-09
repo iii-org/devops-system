@@ -766,7 +766,7 @@ def create_service_account(login_sa_name):
     if "account" not in list_namespace(use_context=True):
         create_namespace("account", use_context=True)
 
-    sa = ApiK8sClient.from_context().create_namespaced_service_account(
+    sa = ApiK8sClient().create_namespaced_service_account(
         "account",
         k8s_client.V1ServiceAccount(metadata=k8s_client.V1ObjectMeta(name=login_sa_name)),
     )
@@ -774,20 +774,20 @@ def create_service_account(login_sa_name):
 
 
 def delete_service_account(login_sa_name):
-    sa = ApiK8sClient.from_context().delete_namespaced_service_account(login_sa_name, "account")
+    sa = ApiK8sClient().delete_namespaced_service_account(login_sa_name, "account")
     return sa
 
 
 def list_service_account():
     list_service_accouts = []
-    for sa in ApiK8sClient.from_context().list_namespaced_service_account("account").items:
+    for sa in ApiK8sClient().list_namespaced_service_account("account").items:
         list_service_accouts.append(sa.metadata.name)
     return list_service_accouts
 
 
 def get_service_account_config(sa_name):
     list_nodes = []
-    api_k8s_client = ApiK8sClient.from_context()
+    api_k8s_client = ApiK8sClient()
     for node in api_k8s_client.list_node().items:
         ip = None
         hostname = None
