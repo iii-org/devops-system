@@ -1148,17 +1148,11 @@ def list_namespace_secrets(namespace):
             raise e
 
 
-def check_k8s_init_status(namespace: str, secret_name: str, init_: bool=False):
-    if init_:
-        secret = ApiK8sClient.from_context().read_namespaced_secret(secret_name, namespace)
-        return secret
-    return ApiK8sClient.read_namespaced_secret(secret_name, namespace)
-
-
 def read_namespace_secret(namespace: str, secret_name: str, init_: bool=False):
     secret_data = {}
     try:
-        secret = check_k8s_init_status(namespace, secret_name, init_=init_)
+        k8sclient=  ApiK8sClient.from_context() if init_ else ApiK8sClient
+        secret = k8sclient.read_namespaced_secret(secret_name, namespace)
         if secret.data is None:
             return {}
         for key, value in secret.data.items():
@@ -1178,10 +1172,7 @@ def create_namespace_secret(namespace: str, secret_name: str, secrets, init_=Fal
             metadata=k8s_client.V1ObjectMeta(namespace=namespace, name=secret_name),
             data=secrets,
         )       
-        if init_:
-            ApiK8sClient.from_context().create_namespaced_secret(namespace, body)
-        else:
-            ApiK8sClient().create_namespaced_secret(namespace, body)
+        ApiK8sClient.from_context().create_namespaced_secret(namespace, body) if init_ else ApiK8sClient().create_namespaced_secret(namespace, body)
 
         return {}
     except apiError.DevOpsError as e:
@@ -1206,11 +1197,8 @@ def patch_namespace_secret(namespace, secret_name, secrets):
 
 def delete_namespace_secret(namespace: str, name: str, init_=False) -> str:
     try:
-        # secret = check_k8s_init_status(namespace, name,init_=True)
-        if init_:
-            secret = ApiK8sClient().from_context().delete_namespaced_secret(name, namespace)
-        else:
-            secret = ApiK8sClient().delete_namespaced_secret(name, namespace)
+        k8sclient = ApiK8sClient.from_context() if init_ else ApiK8sClient()
+        secret = k8sclient.delete_namespaced_secret(name, namespace)
         return secret.details.name
     except apiError.DevOpsError as e:
         if e.status_code != 404:
