@@ -623,7 +623,7 @@ def apply_cronjob_yamls():
                     json_file = yaml.safe_load(f)
 
                     # Set execute timezone
-                    timezone = get_deploy_timezone()
+                    timezone = get_deploy_timezone() # ssh 抓時間
                     json_file["spec"]["timeZone"] = timezone
                     cronjob_name = json_file["metadata"]["name"]
                     logger.info(f"Remove {cronjob_name}")
@@ -641,7 +641,7 @@ def apply_cronjob_yamls():
                                 break
                 try:
                     logger.info(f"Recreate {cronjob_name}")
-                    k8s_utils.create_from_dict(api_k8s_client.get_api_client(), json_file, namespace="iiidevops") # 轉namespace
+                    k8s_utils.create_from_dict(api_k8s_client.get_api_client(), json_file, namespace=DEFAULT_NAMESPACE) # 轉namespace
                     logger.info(f"Recreate {cronjob_name} done")
                 except k8s_utils.FailToCreateError as e:
                     print("e1")
@@ -1715,13 +1715,16 @@ def create_cron_job_token_in_secret():
     If we do not replace the old token when server is being redeployed,
         token sometime can not be used.
     """
-    if read_namespace_secret("default", "cornjob-bot"):
-        delete_namespace_secret("default", "cornjob-bot")
+
+    # default or iiidevops? default中有存cornjob-bot
+
+    if read_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot"):  
+        delete_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot")
     token = key_cloak.get_token_by_account_pwd(
         config.get("ADMIN_INIT_LOGIN"), config.get("ADMIN_INIT_PASSWORD"), scope="openid offline_access"
     )
 
-    create_namespace_secret("default", "cornjob-bot", {"cornjob-token": token["refresh_token"]})
+    create_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", {"cornjob-token": token["refresh_token"]})
 
 
 # gitlab ingress body
