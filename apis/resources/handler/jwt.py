@@ -72,12 +72,11 @@ def jwt_required(fn):
         token_info = check_login_status_and_return_refresh_token(access_token)
 
         if not token_info["account_exist"]:
-        
             if token_info["token_invalid"]:
                 resp = make_response(apiError.invalid_token(access_token, key_cloak.generate_login_url()), 401)
                 return set_ui_origin_in_cookie_and_return_response(resp)
 
-            jwt_identity = __generate_jwt_identity_info_by_access_token(access_token)
+            jwt_identity = __generate_jwt_identity_info_by_access_token(token_info["access_token"])
             _request_ctx_stack.top.jwt = jwt_identity
 
             response_content = fn(*args, **kwargs)

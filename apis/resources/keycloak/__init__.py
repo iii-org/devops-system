@@ -19,7 +19,8 @@ KEYCLOAK_ADMIN_PASSWORD = config.get("KEYCLOAK_ADMIN_PASSWORD")
 # REDIRECT_URL = f'{config.get("III_BASE_URL")}/v2/user/generate_token'
 TOKEN = "jwtToken"
 REFRESH_TOKEN = "refreshToken"
-UI_ORIGIN = "ui_origin"
+UI_ORIGIN = "uiOrigin"
+UI_CURRENT_PAGE = "redirectUrl"
 # Root url: change to dev4
 
 
@@ -275,7 +276,7 @@ def generate_token_by_code_and_set_cookie(code: str) -> Response:
     logger.info(f"code: {code}")
     token_info = key_cloak.get_token_by_code(code)
     access_token, refresh_token = token_info.get("access_token", ""), token_info.get("refresh_token", "")
-    iii_base_url = request.cookies.get(UI_ORIGIN) or config.get("III_BASE_URL")
+    iii_base_url = request.cookies.get(UI_CURRENT_PAGE) or request.cookies.get(UI_ORIGIN) or config.get("III_BASE_URL")
 
     response_content = redirect(iii_base_url)
     logger.info(f"Actually redirect url ({iii_base_url}).")

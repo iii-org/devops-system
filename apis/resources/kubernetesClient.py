@@ -763,8 +763,8 @@ def delete_namespace(project_name):
 
 
 def create_service_account(login_sa_name):
-    if "account" not in list_namespace(use_context=True):
-        create_namespace("account", use_context=True)
+    if "account" not in list_namespace():
+        create_namespace("account")
 
     sa = ApiK8sClient().create_namespaced_service_account(
         "account",
