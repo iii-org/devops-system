@@ -162,19 +162,18 @@ def get_trace_result_by_project_id(project_id: int) -> list:
 
 def backup_project_to_json():
     projects_result = []
-    # 測試時取得專案的
-    projects = Project.query.filter(Project.id == 40).order_by(Project.id).all()
-    # # 取得以專案 id 排序的所有專案資料列表
-    # projects = get_backup_project_all()
+    # 取得以專案 id 排序的所有專案資料列表
+    projects = get_backup_project_all()
     for project in projects:
-        print(type(project.start_date))
         project_json = row_to_dict(project)
         # 取得專案的 creator_id 及 owner_id 使用者的 login 欄位資訊
-        project_json["owner_login"] = get_user_login_by_user_id(project.owner_id)
-        if project.owner_id == project.creator_id:
-            project_json["creator_login"] = project_json["owner_login"]
-        else:
-            project_json["creator_login"] = get_user_login_by_user_id(project.creator_id)
+        if project.owner_id:
+            project_json["owner_login"] = get_user_login_by_user_id(project.owner_id)
+        if project.creator_id:
+            if project.owner_id == project.creator_id:
+                project_json["creator_login"] = project_json["owner_login"]
+            else:
+                project_json["creator_login"] = get_user_login_by_user_id(project.creator_id)
         # 依 project_id 取得 Alert 的資訊列表
         alerts = get_alert_by_project_id(project.id)
         if alerts:
@@ -253,5 +252,7 @@ def backup_project_to_json():
     ppsrs = get_project_parent_son_relation()
     parent_son_result = []
     for ppsr in ppsrs:
-        parent_son_result.append({"parent_name": ppsr.parent_name, "son_name": ppsr.son_name, "created_at": ppsr.created_at})
+        parent_son_result.append({"parent_name": ppsr.parent_name,
+                                  "son_name": ppsr.son_name,
+                                  "created_at": str(ppsr.created_at)})
     write_backup_json("bckup_project_parent_son", parent_son_result)
