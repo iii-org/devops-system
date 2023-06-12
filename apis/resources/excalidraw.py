@@ -572,3 +572,18 @@ def check_excalidraw_alive(excalidraw_url=None, excalidraw_socket_url=None):
     if not_alive_services != []:
         ret["message"] = f'{", ".join(not_alive_services)} not alive'
     return ret
+
+
+def get_excalidraw_by_excalidraw_id(excalidraw_id):
+    excalidraw_rows = (
+        db.session.query(Excalidraw, ExcalidrawIssueRelation, User, Project)
+        .outerjoin(
+            ExcalidrawIssueRelation,
+            Excalidraw.id == ExcalidrawIssueRelation.excalidraw_id,
+        )
+        .join(User, Excalidraw.operator_id == User.id)
+        .join(Project, Excalidraw.project_id == Project.id)
+        .filter(Excalidraw.id == excalidraw_id)
+    )
+    result = nexus_excalidraw(excalidraw_rows)
+    return result[0] if len(result) > 0 else {}

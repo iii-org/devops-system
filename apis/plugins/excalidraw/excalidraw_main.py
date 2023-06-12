@@ -30,6 +30,13 @@ class ExcalidrawsV2(MethodResource):
 
 class ExcalidrawV2(MethodResource):
     @doc(tags=["Excalidraw"], description="Delete an excalidraw.")
+    @handle_plugin("excalidraw")
+    @marshal_with(router_model.ExcalidrawGetSingleRes)
+    @jwt_required()
+    def get(self, excalidraw_id):
+        return util.success(excalidraw.get_excalidraw_by_excalidraw_id(excalidraw_id))
+
+    @doc(tags=["Excalidraw"], description="Delete an excalidraw.")
     @marshal_with(util.CommonResponse)
     @handle_plugin("excalidraw")
     @jwt_required()
