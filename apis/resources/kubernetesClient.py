@@ -421,6 +421,22 @@ class ApiK8sClient:
             if e.status_code != 404:
                 raise e
 
+    def create_namespace_service_account_token(self, name: str, namespace: str, expired_time: int = 600):
+        try:
+            body = k8s_client.AuthenticationV1TokenRequest(
+                spec=k8s_client.V1TokenRequestSpec(
+                    audiences=[
+                        "https://kubernetes.default.svc.cluster.local",
+                        "rke2",
+                    ],
+                    expiration_seconds=expired_time
+                    )
+            )
+            return self.core_v1.create_namespaced_service_account_token(name, namespace, body=body)
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
     # namespace
     def list_namespace(self):
         try:
@@ -825,6 +841,15 @@ def get_service_account_config(sa_name):
     )
     k8s_sa_config = {"name": sa_name, "config": sa_config}
     return k8s_sa_config
+
+
+def generate_service_account_token(service_account: str):
+    token_info = ApiK8sClient().create_namespace_service_account_token(service_account, "account")
+    token = token_info.status.token
+    if token is None:
+        logger.exception(f"Generate service account {service_account} failure")
+    return token
+
 
 
 def get_namespace_quota(namespace):

@@ -1,6 +1,7 @@
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 
+from resources.kubernetesClient import generate_service_account_token
 from resources import apiError
 from resources.handler.jwt import get_jwt_identity, jwt_required, check_login_status_and_return_refresh_token, return_jwt_token_if_exist
 from flask_restful import Resource, reqparse
@@ -308,3 +309,12 @@ class UserCheckStatusV2(MethodResource):
 
         return set_tokens_in_cookies_and_return_response(
             login_info["access_token"], login_info["refresh_token"], util.success())
+
+
+class ServiceAcccountToken(MethodResource):
+    @doc(tags=["User"], description="Generating service account token.")
+    @marshal_with(router_model.ServiceAcccountTokenRes)
+    @jwt_required
+    def post(self):
+        token = generate_service_account_token(get_jwt_identity()["user_account"])
+        return util.success({"token": token})

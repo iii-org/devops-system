@@ -291,3 +291,18 @@ class NewpasswordResponse(Schema):
 class GenerateTokenFromKeycloakSchema(Schema):
     code = fields.Str(required=True)
     state = fields.Str()
+
+
+### Generate service accoint token 
+
+#################################### Schema ####################################
+
+########## API Action ##########
+
+class ServiceAcccountTokenRes(CommonBasicResponse):
+    data = fields.Dict(
+            example={
+                "token": "token"
+            },
+            required=True,
+        )

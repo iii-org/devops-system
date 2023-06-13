@@ -44,4 +44,6 @@ def user_url(api, add_resource):
     api.add_resource(view.UserCheckStatusV2, "/v2/user/check_login")
     add_resource(view.UserCheckStatusV2, "private")
 
-
+    # service account create token
+    api.add_resource(view.ServiceAcccountToken, "/v2/user/k8s_token")
+    add_resource(view.ServiceAcccountToken, "private")
