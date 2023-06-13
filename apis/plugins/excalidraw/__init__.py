@@ -8,7 +8,7 @@ ui_route = ["Excalidraw"]
 def router(api, add_resource):
     api.add_resource(excalidraw_main.ExcalidrawsV2, "/v2/excalidraw")
     add_resource(excalidraw_main.ExcalidrawsV2, "public")
-    api.add_resource(excalidraw_main.ExcalidrawV2, "/v2/excalidraw/<int:excalidraw_id>")
+    api.add_resource(excalidraw_main.ExcalidrawV2, "/v2/excalidraw/data/<int:excalidraw_id>")
     add_resource(excalidraw_main.ExcalidrawV2, "public")
     api.add_resource(excalidraw_main.SyncExcalidrawDBV2, "/v2/excalidraw/sync_db")
     add_resource(excalidraw_main.SyncExcalidrawDBV2, "public")
