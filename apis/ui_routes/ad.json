@@ -221,15 +221,41 @@
     "children": [
       {
         "path": "whiteboard",
-        "name": "Whiteboard",
-        "component": "views/WhiteBoard",
+        "name": "Whiteboards",
+        "component": "layout/components/parentBlank",
+        "redirect": {
+          "name": "Whiteboard"
+        },
         "meta": {
-          "title": "Whiteboard",
           "roles": [
             "Administrator"
           ]
         },
-        "hidden": true
+        "children": [
+          {
+            "path": "",
+            "name": "Whiteboard",
+            "component": "views/WhiteBoard",
+            "meta": {
+              "title": "Whiteboard",
+              "roles": [
+                "Administrator"
+              ]
+            }
+          },
+          {
+            "path": ":excalidrawId",
+            "name": "Excalidraw",
+            "hidden": true,
+            "component": "views/WhiteBoard/components/Excalidraw",
+            "meta": {
+              "title": "Excalidraw",
+              "roles": [
+                "Administrator"
+              ]
+            }
+          }
+        ]
       },
       {
         "path": "issueBoards",
