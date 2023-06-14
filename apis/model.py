@@ -134,6 +134,7 @@ class Project(db.Model):
     trace_order = relationship("TraceOrder", backref="project")
     excalidraws = relationship("Excalidraw", back_populates="project")
     webinspect = relationship("WebInspect", back_populates="project")
+    image_auto_del = Column(Boolean, server_default="true")
 
     def __member_serializer(self, member_id):
         info = User.query.filter_by(id=member_id).first()
