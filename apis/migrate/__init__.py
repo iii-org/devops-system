@@ -143,7 +143,7 @@ def alembic_upgrade():
                 if line.startswith("sqlalchemy.url"):
                     import urllib.parse
 
-                    sql_db_url = f"postgresql://{config.get('SQLALCHEMY_ACCOUNT')}:'{urllib.parse.quote(config.get('SQLALCHEMY_PASSWORD'))}'@{config.get('SQLALCHEMY_HOST')}/{config.get('SQLALCHEMY_DATABASE')}"
+                    sql_db_url = f"postgresql://{config.get('SQLALCHEMY_ACCOUNT')}:{config.get('SQLALCHEMY_PASSWORD')}@{config.get('SQLALCHEMY_HOST')}/{config.get('SQLALCHEMY_DATABASE')}"
                     sql_db_url = sql_db_url.replace("%", "%%")
                     ini.write("sqlalchemy.url = {0}\n".format(sql_db_url))
                 else:
