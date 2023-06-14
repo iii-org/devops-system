@@ -300,3 +300,30 @@ class HarborScanList(MethodResource):
     @jwt_required()
     def get(self, project_id, **kwargs):
         return util.success(harbor_scan.harbor_scan_list(project_id, kwargs))
+
+
+KEEP_IMAGE_COUNT = 3
+
+
+@doc(tags=["Harbor Delete Image"], description="harbor image auto del")
+class HarborImageAutoDel(MethodResource):
+    @jwt_required()
+    def delete(self):
+        projects = nexus.nx_get_project_image_auto_del()
+        for project in projects:
+            if project.id <= 0:
+                continue
+            repositories = hb_list_repositories(project.name)
+            for repository in repositories:
+                artifact_count = repository.get("artifact_count", 0)
+                names = repository["name"].split("/")
+                if len(names) == 2 and names[0] == names[1]:
+                    continue
+                while artifact_count > KEEP_IMAGE_COUNT:
+                    artifacts = hb_list_artifacts(names[0], "/".join(names[1:]))
+                    artifacts_count = len(artifacts)
+                    for i in range(KEEP_IMAGE_COUNT, artifacts_count):
+                        hb_delete_artifact_tag(names[0], "/".join(names[1:]), artifacts[i]["digest"], artifacts[i]["name"])
+                        artifact_count -= 1
+        return util.success()
+
