@@ -1,10 +1,8 @@
 import os
 import re
-import sys
 import threading
 import traceback
 from os.path import isfile
-from pathlib import Path
 
 import werkzeug
 from apispec import APISpec
@@ -17,8 +15,6 @@ from flask_socketio import SocketIO
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
-
-
 
 import config
 import migrate
