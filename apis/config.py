@@ -1,12 +1,12 @@
-import json
 import os
-from pathlib import Path
 import subprocess
-from dotenv import load_dotenv
 import urllib.parse
+from pathlib import Path
+from typing import Any
 
+from dotenv import load_dotenv
 
-FIXED = {
+_configs: dict[str, Any] = {
     # API versions
     "GITLAB_API_VERSION": "v4",
     "RANCHER_API_VERSION": "v3",
@@ -19,33 +19,91 @@ FIXED = {
     "VERSION_CENTER_BASE_URL": "http://version-center.iiidevops.org",
 }
 
+# Define the base folder of the project
+BASE_FOLDER: Path = Path(__file__).parent.parent
 
-def handle_db_url():
+
+def _validate_env() -> None:
     """
-    Encoding specific characters in the SQLALCHEMY_PASSWORD
+    Implement the validation of the environment variables here.
+    For example, if the environment variable is required, but not found, raise an exception.
+    Or if the environment variable is not in the correct format, raise an exception.
+
+    Returns:
+
     """
-    FIXED[
-        "SQLALCHEMY_DATABASE_URI"
-    ] = f'postgresql://{os.getenv("SQLALCHEMY_ACCOUNT")}:{urllib.parse.quote_plus(os.getenv("SQLALCHEMY_PASSWORD"))}@{os.getenv("SQLALCHEMY_HOST")}/{os.getenv("SQLALCHEMY_DATABASE")}'
+    pass
 
 
-def get_current_branch():
-    command = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+def _load() -> None:
+    """
+    Load the environment variables from the .env file or os environment variables.
+
+    Returns:
+        None
+    """
+    env_folder: Path = BASE_FOLDER / "env"
+    if os.path.exists(env_folder):
+        env_file: Path = env_folder / f"{_get_branch_name()}.env"
+
+        if os.path.isfile(env_file):
+            load_dotenv(env_file)
+
+    sql: str = (
+        f"postgresql://"
+        f'{get("SQLALCHEMY_ACCOUNT")}:'
+        f'{urllib.parse.quote_plus(get("SQLALCHEMY_PASSWORD", ""))}@'
+        f'{get("SQLALCHEMY_HOST")}/'
+        f'{get("SQLALCHEMY_DATABASE")}'
+    )
+
+    _configs["SQLALCHEMY_DATABASE_URI"] = sql
+
+    _validate_env()
+
+
+def _get_branch_name() -> str:
+    """
+    Get the current branch name, if not found, return "default".
+
+    Returns:
+        str: The current branch name
+    """
+    command: list[str] = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
+    process: subprocess.Popen = subprocess.Popen(
+        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     output, _ = process.communicate()
-    current_branch = output.decode().strip()
-    return current_branch
+    branch_name: str = output.decode().strip()
+
+    if not branch_name:
+        branch_name = "default"
+
+    return branch_name
 
 
-def insert_env_file_in_env():
-    env_files_folder = Path(__file__).parent.parent / "env"
-    if os.path.exists(env_files_folder):
-        current_branch = get_current_branch()
-        env_files_folder = env_files_folder / f"{current_branch}.env"
-        load_dotenv(env_files_folder)
+def get(key: str, default: Any = None) -> Any:
+    """
+    Get the value of the key from the config file, if not found, return the default value
 
-    handle_db_url()
+    Args:
+        key: The key of the config
+        default: The default value if the key is not found
+
+    Returns:
+        Any: The value of the key
+    """
+    env: Any = os.getenv(key)
+
+    if env is not None:
+        return env
+
+    if key in _configs and _configs[key] is not None:
+        return _configs[key]
+
+    else:
+        return default
 
 
-def get(key):
-    return os.getenv(key) or FIXED.get(key)
+# Indirectly call the _load function
+_load()

@@ -1,10 +1,10 @@
 import os
+import re
 import sys
 import threading
 import traceback
 from os.path import isfile
 from pathlib import Path
-import re
 
 import werkzeug
 from apispec import APISpec
@@ -18,11 +18,10 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
+import config
+
 if str(Path(__file__).parent) not in sys.path:
     sys.path.insert(1, str(Path(__file__).parent))
-
-import config
-config.insert_env_file_in_env()
 
 import migrate
 import model
@@ -36,7 +35,14 @@ import util
 
 # from jsonwebtoken import jsonwebtoken
 from model import db
-from resources import logger, role as role, activity, starred_project, devops_version, cicd
+from resources import (
+    logger,
+    role as role,
+    activity,
+    starred_project,
+    devops_version,
+    cicd,
+)
 from resources import (
     project,
     gitlab,
@@ -81,7 +87,6 @@ from urls.system_parameter import sync_system_parameter_url
 from urls.tag import tag_url
 from urls.template import template_url
 from urls.user import user_url
-
 
 app = Flask(__name__)
 for key in [
@@ -153,7 +158,9 @@ if config.get("DEBUG") is False:
         timeout=60000,
     )
 else:
-    socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True, timeout=60000)
+    socketio = SocketIO(
+        app, cors_allowed_origins="*", logger=True, engineio_logger=True, timeout=60000
+    )
 
 
 class SignedIntConverter(IntegerConverter):
@@ -166,27 +173,35 @@ app.url_map.converters["sint"] = SignedIntConverter
 @app.errorhandler(Exception)
 def internal_error(exception):
     if type(exception) is NoResultFound:
-        return util.respond(404, "Resource not found.", error=apiError.resource_not_found())
+        return util.respond(
+            404, "Resource not found.", error=apiError.resource_not_found()
+        )
     if type(exception) is werkzeug.exceptions.NotFound:
         return util.respond(404, "Path not found.", error=apiError.path_not_found())
     if type(exception) is apiError.DevOpsError:
         traceback.print_exc()
         logger.logger.exception(str(exception))
-        return util.respond(exception.status_code, exception.message, error=exception.error_value)
+        return util.respond(
+            exception.status_code, exception.message, error=exception.error_value
+        )
     if type(exception) is werkzeug.exceptions.UnprocessableEntity:
         mes = exception.data.get("messages", {})
         error_message = mes.get("json") or mes.get("query") or mes.get("form")
         return util.respond(422, error_message)
     traceback.print_exc()
     logger.logger.exception(str(exception))
-    return util.respond(500, "Unexpected internal error", error=apiError.uncaught_exception(exception))
+    return util.respond(
+        500, "Unexpected internal error", error=apiError.uncaught_exception(exception)
+    )
 
 
 class NexusVersion(Resource):
     @jwt_required
     def get(self):
         row = model.NexusVersion.query.one()
-        return util.success({"api_version": row.api_version, "deploy_version": row.deploy_version})
+        return util.success(
+            {"api_version": row.api_version, "deploy_version": row.deploy_version}
+        )
 
     @jwt_required
     def post(self):
@@ -205,9 +220,14 @@ class NexusVersion(Resource):
 
     @staticmethod
     def _check(check: str) -> str:
-        error: apiError.DevOpsError = apiError.DevOpsError(400, "api_version is not valid")
+        error: apiError.DevOpsError = apiError.DevOpsError(
+            400, "api_version is not valid"
+        )
         # check regex only digit and dot
-        if re.match(r"^[Vv]?\d+(\.\d+)*$", check) is None and check.lower() != "develop":
+        if (
+            re.match(r"^[Vv]?\d+(\.\d+)*$", check) is None
+            and check.lower() != "develop"
+        ):
             raise error
 
         return check
@@ -279,8 +299,12 @@ def initialize(db_uri):
 router_url(api, add_resource)
 
 # Git
-api.add_resource(project.GitRepoIdToCiPipeId, "/git_repo_id_to_ci_pipe_id/<repository_id>")
-api.add_resource(project.GitRepoIdToCiPipeIdV2, "/v2/git_repo_id_to_ci_pipe_id/<repository_id>")
+api.add_resource(
+    project.GitRepoIdToCiPipeId, "/git_repo_id_to_ci_pipe_id/<repository_id>"
+)
+api.add_resource(
+    project.GitRepoIdToCiPipeIdV2, "/v2/git_repo_id_to_ci_pipe_id/<repository_id>"
+)
 add_resource(project.GitRepoIdToCiPipeIdV2, "private")
 
 # Projects
@@ -291,10 +315,10 @@ api.add_resource(
     "/project/issues_commit_by_name",
 )
 
-
 # App
-api.add_resource(project.AllPodsAndServicesUnderApp, "/project/<sint:project_id>/app/<app_name>")
-
+api.add_resource(
+    project.AllPodsAndServicesUnderApp, "/project/<sint:project_id>/app/<app_name>"
+)
 
 # Project son relation
 api.add_resource(
@@ -302,7 +326,10 @@ api.add_resource(
     "/project/<sint:project_id>/issues_commit",
     "/project/<sint:project_id>/issues_commit/<issue_id>",
 )
-api.add_resource(gitlab.GetCommitIssueHookByBranch, "/project/<sint:project_id>/issues_commit/by_branch")
+api.add_resource(
+    gitlab.GetCommitIssueHookByBranch,
+    "/project/<sint:project_id>/issues_commit/by_branch",
+)
 
 project_url(api, add_resource)
 
@@ -310,22 +337,38 @@ project_url(api, add_resource)
 tag_url(api, add_resource)
 template_url(api, add_resource)
 
-
 api.add_resource(template.TemplateList, "/template_list")
 api.add_resource(template.TemplateListForCronJob, "/template_list_for_cronjob")
 api.add_resource(template.SingleTemplate, "/template", "/template/<repository_id>")
-api.add_resource(template.ProjectPipelineBranches, "/project/<repository_id>/pipeline/branches")
-api.add_resource(template.ProjectPipelineDefaultBranch, "/project/<repository_id>/pipeline/default_branch")
+api.add_resource(
+    template.ProjectPipelineBranches, "/project/<repository_id>/pipeline/branches"
+)
+api.add_resource(
+    template.ProjectPipelineDefaultBranch,
+    "/project/<repository_id>/pipeline/default_branch",
+)
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, "/repositories/<repository_id>/branches")
-api.add_resource(gitlab.GitProjectBranchesV2, "/v2/repositories/<repository_id>/branches")
+api.add_resource(
+    gitlab.GitProjectBranchesV2, "/v2/repositories/<repository_id>/branches"
+)
 add_resource(gitlab.GitProjectBranchesV2, "public")
-api.add_resource(gitlab.GitProjectBranch, "/repositories/<repository_id>/branch/<branch_name>")
-api.add_resource(gitlab.GitProjectBranchV2, "/v2/repositories/<repository_id>/branch/<branch_name>")
+api.add_resource(
+    gitlab.GitProjectBranch, "/repositories/<repository_id>/branch/<branch_name>"
+)
+api.add_resource(
+    gitlab.GitProjectBranchV2, "/v2/repositories/<repository_id>/branch/<branch_name>"
+)
 add_resource(gitlab.GitProjectBranchV2, "public")
-api.add_resource(gitlab.GitProjectRepositories, "/repositories/<repository_id>/branch/<branch_name>/tree")
-api.add_resource(gitlab.GitProjectRepositoriesV2, "/v2/repositories/<repository_id>/branch/<branch_name>/tree")
+api.add_resource(
+    gitlab.GitProjectRepositories,
+    "/repositories/<repository_id>/branch/<branch_name>/tree",
+)
+api.add_resource(
+    gitlab.GitProjectRepositoriesV2,
+    "/v2/repositories/<repository_id>/branch/<branch_name>/tree",
+)
 add_resource(gitlab.GitProjectRepositoriesV2, "public")
 api.add_resource(
     gitlab.GitProjectFile,
@@ -333,20 +376,35 @@ api.add_resource(
     "/repositories/<repository_id>/branch/<branch_name>/files/<file_path>",
 )
 api.add_resource(
-    gitlab.GitProjectTag, "/repositories/<repository_id>/tags/<tag_name>", "/repositories/<repository_id>/tags"
+    gitlab.GitProjectTag,
+    "/repositories/<repository_id>/tags/<tag_name>",
+    "/repositories/<repository_id>/tags",
 )
 api.add_resource(
-    gitlab.GitProjectTagV2, "/v2/repositories/<repository_id>/tags/<tag_name>", "/v2/repositories/<repository_id>/tags"
+    gitlab.GitProjectTagV2,
+    "/v2/repositories/<repository_id>/tags/<tag_name>",
+    "/v2/repositories/<repository_id>/tags",
 )
 add_resource(gitlab.GitProjectTagV2, "public")
-api.add_resource(gitlab.GitProjectBranchCommits, "/repositories/<repository_id>/commits")
-api.add_resource(gitlab.GitProjectBranchCommitsV2, "/v2/repositories/<repository_id>/commits")
+api.add_resource(
+    gitlab.GitProjectBranchCommits, "/repositories/<repository_id>/commits"
+)
+api.add_resource(
+    gitlab.GitProjectBranchCommitsV2, "/v2/repositories/<repository_id>/commits"
+)
 add_resource(gitlab.GitProjectBranchCommitsV2, "public")
-api.add_resource(gitlab.GitProjectMembersCommits, "/repositories/<repository_id>/members_commits")
-api.add_resource(gitlab.GitProjectMembersCommitsV2, "/v2/repositories/<repository_id>/members_commits")
+api.add_resource(
+    gitlab.GitProjectMembersCommits, "/repositories/<repository_id>/members_commits"
+)
+api.add_resource(
+    gitlab.GitProjectMembersCommitsV2,
+    "/v2/repositories/<repository_id>/members_commits",
+)
 add_resource(gitlab.GitProjectMembersCommitsV2, "public")
 api.add_resource(gitlab.GitProjectNetwork, "/repositories/<repository_id>/overview")
-api.add_resource(gitlab.GitProjectNetworkV2, "/v2/repositories/<repository_id>/overview")
+api.add_resource(
+    gitlab.GitProjectNetworkV2, "/v2/repositories/<repository_id>/overview"
+)
 add_resource(gitlab.GitProjectNetworkV2, "public")
 api.add_resource(gitlab.GitProjectId, "/repositories/<repository_id>/id")
 api.add_resource(gitlab.GitProjectIdV2, "/v2/repositories/<repository_id>/id")
@@ -357,7 +415,9 @@ add_resource(gitlab.GitProjectIdFromURLV2, "public")
 api.add_resource(gitlab.GitProjectURLFromId, "/repositories/url")
 api.add_resource(gitlab.GitProjectURLFromIdV2, "/v2/repositories/url")
 add_resource(gitlab.GitProjectURLFromIdV2, "public")
-api.add_resource(gitlab.GitlabDomainConnection, "/repositories/is_ip", "/repositories/connection")
+api.add_resource(
+    gitlab.GitlabDomainConnection, "/repositories/is_ip", "/repositories/connection"
+)
 api.add_resource(gitlab.GitlabDomainStatus, "/repositories/connection/status")
 api.add_resource(gitlab.GitlabDomainStatusV2, "/v2/repositories/connection/status")
 add_resource(gitlab.GitlabDomainStatusV2, "public")
@@ -374,7 +434,9 @@ user_url(api, add_resource)
 api.add_resource(role.RoleList, "/user/role/list")
 
 # pipeline
-api.add_resource(pipeline.PipelineExecAction, "/pipelines/<repository_id>/pipelines_exec/action")
+api.add_resource(
+    pipeline.PipelineExecAction, "/pipelines/<repository_id>/pipelines_exec/action"
+)
 api.add_resource(pipeline.PipelineExec, "/pipelines/<repository_id>/pipelines_exec")
 api.add_resource(pipeline.PipelineConfig, "/pipelines/<repository_id>/config")
 api.add_resource(pipeline.Pipeline, "/pipelines/<repository_id>/pipelines")
@@ -388,7 +450,9 @@ api.add_resource(pipeline.Pipeline, "/pipelines/<repository_id>/pipelines")
 # api.add_resource(pipeline.PipelineYaml, "/pipelines/<repository_id>/branch/<branch_name>/generate_ci_yaml")
 
 # Websocket
-socketio.on_namespace(system_parameter.SyncTemplateWebsocketLog("/sync_template/websocket/logs"))
+socketio.on_namespace(
+    system_parameter.SyncTemplateWebsocketLog("/sync_template/websocket/logs")
+)
 socketio.on_namespace(pipeline.PipelineWebsocketLog("/pipeline/websocket/logs"))
 socketio.on_namespace(issue.IssueSocket("/issues/websocket"))
 
@@ -432,11 +496,15 @@ api.add_resource(plugin.PluginsCronjob, "/plugins/cronjob")
 
 # dashboard
 api.add_resource(issue.DashboardIssuePriority, "/dashboard_issues_priority/<user_id>")
-api.add_resource(issue.DashboardIssuePriorityV2, "/v2/dashboard_issues_priority/<user_id>")
+api.add_resource(
+    issue.DashboardIssuePriorityV2, "/v2/dashboard_issues_priority/<user_id>"
+)
 add_resource(issue.DashboardIssuePriorityV2, "private")
 
 api.add_resource(issue.DashboardIssueProject, "/dashboard_issues_project/<user_id>")
-api.add_resource(issue.DashboardIssueProjectV2, "/v2/dashboard_issues_project/<user_id>")
+api.add_resource(
+    issue.DashboardIssueProjectV2, "/v2/dashboard_issues_project/<user_id>"
+)
 add_resource(issue.DashboardIssueProjectV2, "private")
 
 api.add_resource(issue.DashboardIssueType, "/dashboard_issues_type/<user_id>")
@@ -492,7 +560,9 @@ add_resource(issue.ParameterTypeV2, "private")
 
 # testPhase TestCase Support Case Type
 api.add_resource(apiTest.TestCases, "/test_cases")
-api.add_resource(apiTest.TestCase, "/test_cases/<sint:tc_id>", "/testCases/<sint:tc_id>")
+api.add_resource(
+    apiTest.TestCase, "/test_cases/<sint:tc_id>", "/testCases/<sint:tc_id>"
+)
 
 api.add_resource(apiTest.GetTestCaseType, "/testCases/support_type")
 
@@ -515,12 +585,12 @@ api.add_resource(apiTest.TestValueByTestItem, "/testValues_by_testItem/<item_id>
 api.add_resource(apiTest.TestValue, "/testValues/<value_id>")
 
 # Integrated test results
-api.add_resource(cicd.CommitCicdSummary, "/project/<sint:project_id>/test_summary/<commit_id>")
-
+api.add_resource(
+    cicd.CommitCicdSummary, "/project/<sint:project_id>/test_summary/<commit_id>"
+)
 
 # Get everything by issue_id
 api.add_resource(issue.DumpByIssue, "/dump_by_issue/<issue_id>")
-
 
 # Files
 api.add_resource(redmine.RedmineFile, "/download", "/file/<int:file_id>")
@@ -529,7 +599,6 @@ api.add_resource(redmine.RedmineMail, "/mail")
 api.add_resource(redmine.RedmineMailActive, "/mail/active")
 
 system_url(api, add_resource)
-
 
 # Harbor
 harbor_url(api, add_resource)
@@ -545,16 +614,19 @@ api.add_resource(rancher.RancherDeleteAPP, "/rancher/delete_app")
 api.add_resource(activity.AllActivities, "/all_activities")
 api.add_resource(activity.ProjectActivities, "/project/<sint:project_id>/activities")
 
-
 # Sync Redmine, Gitlab, Rancher
 api.add_resource(sync_redmine.SyncRedmine, "/sync_redmine")
 api.add_resource(sync_redmine.SyncRedmineNow, "/sync_redmine/now")
-api.add_resource(gitlab.GitCountEachPjCommitsByDays, "/sync_gitlab/count_each_pj_commits_by_days")
+api.add_resource(
+    gitlab.GitCountEachPjCommitsByDays, "/sync_gitlab/count_each_pj_commits_by_days"
+)
 api.add_resource(issue.ExecuteIssueAlert, "/sync_issue_alert")
 
 # Subadmin Projects Permission
 api.add_resource(project_permission.AdminProjects, "/project_permission/admin_projects")
-api.add_resource(project_permission.SubadminProjects, "/project_permission/subadmin_projects")
+api.add_resource(
+    project_permission.SubadminProjects, "/project_permission/subadmin_projects"
+)
 api.add_resource(project_permission.Subadmins, "/project_permission/subadmins")
 api.add_resource(project_permission.SetPermission, "/project_permission/set_permission")
 
@@ -562,7 +634,10 @@ api.add_resource(project_permission.SetPermission, "/project_permission/set_perm
 api.add_resource(quality.TestPlanList, "/quality/<int:project_id>/testplan_list")
 # api.add_resource(quality.TestPlan,
 #                  '/quality/<int:project_id>/testplan/<int:testplan_id>')
-api.add_resource(quality.TestFileByTestPlan, "/quality/<int:project_id>/testfile_by_testplan/<int:testplan_id>")
+api.add_resource(
+    quality.TestFileByTestPlan,
+    "/quality/<int:project_id>/testfile_by_testplan/<int:testplan_id>",
+)
 api.add_resource(quality.TestFileList, "/quality/<int:project_id>/testfile_list")
 api.add_resource(
     quality.TestFile,
@@ -581,7 +656,6 @@ api.add_resource(NexusVersion, "/system_versions")
 
 sync_projects_url(api, add_resource)
 sync_users_url(api, add_resource)
-
 
 # Centralized version check
 api.add_resource(devops_version.DevOpsVersion, "/devops_version")
@@ -602,17 +676,26 @@ api.add_resource(deploy.Application, "/deploy/applications/<int:application_id>"
 # 20230215 為新增 application_header table 而新增下列一段程式
 api.add_resource(deploy.ApplicationHeaders, "/deploy/app_headers")
 api.add_resource(deploy.ApplicationHeader, "/deploy/app_headers/<int:app_header_id>")
-api.add_resource(deploy.DeleteApplicationHeader, "/deploy/app_headers/<int:app_header_id>/<int:application_id>")
+api.add_resource(
+    deploy.DeleteApplicationHeader,
+    "/deploy/app_headers/<int:app_header_id>/<int:application_id>",
+)
 # 20230215 為新增 application_header table 而新增上列一段程式
 
-api.add_resource(deploy.RedeployApplication, "/deploy/applications/<int:application_id>/redeploy")
+api.add_resource(
+    deploy.RedeployApplication, "/deploy/applications/<int:application_id>/redeploy"
+)
 
-api.add_resource(deploy.UpdateApplication, "/deploy/applications/<int:application_id>/update")
+api.add_resource(
+    deploy.UpdateApplication, "/deploy/applications/<int:application_id>/update"
+)
 
 api.add_resource(deploy.Cronjob, "/deploy/applications/cronjob")
 
 # 20230118 新增下列API程式，以解決因遠端機器不存在造成TIMEOUT使得無法取得APPLICATION的資料列表
-api.add_resource(deploy.Deployment, "/deploy/applications/deployment/<int:application_id>")
+api.add_resource(
+    deploy.Deployment, "/deploy/applications/deployment/<int:application_id>"
+)
 # 20230118 新增上列API程式，以解決因遠端機器不存在造成TIMEOUT使得無法取得APPLICATION的資料列表
 # 20230118 為取得 storage class 資訊而新增下列API
 api.add_resource(deploy.StorageClass, "/deploy/clusters/storage/<int:cluster_id>")
@@ -621,10 +704,15 @@ api.add_resource(deploy.StorageClass, "/deploy/clusters/storage/<int:cluster_id>
 api.add_resource(deploy.UpdateStorageClass, "/deploy/storage/<int:storage_class_id>")
 # 20230201 為變更 storage class disabled 布林值而新增上列API
 # 20230202 為取得 persistent volume claim 資訊而新增下列API
-api.add_resource(deploy.PersistentVolumeClaim, "/deploy/clusters/storage/pvc/<int:storage_class_id>")
+api.add_resource(
+    deploy.PersistentVolumeClaim, "/deploy/clusters/storage/pvc/<int:storage_class_id>"
+)
 # 20230202 為取得 persistent volume claim 資訊而新增上列API
 # 20230313 為檢查 expose port 是否可使用而新增下列API
-api.add_resource(deploy.CheckPortCanUse, "/deploy/clusters/<cluster_name>/outer_port/<int:expose_port>/can_use")
+api.add_resource(
+    deploy.CheckPortCanUse,
+    "/deploy/clusters/<cluster_name>/outer_port/<int:expose_port>/can_use",
+)
 # 20230313 為檢查 expose port 是否可使用新增上列API
 
 # Alert
@@ -638,7 +726,9 @@ api.add_resource(trace_order.TraceOrdersV2, "/v2/trace_order")
 add_resource(trace_order.TraceOrdersV2, "private")
 
 api.add_resource(trace_order.SingleTraceOrder, "/trace_order/<sint:trace_order_id>")
-api.add_resource(trace_order.SingleTraceOrderV2, "/v2/trace_order/<sint:trace_order_id>")
+api.add_resource(
+    trace_order.SingleTraceOrderV2, "/v2/trace_order/<sint:trace_order_id>"
+)
 add_resource(trace_order.SingleTraceOrderV2, "private")
 
 api.add_resource(trace_order.ExecuteTraceOrder, "/trace_order/execute")
@@ -654,8 +744,15 @@ monitoring.monitoring_url(api, add_resource)
 
 # System parameter
 sync_system_parameter_url(api, add_resource)
-api.add_resource(system_parameter.SystemParameters, "/system_parameter", "/system_parameter/<int:param_id>")
-api.add_resource(system_parameter.ParameterGithubVerifyExecuteStatus, "/system_parameter/github_verify/status")
+api.add_resource(
+    system_parameter.SystemParameters,
+    "/system_parameter",
+    "/system_parameter/<int:param_id>",
+)
+api.add_resource(
+    system_parameter.ParameterGithubVerifyExecuteStatus,
+    "/system_parameter/github_verify/status",
+)
 
 # Status of Sync
 lock_url(api, add_resource)
@@ -667,25 +764,24 @@ notification_message_url(api, add_resource, socketio)
 api.add_resource(routine_job.DoJobByMonth, "/routine_job/by_month")
 api.add_resource(routine_job.DoJobByDay, "/routine_job/by_day")
 
-
 # policy
 
 # Database password principle
 api.add_resource(policy.DBPSWDPolicy, "/db/pswd/policy/check")
 api.add_resource(policy.DBPSWDPolicyTypeList, "/db/pswd/policy/type_list")
 
-
 # backup
 try:
     from apis.urls.backup import backup_url
+
     backup_url(api, add_resource)
 except Exception:
     pass
 
-
 # restore
 try:
     from apis.urls.restore import restore_url
+
     restore_url(api, add_resource)
 except Exception:
     pass
@@ -742,4 +838,10 @@ def start_prod_extra_funcs():
 
 if __name__ == "__main__":
     start_prod()
-    socketio.run(app, host="0.0.0.0", port=10009, debug=config.get("DEBUG"), use_reloader=config.get("USE_RELOADER"))
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=10009,
+        debug=config.get("DEBUG"),
+        use_reloader=config.get("USE_RELOADER"),
+    )
