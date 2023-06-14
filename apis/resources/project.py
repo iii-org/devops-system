@@ -580,6 +580,7 @@ def create_project_store_in_db(
         uuid=uuids,
         is_inheritance_member=args.pop("is_inheritance_member", False),
         is_empty_project=args.get("template_id") is None,
+        image_auto_del=True if args.get("image_auto_del") is None else args.get("image_auto_del")
     )
     db.session.add(new_pjt)
     db.session.commit()

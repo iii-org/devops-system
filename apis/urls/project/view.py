@@ -756,6 +756,7 @@ class SingleProject(Resource):
         parser.add_argument("owner_id", type=int, required=True)
         parser.add_argument("parent_id", type=str)
         parser.add_argument("is_inheritance_member", type=bool)
+        parser.add_argument("image_auto_del", type=bool)
         args = parser.parse_args()
         args = {key: value for key, value in args.items() if value is not None or key == "description"}
 
@@ -770,6 +771,7 @@ class SingleProject(Resource):
         role.require_in_project(project_id, "Error while updating project info.")
         parser = reqparse.RequestParser()
         parser.add_argument("owner_id", type=int, required=False)
+        parser.add_argument("image_auto_del", type=bool)
         args = parser.parse_args()
         project.check_project_args_patterns(args)
         if args.get("owner_id", None) is not None:
@@ -804,6 +806,7 @@ class SingleProject(Resource):
         parser.add_argument("owner_id", type=int)
         parser.add_argument("parent_id", type=int)
         parser.add_argument("is_inheritance_member", type=bool)
+        parser.add_argument("image_auto_del", type=bool)
         args = parser.parse_args()
         if args["arguments"] is not None:
             args["arguments"] = ast.literal_eval(args["arguments"])

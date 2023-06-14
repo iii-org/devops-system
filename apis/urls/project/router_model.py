@@ -520,10 +520,12 @@ class SingleProjectPutSchema(Schema):
     template_id = fields.Int(doc="template_id", example=1)
     tag_name = fields.Str(doc="tag_name", example="子專案")
     arguments = fields.Str(doc="arguments", example="string")
+    image_auto_del = fields.Bool(doc="image_auto_del", example=True, required=False)
 
 
 class SingleProjectPatchSchema(Schema):
     owner_id = fields.Int(doc="owner_id", example=1, required=True)
+    image_auto_del = fields.Bool(doc="image_auto_del", example=True, required=False)
 
 
 class SingleProjectPostSchema(SingleProjectPutSchema):
@@ -533,6 +535,7 @@ class SingleProjectPostSchema(SingleProjectPutSchema):
     tag_name = fields.Str(doc="tag_name", example="子專案")
     arguments = fields.Str(doc="arguments", example="string")
     owner_id = fields.Int(doc="owner_id", example=1)
+    image_auto_del = fields.Bool(doc="image_auto_del", example=True, required=False)
 
 
 #################################### Response ####################################
