@@ -3,17 +3,12 @@ from sqlalchemy import inspect, or_, not_, orm
 import os
 from model import (
     Alert,
-    Pict,
     ProjectUserRole,
     Project,
     ProjectResourceStoragelevel,
     ProjectUserRole,
     ProjectParentSonRelation,
-    ProjectMember,
     ProjectCommitEndpoint,
-    RedmineProject,
-    Sideex,
-    Sonarqube,
     StarredProject,
     User,
     UserMessageType,
@@ -92,20 +87,6 @@ def get_project_user_role_by_project_id(project_id, owner_id, creator_id) -> lis
                                                                           ).all()
 
 
-def get_project_member_by_project_id(project_id: int):
-    return ProjectMember.query.with_entities(User.login,
-                                             ProjectMember.role_id,
-                                             ProjectMember.role_name,
-                                             ProjectMember.department,
-                                             ProjectMember.title
-                                             ).join(User,
-                                                    ProjectMember.user_id == User.id,
-                                                    isouter=True
-                                                    ).filter(ProjectMember.project_id == project_id
-                                                             ).order_by(ProjectMember.user_id
-                                                                        ).all()
-
-
 def get_project_commit_endpoint_by_project_id(project_id: int) -> list:
     return ProjectCommitEndpoint.query.filter_by(project_id=project_id).order_by(ProjectCommitEndpoint.id).all()
 
@@ -125,27 +106,11 @@ def get_project_parent_son_relation() -> list:
                                                                       ).all()
 
 
-def get_redmine_project_by_project_id(project_id: int) -> list:
-    return RedmineProject.query.filter_by(project_id=project_id).order_by(RedmineProject.id).all()
-
-
-def get_sonarqube_by_project_name(project_name:str) -> list:
-    return Sonarqube.query.filter_by(project_name=project_name).order_by(Sonarqube.date).all()
-
-
 def get_starred_project_by_project_id(project_id: int) -> list:
     return User.query.join(StarredProject,
                            User.id == StarredProject.user_id
                            ).filter(StarredProject.project_id == project_id
                                     ).order_by(User.id).all()
-
-
-def get_sideex_by_project_name(project_name: str) -> list:
-    return Sideex.query.filter_by(project_name=project_name).order_by(Sideex.id).all()
-
-
-def get_pict_by_sideex_id(sideex_id: int) -> list:
-    return Pict.query.filter_by(sideex_id=sideex_id).order_by(Pict.id).all()
 
 
 def get_tag_by_project_id(project_id: int) -> list:
@@ -189,44 +154,10 @@ def backup_project_to_json():
             for pur in pur_list:
                 output.append({"user_login": pur.login, "role_id": pur.role_id})
             project_json["project_user_role"] = output
-        # 依 project_id 取得專案中的成員資訊列表
-        pms = get_project_member_by_project_id(project.id)
-        if pms:
-            output = []
-            for pm in pms:
-                output.append(
-                    {"user_login":pm.login,
-                     "role_id": pm.role_id,
-                     "role_name": pm.role_name,
-                     "department": pm.department,
-                     "title": pm.title
-                     }
-                )
-            project_json["project_member"] = output
         # 依 project_id 取得專最後一次 commit 的 id 資訊列表
         pce_list = get_project_commit_endpoint_by_project_id(project.id)
         if pce_list:
             project_json["project_commit_endpoint"] = rows_to_list(pce_list)
-        # 依 project_id 取得專案的 redmine 資訊列表
-        rp_list = get_redmine_project_by_project_id(project.id)
-        if rp_list:
-            project_json["redmine_project"] = rows_to_list(rp_list)
-        # # 依 project_name 取得 Sideex 資訊列表
-        # sideex_list = get_sideex_by_project_name(project.name)
-        # if sideex_list:
-        #     output = []
-        #     for sideex in sideex_list:
-        #         sideex_json = row_to_dict(sideex)
-        #         # 依 sideex_id 取得 pict 資訊列表
-        #         pict_list = get_pict_by_sideex_id(sideex.id)
-        #         if pict_list:
-        #             sideex_json["pict"] = rows_to_list(pict_list)
-        #         output.append(sideex_json)
-        #     project_json["sideex"] = output
-        # # 依 project_name 取得 sonarqube 資訊列表
-        # sonarqubes = get_sonarqube_by_project_name(project.name)
-        # if sonarqubes:
-        #     project_json["sonarqube"] = rows_to_list(sonarqubes)
         # 依 project_id 取得 StarredProject 的資訊列表
         sps = get_starred_project_by_project_id(project.id)
         if sps:
