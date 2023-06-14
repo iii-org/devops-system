@@ -247,7 +247,7 @@ def backup_project_to_json():
         if tr_list:
             project_json["trace_result"] = rows_to_list(tr_list)
         projects_result.append(project_json)
-    write_backup_json("bckup_project", projects_result)
+    write_backup_json("backup_project", projects_result)
     # 取得父子專案的關聯資訊
     ppsrs = get_project_parent_son_relation()
     parent_son_result = []
@@ -255,4 +255,4 @@ def backup_project_to_json():
         parent_son_result.append({"parent_name": ppsr.parent_name,
                                   "son_name": ppsr.son_name,
                                   "created_at": str(ppsr.created_at)})
-    write_backup_json("bckup_project_parent_son", parent_son_result)
+    write_backup_json("backup_project_parent_son", parent_son_result)
