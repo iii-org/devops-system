@@ -3,17 +3,12 @@ from sqlalchemy import inspect, or_, not_, orm
 import os
 from model import (
     Alert,
-    Pict,
     ProjectUserRole,
     Project,
     ProjectResourceStoragelevel,
     ProjectUserRole,
     ProjectParentSonRelation,
-    ProjectMember,
     ProjectCommitEndpoint,
-    RedmineProject,
-    Sideex,
-    Sonarqube,
     StarredProject,
     User,
     UserMessageType,
