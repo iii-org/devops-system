@@ -401,8 +401,8 @@ def generate_json_file(project_id, filename, kwargs):
                 # Fetch file result
                 template_content = json.loads(f.read())
 
-        if i != len(df_sorted):
-            next_run = pipeline.get_pipeline_next_run(repository_id)
+        # if i != len(df_sorted):
+        #     next_run = pipeline.get_pipeline_next_run(repository_id)
 
         # 將變動寫回 file 裡面
         change_suite = re.sub(
@@ -418,8 +418,8 @@ def generate_json_file(project_id, filename, kwargs):
         # 將檔案加入等待推送到 GitLab 的清單
         gitlab_files.append(single_file(file_path, file_path))
 
-        if i == len(df_sorted):
-            pipeline.stop_and_delete_pipeline(repository_id, next_run, branch="")
+        # if i == len(df_sorted):
+        #     pipeline.stop_and_delete_pipeline(repository_id, next_run, branch="")
     paths = [{"software_name": "SideeX", "path": "iiidevops/sideex", "file_name_key": ""}]
     for path in paths:
         trees = gitlab.gitlab.ql_get_tree(repository_id, path["path"], all=True)

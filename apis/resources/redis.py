@@ -2,7 +2,8 @@ import json
 import model
 from datetime import datetime
 from typing import Any, Optional
-from flask_jwt_extended import get_jwt_identity
+
+from resources.handler.jwt import get_jwt_identity
 
 import redis
 

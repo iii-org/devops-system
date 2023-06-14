@@ -329,11 +329,7 @@ class GitLab(object):
     """
 
     def gl_get_latest_commit_from_all_branches(self, repo_id):
-        params = {
-            "page": 1,
-            "per_page": 1,
-            "sort": "update_desc"
-        }
+        params = {"page": 1, "per_page": 1, "sort": "update_desc"}
         output = self.__api_get(f"/projects/{repo_id}/repository/branches", params=params).json()[0]
         return {
             "branch_name": output["name"],
@@ -343,7 +339,6 @@ class GitLab(object):
             "id": output["commit"]["id"],
             "commit_url": commit_id_to_url(get_nexus_project_id(repo_id), output["commit"]["short_id"]),
         }
-
 
     def gl_get_branches(self, repo_id):
         gl_total_branch_list = []
@@ -826,7 +821,7 @@ class GitLab(object):
                     "author_email": "system@iiidevops.org.tw",
                     "author_name": "iiidevops",
                     "content": content,
-                    "commit_message": f"Add file {file_path}",
+                    "commit_message": f"Add file {file_path} (store)",
                 }
             )
 
@@ -944,7 +939,6 @@ class GitLab(object):
         sort: str = "desc",
         with_pagination: bool = False,
     ) -> list[dict[str, Any]]:
-
         params = {"page": self.__gl_start_convert_page(start, limit), "per_page": limit, "sort": sort}
         if branch is not None:
             params["ref"] = branch
@@ -1010,7 +1004,6 @@ class GitLab(object):
         commit_msg = self.single_commit(repo_id, sha)["title"]
         return self.create_commit(repo_id, branch, commit_msg)
 
-
     ## variable
     def gl_get_all_global_variable(self):
         return self.__api_get("/admin/ci/variables").json()
@@ -1070,12 +1063,14 @@ def get_ci_last_test_result(repo_id: int) -> dict[str, Any]:
     latest_pipeline_info = gitlab.gl_list_pipelines(repo_id=repo_id, limit=1, start=0)
     if not latest_pipeline_info:
         return ret
-    
+
     latest_pipeline_info = latest_pipeline_info[0]
-    latest_pipeline_jobs_status = gitlab.get_pipeline_jobs_status(repo_id=repo_id, pipeline_id=latest_pipeline_info["id"])
+    latest_pipeline_jobs_status = gitlab.get_pipeline_jobs_status(
+        repo_id=repo_id, pipeline_id=latest_pipeline_info["id"]
+    )
     ret["last_test_result"] = latest_pipeline_jobs_status["status"]
     ret["last_test_time"] = latest_pipeline_info["updated_at"]
-    
+
     return ret
 
 

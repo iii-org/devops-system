@@ -323,9 +323,7 @@ def qu_upload_testfile(project_id, file, software_name):
     local_file_path = f"pj_upload_file/{pj.id}"
     save_file_to_local(local_file_path, file)
     for br in gitlab.gl_get_branches(repository_id):
-        next_run = pipeline.get_pipeline_next_run(repository_id)
         gitlab.gl_create_file(pj, file_path, file_name, local_file_path, branch=br["name"])
-        pipeline.stop_and_delete_pipeline(repository_id, next_run, branch=br["name"])
     print(f"file_name: {file_name}")
     remove_file_from_local(local_file_path, file_name)
 
@@ -349,10 +347,10 @@ def qu_del_testfile(project_id, software_name, test_file_name):
             gitlab.gl_delete_file(
                 repository_id,
                 url,
-                {"commit_message": f"Delete {software_name} test file {path['path']}/{test_file_name} from UI"},
+                {"commit_message": f"Delete {software_name} test file {path['path']}/{test_file_name} from UI (store)"},
             )
-            next_run = pipeline.get_pipeline_next_run(repository_id)
-            pipeline.stop_and_delete_pipeline(repository_id, next_run)
+            # next_run = pipeline.get_pipeline_next_run(repository_id)
+            # pipeline.stop_and_delete_pipeline(repository_id, next_run)
 
 
 def get_the_execl_report(project_id):

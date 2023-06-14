@@ -794,68 +794,6 @@ def tm_get_pipeline_default_branch(repository_id: int, is_default_branch: bool =
     return stages_info
 
 
-def update_pj_rancher_pipline(repository_id):
-    pj = gl.projects.get(repository_id)
-    if pj.empty_repo:
-        return
-    # is_turn_off_push = False
-    # if pipeline.get_pipeline_trigger_webhook_push(repository_id):
-    #     pipeline.turn_push_off(repository_id)
-    #     is_turn_off_push = True
-    for br in pj.branches.list(all=True):
-        try:
-            pipe_yaml_name = __tm_get_pipe_file_name(pj, branch_name=br.name)
-            f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=br.name)
-            pipe_dict = yaml.safe_load(f.decode())
-            temp_list = []
-            for info in pipe_dict["stages"]:
-                info_name = info["name"]
-                logger.logger.info(f"name : {info_name}")
-                if info.get("iiidevops") is None:
-                    temp_dict = {"name": info.pop("name")}
-                    if info_name.startswith("Test--SonarQube"):
-                        temp_dict["iiidevops"] = "sonarqube"
-                        temp_dict.update(info)
-                        info = temp_dict
-                    else:
-                        catalog_template_value = info["steps"][0].get("applyAppConfig", {}).get("catalogTemplate")
-                        if catalog_template_value is not None:
-                            catalog_template_value = catalog_template_value.split(":")[1].replace(
-                                "iii-dev-charts3-", ""
-                            )
-                            if catalog_template_value == "web":
-                                catalog_template_value = "deployed-environments"
-                            else:
-                                for prefix in ["test-", "scan-"]:
-                                    if catalog_template_value.startswith(prefix):
-                                        catalog_template_value = catalog_template_value.replace(prefix, "")
-                                        break
-                        else:
-                            catalog_template_value = "deployed-environments"
-                        temp_dict["iiidevops"] = catalog_template_value
-                        temp_dict.update(info)
-                        info = temp_dict
-
-                temp_list.append(info)
-            pipe_dict["stages"] = temp_list
-        except Exception as e:
-            logger.logger.info(str(e))
-            continue
-
-        next_run = pipeline.get_pipeline_next_run(repository_id)
-        f.content = yaml.dump(pipe_dict, sort_keys=False)
-        f.save(
-            branch=br.name,
-            author_email="system@iiidevops.org.tw",
-            author_name="iiidevops",
-            commit_message=f'Add "iiidevops" in branch {br.name} .gitlab-ci.yml.',
-        )
-        pipeline.stop_and_delete_pipeline(repository_id, next_run)
-    # if is_turn_off_push:
-    #     pipeline.turn_push_on(repository_id)
-    # sleep(1)
-
-
 def update_pj_plugin_status(plugin_name, disable):
     projects = Project.query.all()
     project_id_list = [pj.id for pj in projects]
