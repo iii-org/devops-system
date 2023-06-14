@@ -387,7 +387,7 @@ KEEP_IMAGE_COUNT = 3
 
 @doc(tags=["Harbor Delete Image"], description="harbor image auto del")
 class HarborImageAutoDel(MethodResource):
-    @jwt_required()
+    @jwt_required
     def delete(self):
         projects = nexus.nx_get_project_image_auto_del()
         for project in projects:
