@@ -18,22 +18,17 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
+
+
 import config
-
-if str(Path(__file__).parent) not in sys.path:
-    sys.path.insert(1, str(Path(__file__).parent))
-
 import migrate
 import model
 import plugins
 import resources.apiError as apiError
 import resources.pipeline as pipeline
 import resources.rancher as rancher
-from resources.handler.jwt import jwt_required
 import routine_job
 import util
-
-# from jsonwebtoken import jsonwebtoken
 from model import db
 from resources import (
     logger,
@@ -64,6 +59,7 @@ from resources import (
     issue_display_field,
     policy,
 )
+from resources.handler.jwt import jwt_required
 from resources.redis import should_update_template_cache
 from resources.template import fetch_and_update_template_cache
 

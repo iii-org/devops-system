@@ -1,10 +1,16 @@
 import os
 import subprocess
+import sys
 import urllib.parse
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
+
+SOURCE_DIR: Path = Path(__file__).parent
+
+if str() not in sys.path:
+    sys.path.insert(1, str(SOURCE_DIR))
 
 _configs: dict[str, Any] = {
     # API versions
