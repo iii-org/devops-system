@@ -2,13 +2,12 @@ import time
 from io import BytesIO
 
 import requests
-import yaml
 from flask import send_file
 from resources.handler.jwt import jwt_required, get_jwt_identity
 from flask_restful import reqparse, Resource
 
 import config
-import nexus
+import os
 import resources.apiError as apiError
 import util as util
 from accessories import redmine_lib
@@ -17,18 +16,19 @@ from resources.logger import logger
 from . import kubernetesClient, role
 import json
 from urllib.parse import quote_plus
+import psycopg2
+from resources.kubernetesClient import ApiK8sClient
 from model import db, SystemParameter, UserPluginRelation
 
 
 DEFAULT_MAIL_CONFIG = {
     "smtp_settings": {
-        "enable_starttls_auto": "smtp_enable_starttls_auto",
-        "address": "smtp_address",
-        "port": "smtp_port",
-        "authentication": "smtp_authentication",
-        "domain": "smtp_domain",
-        "user_name": "smtp_username",
-        "password": "smtp_password",
+        "smtp_port": "smtp_port",
+        "smtp_host": "smtp_domain",
+        "smtp_user": "smtp_username",
+        "smtp_password": "smtp_password",
+        "smtp_protocol": "smtp_protocol",
+        "auth": "smtp_authentication",
     },
     "emission_email_address": "smtp_username",
 }
@@ -41,6 +41,17 @@ def get_redmine_obj(operator_id=None, plan_user_id=None):
         operator = UserPluginRelation.query.filter_by(user_id=operator_id).first()
         operator_id = operator.plan_user_id if operator is not None else None
         return Redmine(operator_id=operator_id)
+
+
+def connect_with_redmine_db():
+    import base64
+
+    redmine_postgresql_secret = ApiK8sClient.from_context().read_namespaced_secret("redmine-postgresql", "iiidevops")
+    postgresql_pwd = str(base64.b64decode(str(redmine_postgresql_secret.data["password"])).decode("utf-8"))
+    conn = psycopg2.connect(
+        database="bitnami_redmine", user="bn_redmine", password=postgresql_pwd, host="redmine-postgresql", port=5432
+    )
+    return conn
 
 
 class Redmine:
@@ -182,7 +193,7 @@ class Redmine:
         return self.__api_post("/projects", data=param).json()
 
     def rm_update_project(self, plan_project_id, args):
-        xml_body = """<?xml version="1.0" encoding="UTF-8"?>        
+        xml_body = """<?xml version="1.0" encoding="UTF-8"?>
                         <project>
                         <name>{0}</name>
                         <description>{1}</description>
@@ -191,7 +202,7 @@ class Redmine:
             args["description"],
         )
         if args.get("parent_plan_project_id", None) is not None:
-            xml_body = """<?xml version="1.0" encoding="UTF-8"?>        
+            xml_body = """<?xml version="1.0" encoding="UTF-8"?>
                             <project>
                             <name>{0}</name>
                             <description>{1}</description>
@@ -264,9 +275,9 @@ class Redmine:
         output = self.__api_get("/issues/{0}".format(issue_id), params=params)
         return output.json()["issue"]
 
-    def rm_add_watcher(self, issue_id: int, user_id: int=None):
-        return  self.__api_post(f'/issues/{issue_id}/watchers', params=user_id)
-        
+    def rm_add_watcher(self, issue_id: int, user_id: int = None):
+        return self.__api_post(f"/issues/{issue_id}/watchers", params=user_id)
+
     def rm_remove_watcher(self, issue_id: int, user_id: dict):
         return self.__api_delete(f"/issues/{issue_id}/watchers/{user_id}")
 
@@ -487,31 +498,21 @@ class Redmine:
                 self.closed_status.append(status["id"])
         return self.closed_status
 
-    def rm_get_or_create_configmap(self):
-        configs = kubernetesClient.list_namespace_configmap("default")
-        if any(self.redmine_config_name == config.get("name") for config in configs) is False:
-            # Don't has redmine config, create one.
-            with open(f"k8s-yaml/redmine-config.yaml") as file:
-                redmine_config_json = yaml.safe_load(file)["data"]
-                kubernetesClient.create_namespace_configmap("default", self.redmine_config_name, redmine_config_json)
-        return yaml.safe_load(
-            kubernetesClient.read_namespace_configmap("default", self.redmine_config_name)["configuration.yml"]
-        )
-
     def rm_get_mail_setting(self):
-        rm_con_json = self.rm_get_or_create_configmap()
-        del rm_con_json["default"]["email_delivery"]["delivery_method"]
-        return rm_con_json["default"]["email_delivery"]
+        mail_config = SystemParameter.filter_by(name="mail_config").first()
+        if mail_config is not None and mail_config.value:
+            return mail_config.value
+
+        return DEFAULT_MAIL_CONFIG
 
     def pre_check_mail_alive(self, rm_put_mail_dict, emissoin_email_address):
         from resources.mail import Mail
 
         Mail.check_mail_server(
-            rm_put_mail_dict.get("address"),
-            rm_put_mail_dict.get("port"),
-            rm_put_mail_dict.get("user_name"),
-            rm_put_mail_dict.get("password"),
-            emissoin_email_address,
+            rm_put_mail_dict.get("smtp_host"),
+            rm_put_mail_dict.get("smtp_port"),
+            rm_put_mail_dict.get("smtp_user"),
+            rm_put_mail_dict.get("smtp_password"),
         )
         self.read_mail_unclose_message()
 
@@ -538,15 +539,26 @@ class Redmine:
             )
 
     def rm_put_mail_setting(self, rm_put_mail_dict):
-        optional_parameters = ["ssl", "user_name", "password"]
-        rm_configmap_dict = self.rm_get_or_create_configmap()
-        rm_put_mail_dict = {k: v for k, v in rm_put_mail_dict.items() if k not in optional_parameters or v != ""}
-        rm_configmap_dict["default"]["email_delivery"]["delivery_method"] = ":smtp"
-        rm_configmap_dict["default"]["email_delivery"]["smtp_settings"] = rm_put_mail_dict
-        out = {}
-        out["configuration.yml"] = str(yaml.dump(rm_configmap_dict))
-        kubernetesClient.put_namespace_configmap("default", self.redmine_config_name, out)
-        kubernetesClient.redeploy_deployment("default", "redmine")
+        from pathlib import Path
+
+        sh_file_path = Path(__file__).parent.parent / "script" / "redmine_mail_update.sh"
+        mail_info_option_mapping = {
+            "smtp_host": "-H",
+            "smtp_port": "-P",
+            "smtp_user": "-U",
+            "smtp_password": "-p",
+            "smtp_protocol": "--protocol",
+            "auth": "--auth",
+        }
+
+        sh_args = [
+            f"{mail_info_option_mapping.get(k)} {v}"
+            for k, v in rm_put_mail_dict.items()
+            if mail_info_option_mapping.get(k) is not None
+        ]
+        sh_arg_string = " ".join(sh_args)
+        print(f"sh {sh_file_path} {sh_arg_string}")
+        os.system(f"bash {sh_file_path} {sh_arg_string}")
 
     @staticmethod
     def rm_build_external_link(path):
@@ -570,21 +582,26 @@ class Redmine:
         setattr(user, "mail_notification", option)
         user.save()
 
-    def rm_get_or_set_emission_email_address(self, rm_emission_email_address):
-        deployer_node_ip = config.get("DEPLOYER_NODE_IP")
-        if deployer_node_ip is None:
-            # get the k8s cluster the oldest node ip
-            deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
-
-        if rm_emission_email_address is not None:
-            bs4 = util.base64encode(rm_emission_email_address)
-            pl = f"~/deploy-devops/redmine/redmine-tools.pl mail_from {bs4}"
-        else:
-            pl = "~/deploy-devops/redmine/redmine-tools.pl mail_from"
-
-        output_str, error_str = util.ssh_to_node_by_key(pl, deployer_node_ip)
-        if not error_str:
-            return json.loads(output_str)
+    def set_emission_email_address(self, rm_emission_email_address):
+        conn = connect_with_redmine_db()
+        try:
+            cur = conn.cursor()
+            ret = cur.execute(
+                f"""
+                    UPDATE settings
+                    SET value= '{rm_emission_email_address}'
+                    WHERE name= 'mail_from';
+                """
+            )
+            conn.commit()
+            print(ret)
+            ret = True
+        except Exception as e:
+            logger.logger.exception(f"Error: {str(e)}")
+            ret = False
+        finally:
+            conn.close()
+        return ret
 
 
 redmine = Redmine()
@@ -611,7 +628,7 @@ def get_mail_config():
 def update_mail_config(args):
     args = {k: v for k, v in args.items() if v is not None}
     args.update(args.pop("redmine_mail", {}))
-    args["emission_email_address"] = args.pop("emissoin_email_address", args.get("emission_email_address"))
+    args["emission_email_address"] = args.pop("emission_email_address", None)
     active, temp_save = args.pop("active", None), args.pop("temp_save", None)
 
     mail_config = SystemParameter.query.filter_by(name="mail_config").first()
@@ -629,11 +646,14 @@ def update_mail_config(args):
 
         try:
             if args.get("emission_email_address") is not None:
-                redmine.rm_get_or_set_emission_email_address(args["emission_email_address"])
+                status = redmine.set_emission_email_address(args["emission_email_address"])
+                if not status:
+                    raise Exception("Failed to set emission email address.")
             if args.get("smtp_settings") is not None:
                 redmine.rm_put_mail_setting(args["smtp_settings"])
-        except:
+        except Exception as e:
             # Roll back if fail to update redmine config.
+            logger.exception(f"Error: {str(e)}")
             mail_config.active = old_active
             mail_config.value = value
             db.session.commit()

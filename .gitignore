@@ -15,3 +15,7 @@ devops-data
 /devops_env
 apis/sync.ffs_db
 env/
+.k8s_yaml/
+.pre-commit-config.yaml
+docker-compose.yml
+Makefile

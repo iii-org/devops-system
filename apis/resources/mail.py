@@ -27,15 +27,9 @@ class Mail:
         ) = get_basic_mail_info()
 
     @staticmethod
-    def check_mail_server(domain=None, port=None, account=None, password=None, emission_email_address=None):
-        if domain is None and port is None and account is None and password is None and emission_email_address is None:
-            (
-                domain,
-                port,
-                account,
-                password,
-                emission_email_address,
-            ) = get_basic_mail_info()
+    def check_mail_server(domain=None, port=None, account=None, password=None):
+        if domain is None and port is None and account is None and password is None:
+            (domain, port, account, password, _) = get_basic_mail_info()
 
         server = None
 
@@ -125,13 +119,15 @@ def get_basic_mail_info():
     from resources.redmine import get_mail_config
     from resources.redmine import redmine as redmine_obj
 
-    mail_config = get_mail_config().get("smtp_settings", {})
+    smtp_emission_address, mail_config_info = get_mail_config().get("emission_email_address"), get_mail_config().get(
+        "smtp_settings", {}
+    )
 
-    smtp_server = mail_config.get("address")
-    smtp_server_port = mail_config.get("port")
-    smtp_server_account = mail_config.get("user_name")
-    smtp_server_password = mail_config.get("password")
-    smtp_emission_address = redmine_obj.rm_get_or_set_emission_email_address(None).get("message")
+    smtp_server = mail_config_info.get("smtp_host")
+    smtp_server_port = mail_config_info.get("smtp_port")
+    smtp_server_account = mail_config_info.get("smtp_user")
+    smtp_server_password = mail_config_info.get("smtp_password")
+    smtp_emission_address = smtp_emission_address
     return (
         smtp_server,
         smtp_server_port,
