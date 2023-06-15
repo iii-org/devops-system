@@ -4,6 +4,7 @@ import urllib.parse
 from pathlib import Path
 from typing import Any
 
+import requests
 from dotenv import load_dotenv
 
 _configs: dict[str, Any] = {
@@ -23,6 +24,14 @@ _configs: dict[str, Any] = {
 BASE_FOLDER: Path = Path(__file__).parent.parent
 
 
+class ValidateException(Exception):
+    """
+    The exception for the validation of the environment variables
+    """
+
+    pass
+
+
 def _validate_env() -> None:
     """
     Implement the validation of the environment variables here.
@@ -32,7 +41,11 @@ def _validate_env() -> None:
     Returns:
 
     """
-    pass
+    try:
+        requests.get(get("KEYCLOAK_URL"))
+
+    except requests.exceptions.ConnectionError:
+        raise ValidateException("Keycloak is not available.")
 
 
 def _load() -> None:
