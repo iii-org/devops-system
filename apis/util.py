@@ -269,7 +269,7 @@ def row_to_dict(row):
         return row
     for key in type(row).__table__.columns.keys():
         value = getattr(row, key)
-        if type(value) is datetime or type(value) is datetime.date:
+        if type(value) is datetime or type(value) is date:
             ret[key] = str(value)
         elif isinstance(value, str) and check_json(value):
             ret[key] = json.loads(value)
