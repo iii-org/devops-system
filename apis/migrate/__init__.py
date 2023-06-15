@@ -68,38 +68,17 @@ VERSIONS = [
     "1.28.0.6",
     "1.28.0.7",
 ]
-ONLY_UPDATE_DB_MODELS = [
-    "1.22.0.1",
-    "1.22.0.2",
-    "1.22.0.3",
-    "1.23.0.2",
-    "1.24.0.1",
-    "1.24.0.2",
-    "1.25.0.3",
-    "1.25.0.4",
-    "1.25.0.5",
-    "1.25.0.6",
-    "1.25.0.7",
-    "1.26.0.1",
-    "1.26.0.3",
-    "1.26.0.4",
-    "1.26.1.0",
-    "1.28.0.1",
-    "1.28.0.2",
-    "1.28.0.4",
-    "1.28.0.7",
-]
 
 
-def upgrade(version):
+def _upgrade(version):
     """
     Upgraded function need to check it can handle multi calls situation,
     just in case multi pods will call it several times.
     ex. Insert data need to check data has already existed or not.
     """
-    if version in ONLY_UPDATE_DB_MODELS:
-        alembic_upgrade()
-    elif version == "1.22.0.4":
+    # TODO: Rewrite this function since when someone didn't upgrade from a long time
+    #  the model structure won't be the same obviously
+    if version == "1.22.0.4":
         recreate_ui_route()
     elif version == "1.22.0.5":
         if SystemParameter.query.filter_by(name="upload_file_size").first() is None:
@@ -276,6 +255,8 @@ def current_version():
 def run():
     current = current_version()
     try:
+        # Upgrade alembic no matter what, run only once before version upgrade
+        alembic_upgrade()
         for version in VERSIONS:
             if needs_upgrade(current, version):
                 current, deploy_version = version, config.get("DEPLOY_VERSION")
@@ -285,7 +266,7 @@ def run():
                 row.api_version = current
                 db.session.commit()
                 logger.info("Upgrade to {0}".format(version))
-                upgrade(version)
+                _upgrade(version)
     except Exception as e:
         logger.exception(str(e))
         raise e
