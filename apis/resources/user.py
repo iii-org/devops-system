@@ -29,13 +29,14 @@ from resources.project import get_project_list
 
 from resources.keycloak import key_cloak
 from resources.handler.jwt import get_jwt_identity
-import resources
+from resources.kubernetesClient import generate_service_account_token
 from sqlalchemy import desc, nullslast
 import gitlab as gitlab_pack
 from resources.mail import mail_server_is_open
 from resources.notification_message import create_notification_message
 import base64
 from typing import Any
+import config
 
 # Make a regular expression
 default_role_id = 3
@@ -119,9 +120,11 @@ def get_all_user_info():
         .all()
     )
 
+
 def get_user_id_from_redmine_id(redmin_user_id: int):
     user = model.UserPluginRelation.query.filter_by(plan_user_id=redmin_user_id).first()
     return user.user_id
+
 
 def get_role_id(user_id):
     row = model.ProjectUserRole.query.filter_by(user_id=user_id).first()
@@ -1069,7 +1072,6 @@ def user_sa_config(user_id):
 
 
 def save_last_login(user):
-
     if user is not None:
         user.last_login = datetime.datetime.utcnow()
         db.session.commit()
@@ -1139,3 +1141,12 @@ def update_user_message_types(user_id, args):
                 )
             users_message_type.mail = mail
         db.session.commit()
+
+
+def get_user_deployment_env_info(user_account: str) -> dict[str, str]:
+    token = generate_service_account_token(user_account)
+    host = f'wss://{config.get("DEPLOYER_NODE_IP")}:6443'
+    return {
+        "token": token,
+        "host": host
+    }

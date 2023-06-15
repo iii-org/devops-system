@@ -3,7 +3,12 @@ from flask_apispec.views import MethodResource
 
 from resources.kubernetesClient import generate_service_account_token
 from resources import apiError
-from resources.handler.jwt import get_jwt_identity, jwt_required, check_login_status_and_return_refresh_token, return_jwt_token_if_exist
+from resources.handler.jwt import (
+    get_jwt_identity,
+    jwt_required,
+    check_login_status_and_return_refresh_token,
+    return_jwt_token_if_exist,
+)
 from flask_restful import Resource, reqparse
 import util
 from urls.user import router_model
@@ -22,13 +27,19 @@ from resources.user import (
     get_user_message_type,
     get_decode_password,
     update_newpassword,
+    get_user_deployment_env_info,
 )
 from resources import harbor, role
 from flask import make_response
 from . import router_model
 import json
 from model import db, User
-from resources.keycloak import generate_token_by_code_and_set_cookie, set_tokens_in_cookies_and_return_response, set_ui_origin_in_cookie_and_return_response, key_cloak
+from resources.keycloak import (
+    generate_token_by_code_and_set_cookie,
+    set_tokens_in_cookies_and_return_response,
+    set_ui_origin_in_cookie_and_return_response,
+    key_cloak,
+)
 
 security_params = [{"bearer": []}]
 # --------------------- Resources ---------------------
@@ -274,14 +285,13 @@ class UserNewpasswordInfoV2(MethodResource):
             return util.respond(400, msg)
 
 
-
 class GenerateTokenFromKeycloakV2(MethodResource):
     @doc(tags=["User"], description="For keycloack call this API to generate access token")
     @use_kwargs(router_model.GenerateTokenFromKeycloakSchema, location="query")
     def get(self, **kwargs):
-        ''''
+        """'
         :return: redirect to frontend page
-        '''
+        """
         resp = generate_token_by_code_and_set_cookie(kwargs["code"])
         return resp
 
@@ -290,25 +300,26 @@ class UserCheckStatusV2(MethodResource):
     @doc(tags=["User"], description="Check user login or not")
     def get(self):
         """
-        This API is the first API that UI would call. 
+        This API is the first API that UI would call.
         Set the UI origin in this API in order to redirect to the correct UI URL after logging in.
-        """ 
+        """
         access_token = return_jwt_token_if_exist()
         if access_token is None:
             resp = make_response(apiError.authorization_not_found(key_cloak.generate_login_url()), 401)
             return set_ui_origin_in_cookie_and_return_response(resp)
-        
+
         login_info = check_login_status_and_return_refresh_token(access_token)
 
         if login_info["account_exist"]:
             return util.success()
-        
+
         if login_info["token_invalid"]:
             resp = make_response(apiError.invalid_token(access_token, key_cloak.generate_login_url()), 401)
             return set_ui_origin_in_cookie_and_return_response(resp)
 
         return set_tokens_in_cookies_and_return_response(
-            login_info["access_token"], login_info["refresh_token"], util.success())
+            login_info["access_token"], login_info["refresh_token"], util.success()
+        )
 
 
 class ServiceAcccountToken(MethodResource):
@@ -316,5 +327,4 @@ class ServiceAcccountToken(MethodResource):
     @marshal_with(router_model.ServiceAcccountTokenRes)
     @jwt_required
     def post(self):
-        token = generate_service_account_token(get_jwt_identity()["user_account"])
-        return util.success({"token": token})
+        return util.success(get_user_deployment_env_info(get_jwt_identity()["user_account"]))
