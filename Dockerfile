@@ -34,4 +34,3 @@ RUN git log -1 --date=iso8601 --format="%ad" > git_date
 
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]
-
