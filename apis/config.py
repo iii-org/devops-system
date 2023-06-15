@@ -107,4 +107,3 @@ def get(key: str, default: Any = None) -> Any:
 
 # Indirectly call the _load function
 _load()
-
