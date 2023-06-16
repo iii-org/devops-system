@@ -1,4 +1,5 @@
 import re
+import time
 from typing import Any
 from urllib.parse import quote, quote_plus
 
@@ -506,6 +507,25 @@ def hb_delete_artifact_tag(
 
     if can_remove_artifact and not keep:
         hb_delete_artifact(project_name, repository_name, reference)
+
+
+def hb_auto_del_artifact_tag(project_name: str, keep_image_count: int = 3):
+    logger.info(f"get [{project_name}] 's repositories")
+    repositories = hb_list_repositories(project_name)
+    for repository in repositories:
+        artifact_count = repository.get("artifact_count", 0)
+        names = repository["name"].split("/")
+        if len(names) == 2 and names[0] == names[1]:
+            continue
+        while artifact_count > keep_image_count:
+            logger.info(f"get [{repository['name']}] 's artifacts")
+            artifacts = hb_list_artifacts(names[0], "/".join(names[1:]))
+            time.sleep(1)
+            artifacts_count = len(artifacts)
+            for i in range(keep_image_count, artifacts_count):
+                logger.info(f"delete digest:[{artifacts[i]['digest']}] tag name:[{artifacts[i]['name']}]")
+                hb_delete_artifact_tag(names[0], "/".join(names[1:]), artifacts[i]["digest"], artifacts[i]["name"])
+                artifact_count -= 1
 
 
 def hb_get_project_summary(project_id):
