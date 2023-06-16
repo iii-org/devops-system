@@ -66,7 +66,7 @@ def nx_get_project(id=None, name=None):
 
 
 def nx_get_project_image_auto_del():
-    return model.Project.query.filter_by(image_auto_del=True).order_by(model.Project.id).all()
+    return model.Project.query.filter_by(is_lock=False, image_auto_del=True).order_by(model.Project.id).all()
 
 
 def nx_get_user_plugin_relation(user_id=None, plan_user_id=None, gitlab_user_id=None):
