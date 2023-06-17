@@ -39,13 +39,14 @@ iii_env_default = system_parameter["secret"] + system_parameter["registry"]
 env_normal_type = ["Opaque"]
 
 DEFAULT_NAMESPACE = "iiidevops"
-DEFAULT_SEC_CONTEXT = "system"
+DEFAULT_RUNNER_CLUSTER = "runner"
+DEFAULT_SYSTEM_CLUSTER = "system"
 SYSTEM_SECRET_NAMESPACE = "iiidevops-env-secret"
 CRONJOB_WHITELIST = ["anchore-grypedb-update-job-by-day"]
 
 
 class ApiK8sClient:
-    def __init__(self, configuration=None, configuration_file=None, context="runner"):
+    def __init__(self, configuration=None, configuration_file=None, context=DEFAULT_RUNNER_CLUSTER):
         if configuration_file is not None:
             configuration = k8s_config.load_kube_config(config_file=configuration_file, context=context)
         elif configuration is None:
@@ -60,10 +61,19 @@ class ApiK8sClient:
         self.batch_v1 = k8s_client.BatchV1Api(self.api_k8s_client)
         self.storage_v1 = k8s_client.StorageV1Api(self.api_k8s_client)
 
-    # initial with different k8s context
     @classmethod
-    def from_context(cls, configuration=None, configuration_file=None, context=DEFAULT_SEC_CONTEXT):
+    def from_context(cls, configuration=None, configuration_file=None, context=DEFAULT_SYSTEM_CLUSTER):
+        """initial with different k8s context"""
         return cls(configuration, configuration_file, context)
+
+    @staticmethod
+    def is_cluster_exist(cluster_name: str) -> bool:
+        """Return true if the cluster exists, otherwise return false."""
+        all_cluster, _ = k8s_config.list_kube_config_contexts()
+        for cluster in all_cluster:
+            if cluster.get("name") == cluster_name:
+                return True
+        return False
 
     # api  version
     def get_api_resources(self):
@@ -165,7 +175,7 @@ class ApiK8sClient:
         try:
             return self.core_v1.create_namespaced_secret(namespace, body)
         except apiError.DevOpsError as e:
-            logging.info(f'create_namespaced_secret: {e}')
+            logging.info(f"create_namespaced_secret: {e}")
             if e.status_code != 404:
                 raise e
 
@@ -429,8 +439,8 @@ class ApiK8sClient:
                         "https://kubernetes.default.svc.cluster.local",
                         "rke2",
                     ],
-                    expiration_seconds=expired_time
-                    )
+                    expiration_seconds=expired_time,
+                )
             )
             return self.core_v1.create_namespaced_service_account_token(name, namespace, body=body)
         except apiError.DevOpsError as e:
@@ -609,7 +619,9 @@ MAX_RETRY_APPLY_CRONJOB = 30
 
 
 def get_k8s_cronjob_name_list(api_k8s_client):
-    return [cronjob_json.metadata.name for cronjob_json in api_k8s_client.list_namespaced_cron_job(DEFAULT_NAMESPACE).items]
+    return [
+        cronjob_json.metadata.name for cronjob_json in api_k8s_client.list_namespaced_cron_job(DEFAULT_NAMESPACE).items
+    ]
 
 
 def apply_cronjob_yamls():
@@ -641,7 +653,7 @@ def apply_cronjob_yamls():
                     json_file = yaml.safe_load(f)
 
                     # Set execute timezone
-                    timezone = get_deploy_timezone() # ssh 抓時間
+                    timezone = get_deploy_timezone()  # ssh 抓時間
                     json_file["spec"]["timeZone"] = timezone
                     cronjob_name = json_file["metadata"]["name"]
                     logger.info(f"Remove {cronjob_name}")
@@ -659,7 +671,9 @@ def apply_cronjob_yamls():
                                 break
                 try:
                     logger.info(f"Recreate {cronjob_name}")
-                    k8s_utils.create_from_dict(api_k8s_client.get_api_client(), json_file, namespace=DEFAULT_NAMESPACE) # 轉namespace
+                    k8s_utils.create_from_dict(
+                        api_k8s_client.get_api_client(), json_file, namespace=DEFAULT_NAMESPACE
+                    )  # 轉namespace
                     logger.info(f"Recreate {cronjob_name} done")
                 except k8s_utils.FailToCreateError as e:
                     print("e1")
@@ -849,7 +863,6 @@ def generate_service_account_token(service_account: str):
     if token is None:
         logger.exception(f"Generate service account {service_account} failure")
     return token
-
 
 
 def get_namespace_quota(namespace):
@@ -1173,10 +1186,10 @@ def list_namespace_secrets(namespace):
             raise e
 
 
-def read_namespace_secret(namespace: str, secret_name: str, init_: bool=False):
+def read_namespace_secret(namespace: str, secret_name: str, init_: bool = False):
     secret_data = {}
     try:
-        k8sclient=  ApiK8sClient.from_context() if init_ else ApiK8sClient
+        k8sclient = ApiK8sClient.from_context() if init_ else ApiK8sClient
         secret = k8sclient.read_namespaced_secret(secret_name, namespace)
         if secret.data is None:
             return {}
@@ -1196,8 +1209,10 @@ def create_namespace_secret(namespace: str, secret_name: str, secrets, init_=Fal
         body = k8s_client.V1Secret(
             metadata=k8s_client.V1ObjectMeta(namespace=namespace, name=secret_name),
             data=secrets,
-        )       
-        ApiK8sClient.from_context().create_namespaced_secret(namespace, body) if init_ else ApiK8sClient().create_namespaced_secret(namespace, body)
+        )
+        ApiK8sClient.from_context().create_namespaced_secret(
+            namespace, body
+        ) if init_ else ApiK8sClient().create_namespaced_secret(namespace, body)
 
         return {}
     except apiError.DevOpsError as e:
@@ -1745,9 +1760,9 @@ def create_cron_job_token_in_secret():
     If we do not replace the old token when server is being redeployed,
         token sometime can not be used.
     """
-    if read_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", init_=True):  
+    if read_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", init_=True):
         delete_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", init_=True)
-    logging.info('read_namespace_secret', read_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", init_=True))
+    logging.info("read_namespace_secret", read_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", init_=True))
     token = key_cloak.get_token_by_account_pwd(
         config.get("ADMIN_INIT_LOGIN"), config.get("ADMIN_INIT_PASSWORD"), scope="openid offline_access"
     )
