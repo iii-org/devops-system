@@ -16,7 +16,7 @@ from resources.logger import logger
 from resources.router import update_plugin_hidden
 
 _config_file: Path = config.BASE_FOLDER / "alembic.ini"
-_script_location: Path = config.BASE_FOLDER / "app" / "alembic"
+_script_location: Path = config.BASE_FOLDER / "alembic"
 
 _alembic_config: Path = config.BASE_FOLDER / "alembic.ini"
 _alembic_config_template: Path = config.BASE_FOLDER / "_alembic.ini"
