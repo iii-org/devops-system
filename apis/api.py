@@ -1,8 +1,6 @@
-import os
 import re
 import threading
 import traceback
-from os.path import isfile
 
 import werkzeug
 from apispec import APISpec
@@ -12,7 +10,8 @@ from flask_apispec.extension import FlaskApiSpec
 from flask_cors import CORS
 from flask_restful import Resource, Api, reqparse
 from flask_socketio import SocketIO
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import NoResultFound, OperationalError
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
 
@@ -223,69 +222,6 @@ class NexusVersion(Resource):
             raise error
 
         return check
-
-
-def initialize(db_uri):
-    if database_exists(db_uri):
-        return
-    logger.logger.info("Initializing...")
-    logger.logger.info(f"db_url is {db_uri}")
-    if config.get("DEBUG"):
-        print("Initializing...")
-    # Create database
-    create_database(db_uri)
-    db.create_all()
-    logger.logger.info("Database created.")
-    # Fill alembic revision with latest
-    head = None
-    revs = []
-    downs = []
-    for fn in os.listdir("apis/alembic/versions"):
-        fp = "apis/alembic/versions/%s" % fn
-        if not isfile(fp):
-            continue
-        with open(fp, "r") as f:
-            for line in f:
-                if line.startswith("revision"):
-                    revs.append(line.split("=")[1].strip()[1:-1])
-                elif line.startswith("down_revision"):
-                    downs.append(line.split("=")[1].strip()[1:-1])
-
-    for rev in revs:
-        is_head = True
-        for down in downs:
-            if down == rev:
-                is_head = False
-                break
-        if is_head:
-            head = rev
-            break
-    if head is not None:
-        v = model.AlembicVersion(version_num=head)
-        db.session.add(v)
-        db.session.commit()
-    logger.logger.info(f"Alembic revision set to ${head}")
-    # Create dummy project
-    new = model.Project(id=-1, name="__dummy_project")
-    db.session.add(new)
-    db.session.commit()
-    logger.logger.info("Project -1 created.")
-    # Init admin
-    args = {
-        "login": config.get("ADMIN_INIT_LOGIN"),
-        "email": config.get("ADMIN_INIT_EMAIL"),
-        "password": config.get("ADMIN_INIT_PASSWORD"),
-        "phone": "00000000000",
-        "name": "初始管理者",
-        "role_id": role.ADMIN.id,
-        "status": "enable",
-    }
-    user.create_user(args)
-    logger.logger.info("Initial admin created.")
-    migrate.init()
-    my_uuid = devops_version.set_deployment_uuid()
-    logger.logger.info(f"Deployment UUID set as {my_uuid}.")
-    logger.logger.info("Server initialized.")
 
 
 router_url(api, add_resource)
@@ -779,12 +715,80 @@ except Exception:
     pass
 
 
-def start_prod():
+def inject_initial_data():
+    # Create dummy project
+    new = model.Project(id=-1, name="__dummy_project")
+    db.session.add(new)
+    db.session.commit()
+    logger.logger.info("Project -1 created.")
+    # Init admin
+    args = {
+        "login": config.get("ADMIN_INIT_LOGIN"),
+        "email": config.get("ADMIN_INIT_EMAIL"),
+        "password": config.get("ADMIN_INIT_PASSWORD"),
+        "phone": "00000000000",
+        "name": "初始管理者",
+        "role_id": role.ADMIN.id,
+        "status": "enable",
+    }
+    user.create_user(args)
+    logger.logger.info("Initial admin created.")
+    migrate.init()
+    my_uuid = devops_version.set_deployment_uuid()
+    logger.logger.info(f"Deployment UUID set as {my_uuid}.")
+    logger.logger.info("Server initialized.")
+
+
+def start_prod() -> Flask:
+    """
+    This is the Flask app factory function for production environment.
+
+    Returns:
+        Flask: The Flask app object.
+    """
+    # TODO: Remove outside app and merge code into this function, so app will be created only once.
+    # app: Flask = Flask(__name__)
+
+    # Check database connection is available
+    db.init_app(app)
+    db.app = app
+    engine: Engine = db.get_engine()
+    db_uri: str = config.get("SQLALCHEMY_DATABASE_URI")
+
     try:
-        db.init_app(app)
-        db.app = app
+        engine.begin()
+
+    except OperationalError as e:
+        logger.logger.critical(f"Database connection failed: \n {e}")
+        exit(1)
+
+    finally:
+        engine.dispose()
+
+    # Create database
+    if not database_exists(db_uri):
+        # Do create databases and return
+        logger.logger.info("Database not exists, creating...")
+        logger.logger.info(f"Database URI: {db_uri}")
+        logger.logger.debug("Creating database...")
+
+        create_database(db_uri)
+        db.create_all()
+        logger.logger.info("Database created.")
+
+        head: str = migrate.alembic_get_head()
+
+        if head:
+            _ = model.AlembicVersion()
+            _.version_num = head
+            db.session.add(_)
+            db.session.commit()
+            logger.logger.info(f"Alembic revision set to {head}.")
+
+        inject_initial_data()
+
+    try:
         # jsonwebtoken.init_app(app)
-        initialize(config.get("SQLALCHEMY_DATABASE_URI"))
         migrate.run()
 
         # Template init
