@@ -621,7 +621,7 @@ def row_to_dict(row):
 def get_mail_config():
     mail_config = SystemParameter.query.filter_by(name="mail_config").first()
     ret = row_to_dict(mail_config)
-    ret.update(ret.pop("value", DEFAULT_MAIL_CONFIG))
+    ret.update(ret.pop("value") or DEFAULT_MAIL_CONFIG)
     return ret
 
 
