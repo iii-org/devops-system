@@ -26,8 +26,6 @@ Options:
 Miscellaneous:
   -h, --help                Print this help and exit
   -v, --verbose             Print script debug info
-      --no-color            Disable color output
-  -f, --force               Force overwrite existing values
 EOF
   exit 0
 }
