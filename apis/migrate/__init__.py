@@ -16,7 +16,7 @@ from resources.logger import logger
 from resources.router import update_plugin_hidden
 
 _config_file: Path = config.BASE_FOLDER / "alembic.ini"
-_script_location: Path = config.BASE_FOLDER / "alembic"
+_script_location: Path = config.BASE_FOLDER / "apis" / "alembic"
 
 _alembic_config: Path = config.BASE_FOLDER / "alembic.ini"
 _alembic_config_template: Path = config.BASE_FOLDER / "_alembic.ini"
@@ -30,9 +30,7 @@ if not os.path.isfile(_alembic_config):
         with open(_alembic_config_template, "r") as template:
             for line in template:
                 if line.startswith("sqlalchemy.url"):
-                    ini.write(
-                        f"sqlalchemy.url = {config.get('SQLALCHEMY_DATABASE_URI').replace('%', '%%')}\n"
-                    )
+                    ini.write(f"sqlalchemy.url = {config.get('SQLALCHEMY_DATABASE_URI').replace('%', '%%')}\n")
                 else:
                     ini.write(line)
 
@@ -82,17 +80,13 @@ def _upgrade(version):
         recreate_ui_route()
     elif version == "1.22.0.5":
         if SystemParameter.query.filter_by(name="upload_file_size").first() is None:
-            row = SystemParameter(
-                name="upload_file_size", value={"upload_file_size": 5}, active=True
-            )
+            row = SystemParameter(name="upload_file_size", value={"upload_file_size": 5}, active=True)
             db.session.add(row)
             db.session.commit()
     elif version == "1.23.0.1":
         recreate_ui_route()
     elif version == "1.25.0.1":
-        model.NotificationMessage.query.filter_by(
-            alert_service_id=303, close=False
-        ).delete()
+        model.NotificationMessage.query.filter_by(alert_service_id=303, close=False).delete()
         db.session.commit()
     elif version == "1.26.0.2":
         recreate_ui_route()
@@ -119,12 +113,8 @@ def recreate_ui_route():
 
 def init():
     latest_api_version, deploy_version = VERSIONS[-1], config.get("DEPLOY_VERSION")
-    logger.info(
-        f"Creat NexusVersion, api_version={latest_api_version}, deploy_version={deploy_version}"
-    )
-    new = model.NexusVersion(
-        api_version=latest_api_version, deploy_version=deploy_version
-    )
+    logger.info(f"Creat NexusVersion, api_version={latest_api_version}, deploy_version={deploy_version}")
+    new = model.NexusVersion(api_version=latest_api_version, deploy_version=deploy_version)
     db.session.add(new)
     db.session.commit()
 
