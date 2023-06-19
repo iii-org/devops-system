@@ -703,10 +703,14 @@ def start_prod() -> Flask:
         engine.dispose()
 
     # Check 'runner' cluster exist
-    is_runner_cluster_exist = kubernetesClient.ApiK8sClient.is_cluster_exist(kubernetesClient.DEFAULT_RUNNER_CLUSTER)
-    if not is_runner_cluster_exist:
-        logger.logger.critical(f"Runner cluster:{kubernetesClient.DEFAULT_RUNNER_CLUSTER} not exist.")
-        # exit(1)
+    if not config.get("DEBUG", False, convert=True):
+        # Ignore this check in debug mode
+        is_runner_cluster_exist = kubernetesClient.ApiK8sClient.is_cluster_exist(
+            kubernetesClient.DEFAULT_RUNNER_CLUSTER
+        )
+        if not is_runner_cluster_exist:
+            logger.logger.critical(f"Runner cluster:{kubernetesClient.DEFAULT_RUNNER_CLUSTER} not exist.")
+            exit(1)
 
     # Create database
     if not database_exists(db_uri):

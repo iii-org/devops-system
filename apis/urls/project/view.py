@@ -183,7 +183,7 @@ class ProjectRelationsV2(MethodResource):
 @doc(tags=["Issue"], description="Get issue list by project")
 @use_kwargs(router_model.IssueByProjectSchema, location="query")
 @marshal_with(router_model.IssueByProjectResponse, code=200)
-@marshal_with(router_model.IssueByProjectResponseWithPage, code="with_pagination")
+@marshal_with(router_model.IssueByProjectResponseWithPage, description="With Pagination")
 class IssueByProjectV2(MethodResource):
     @jwt_required
     def get(self, project_id, **kwargs):
@@ -607,7 +607,6 @@ class ListMyProjects(Resource):
 class CalculateProjectIssuesV2(MethodResource):
     @jwt_required
     def get(self, **kwargs):
-
         project_ids = kwargs.get("project_ids").split(",")
 
         return util.success(
