@@ -1,6 +1,7 @@
 import os
 import subprocess
 import urllib.parse
+from ast import literal_eval
 from pathlib import Path
 from typing import Any
 
@@ -83,9 +84,7 @@ def _get_branch_name() -> str:
         str: The current branch name
     """
     command: list[str] = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
-    process: subprocess.Popen = subprocess.Popen(
-        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
+    process: subprocess.Popen = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, _ = process.communicate()
     branch_name: str = output.decode().strip()
 
@@ -95,18 +94,54 @@ def _get_branch_name() -> str:
     return branch_name
 
 
-def get(key: str, default: Any = None) -> Any:
+def _convert_bool(value: str) -> bool:
+    """
+    Convert the string value to boolean value
+
+    Args:
+        value: The string value
+
+    Returns:
+        bool: The boolean value
+    """
+    if value.lower() in ["true", "t", "1", "yes", "y", "on"]:
+        return True
+
+    elif value.lower() in ["false", "f", "0", "no", "n", "off"]:
+        return False
+
+    else:
+        raise ValueError(f"Cannot convert {value} to boolean value.")
+
+
+def get(key: str, default: Any = None, convert: bool = False) -> Any:
     """
     Get the value of the key from the config file, if not found, return the default value
 
     Args:
         key: The key of the config
         default: The default value if the key is not found
+        convert: If the value should be converted to the correct type, otherwise, return the string type value
 
     Returns:
         Any: The value of the key
     """
     env: Any = os.getenv(key)
+
+    if convert:
+        if isinstance(env, str):
+            try:
+                env = _convert_bool(env)
+
+            except ValueError:
+                try:
+                    # Auto guess type, only support int, float, list, dict
+                    env = literal_eval(env)
+
+                except (ValueError, SyntaxError):
+                    pass
+        else:
+            raise ValueError(f"Cannot convert {env}, should be a string.")
 
     if env is not None:
         return env

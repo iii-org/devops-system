@@ -2,6 +2,7 @@ import re
 import threading
 import traceback
 
+import urllib3
 import werkzeug
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
@@ -57,13 +58,6 @@ from resources import (
 from resources.handler.jwt import jwt_required
 from resources.redis import should_update_template_cache
 from resources.template import fetch_and_update_template_cache
-
-if config.get("DEBUG") is False:
-    import eventlet
-
-    eventlet.monkey_patch(socket=True, select=True, thread=True)
-
-# This import will merge to the above one after all API move to V2.
 from urls import monitoring
 from urls.harbor import harbor_url
 from urls.issue import issue_url
@@ -78,6 +72,14 @@ from urls.system_parameter import sync_system_parameter_url
 from urls.tag import tag_url
 from urls.template import template_url
 from urls.user import user_url
+
+if config.get("DEBUG", False, convert=True):
+    urllib3.disable_warnings()
+
+if config.get("DEBUG", False, convert=True) is False:
+    import eventlet
+
+    eventlet.monkey_patch(socket=True, select=True, thread=True)
 
 app = Flask(__name__)
 for key in [
@@ -139,7 +141,7 @@ app.config["MAX_CONTENT_LENGTH"] = 100 * 1000 * 1000
 api = Api(app, errors=apiError.custom_errors)
 CORS(app)
 
-if config.get("DEBUG") is False:
+if config.get("DEBUG", False, convert=True) is False:
     socketio = SocketIO(
         app,
         message_queue=f'redis://{config.get("REDIS_BASE_URL")}',
@@ -704,7 +706,7 @@ def start_prod() -> Flask:
     is_runner_cluster_exist = kubernetesClient.ApiK8sClient.is_cluster_exist(kubernetesClient.DEFAULT_RUNNER_CLUSTER)
     if not is_runner_cluster_exist:
         logger.logger.critical(f"Runner cluster:{kubernetesClient.DEFAULT_RUNNER_CLUSTER} not exist.")
-        exit(1)
+        # exit(1)
 
     # Create database
     if not database_exists(db_uri):
@@ -779,6 +781,6 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=10009,
-        debug=config.get("DEBUG"),
+        debug=config.get("DEBUG", False, convert=True),
         use_reloader=config.get("USE_RELOADER"),
     )
