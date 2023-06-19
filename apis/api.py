@@ -766,8 +766,8 @@ def start_prod_extra_funcs():
 
         logger.logger.info("Starting register version center.")
         # Register in version center
-        devops_version.login()
-        devops_version.register_in_vc(force_update=True)
+        devops_version.VersionCenter().login()
+        devops_version.VersionCenter().register(force=True)
         logger.logger.info("Updating version center complete.")
     except Exception as e:
         logger.logger.exception(f"Error message: {str(e)}")
