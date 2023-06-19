@@ -27,8 +27,8 @@ DEFAULT_MAIL_CONFIG = {
         "smtp_host": "smtp_domain",
         "smtp_user": "smtp_username",
         "smtp_password": "smtp_password",
-        "smtp_protocol": "smtp_protocol",
-        "auth": "smtp_authentication",
+        "smtp_protocol": "tls", # or ssl
+        "auth": "login", # or plain or cram_md5
     },
     "emission_email_address": "smtp_username",
 }
