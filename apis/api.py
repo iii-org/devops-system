@@ -72,6 +72,7 @@ from urls.system_parameter import sync_system_parameter_url
 from urls.tag import tag_url
 from urls.template import template_url
 from urls.user import user_url
+from urls.gitlab import gitlab_url
 
 if config.get("DEBUG", False, convert=True):
     urllib3.disable_warnings()
@@ -256,26 +257,9 @@ api.add_resource(
 )
 
 # Gitlab project
-api.add_resource(gitlab.GitProjectBranches, "/repositories/<repository_id>/branches")
-api.add_resource(gitlab.GitProjectBranchesV2, "/v2/repositories/<repository_id>/branches")
-add_resource(gitlab.GitProjectBranchesV2, "public")
-api.add_resource(gitlab.GitProjectBranch, "/repositories/<repository_id>/branch/<branch_name>")
-api.add_resource(gitlab.GitProjectBranchV2, "/v2/repositories/<repository_id>/branch/<branch_name>")
-add_resource(gitlab.GitProjectBranchV2, "public")
-api.add_resource(
-    gitlab.GitProjectRepositories,
-    "/repositories/<repository_id>/branch/<branch_name>/tree",
-)
-api.add_resource(
-    gitlab.GitProjectRepositoriesV2,
-    "/v2/repositories/<repository_id>/branch/<branch_name>/tree",
-)
-add_resource(gitlab.GitProjectRepositoriesV2, "public")
-api.add_resource(
-    gitlab.GitProjectFile,
-    "/repositories/<repository_id>/branch/files",
-    "/repositories/<repository_id>/branch/<branch_name>/files/<file_path>",
-)
+gitlab_url(api, add_resource)
+
+
 api.add_resource(
     gitlab.GitProjectTag,
     "/repositories/<repository_id>/tags/<tag_name>",

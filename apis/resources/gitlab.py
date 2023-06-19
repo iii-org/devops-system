@@ -304,30 +304,6 @@ class GitLab(object):
     def gl_delete_user_email(self, gitlab_user_id, gitlab_email_id):
         return self.__api_delete(f"/users/{gitlab_user_id}/emails/{gitlab_email_id}")
 
-    """
-    def gl_create_rancher_pipeline_yaml(self, repo_id, args, method):
-        path = f'/projects/{repo_id}/repository/files/{args["file_path"]}'
-        params = {}
-        for key in [
-            "branch",
-            "start_branch",
-            "encoding",
-            "author_email",
-            "author_name",
-            "content",params
-            "commit_message",
-        ]:
-            params[key] = args[key]
-        return self.__api_request(method, path, =params)
-    
-
-    def gl_get_project_file_for_pipeline(self, project_id, args):
-        return self.__api_get(
-            f'/projects/{project_id}/repository/files/{args["file_path"]}',
-            params={"ref": args["branch"]},
-        )
-    """
-
     def gl_get_latest_commit_from_all_branches(self, repo_id):
         params = {"page": 1, "per_page": 1, "sort": "update_desc"}
         output = self.__api_get(f"/projects/{repo_id}/repository/branches", params=params).json()[0]
@@ -917,7 +893,9 @@ class GitLab(object):
         page = (start // limit) + 1
         return page
 
+    ############################
     # namespace
+    ############################
     def gl_list_namespace(self):
         return self.__api_get("/namespaces").json()
 
@@ -929,7 +907,9 @@ class GitLab(object):
 
         return {}
 
+    ############################
     # pipeline
+    ############################
     def gl_list_pipelines(
         self,
         repo_id: int,
@@ -1004,7 +984,9 @@ class GitLab(object):
         commit_msg = self.single_commit(repo_id, sha)["title"]
         return self.create_commit(repo_id, branch, commit_msg)
 
-    ## variable
+    ############################
+    # variable
+    ############################
     def gl_get_all_global_variable(self):
         return self.__api_get("/admin/ci/variables").json()
 
@@ -1369,10 +1351,10 @@ def unprotect_project(gl_pj_id, branch):
             gitlab.gl_unprotect_branch(gl_pj_id, branch)
             break
 
-    # --------------------- Resources ---------------------
-
 
 gitlab = GitLab()
+
+# --------------------- Resources ---------------------
 
 
 class GitRelease:
@@ -1394,87 +1376,6 @@ class GitRelease:
 
 
 gl_release = GitRelease()
-
-
-class GitProjectBranches(Resource):
-    @jwt_required
-    def get(self, repository_id):
-        return util.success({"branch_list": gitlab.gl_get_branches(repository_id)})
-
-    @jwt_required
-    def post(self, repository_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument("branch", type=str, required=True)
-        parser.add_argument("ref", type=str, required=True)
-        args = parser.parse_args()
-        return util.success(gitlab.gl_create_branch(repository_id, args))
-
-
-class GitProjectBranchesV2(MethodResource):
-    @doc(tags=["Gitlab"], description="get all branches in project")
-    @jwt_required
-    @marshal_with(route_model.GitlabGetProjectBranchesRes)
-    def get(self, repository_id):
-        return util.success({"branch_list": gitlab.gl_get_branches(repository_id)})
-
-    @doc(tags=["Gitlab"], description="add branch for the project")
-    @jwt_required
-    @use_kwargs(route_model.GitlabPostProjectBranchesSch, location="json")
-    @marshal_with(route_model.GitlabPostProjectBranchesRes)
-    def post(self, repository_id, **kwargs):
-        return util.success(gitlab.gl_create_branch(repository_id, kwargs))
-
-
-class GitProjectBranch(Resource):
-    @jwt_required
-    def get(self, repository_id, branch_name):
-        project_id = get_nexus_project_id(repository_id)
-        role.require_in_project(project_id)
-        return util.success(gitlab.gl_get_branch(repository_id, branch_name))
-
-    @jwt_required
-    def delete(self, repository_id, branch_name):
-        project_id = get_nexus_project_id(repository_id)
-        role.require_in_project(project_id)
-        gitlab.gl_delete_branch(repository_id, branch_name)
-        return util.success()
-
-
-class GitProjectBranchV2(MethodResource):
-    @doc(tags=["Gitlab"], description="get project branch info")
-    @jwt_required
-    @marshal_with(route_model.GitlabGetProjectBranchRes)
-    def get(self, repository_id, branch_name):
-        project_id = get_nexus_project_id(repository_id)
-        role.require_in_project(project_id)
-        return util.success(gitlab.gl_get_branch(repository_id, branch_name))
-
-    @doc(tags=["Gitlab"], description="delete project branch")
-    @jwt_required
-    @marshal_with(util.CommonResponse)
-    def delete(self, repository_id, branch_name):
-        project_id = get_nexus_project_id(repository_id)
-        role.require_in_project(project_id)
-        gitlab.gl_delete_branch(repository_id, branch_name)
-        return util.success()
-
-
-class GitProjectRepositories(Resource):
-    @jwt_required
-    def get(self, repository_id, branch_name):
-        project_id = get_nexus_project_id(repository_id)
-        role.require_in_project(project_id)
-        return util.success(gitlab.gl_get_repository_tree(repository_id, branch_name))
-
-
-class GitProjectRepositoriesV2(MethodResource):
-    @doc(tags=["Gitlab"], description="get branch file type")
-    @jwt_required
-    @marshal_with(route_model.GitGetProjectRepositoriesRes)
-    def get(self, repository_id, branch_name):
-        project_id = get_nexus_project_id(repository_id)
-        role.require_in_project(project_id)
-        return util.success(gitlab.gl_get_repository_tree(repository_id, branch_name))
 
 
 class GitProjectFile(Resource):

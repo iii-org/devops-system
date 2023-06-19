@@ -14,6 +14,7 @@ from migrate.upgrade_function.ui_route_upgrade import ui_route_first_version
 from model import db, UIRouteData, PluginSoftware, SystemParameter
 from resources.logger import logger
 from resources.router import update_plugin_hidden
+import config
 
 _config_file: Path = config.BASE_FOLDER / "alembic.ini"
 _script_location: Path = config.BASE_FOLDER / "apis" / "alembic"
@@ -24,8 +25,8 @@ _alembic_config_template: Path = config.BASE_FOLDER / "_alembic.ini"
 _buffer: io.StringIO = io.StringIO()
 _logger: logging.Logger = logging.getLogger("alembic.runtime.migration")
 
-# Rebuild init file since ini is not git tracked
-if not os.path.isfile(_alembic_config):
+# Rebuild init file since ini is not git tracked or in debug mode
+if not os.path.isfile(_alembic_config) or config.get("DEBUG", False, convert=True):
     with open(_alembic_config, "w") as ini:
         with open(_alembic_config_template, "r") as template:
             for line in template:
