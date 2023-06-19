@@ -258,7 +258,11 @@ class ApiK8sClient:
             if e.status_code != 404:
                 raise e
 
-    def read_namespaced_deployment(self, name, namespace):
+    def read_namespaced_deployment(
+        self,
+        name,
+        namespace,
+    ):
         try:
             return self.app_v1.read_namespaced_deployment(name, namespace)
         except apiError.DevOpsError as e:
@@ -754,13 +758,8 @@ def list_work_node():
     return list_nodes
 
 
-# def create_iiidevops_env_secret_namespace():
-#     if "iiidevops-env-secret" not in list_namespace():
-#         create_namespace("iiidevops-env-secret")
-
-
-def create_namespace(project_name, use_context=False):
-    api_k8s_client = ApiK8sClient() if not use_context else ApiK8sClient.from_context()
+def create_namespace(project_name, use_system_context=False):
+    api_k8s_client = ApiK8sClient.from_context() if use_system_context else ApiK8sClient()
     try:
         api_k8s_client.create_namespace(k8s_client.V1Namespace(metadata=k8s_client.V1ObjectMeta(name=project_name)))
     except apiError.DevOpsError as e:
@@ -772,8 +771,8 @@ def get_namespace(project_name):
     return ApiK8sClient().read_namespace(project_name)
 
 
-def list_namespace(use_context=False):
-    api_k8s_client = ApiK8sClient() if not use_context else ApiK8sClient.from_context()
+def list_namespace(use_system_context=False):
+    api_k8s_client = ApiK8sClient.from_context() if use_system_context else ApiK8sClient()
     try:
         list_namespaces = []
         for namespace in api_k8s_client.list_namespace().items:
@@ -1111,17 +1110,19 @@ def list_namespace_deployments(namespace):
             raise e
 
 
-def read_namespace_deployment(namespace, name):
+def read_namespace_deployment(namespace, name, use_system_context=False):
     try:
-        return ApiK8sClient().read_namespaced_deployment(name, namespace)
+        api_k8s_client = ApiK8sClient.from_context() if use_system_context else ApiK8sClient()
+        return api_k8s_client.read_namespaced_deployment(name, namespace)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
 
 
-def update_namespace_deployment(namespace, name, body):
+def update_namespace_deployment(namespace, name, body, use_system_context=False):
     try:
-        return ApiK8sClient().patch_namespaced_deployment(name, namespace, body)
+        api_k8s_client = ApiK8sClient.from_context() if use_system_context else ApiK8sClient()
+        return api_k8s_client.patch_namespaced_deployment(name, namespace, body)
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
@@ -1137,7 +1138,7 @@ def delete_namespace_deployment(namespace, name):
 
 
 def update_deployment_image_tag(namespace, deployment_name, new_image_tag):
-    deployment = read_namespace_deployment(namespace, deployment_name)
+    deployment = read_namespace_deployment(namespace, deployment_name, use_system_context=True)
     image_api = deployment.spec.template.spec.containers[0].image
     parts = image_api.split(":")
     parts[-1] = new_image_tag
@@ -1146,7 +1147,7 @@ def update_deployment_image_tag(namespace, deployment_name, new_image_tag):
     else:
         deployment.spec.template.metadata.annotations["iiidevops_redeploy_at"] = str(datetime.utcnow())
     deployment.spec.template.spec.containers[0].image = ":".join(parts)
-    update_namespace_deployment(namespace, deployment_name, deployment)
+    update_namespace_deployment(namespace, deployment_name, deployment, use_system_context=True)
 
 
 def list_namespace_services(namespace):
@@ -1186,11 +1187,11 @@ def list_namespace_secrets(namespace):
             raise e
 
 
-def read_namespace_secret(namespace: str, secret_name: str, init_: bool = False):
+def read_namespace_secret(namespace: str, secret_name: str, use_system_context: bool = False):
     secret_data = {}
     try:
-        k8sclient = ApiK8sClient.from_context() if init_ else ApiK8sClient
-        secret = k8sclient.read_namespaced_secret(secret_name, namespace)
+        api_k8s_client = ApiK8sClient.from_context() if use_system_context else ApiK8sClient()
+        secret = api_k8s_client.read_namespaced_secret(secret_name, namespace)
         if secret.data is None:
             return {}
         for key, value in secret.data.items():
@@ -1202,7 +1203,7 @@ def read_namespace_secret(namespace: str, secret_name: str, init_: bool = False)
         return None
 
 
-def create_namespace_secret(namespace: str, secret_name: str, secrets, init_=False):
+def create_namespace_secret(namespace: str, secret_name: str, secrets, use_system_context=False):
     for key, value in secrets.items():
         secrets[key] = base64.b64encode(bytes(value, encoding="utf-8")).decode("utf-8")
     try:
@@ -1212,7 +1213,7 @@ def create_namespace_secret(namespace: str, secret_name: str, secrets, init_=Fal
         )
         ApiK8sClient.from_context().create_namespaced_secret(
             namespace, body
-        ) if init_ else ApiK8sClient().create_namespaced_secret(namespace, body)
+        ) if use_system_context else ApiK8sClient().create_namespaced_secret(namespace, body)
 
         return {}
     except apiError.DevOpsError as e:
@@ -1235,10 +1236,10 @@ def patch_namespace_secret(namespace, secret_name, secrets):
             raise e
 
 
-def delete_namespace_secret(namespace: str, name: str, init_=False) -> str:
+def delete_namespace_secret(namespace: str, name: str, use_system_context=False) -> str:
     try:
-        k8sclient = ApiK8sClient.from_context() if init_ else ApiK8sClient()
-        secret = k8sclient.delete_namespaced_secret(name, namespace)
+        api_k8s_client = ApiK8sClient.from_context() if use_system_context else ApiK8sClient()
+        secret = api_k8s_client.delete_namespaced_secret(name, namespace)
         return secret.details.name
     except apiError.DevOpsError as e:
         if e.status_code != 404:
@@ -1760,14 +1761,18 @@ def create_cron_job_token_in_secret():
     If we do not replace the old token when server is being redeployed,
         token sometime can not be used.
     """
-    if read_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", init_=True):
-        delete_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", init_=True)
-    logging.info("read_namespace_secret", read_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", init_=True))
+    if read_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", use_system_context=True):
+        delete_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", use_system_context=True)
+    logging.info(
+        "read_namespace_secret", read_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", use_system_context=True)
+    )
     token = key_cloak.get_token_by_account_pwd(
         config.get("ADMIN_INIT_LOGIN"), config.get("ADMIN_INIT_PASSWORD"), scope="openid offline_access"
     )
 
-    create_namespace_secret(DEFAULT_NAMESPACE, "cornjob-bot", {"cornjob-token": token["refresh_token"]}, init_=True)
+    create_namespace_secret(
+        DEFAULT_NAMESPACE, "cornjob-bot", {"cornjob-token": token["refresh_token"]}, use_system_context=True
+    )
 
 
 # gitlab ingress body
