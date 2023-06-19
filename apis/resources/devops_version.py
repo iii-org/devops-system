@@ -1,7 +1,8 @@
 import uuid
+from typing import Optional
 
-from resources.handler.jwt import jwt_required
 from flask_restful import Resource
+from requests import Response
 from sqlalchemy.sql import and_
 
 import config
@@ -10,6 +11,7 @@ import resources.kubernetesClient as kubernetesClient
 import util
 from resources import role, apiError
 from resources.apiError import DevOpsError
+from resources.handler.jwt import jwt_required
 from resources.logger import logger
 from resources.notification_message import (
     check_message_exist,
@@ -17,59 +19,183 @@ from resources.notification_message import (
     close_notification_message,
 )
 from resources.redis import delete_template_cache
-
-version_center_token = None
-
-
-def __get_token():
-    global version_center_token
-    if version_center_token is None:
-        login()
-    return version_center_token
+from resources.system import system_git_commit_id
 
 
-def __api_request(method, path, headers=None, params=None, data=None, with_token=True, retry=False):
-    if headers is None:
-        headers = {}
-    if params is None:
-        params = {}
-    if with_token:
-        headers["Authorization"] = f"Bearer {__get_token()}"
+class VersionCenter:
+    CENTER_TOKEN: Optional[str] = None
 
-    url = f'{config.get("VERSION_CENTER_BASE_URL")}{path}'
-    output = util.api_request(method, url, headers, params, data)
+    def __init__(self):
+        self._get_token()
 
-    # Token expire
-    if output.status_code == 401 and not retry:
-        login()
-        return __api_request(method, path, headers, params, data, True, True)
+    def _get_token(self) -> None:
+        """
+        Check if token exist, if not, get token from version center.
 
-    if int(output.status_code / 100) != 2:
-        raise DevOpsError(
-            output.status_code,
-            "Got non-2xx response from Version center.",
-            error=apiError.error_3rd_party_api("Version Center", output),
+        Returns:
+            None
+        """
+        if not self.CENTER_TOKEN:
+            self.login()
+
+    def login(self) -> None:
+        """
+        Get token from version center if not exist.
+
+        Returns:
+            None
+        """
+        dp_uuid: str = model.NexusVersion.query.one().deployment_uuid
+        response: Response = self.post(
+            "/login",
+            params={"uuid": dp_uuid, "name": config.get("DEPLOYMENT_NAME") or config.get("DEPLOYER_NODE_IP")},
+            with_token=False,
         )
-    return output
 
+        self.CENTER_TOKEN = response.json().get("data", {}).get("access_token", None)
 
-def __api_get(path, params=None, headers=None, with_token=True):
-    return __api_request("GET", path, params=params, headers=headers, with_token=with_token)
+    def register(self, force: bool = False):
+        """
+        Register current deployment to version center.
 
+        Args:
+            force: Force to register even if already registered.
 
-def __api_post(path, params=None, headers=None, data=None, with_token=True):
-    return __api_request("POST", path, headers=headers, data=data, params=params, with_token=with_token)
+        Returns:
+            None
+        """
+        nexus_version: Optional[model.NexusVersion] = model.NexusVersion.query.first()
 
+        if not nexus_version:
+            raise DevOpsError(500, "NexusVersion table is empty.")
 
-def login():
-    global version_center_token
-    dp_uuid = model.NexusVersion.query.one().deployment_uuid
-    res = __api_post(
-        "/login",
-        params={"uuid": dp_uuid, "name": config.get("DEPLOYMENT_NAME") or config.get("DEPLOYER_NODE_IP")},
-        with_token=False,
-    )
-    version_center_token = res.json().get("data", {}).get("access_token", None)
+        _version: Optional[str] = nexus_version.deploy_version
+        _uuid: Optional[str] = nexus_version.deployment_uuid
+
+        logger.info(f"Before deploy_version: {_version}, deployment_uuid: {_uuid}.")
+
+        if _version is None or force:
+            _version = system_git_commit_id().get("git_tag")
+            logger.info(f"After deploy_version: {_version}.")
+
+            nexus_version.deploy_version = _version
+            model.db.session.commit()
+            logger.info(f"Updating deploy_version to {_version}.")
+
+        return self.post("/report_info", data={"iiidevops": {"deploy_version": _version}, "uuid": _uuid})
+
+    def _call_api(
+        self,
+        path: str,
+        method: str,
+        *,
+        headers: dict = None,
+        params: dict = None,
+        data: dict = None,
+        with_token: bool = True,
+        retry: bool = False,
+    ) -> Response:
+        """
+        Call version center API.
+
+        Args:
+            path: The path of API, e.g. /login
+            method: The method of API, only support GET and POST.
+            headers: The headers of API.
+            params: The params of API.
+            data: The data of API.
+            with_token: If True, add token to headers.
+            retry: If True, retry once when token expire.
+
+        Returns:
+            Response: The response of API.
+        """
+        if headers is None:
+            headers = dict()
+
+        if params is None:
+            params = dict()
+
+        if with_token:
+            headers["Authorization"] = f"Bearer {self.CENTER_TOKEN}"
+
+        if path.startswith("/"):
+            path = path[1:]
+
+        if method not in ["GET", "POST"]:
+            raise DevOpsError(500, "Only GET and POST method are supported.")
+
+        url: str = f"{config.get('VERSION_CENTER_BASE_URL')}/{path}"
+        output: Response = util.api_request(method, url, headers, params, data)
+
+        # When token expire
+        if output.status_code == 401 and not retry:
+            self.login()
+            return self._call_api(method, path, headers=headers, params=params, data=data, with_token=True, retry=True)
+
+        if int(output.status_code / 100) != 2:
+            raise DevOpsError(
+                output.status_code,
+                "Got non-2xx response from Version center.",
+                error=apiError.error_3rd_party_api("Version Center", output),
+            )
+        return output
+
+    def get(
+        self,
+        path: str,
+        *,
+        headers: dict = None,
+        params: dict = None,
+        data: dict = None,
+        with_token: bool = True,
+        retry: bool = False,
+    ) -> Response:
+        """
+        Call version center GET API.
+
+        Args:
+            path: The path of API, e.g. /login
+            headers: The headers of API.
+            params: The params of API.
+            data: The data of API.
+            with_token: If True, add token to headers.
+            retry: If True, retry once when token expire.
+
+        Returns:
+            Response: The response of API.
+        """
+        return self._call_api(
+            path, "GET", headers=headers, params=params, data=data, with_token=with_token, retry=retry
+        )
+
+    def post(
+        self,
+        path: str,
+        *,
+        headers: dict = None,
+        params: dict = None,
+        data: dict = None,
+        with_token: bool = True,
+        retry: bool = False,
+    ) -> Response:
+        """
+        Call version center POST API.
+
+        Args:
+            path: The path of API, e.g. /login
+            headers: The headers of API.
+            params: The params of API.
+            data: The data of API.
+            with_token: If True, add token to headers.
+            retry: If True, retry once when token expire.
+
+        Returns:
+            Response: The response of API.
+        """
+        return self._call_api(
+            path, "POST", headers=headers, params=params, data=data, with_token=with_token, retry=retry
+        )
 
 
 def set_deployment_uuid():
@@ -83,7 +209,7 @@ def set_deployment_uuid():
 def has_devops_update():
     current_version = current_devops_version()
     try:
-        versions = __api_get("/current_version").json().get("data", None)
+        versions = VersionCenter().get("/current_version").json().get("data", None)
     except Exception:
         return {
             "has_update": False,
@@ -116,38 +242,20 @@ def has_devops_update():
 
 def update_deployment(versions):
     version_name = versions["version_name"]
-    logger.info(f"Update perl on {version_name}...")
-    deployer_node_ip = config.get("DEPLOYER_NODE_IP")
-    if deployer_node_ip is None:
-        # get the k8s cluster the oldest node ip
-        deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
+    logger.info(f"Update deployment to {version_name}...")
 
-    # Delete old templates cache
     delete_template_cache()
-
-    # Continue update process
-    output_str, error_str = util.ssh_to_node_by_key("/home/rkeuser/deploy-devops/bin/update-perl.pl", deployer_node_ip)
-    if error_str != "":
-        not_found_message = error_str.split(":")[-1].replace("\n", "")
-        if not_found_message != " No such file or directory":
-            if output_str != "":
-                complete_message = output_str.split("==")[-2]
-                if complete_message != "process complete":
-                    logger.exception(f"Can not update perl on {version_name}")
-            else:
-                logger.exception(str(error_str))
-
     close_version_notification()
 
-    logger.info(f"Updating deployment to {version_name}...")
     api_image_tag = versions["api_image_tag"]
     ui_image_tag = versions["ui_image_tag"]
-    kubernetesClient.update_deployment_image_tag("default", "devopsapi", api_image_tag)
-    kubernetesClient.update_deployment_image_tag("default", "devopsui", ui_image_tag)
+
+    kubernetesClient.update_deployment_image_tag("iiidevops", "devops-api", api_image_tag)
+    kubernetesClient.update_deployment_image_tag("iiidevops", "devops-ui", ui_image_tag)
     # Record update done
     model.NexusVersion.query.one().deploy_version = version_name
     model.db.session.commit()
-    __api_post("/report_update", data={"version_name": version_name})
+    VersionCenter().post("/report_update", data={"version_name": version_name})
 
 
 def close_version_notification():
@@ -173,22 +281,6 @@ def get_deployment_info():
         "deployment_name": config.get("DEPLOYMENT_NAME"),
         "deployment_uuid": row.deployment_uuid,
     }
-
-
-def register_in_vc(force_update: bool = False) -> None:
-    from resources.system import system_git_commit_id
-
-    nexus_version = model.NexusVersion.query.first()
-    deploy_version, deploy_uuid = nexus_version.deploy_version, nexus_version.deployment_uuid
-    logger.info(f"Oringal deploy_version: {deploy_version}, deploy_uuid: {deploy_uuid}.")
-    if deploy_version is None or force_update:
-        deploy_version = system_git_commit_id().get("git_tag")
-        logger.info(f"After deploy_version: {deploy_version}.")
-        nexus_version.deploy_version = deploy_version
-        model.db.session.commit()
-        logger.info(f"Updating deploy_version to {deploy_version}.")
-
-    return __api_post("/report_info", data={"iiidevops": {"deploy_version": deploy_version}, "uuid": deploy_uuid})
 
 
 # ------------------ Resources ------------------
