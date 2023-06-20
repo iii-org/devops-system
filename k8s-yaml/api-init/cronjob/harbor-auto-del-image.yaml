@@ -9,6 +9,7 @@ spec:
   schedule: "0 16 * * *"
   jobTemplate:
     spec:
+      startingDeadlineSeconds: 180
       backoffLimit: 0
       template:
         spec:

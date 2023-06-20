@@ -309,7 +309,6 @@ KEEP_IMAGE_COUNT = 3
 @doc(tags=["Harbor Delete Image"], description="harbor image auto del")
 class HarborImageAutoDel(MethodResource):
     @use_kwargs(router_model.HarborImageAutoDel, location="query")
-    @jwt_required()
     def delete(self, **kwargs):
         project_name = kwargs.get('project_name')
         keep_image_count = kwargs.get("keep_image_count")
