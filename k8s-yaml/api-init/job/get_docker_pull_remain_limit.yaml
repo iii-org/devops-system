@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: docker-pull-remain-limit
+spec:
+  template:
+    spec:
+      containers:
+      - command: 
+        - "/bin/sh"
+        - "-c"
+        - |
+          TOKEN=$(curl -s "https://auth.docker.io/token?service=registry.docker.io&scope=repository:iiiorg/devops-api:pull" | jq -r .token)
+          curl -s --head -H "Authorization: Bearer $TOKEN" https://registry-1.docker.io/v2/iiiorg/devops-api/manifests/master | grep ratelimit-remaining
+        image: iiiorg/iiidevops-cli:0.0.4
+        name: docker-pull-remain-limit
+        resources: {}
+      nodeSelector:
+        number: 0
+      restartPolicy: Never
+  backoffLimit: 1

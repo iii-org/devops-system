@@ -22,8 +22,8 @@ import config
 import resources.apiError as apiError
 from resources.logger import logger
 from resources.keycloak import key_cloak
-
 from typing import Any
+from time import sleep
 
 # kubernetes 抓取 III 定義 annotations 標籤
 iii_template = {
@@ -481,10 +481,16 @@ class ApiK8sClient:
                 raise e
 
     # node
-
     def list_node(self):
         try:
             return self.core_v1.list_node()
+        except apiError.DevOpsError as e:
+            if e.status_code != 404:
+                raise e
+
+    def patch_node(self, node_name: str, node_object: k8s_client.V1Node) -> k8s_client.V1Node:
+        try:
+            return self.core_v1.patch_node(node_name, node_object)
         except apiError.DevOpsError as e:
             if e.status_code != 404:
                 raise e
@@ -577,6 +583,122 @@ class ApiK8sClient:
                 raise e
 
     # 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
+
+
+def get_job_belong_pods(job_name: str, namespace: str = "default", api_k8s_client: ApiK8sClient = None) -> list[str]:
+    """
+    Get job belong pods name list.
+
+    Args:
+        job_name (str): job name.
+
+    Returns:
+        list[str]: job belong pods name list.
+    """
+    api_k8s_client = api_k8s_client or ApiK8sClient()
+    job = api_k8s_client.batch_v1.read_namespaced_job(job_name, namespace)
+    selector = job.spec.selector.match_labels
+    selector = ",".join([f"{key}={value}" for key, value in selector.items()])
+
+    pods = api_k8s_client.core_v1.list_namespaced_pod(namespace, label_selector=selector)
+    pods_name = [pod.metadata.name for pod in pods.items]
+    return pods_name
+
+
+def create_default_labels_on_node_if_not_exist(api_k8s_client: ApiK8sClient = None):
+    """
+    Check node has deafult labels, if not creat it.
+
+    Sort node and add node_key: node_num, node_value: {int} by order.
+
+    Update each time just in case node label won't be duplicated.
+    """
+    api_k8s_client = api_k8s_client or ApiK8sClient()
+    nodes = api_k8s_client.core_v1.list_node()
+    node_value = 1
+    for node in nodes.items:
+        if node.metadata.labels is None:
+            node.metadata.labels = {}
+        node.metadata.labels["node_num"] = str(node_value)
+
+        api_k8s_client.core_v1.patch_node(node.metadata.name, node)
+
+
+def list_node_info(api_k8s_client: ApiK8sClient = None) -> list[dict[str, Any]]:
+    api_k8s_client = api_k8s_client or ApiK8sClient()
+    ret = []
+    for node_info in api_k8s_client.core_v1.list_node().items:
+        name = node_info.metadata.name
+        ip = ""
+        for address_info in node_info.status.addresses:
+            if address_info.type == "InternalIP":
+                ip = address_info.address
+                break
+
+        node_select_label = node_info.metadata.labels.get("node_num", "")
+
+        ret.append({"name": name, "ip": ip, "node_select_label": {"node_num": node_select_label}})
+
+    return ret
+
+
+def delete_job_and_related_pod(api_k8s_client: ApiK8sClient = None, job_name: str = None, ns: str = "default"):
+    api_k8s_client = api_k8s_client or ApiK8sClient()
+    try:
+        pods_name = get_job_belong_pods(job_name, ns)
+        for pod_name in pods_name:
+            api_k8s_client.delete_namespaced_pod(pod_name, ns)
+        api_k8s_client.delete_namespaced_job(job_name, ns)
+    except ApiException:
+        pass
+
+
+def create_job_in_each_node_to_get_docker_pull_remain_time(
+    docker_pull_remain_limit_job_file_path: str, api_k8s_client: ApiK8sClient = None
+) -> dict[str, Any]:
+    ret = {}
+    api_k8s_client = api_k8s_client or ApiK8sClient()
+    ns = "default"
+    node_infos = list_node_info(api_k8s_client=api_k8s_client)
+    if not node_infos:
+        raise Exception("Can not get node list!")
+
+    create_default_labels_on_node_if_not_exist(api_k8s_client=api_k8s_client)
+    node_infos = list_node_info(api_k8s_client=api_k8s_client)
+
+    for node_info in node_infos:
+        node_name, ip, node_select_label = node_info["name"], node_info["ip"], node_info["node_select_label"]
+
+        with open(docker_pull_remain_limit_job_file_path) as f:
+            json_file = yaml.safe_load(f)
+            job_name = f'docker-pull-remain-limit-{node_select_label["node_num"]}'
+            json_file["metadata"]["name"] = job_name
+            json_file["spec"]["template"]["spec"]["containers"][0]["name"] = job_name
+            json_file["spec"]["template"]["spec"]["nodeSelector"] = node_select_label
+
+            delete_job_and_related_pod(api_k8s_client, job_name, ns)
+            sleep(1)
+            k8s_utils.create_from_dict(ApiK8sClient().get_api_client(), json_file, namespace=ns)
+
+            pods_name = get_job_belong_pods(job_name, ns)
+            if not pods_name:
+                raise Exception("Can not get number of ratelimit-remaining!")
+
+            sleep(3)
+            node_log = ""
+            for pod_name in pods_name:
+                logs = read_namespace_pod_log(ns, pod_name)
+                if not logs.startswith("ratelimit-remaining:"):
+                    continue
+                else:
+                    node_log = logs
+
+            if not node_log:
+                raise Exception("Can not get number of ratelimit-remaining!")
+
+            ret[f"{node_name}:{ip}"] = node_log
+
+    return ret
 
 
 # 20230118 為取得 storage class 資訊而新增下列一段程式

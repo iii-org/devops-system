@@ -1,12 +1,12 @@
 import json
 from datetime import datetime
-from datetime import timedelta
 from time import sleep
 from typing import Any, Callable
 
 from github import Github
 from github.GithubException import BadCredentialsException
-from sqlalchemy import desc, func, Integer, Text
+from sqlalchemy import desc
+import re
 
 import config
 import util
@@ -17,16 +17,14 @@ from model import (
     ProjectPluginRelation,
     db,
     PluginSoftware,
-    SystemParameter,
 )
-from model import ServerDataCollection
 from nexus import nx_get_project_plugin_relation
 from plugins.sonarqube.sonarqube_main import sq_get_current_measures
 from resources import apiError, logger
 from resources.gitlab import gitlab
-from resources.harbor import hb_get_project_summary, hb_get_registries
+from resources.harbor import hb_get_project_summary
 from resources.kubernetesClient import ApiK8sClient as K8s_client
-from resources.kubernetesClient import list_namespace_services
+from resources.kubernetesClient import list_namespace_services, create_job_in_each_node_to_get_docker_pull_remain_time
 from resources.mail import Mail, mail_server_is_open
 from resources.notification_message import (
     close_notification_message,
@@ -509,44 +507,35 @@ def verify_github_info(value: dict[str, str]) -> None:
 
 
 def docker_image_pull_limit_alert():
-    output_str, _ = util.ssh_to_node_by_key(
-        "perl deploy-devops/bin/get-cluster-pull-ratelimit.pl",
-        config.get("DEPLOYER_NODE_IP"),
-    )
-    outputs = output_str.split("\n")
-    if "---" in outputs:
-        nodes_info = outputs[outputs.index("---") + 1]
-    else:
-        nodes_info = max(output_str.split("\n"))
-
-    try:
-        nodes_info = json.loads(nodes_info)
-    except:
-        return {
-            "name": "Harbor proxy remain limit",
-            "error_title": "Harbor pull limit exceed",
-            "status": False,
-            "remain_limit": 0,
-            "message": "Can not get all nodes' pull limit info.",
-            "datetime": datetime.utcnow().isoformat(),
-        }
-    error_nodes_message = []
-    for node_info in nodes_info:
-        limit = node_info.get("ratelimit-remaining")
-        if limit is None:
-            error_nodes_message.append(f"Can not get node {node_info.get('node')} pull remain times.")
-        elif limit < 30:
-            error_nodes_message.append(
-                f"Node {node_info.get('node')} pull remain times({limit}) below limit(30 times)."
-            )
-
-    return {
+    ret = {
         "name": "Harbor proxy remain limit",
         "error_title": "Harbor pull limit exceed",
-        "status": error_nodes_message == [],
-        "message": "\n".join(error_nodes_message),
+        "status": False,
+        "message": "",
         "datetime": datetime.utcnow().isoformat(),
     }
+    get_docker_pull_remain_limit_job_file_path = (
+        config.BASE_FOLDER / "k8s-yaml" / "api-init" / "job" / "get_docker_pull_remain_limit.yaml"
+    )
+
+    try:
+        pod_log_mapping = create_job_in_each_node_to_get_docker_pull_remain_time(
+            get_docker_pull_remain_limit_job_file_path
+        )
+    except Exception as e:
+        ret["message"] = str(e)
+        return ret
+
+    for node_info, node_log in pod_log_mapping.items():
+        regex = re.compile(r"ratelimit-remaining:(.\d+)")
+        limit = regex.search(node_log).group(1).strip()
+
+        if int(limit) <= 30:
+            ret["message"] = f"Node {node_info} get docker pull remain time({limit}) below limit(30 times)."
+            return ret
+
+    ret["status"] = True
+    return ret
 
 
 def k8s_storage_remain_limit():
