@@ -262,10 +262,8 @@ def update_plugin_disable_argument(plugin_name: str, args: dict[str, Any], is_fi
             "func": check_excalidraw_alive,
             "alert_monitring_id": 1001,
             "parameters": {
-                "excalidraw_url": args.get("arguments").get("excalidraw-url")
-                if args.get("arguments") is not None
-                else None,
-                "excalidraw_socket_url": args.get("arguments").get("excalidraw-socket-url")
+                "excalidraw_url": args.get("arguments").get("EXCLD_URL") if args.get("arguments") is not None else None,
+                "excalidraw_socket_url": args.get("arguments").get("EXCLD_SOCKET_URL")
                 if args.get("arguments") is not None
                 else None,
             },
@@ -299,7 +297,7 @@ def check_plugin_alive(plugin_name: str, plugin_alive_mapping: dict[str, Any], i
         if excalidraw_url is None or excalidraw_socket_url is None:
             raise DevOpsError(
                 400,
-                "Argument: excalidraw-url or excalidraw-socket-url can not be blank in first create.",
+                "Argument: EXCLD_URL or EXCLD_SOCKET_URL can not be blank in first create.",
                 error=apiError.argument_error("disabled"),
             )
 
@@ -339,16 +337,17 @@ def delete_plugin_row(plugin_name):
     row = model.PluginSoftware.query.filter_by(name=plugin_name).one()
     model.db.session.delete(row)
     model.db.session.commit()
+
     # try:
     #     rancher.rc_delete_secrets_into_rc_all(plugin_name)
     # except apiError.DevOpsError as e:
     #     if e.status_code != 404:
     #         raise e
-    try:
-        delete_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name))
-    except ApiException as e:
-        if e.status != 404:
-            raise e
+    # try:
+    #     delete_namespace_secret(SYSTEM_SECRET_NAMESPACE, system_secret_name(plugin_name))
+    # except ApiException as e:
+    #     if e.status != 404:
+    #         raise e
 
 
 def insert_plugin_row(plugin_name, args):
