@@ -3,13 +3,13 @@ kind: CronJob
 metadata:
   name: harbor-auto-del-image
 spec:
+  startingDeadlineSeconds: 180
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 0
   schedule: "0 16 * * *"
   jobTemplate:
     spec:
-      startingDeadlineSeconds: 180
       backoffLimit: 0
       template:
         spec:
