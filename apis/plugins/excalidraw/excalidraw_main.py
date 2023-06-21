@@ -29,6 +29,13 @@ class ExcalidrawsV2(MethodResource):
 
 
 class ExcalidrawV2(MethodResource):
+    @doc(tags=["Excalidraw"], description="Delete an excalidraw.")
+    @handle_plugin("excalidraw")
+    @marshal_with(router_model.ExcalidrawGetSingleRes)
+    @jwt_required
+    def get(self, excalidraw_id):
+        return util.success(excalidraw.get_excalidraw_by_excalidraw_id(excalidraw_id))
+
     @doc(tags=["Excalidraw"], description="Delete an excalidraw.", security=util.security_params)
     @marshal_with(util.CommonResponse)
     @handle_plugin("excalidraw")
@@ -88,7 +95,9 @@ class ExcalidrawsHistoryV2(MethodResource):
         excalidraw.update_excalidraw_history(excalidraw_id)
         return util.success()
 
-    @doc(tags=["Excalidraw"], description="Compare excalidraw and store in db. (Get out)", security=util.security_params)
+    @doc(
+        tags=["Excalidraw"], description="Compare excalidraw and store in db. (Get out)", security=util.security_params
+    )
     @marshal_with(util.CommonResponse)
     @handle_plugin("excalidraw")
     @jwt_required
