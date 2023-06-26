@@ -37,5 +37,10 @@
         "template_key": "cmas",
         "plugin_key": "cmas",
         "display": "CMAS"
+    },
+    {
+        "template_key": "anchore",
+        "plugin_key": "sbom",
+        "display": "anchore"
     }
 ]
