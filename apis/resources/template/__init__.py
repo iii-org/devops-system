@@ -427,7 +427,9 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
     pipe_json = None
     with open(f"{TEMPLATE_FOLDER_NAME}/{pj.path}/{pipe_yaml_file_name}") as file:
         pipe_json = yaml.safe_load(file)
+        logger.logger.info(f'stages length: {len(pipe_json["stages"])}')
         for stage in pipe_json["stages"]:
+            logger.logger.info(f'iiidevops: [{stage.get("iiidevops")}]')
             if "steps" in stage:
                 for step in stage["steps"]:
                     for fun_key, fun_value in step.items():
