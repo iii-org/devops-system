@@ -314,12 +314,13 @@ def fetch_and_update_template_cache():
 
 def __update_stage_when_plugin_disable(stage):
     if stage.get("iiidevops") is not None:
+        logger.logger.info(f'iiidevops: [{stage.get("iiidevops")}]')
         for software in support_software_json:
-            logger.logger.info(f'template_key:[{software.get("template_key")}], iiidevops:[{stage.get("iiidevops")}]' +
-                               f'plugin_disabled:[{software.get("plugin_disabled")}]')
+            logger.logger.info(f'template_key: [{software.get("template_key")}], ' +
+                               f'plugin_disabled: [{software.get("plugin_disabled")}]')
             if (software.get("template_key") == stage.get("iiidevops") and
                     ((stage.get("iiidevops") == "sonarqube" and software.get("plugin_disabled") is True) or
-                     (stage.get("iiidevops") != "sonarqube")
+                     (stage.get("iiidevops") != "sonarqube" and software.get("plugin_disabled") is not None)
                     )):
                 if "when" not in stage:
                     stage["when"] = {"branch": {"include": []}}
