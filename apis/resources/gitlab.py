@@ -965,7 +965,7 @@ class GitLab(object):
 
         branch = self.gl_get_single_pipeline(repo_id, pipeline_id)["ref"]
         pipeline_info = initial_gitlab_pipline_info(repo_id, branch)
-        total = len(pipeline_info["pipe_dict"])
+        total = len(pipeline_info.get("pipe_dict", {}))
         ret = {"status": {"total": total, "success": success}}
         if with_commit_msg:
             commit_message = jobs[0].get("commit", {}).get("title", "") if jobs else ""

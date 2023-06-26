@@ -623,6 +623,22 @@ def change_user_status(user_id, args):
 ########## Create User ##########
 
 
+def recreate_user(args: dict[str, Any], recreate_server_list: list) -> dict[str, Any]:
+    """Recreate user."""
+    logger.info("Recreating user...")
+    check_create_user_args(args, recreate_server_list, from_ad=args.get("from_ad", False))
+    server_user_id_mapping = recreate_user_in_servers(args)
+    logger.info("User recreated.")
+
+    return {
+        "user_id": server_user_id_mapping.get("db", {}).get("id"),
+        "key_cloak_user_id": server_user_id_mapping.get("key_cloak", {}).get("id"),
+        "plan_user_id": server_user_id_mapping.get("redmine", {}).get("id"),
+        "repository_user_id": server_user_id_mapping.get("gitlab", {}).get("id"),
+        "kubernetes_sa_name": server_user_id_mapping.get("k8s", {}).get("id"),
+    }
+
+
 @record_activity(ActionType.CREATE_USER)
 def create_user(args: dict[str, Any]) -> dict[str, Any]:
     """Due to keyclock issue, do not need to create harbor's user."""
@@ -640,10 +656,11 @@ def create_user(args: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def check_create_user_args(args: dict[str, Any]) -> None:
+def check_create_user_args(args: dict[str, Any], server_list: list[str] = None, from_ad: bool = False) -> None:
     check_create_user_login_valid(args["login"])
-    check_create_user_pwd_valid(args["password"], args.get("from_ad", False))
-    check_create_user_login_email_unique(args["login"], args["email"], args.get("force", False))
+    if not from_ad:
+        check_create_user_pwd_valid(args["password"], args.get("from_ad", False))
+    check_create_user_login_email_unique(args["login"], args["email"], args.get("force", False), server_list)
 
 
 def check_create_user_login_valid(login_name: str) -> None:
@@ -671,16 +688,30 @@ def check_create_user_pwd_valid(user_source_password: str, from_ad: bool) -> Non
     logger.info("Password is valid.")
 
 
-def check_create_user_login_email_unique(login_name: str, email: str, force: bool) -> None:
-    check_create_user_login_email_unique_db(login_name, email)
-    check_create_user_login_email_unique_keycloak(login_name, email, force)
-    check_create_user_login_email_unique_redmine(login_name, email, force)
-    check_create_user_login_email_unique_gitlab(login_name, email, force)
-    check_create_user_login_email_unique_k8s(login_name, email, force)
-    check_create_user_login_email_unique_sonarqube(login_name, force)
+def check_create_user_login_email_unique(
+    login_name: str, email: str, force: bool, server_list: list[str] = None
+) -> None:
+    """
+    Args:
+        server_list (list[str], optional): server list. Defaults to None. all servers
+            db / key_cloak / redmine / gitlab / k8s / sonarqube
+    """
+
+    check_server_func_mapping = {
+        "db": check_create_user_login_email_unique_db,
+        "key_cloak": check_create_user_login_email_unique_keycloak,
+        "redmine": check_create_user_login_email_unique_redmine,
+        "gitlab": check_create_user_login_email_unique_gitlab,
+        "k8s": check_create_user_login_email_unique_k8s,
+        "sonarqube": check_create_user_login_email_unique_sonarqube,
+    }
+    if server_list is None:
+        server_list = list(check_server_func_mapping.keys())
+    for server in server_list:
+        check_server_func_mapping[server](login_name, email, force)
 
 
-def check_create_user_login_email_unique_db(login_name: str, email: str) -> None:
+def check_create_user_login_email_unique_db(login_name: str, email: str, force: bool) -> None:
     # Check DB has this login, email, if has, raise error
     check_count = model.User.query.filter(
         db.or_(
@@ -792,7 +823,7 @@ def check_create_user_login_email_unique_k8s(login_name: str, email: str, force:
     logger.info("Account name not used in kubernetes or force is True.")
 
 
-def check_create_user_login_email_unique_sonarqube(login_name: str, force: bool) -> None:
+def check_create_user_login_email_unique_sonarqube(login_name: str, email: str, force: bool) -> None:
     # Check SonarQube has this login, if has, raise error(if force deactivate it.)
     page = 1
     page_size = 50
@@ -816,22 +847,78 @@ def check_create_user_login_email_unique_sonarqube(login_name: str, force: bool)
     logger.info("Account name not used in SonarQube or force is True.")
 
 
+def recreate_user_in_servers(args: dict[str, Any], server_list: list[str] = None):
+    """
+    Args:
+        server_list (list[str], optional): server list. Defaults to None. all servers
+            db / key_cloak / redmine / gitlab / k8s / sonarqube
+    """
+    role_id = args["role_id"]
+    is_admin = role_id == role.ADMIN.id
+    logger.info(f"is_admin is {is_admin}")
+
+    server_user_func_info_mapping = {
+        "db": {"create_func": create_user_in_db, "create_func_args": (args, is_admin), "delete_func": delete_db_user},
+        "key_cloak": {
+            "create_func": create_user_in_key_cloak,
+            "create_func_args": (args, is_admin),
+            "delete_func": key_cloak.delete_user,
+        },
+        "redmine": {
+            "create_func": create_user_in_redmine,
+            "create_func_args": (args, is_admin),
+            "delete_func": redmine.rm_delete_user,
+        },
+        "gitlab": {
+            "create_func": create_user_in_gitlab,
+            "create_func_args": (args, is_admin),
+            "delete_func": gitlab.gl_delete_user,
+        },
+        "k8s": {
+            "create_func": create_user_in_k8s,
+            "create_func_args": (args, is_admin),
+            "delete_func": kubernetesClient.delete_service_account,
+        },
+        "sonarqube": {
+            "create_func": create_user_in_sonarqube,
+            "create_func_args": (args),
+            "delete_func": sonarqube.sq_deactivate_user,
+        },
+    }
+    if server_list is None:
+        server_list = list(server_user_func_info_mapping.keys())
+    ret = {server: {"id": None} for server in server_list}
+
+    for server in server_list:
+        server_user_func_info = server_user_func_info_mapping[server]
+        ret[server][id] = server_user_func_info["create_func"](*server_user_func_info["create_func_args"])
+
+    if "db" not in ret:
+        user_obj = model.User.query.filter_by(login=args["login"]).one()
+        ret["db"] = {"id": user_obj.id}
+
+    recreate_user_in_other_dbs(ret, role_id)
+    return ret
+
+
 def create_user_in_servers(args: dict[str, Any]) -> dict[str, dict[str:Any]]:
     """
-    k8s: Use name to delete instead of id
-    Sonarqube: Can not be delete, can only deactivate(and use name instead)
+    Create user in servers. If create failed, rollback. The following is rollback rules:
+        - k8s: Use name to delete instead of id
+        - Sonarqube: Can not be delete, can only deactivate(and use name instead)
     """
     server_user_id_mapping = {
+        "db": {"id": None, "delete_func": delete_db_user},
+        "key_cloak": {"id": None, "delete_func": key_cloak.delete_user},
         "redmine": {"id": None, "delete_func": redmine.rm_delete_user},
         "gitlab": {"id": None, "delete_func": gitlab.gl_delete_user},
         "k8s": {"id": None, "delete_func": kubernetesClient.delete_service_account},
-        "key_cloak": {"id": None, "delete_func": key_cloak.delete_user},
         "sonarqube": {"id": None, "delete_func": sonarqube.sq_deactivate_user},
-        "db": {"id": None, "delete_func": delete_db_user},
     }
     role_id = args["role_id"]
     is_admin = role_id == role.ADMIN.id
     logger.info(f"is_admin is {is_admin}")
+
     try:
         server_user_id_mapping["key_cloak"]["id"] = create_user_in_key_cloak(args, is_admin)
         server_user_id_mapping["redmine"]["id"] = create_user_in_redmine(args, is_admin)
@@ -928,6 +1015,43 @@ def create_user_in_db(args: dict[str, Any]) -> int:
     user_id = user.id
     logger.info(f"Nexus user created, id={user_id}")
     return user_id
+
+
+def recreate_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]], role_id: int):
+    """
+    Args:
+        server_user_id_mapping must has key "db".
+    """
+
+    user_id = server_user_id_mapping["db"]["id"]
+
+    user_plugin_rel_obj = model.UserPluginRelation.filter_by(user_id=user_id)
+    user_plugin_rel = user_plugin_rel_obj.first()
+
+    if user_plugin_rel is None:
+        return create_user_in_other_dbs(server_user_id_mapping, role_id)
+
+    update_args = __translate_server_user_id_mapping_to_update_args(server_user_id_mapping)
+    user_plugin_rel_obj.update(**update_args)
+    db.session.commit()
+
+
+def __translate_server_user_id_mapping_to_update_args(
+    server_user_id_mapping: dict[str, dict[str, Any]]
+) -> dict[str, dict[str, Any]]:
+    update_args_mapping = {
+        "redmine": "plan_user_id",
+        "gitlab": "repository_user_id",
+        "k8s": "kubernetes_sa_name",
+        "key_cloak": "key_cloak_user_id",
+    }
+    update_args = {
+        update_args_mapping[server]: id_mapping["id"]
+        for server, id_mapping in server_user_id_mapping.items()
+        if update_args_mapping.get(server) is not None
+    }
+
+    return update_args
 
 
 def create_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]], role_id: int):
@@ -1146,7 +1270,4 @@ def update_user_message_types(user_id, args):
 def get_user_deployment_env_info(user_account: str) -> dict[str, str]:
     token = generate_service_account_token(user_account)
     host = f'wss://{config.get("DEPLOYER_NODE_IP")}:6443'
-    return {
-        "token": token,
-        "host": host
-    }
+    return {"token": token, "host": host}
