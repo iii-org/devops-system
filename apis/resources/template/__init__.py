@@ -431,7 +431,7 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
     from resources.check_version import check_and_update_template_pj_pipeline_file
 
     updated_pipe_json = check_and_update_template_pj_pipeline_file(pipe_json)
-    
+
     logger.logger.info(f'stages length: {len(pipe_json["stages"])}')
     for stage in updated_pipe_json["stages"]:
         logger.logger.info(f'iiidevops: [{stage.get("iiidevops")}]')
@@ -467,10 +467,6 @@ def tm_use_template_push_into_pj(template_repository_id, user_repository_id, tag
                             if parm_key in template_replace_dict:
                                 fun_value[parm_key] = template_replace_dict[parm_key]
         stage = __update_stage_when_plugin_disable(stage)
-
-    # from resources.check_version import check_and_update_template_pj_pipeline_file
-    #
-    # updated_pipe_json = check_and_update_template_pj_pipeline_file(pipe_json)
 
     with open(f"{TEMPLATE_FOLDER_NAME}/{pj.path}/{pipe_yaml_file_name}", "w") as file:
         yaml.dump(updated_pipe_json, file, sort_keys=False)
