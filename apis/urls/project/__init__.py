@@ -1,7 +1,7 @@
 from . import view
 
 
-def project_url(api, add_resource):
+def project_url(api, add_resource, socketio):
     # Project son relation
     api.add_resource(view.CheckhasRelationProject, "/project/<sint:project_id>/has_relation")
     api.add_resource(view.CheckhasRelationProjectV2, "/v2/project/<sint:project_id>/has_relation")
@@ -337,3 +337,6 @@ def project_url(api, add_resource):
     # project resource info
     api.add_resource(view.ProjectResourceStorage, "/v2/project/<sint:project_id>/resoure_info")
     add_resource(view.ProjectResourceStorage, "private")
+
+    ##### Project deployment pod exec ########
+    socketio.on_namespace(view.KubernetesPodExec("/k8s/websocket/pod_exec"))

@@ -241,7 +241,7 @@ api.add_resource(
     "/project/<sint:project_id>/issues_commit/by_branch",
 )
 
-project_url(api, add_resource)
+project_url(api, add_resource, socketio)
 
 # Tag
 tag_url(api, add_resource)

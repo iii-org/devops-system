@@ -55,6 +55,8 @@ from flask import send_file
 import nexus
 from resources.redmine import redmine, get_redmine_obj
 import werkzeug
+from flask_socketio import Namespace, emit
+from resources.kubernetesClient import K8sPodExec, ApiException
 
 
 ##### Project Relation ######
@@ -1760,3 +1762,22 @@ class ProjectResourceStorage(MethodResource):
     @jwt_required
     def patch(self, project_id, **kwargs):
         return util.success(update_project_resource_storage_level(project_id, args=kwargs))
+
+
+##### Project deployment pod exec ######
+
+
+class KubernetesPodExec(Namespace):
+    def on_connect(self):
+        print("connect")
+
+    def on_disconnect(self):
+        print("Client disconnected")
+
+    def on_pod_exec_cmd(self, data):
+        print("exec_namespace_pod_log")
+        try:
+            K8sPodExec(data).exec_namespace_pod(data)
+        except ApiException as e:
+            ret = {"code": 3001, "message": "Token is expired or not be used.", "details": str(e)}
+            emit("get_cmd_response", ret)

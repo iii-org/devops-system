@@ -582,7 +582,10 @@ class ApiK8sClient:
             if e.status_code != 404:
                 raise e
 
-    # 20230202 為取得 persistent volume claim 資訊而新增上列一段程式
+
+############################
+# scheduled job on each node
+############################
 
 
 def get_job_belong_pods(job_name: str, namespace: str = "default", api_k8s_client: ApiK8sClient = None) -> list[str]:
@@ -747,6 +750,80 @@ def create_job_in_each_node_to_get_k8s_storage_remain_limit(
         ret[node_info] = actual_node_log
 
     return ret
+
+
+############################
+# k8s stream (ws exec)
+############################
+
+
+class K8sPodExec(object):
+    def __init__(self, data):
+        configuration = k8s_client.Configuration()
+        configuration.host = data["host"]
+        configuration.verify_ssl = False
+        configuration.api_key["authorization"] = "Bearer " + data["token"]
+        with k8s_client.ApiClient(configuration) as api_client:
+            self.core_v1 = k8s_client.CoreV1Api(api_client)
+            self.data = data
+            self.resp = self.__connect_namespace_pod()
+
+    def __connect_namespace_pod(self):
+        self.namespace_name = self.data["project_name"]
+        self.pod_name = self.data["pod_name"]
+        self.container_name = self.data.get("container_name")
+        exec_command = [
+            "/bin/sh",
+            "-c",
+            "TERM=xterm-256color; export TERM; [ -x /bin/bash ] "
+            "&& ([ -x /usr/bin/script ] "
+            '&& /usr/bin/script -q -c "/bin/bash" /dev/null || exec /bin/bash) '
+            "|| exec /bin/sh",
+        ]
+        if self.container_name is None:
+            return k8s_stream(
+                self.core_v1.connect_get_namespaced_pod_exec,
+                self.pod_name,
+                self.namespace_name,
+                command=exec_command,
+                stderr=True,
+                stdin=True,
+                stdout=True,
+                tty=False,
+                _preload_content=False,
+            )
+        else:
+            return k8s_stream(
+                self.core_v1.connect_get_namespaced_pod_exec,
+                self.pod_name,
+                self.namespace_name,
+                command=exec_command,
+                container=self.container_name,
+                stderr=True,
+                stdin=True,
+                stdout=True,
+                tty=False,
+                _preload_content=False,
+            )
+
+    def exec_namespace_pod(self, data):
+        command = data["command"]
+        while self.resp.is_open():
+            self.resp.update(timeout=1)
+            print("Running command... %s\n" % command)
+            self.resp.write_stdin(command + "\n")
+            if self.resp.peek_stdout():
+                output_mess = self.resp.read_stdout()
+                print("STDOUT: %s" % output_mess)
+                emit("get_cmd_response", {"output": output_mess})
+                break
+            elif self.resp.peek_stderr():
+                output_err = self.resp.read_stderr()
+                print("STDERR: %s" % output_err)
+                emit("get_cmd_response", output_err)
+                break
+
+        self.resp.close()
 
 
 # 20230118 為取得 storage class 資訊而新增下列一段程式
