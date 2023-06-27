@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: get-cluster-df-remain
+spec:
+  template:
+    spec:
+      containers:
+      - command: 
+        - "/bin/sh"
+        - "-c"
+        - |
+          ret={} ; df=$(df -h | grep "/$")
+          IFS=' ' read -r _ size used avail usage mounted << EOF
+          $df
+          EOF
+          ret=$(echo $ret | jq ". + {Size: \"$size\", Used: \"$used\", Avail: \"$avail\", Usage: \"$usage\"}")
+          echo "$ret"
+        image: iiiorg/iiidevops-cli:0.0.4
+        name: get-cluster-df-remain
+        resources: {}
+      restartPolicy: Never
+  backoffLimit: 1

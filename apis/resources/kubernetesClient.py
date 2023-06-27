@@ -653,9 +653,14 @@ def delete_job_and_related_pod(api_k8s_client: ApiK8sClient = None, job_name: st
         pass
 
 
-def create_job_in_each_node_to_get_docker_pull_remain_time(
-    docker_pull_remain_limit_job_file_path: str, api_k8s_client: ApiK8sClient = None
+def create_job_in_each_node_by_yaml_file(
+    job_name: str, docker_pull_remain_limit_job_file_path: str, api_k8s_client: ApiK8sClient = None
 ) -> dict[str, Any]:
+    """
+    Args:
+        job_name (str): can not have the following special character: _ . /
+    """
+
     ret = {}
     api_k8s_client = api_k8s_client or ApiK8sClient()
     ns = "default"
@@ -671,7 +676,7 @@ def create_job_in_each_node_to_get_docker_pull_remain_time(
 
         with open(docker_pull_remain_limit_job_file_path) as f:
             json_file = yaml.safe_load(f)
-            job_name = f'docker-pull-remain-limit-{node_select_label["node_num"]}'
+            job_name = f'{job_name}-{node_select_label["node_num"]}'
             json_file["metadata"]["name"] = job_name
             json_file["spec"]["template"]["spec"]["containers"][0]["name"] = job_name
             json_file["spec"]["template"]["spec"]["nodeSelector"] = node_select_label
@@ -682,21 +687,64 @@ def create_job_in_each_node_to_get_docker_pull_remain_time(
 
             pods_name = get_job_belong_pods(job_name, ns)
             if not pods_name:
-                raise Exception("Can not get number of ratelimit-remaining!")
+                raise Exception("Can not get number of {job_name}!")
 
             sleep(3)
-            node_log = ""
-            for pod_name in pods_name:
-                logs = read_namespace_pod_log(ns, pod_name)
-                if not logs.startswith("ratelimit-remaining:"):
-                    continue
-                else:
-                    node_log = logs
+            node_logs = [read_namespace_pod_log(ns, pod_name) for pod_name in pods_name]
 
-            if not node_log:
-                raise Exception("Can not get number of ratelimit-remaining!")
+            if not node_logs:
+                raise Exception("Can not get number of {job_name}!")
 
-            ret[f"{node_name}:{ip}"] = node_log
+            ret[f"{node_name}:{ip}"] = node_logs
+
+        return ret
+
+
+def create_job_in_each_node_to_get_docker_pull_remain_time(
+    docker_pull_remain_limit_job_file_path: str, api_k8s_client: ApiK8sClient = None
+) -> dict[str, Any]:
+    job_name = "docker-pull-remain-limit"
+    node_logs_mapping = create_job_in_each_node_by_yaml_file(
+        job_name, docker_pull_remain_limit_job_file_path, api_k8s_client
+    )
+
+    ret = {}
+    for node_info, node_logs in node_logs_mapping.items():
+        actual_node_log = ""
+        for node_log in node_logs:
+            if not node_log.startswith("ratelimit-remaining:"):
+                continue
+            else:
+                actual_node_log = node_log
+
+        if not actual_node_log:
+            raise Exception(f"Can not get number of {job_name}!")
+
+        ret[node_info] = actual_node_log
+    return ret
+
+
+def create_job_in_each_node_to_get_k8s_storage_remain_limit(
+    docker_pull_remain_limit_job_file_path: str, api_k8s_client: ApiK8sClient = None
+) -> dict[str, Any]:
+    job_name = "k8s-storage-remain-limit"
+    node_logs_mapping = create_job_in_each_node_by_yaml_file(
+        job_name, docker_pull_remain_limit_job_file_path, api_k8s_client
+    )
+
+    ret = {}
+    for node_info, node_logs in node_logs_mapping.items():
+        actual_node_log = ""
+        for node_log in node_logs:
+            try:
+                actual_node_log = json.loads(node_log.replace("'", '"'))
+            except json.decoder.JSONDecodeError:
+                continue
+
+        if not actual_node_log or "Usage" not in actual_node_log:
+            raise Exception(f"Can not get number of {job_name}!")
+
+        ret[node_info] = actual_node_log
 
     return ret
 

@@ -24,7 +24,11 @@ from resources import apiError, logger
 from resources.gitlab import gitlab
 from resources.harbor import hb_get_project_summary
 from resources.kubernetesClient import ApiK8sClient as K8s_client
-from resources.kubernetesClient import list_namespace_services, create_job_in_each_node_to_get_docker_pull_remain_time
+from resources.kubernetesClient import (
+    list_namespace_services,
+    create_job_in_each_node_to_get_docker_pull_remain_time,
+    create_job_in_each_node_to_get_k8s_storage_remain_limit,
+)
 from resources.mail import Mail, mail_server_is_open
 from resources.notification_message import (
     close_notification_message,
@@ -525,7 +529,6 @@ def docker_image_pull_limit_alert():
     except Exception as e:
         ret["message"] = str(e)
         return ret
-
     for node_info, node_log in pod_log_mapping.items():
         regex = re.compile(r"ratelimit-remaining:(.\d+)")
         limit = regex.search(node_log).group(1).strip()
@@ -539,40 +542,31 @@ def docker_image_pull_limit_alert():
 
 
 def k8s_storage_remain_limit():
-    output_str, _ = util.ssh_to_node_by_key("perl deploy-devops/bin/get-cluster-df.pl", config.get("DEPLOYER_NODE_IP"))
-    nodes_storage_info = max(output_str.split("\n"))
-    try:
-        nodes_storage_info = json.loads(nodes_storage_info)
-    except:
-        return {
-            "name": "Kubernetes node storage remain.",
-            "error_title": "Kubernetes node has insufficient storage",
-            "status": False,
-            "total_size": None,
-            "used": None,
-            "avail": None,
-            "message": "Can not get all nodes' storage.",
-            "datetime": datetime.utcnow().isoformat(),
-        }
-    error_nodes_message = []
-    for node_storage_info in nodes_storage_info:
-        usage = node_storage_info.get("Usage")
-        if usage is None:
-            error_nodes_message.append(f"Can not get node {node_storage_info.get('node')} storage usage.")
-        elif usage == "":
-            continue
-        elif int(usage.replace("%", "")) > 75:
-            error_nodes_message.append(
-                f"Node {node_storage_info.get('node')} storage used percentage({usage}) exceeded 75%!"
-            )
-
-    return {
+    ret = {
         "name": "Kubernetes node storage remain.",
         "error_title": "Kubernetes node has insufficient storage",
-        "status": error_nodes_message == [],
-        "message": "\n".join(error_nodes_message),
+        "status": False,
+        "message": "",
         "datetime": datetime.utcnow().isoformat(),
     }
+    get_cluster_df_remain_file_path = (
+        config.BASE_FOLDER / "k8s-yaml" / "api-init" / "job" / "get_cluster_df_remain.yaml"
+    )
+
+    try:
+        pod_log_mapping = create_job_in_each_node_to_get_k8s_storage_remain_limit(get_cluster_df_remain_file_path)
+    except Exception as e:
+        ret["message"] = str(e)
+        return ret
+
+    for node_info, node_log in pod_log_mapping.items():
+        usage_rate = int(node_log["Usage"].replace("%", ""))
+        if usage_rate > 75:
+            ret["message"] = f"Node {node_info} storage used percentage({usage_rate}) exceeded 75%!"
+            return ret
+
+    ret["status"] = True
+    return ret
 
 
 def check_mail_server():
