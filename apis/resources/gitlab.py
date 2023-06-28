@@ -35,6 +35,7 @@ from model import (
     Project,
     ProjectPluginRelation,
     GitlabSourceCodeLens,
+    PipelineCourse,
 )
 from resources import apiError, role
 from resources.apiError import DevOpsError
@@ -1662,6 +1663,22 @@ class GitlabSingleCommitV2(MethodResource):
 class GitlabSourceCodeV2(MethodResource):
     def post(self, **kwargs):
         project_query = Project.query.filter(Project.name == kwargs["repo_name"]).first()
+        if kwargs.get("commit_count"):
+            add_dict = {
+                "branch": kwargs["branch_name"],
+                "commit_id": kwargs["commit_id"],
+                "project_id": project_query.id,
+                "source_code_num": kwargs["source_code_num"],
+                "commit_count": kwargs["commit_count"],
+                "created_at": datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT),
+            }
+            try:
+                new = PipelineCourse(**add_dict)
+                model.db.session.add(new)
+                model.db.session.commit()
+            except Exception as e:
+                model.db.session.rollback()
+                logger.error("pipeline_course insert failed.")
         update_dict = {
             "branch": kwargs["branch_name"],
             "commit_id": kwargs["commit_id"],

@@ -27,6 +27,9 @@ class GitlabSourceCodeSchema(Schema):
     branch_name = fields.Str(doc="branch_name", example="master")
     commit_id = fields.Str(doc="commit_id", example="4419301qa")
     source_code_num = fields.Int(doc="source_code_num", example=3352)
+    repo_age = fields.Str(doc="repo_age", example="6 days ")
+    repo_active = fields.Str(doc="repo_active", example="11 hours ago")
+    commit_count = fields.Int(doc="commit_count", example=1)
 
 
 class GitlabPostProjectBranchesSch(Schema):

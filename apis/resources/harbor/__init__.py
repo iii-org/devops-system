@@ -1,4 +1,5 @@
 import re
+import time
 from typing import Any
 from urllib.parse import quote, quote_plus
 
@@ -331,10 +332,10 @@ def hb_get_artifacts_with_tag(project_name, repository_name, tag):
     return []
 
 
-def hb_list_artifacts(project_name, repository_name):
+def hb_list_artifacts(project_name, repository_name, pages: int = 10):
     artifacts = __api_get(
         f"/projects/{project_name}/repositories" f"/{__encode(repository_name)}/artifacts",
-        params={"with_scan_overview": True},
+        params={"with_scan_overview": True, "pages": pages},
     ).json()
     ret = []
     for art in artifacts:
@@ -506,6 +507,27 @@ def hb_delete_artifact_tag(
 
     if can_remove_artifact and not keep:
         hb_delete_artifact(project_name, repository_name, reference)
+
+
+def hb_auto_del_artifact_tag(project_name: str, keep_image_count: int = 3):
+    if hb_get_id_by_name(project_name):
+        logger.info(f"get [{project_name}] 's repositories")
+        repositories = hb_list_repositories(project_name)
+        for repository in repositories:
+            artifact_count = repository.get("artifact_count", 0)
+            names = repository["name"].split("/")
+            if len(names) == 2 and names[0] == names[1]:
+                continue
+            while artifact_count > keep_image_count:
+                logger.info(f"get [{repository['name']}] 's artifacts")
+                artifacts = hb_list_artifacts(names[0], "/".join(names[1:]), pages=100)
+                artifacts_count = len(artifacts)
+                for i in range(keep_image_count, artifacts_count):
+                    logger.info(f"delete digest:[{artifacts[i]['digest']}] tag name:[{artifacts[i]['name']}]")
+                    hb_delete_artifact_tag(names[0], "/".join(names[1:]), artifacts[i]["digest"], artifacts[i]["name"])
+                    artifact_count -= 1
+    else:
+        logger.info(f"[{project_name}] not existed in harbor")
 
 
 def hb_get_project_summary(project_id):

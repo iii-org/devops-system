@@ -37,6 +37,9 @@ VERSIONS = [
     "1.28.0.4",
     "1.28.0.5",
     "1.28.0.6",
+    "1.29.0.1",
+    "1.29.0.2",
+    "1.29.0.3",
 ]
 ONLY_UPDATE_DB_MODELS = [
     "1.22.0.1",
@@ -56,6 +59,8 @@ ONLY_UPDATE_DB_MODELS = [
     "1.28.0.1",
     "1.28.0.2",
     "1.28.0.4",
+    "1.29.0.1",
+    "1.29.0.2",
 ]
 
 
@@ -92,6 +97,8 @@ def upgrade(version):
     elif version == "1.28.0.6":
         model.WebInspect.query.delete()
         db.session.commit()
+    elif version == "1.29.0.3":
+        recreate_ui_route()
 
 
 def recreate_ui_route():

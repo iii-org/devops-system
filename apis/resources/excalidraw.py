@@ -463,20 +463,23 @@ def update_excalidraw_history(excalidraw_id: int, excalidraw_history_id: int = N
 
 
 def check_excalidraw_history(excalidraw_id: int):
-    excalidraw_row, excalidraw_history_row = get_excalidraw_history_join_row(excalidraw_id)
-    if excalidraw_row is None:
-        logger.logger.exception(f"Excalidraw id {excalidraw_id} not found")
-        return
-    if excalidraw_history_row is None:
-        key, value = excalidraw_row.room, None
-    else:
-        key, value = excalidraw_row.room, excalidraw_history_row.value
+    try:
+        excalidraw_row, excalidraw_history_row = get_excalidraw_history_join_row(excalidraw_id)
+        if excalidraw_row is None:
+            logger.logger.exception(f"Excalidraw id {excalidraw_id} not found")
+            return
+        if excalidraw_history_row is None:
+            key, value = excalidraw_row.room, None
+        else:
+            key, value = excalidraw_row.room, excalidraw_history_row.value
 
-    _, excal_value = get_excalidraw_from_excaildraw_db(key)[0]
-    excal_value_dict = json.loads(excal_value)
-    if value != excal_value_dict and utf8len(excal_value) > EXCALIDRAW_EMPTY_VALUE_LENGHT:
-        add_dict = {"excalidraw_id": excalidraw_id, "value": excal_value_dict}
-        add_new_record_to_history(excalidraw_id, add_dict=add_dict)
+        _, excal_value = get_excalidraw_from_excaildraw_db(key)[0]
+        excal_value_dict = json.loads(excal_value)
+        if value != excal_value_dict and utf8len(excal_value) > EXCALIDRAW_EMPTY_VALUE_LENGHT:
+            add_dict = {"excalidraw_id": excalidraw_id, "value": excal_value_dict}
+            add_new_record_to_history(excalidraw_id, add_dict=add_dict)
+    except Exception as e:
+        logger.logger.exception(f"Fail to store excalidraw in {excalidraw_id}, error message: {str(e)}")
 
 
 def add_new_record_to_history(excalidraw_id, excalidraw_history_id=None, add_dict=None):
@@ -572,3 +575,18 @@ def check_excalidraw_alive(excalidraw_url=None, excalidraw_socket_url=None):
     if not_alive_services != []:
         ret["message"] = f'{", ".join(not_alive_services)} not alive'
     return ret
+
+
+def get_excalidraw_by_excalidraw_id(excalidraw_id):
+    excalidraw_rows = (
+        db.session.query(Excalidraw, ExcalidrawIssueRelation, User, Project)
+        .outerjoin(
+            ExcalidrawIssueRelation,
+            Excalidraw.id == ExcalidrawIssueRelation.excalidraw_id,
+        )
+        .join(User, Excalidraw.operator_id == User.id)
+        .join(Project, Excalidraw.project_id == Project.id)
+        .filter(Excalidraw.id == excalidraw_id)
+    )
+    result = nexus_excalidraw(excalidraw_rows)
+    return result[0] if len(result) > 0 else {}

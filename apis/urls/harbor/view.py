@@ -28,6 +28,7 @@ from resources.harbor import (
     hb_put_replication_policy,
     hb_update_repository,
     harbor_scan,
+    hb_auto_del_artifact_tag,
 )
 
 from . import router_model
@@ -300,3 +301,30 @@ class HarborScanList(MethodResource):
     @jwt_required()
     def get(self, project_id, **kwargs):
         return util.success(harbor_scan.harbor_scan_list(project_id, kwargs))
+
+
+KEEP_IMAGE_COUNT = 3
+
+
+@doc(tags=["Harbor Delete Image"], description="harbor image auto del")
+class HarborImageAutoDel(MethodResource):
+    @use_kwargs(router_model.HarborImageAutoDel, location="query")
+    def delete(self, **kwargs):
+        project_name = kwargs.get('project_name')
+        keep_image_count = kwargs.get("keep_image_count")
+        if project_name:
+            if keep_image_count and keep_image_count > 0:
+                hb_auto_del_artifact_tag(project_name, keep_image_count)
+            else:
+                hb_auto_del_artifact_tag(project_name)
+        else:
+            projects = nexus.nx_get_project_image_auto_del()
+            for project in projects:
+                if project.id <= 0:
+                    continue
+                if keep_image_count and keep_image_count > 0:
+                    hb_auto_del_artifact_tag(project.name, keep_image_count)
+                else:
+                    hb_auto_del_artifact_tag(project.name)
+        return util.success()
+

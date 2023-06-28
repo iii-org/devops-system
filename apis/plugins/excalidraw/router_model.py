@@ -111,3 +111,19 @@ class ExcalidrawHistoryGetRes(CommonBasicResponse):
 
 class ExcalidrawGetIDRes(CommonBasicResponse):
     data = fields.Dict(example={"excalidraw": 3})
+
+
+class ExcalidrawGetSingleRes(CommonBasicResponse):
+    data = fields.Dict(
+        example={
+            "created_at": TIMESAMPLE,
+            "id": 1,
+            "issue_ids": [1],
+            "name": "name",
+            "operator": {"id": 1, "login": "sysadmin", "name": "初始管理者"},
+            "project": {"display": "display", "id": 1, "name": "name"},
+            "updated_at": TIMESAMPLE,
+            "url": EXCALIDRAW_SAMPLE_URL,
+        }
+
+    )

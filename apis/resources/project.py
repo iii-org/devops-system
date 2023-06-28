@@ -376,7 +376,7 @@ def create_project(user_id, args):
         "redmine": (args,),
         "gitlab": (args,),
         "harbor": (args["name"],),
-        "sonarqube": (args["name"], args.get("display")),
+        "sonarqube": (args["name"], str(args.get("display")).replace("#", "%23")),
     }
     helper = util.ServiceBatchOpHelper(services, targets, service_args)
     helper.run()
@@ -486,6 +486,7 @@ def create_project(user_id, args):
             uuid=uuids,
             is_inheritance_member=is_inherit_members,
             is_empty_project=args.get("template_id") is None,
+            image_auto_del=True if args.get("image_auto_del") is None else args.get("image_auto_del")
         )
         db.session.add(new_pjt)
         db.session.commit()

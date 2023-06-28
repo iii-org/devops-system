@@ -255,17 +255,33 @@ def get_random_alphanumeric_string(letters_count_each, digits_count):
     return sample_str
 
 
+def check_json(string):
+    try:
+        json.loads(string)
+    except ValueError:
+        return False
+    return True
+
+
+def row_to_dict(row):
+    ret = {}
+    if row is None:
+        return row
+    for key in type(row).__table__.columns.keys():
+        value = getattr(row, key)
+        if type(value) is datetime or type(value) is date:
+            ret[key] = str(value)
+        elif isinstance(value, str) and check_json(value):
+            ret[key] = json.loads(value)
+        else:
+            ret[key] = value
+    return ret
+
+
 def rows_to_list(rows):
     out = []
     for row in rows:
-        ret = {}
-        for key in type(row).__table__.columns.keys():
-            value = getattr(row, key)
-            if type(value) is datetime or type(value) is date:
-                ret[key] = str(value)
-            else:
-                ret[key] = value
-        out.append(ret)
+        out.append(row_to_dict(row))
     return out
 
 

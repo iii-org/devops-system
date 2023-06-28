@@ -134,6 +134,7 @@ class Project(db.Model):
     trace_order = relationship("TraceOrder", backref="project")
     excalidraws = relationship("Excalidraw", back_populates="project")
     webinspect = relationship("WebInspect", back_populates="project")
+    image_auto_del = Column(Boolean, server_default="true")
 
     def __member_serializer(self, member_id):
         info = User.query.filter_by(id=member_id).first()
@@ -1186,6 +1187,18 @@ class GitlabSourceCodeLens(db.Model):
     project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"), primary_key=True)
     source_code_num = Column(Integer)
     updated_at = Column(DateTime)
+
+
+# 20230606 新增 Pipeline Course
+class PipelineCourse(db.Model):
+    id = Column(Integer, primary_key=True)
+    branch = Column(String)
+    commit_id = Column(String)
+    project_id = Column(Integer, ForeignKey(Project.id, ondelete="CASCADE"))
+    source_code_num = Column(Integer)
+    commit_count = Column(Integer)
+    created_at = Column(DateTime)
+# 20230606 新增 Pipeline Course
 
 
 class PipelineUpdateVersion(db.Model):

@@ -33,3 +33,6 @@ def harbor_url(api, add_resource):
     add_resource(view.HarborScanList, "private")
     api.add_resource(view.HarborScanReport, "/v2/harbor/<project_name>/scan/report")
     add_resource(view.HarborScanReport, "private")
+
+    api.add_resource(view.HarborImageAutoDel, "/v2/harbor/image/auto/del")
+    add_resource(view.HarborImageAutoDel, "private")
