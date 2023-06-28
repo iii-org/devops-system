@@ -16,7 +16,7 @@ from kubernetes.stream import stream as k8s_stream
 
 # from resources.handler.jwt import create_access_token
 from datetime import timedelta
-from util import read_json_file, get_deploy_timezone
+from util import read_json_file
 
 import config
 import resources.apiError as apiError
@@ -904,7 +904,7 @@ def apply_cronjob_yamls():
                     json_file = yaml.safe_load(f)
 
                     # Set execute timezone
-                    timezone = get_deploy_timezone()  # ssh 抓時間
+                    timezone = config.get("TIMEZONE", "Etc/UTC")  # ssh 抓時間
                     json_file["spec"]["timeZone"] = timezone
                     cronjob_name = json_file["metadata"]["name"]
                     logger.info(f"Remove {cronjob_name}")

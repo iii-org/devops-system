@@ -495,10 +495,3 @@ class CommonResponse(Schema):
 class CommonBasicResponse(CommonResponse):
     datetime = fields.Str(required=True, example="1970-01-01T00:00:00.000000")
 
-
-def get_deploy_timezone() -> str:
-    import config
-
-    cmd, ip = "cat /etc/timezone", config.get("DEPLOYER_NODE_IP")
-    output, _ = ssh_to_node_by_key(cmd, ip)
-    return output
