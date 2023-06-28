@@ -205,6 +205,18 @@ class GitLab(object):
     def gl_get_all_project(self):
         return self.gl.projects.list(all=True)
 
+    def gl_get_project_by_name(self, project_name: str) -> dict:
+        project_list = self.__api_get(
+            "/projects",
+            params={"name": project_name},
+        ).json()
+        result = None
+        for project in project_list:
+            if project.get("name") == project_name:
+                result = project
+                break
+        return result
+
     def gl_create_project(self, args):
         """
         params: args:

@@ -123,8 +123,8 @@ def get_user_id_from_redmine_id(redmin_user_id: int):
     user = model.UserPluginRelation.query.filter_by(plan_user_id=redmin_user_id).first()
     return user.user_id
 
-def get_role_id(user_id):
-    row = model.ProjectUserRole.query.filter_by(user_id=user_id).first()
+def get_role_id(user_id, project_id: int = -1):
+    row = model.ProjectUserRole.query.filter_by(project_id=project_id, user_id=user_id).first()
     if row is not None:
         return row.role_id
     else:
@@ -190,7 +190,9 @@ def get_sysadmin_info(login):
 
 
 @record_activity(ActionType.UPDATE_USER)
-def update_user(user_id, args, from_ad=False):
+def update_user(user_id, args, from_ad=False, is_restore: bool = False):
+    if is_restore:
+        server_user_id_mapping = create_user_in_servers(args, is_restore)
     user = model.User.query.filter_by(id=user_id).first()
     if "role_id" in args:
         update_user_role(user_id, args.get("role_id"))
@@ -621,11 +623,12 @@ def change_user_status(user_id, args):
 
 
 @record_activity(ActionType.CREATE_USER)
-def create_user(args: dict[str, Any]) -> dict[str, Any]:
+def create_user(args: dict[str, Any], is_restore: bool = False) -> dict[str, Any]:
     """Due to keyclock issue, do not need to create harbor's user."""
     logger.info("Creating user...")
-    check_create_user_args(args)
-    server_user_id_mapping = create_user_in_servers(args)
+    if not is_restore:
+        check_create_user_args(args)
+    server_user_id_mapping = create_user_in_servers(args, is_restore)
     logger.info("User created.")
 
     return {
@@ -813,36 +816,89 @@ def check_create_user_login_email_unique_sonarqube(login_name: str, force: bool)
     logger.info("Account name not used in SonarQube or force is True.")
 
 
-def create_user_in_servers(args: dict[str, Any]) -> dict[str, dict[str:Any]]:
+def create_user_in_servers(args: dict[str, Any], is_restore: bool = False) -> dict[str, dict[str:Any]]:
     """
     k8s: Use name to delete instead of id
     Sonarqube: Can not be delete, can only deactivate(and use name instead)
     """
     server_user_id_mapping = {
-        "redmine": {"id": None, "delete_func": redmine.rm_delete_user},
-        "gitlab": {"id": None, "delete_func": gitlab.gl_delete_user},
-        "k8s": {"id": None, "delete_func": kubernetesClient.delete_service_account},
-        "key_cloak": {"id": None, "delete_func": key_cloak.delete_user},
-        "sonarqube": {"id": None, "delete_func": sonarqube.sq_deactivate_user},
-        "db": {"id": None, "delete_func": delete_db_user},
+        "redmine": {"id": None, "delete_func": redmine.rm_delete_user, "is_add": True},
+        "gitlab": {"id": None, "delete_func": gitlab.gl_delete_user, "is_add": True},
+        "k8s": {"id": None, "delete_func": kubernetesClient.delete_service_account, "is_add": True},
+        "key_cloak": {"id": None, "delete_func": key_cloak.delete_user, "is_add": True},
+        "sonarqube": {"id": None, "delete_func": sonarqube.sq_deactivate_user, "is_add": True},
+        "db": {"id": None, "delete_func": delete_db_user, "is_add": True},
     }
     role_id = args["role_id"]
     is_admin = role_id == role.ADMIN.id
     logger.info(f"is_admin is {is_admin}")
     try:
-        server_user_id_mapping["key_cloak"]["id"] = create_user_in_key_cloak(args, is_admin)
-        server_user_id_mapping["redmine"]["id"] = create_user_in_redmine(args, is_admin)
-        server_user_id_mapping["gitlab"]["id"] = create_user_in_gitlab(args, is_admin)
-        server_user_id_mapping["k8s"]["id"] = create_user_in_k8s(args, is_admin)
-        server_user_id_mapping["sonarqube"]["id"] = create_user_in_sonarqube(args)
-        server_user_id_mapping["db"] = {"id": create_user_in_db(args)}
-        create_user_in_other_dbs(server_user_id_mapping, role_id)
+        kc_id = None
+        if is_restore:
+            kc_id = get_user_id_in_key_cloak(args.get("login"))
+        if kc_id:
+            server_user_id_mapping["key_cloak"]["id"] = kc_id
+            server_user_id_mapping["key_cloak"]["is_add"] = False
+        else:
+            server_user_id_mapping["key_cloak"]["id"] = create_user_in_key_cloak(args, is_admin)
+        rm_id = None
+        if is_restore:
+            rm_id = get_user_id_in_redmine(args.get("login"))
+            print(rm_id)
+        if rm_id:
+            server_user_id_mapping["redmine"]["id"] = rm_id
+            server_user_id_mapping["redmine"]["is_add"] = False
+        else:
+            server_user_id_mapping["redmine"]["id"] = create_user_in_redmine(args, is_admin)
+        gl_id = None
+        if is_restore:
+            gl_id = get_user_id_in_gitlab(args.get("login"), args.get("email"))
+        if gl_id:
+            server_user_id_mapping["gitlab"]["id"] = gl_id
+            server_user_id_mapping["gitlab"]["is_add"] = False
+        else:
+            server_user_id_mapping["gitlab"]["id"] = create_user_in_gitlab(args, is_admin)
+        sa_name = None
+        if is_restore:
+            sa_name = get_sa_name_in_k8s(args.get("login"))
+            print(sa_name)
+        if sa_name:
+            server_user_id_mapping["k8s"]["id"] = sa_name
+            server_user_id_mapping["k8s"]["is_add"] = False
+        else:
+            server_user_id_mapping["k8s"]["id"] = create_user_in_k8s(args, is_admin)
+        sq_login = None
+        if is_restore:
+            sq_login = get_login_in_sonarqube(args.get("login"))
+        if sq_login:
+            server_user_id_mapping["sonarqube"]["id"] = sq_login
+            server_user_id_mapping["sonarqube"]["is_add"] = False
+        else:
+            server_user_id_mapping["sonarqube"]["id"] = create_user_in_sonarqube(args)
+        user_id = None
+        if is_restore:
+            if args.get("id"):
+                user_id = args.get("id")
+        if user_id:
+            server_user_id_mapping["db"] = {"id": user_id, "is_add": False}
+        else:
+            server_user_id_mapping["db"] = {"id": create_user_in_db(args)}
+        create_user_in_other_dbs(server_user_id_mapping, role_id, is_restore)
     except Exception as e:
         for _, id_delete_func_mapping in server_user_id_mapping.items():
             user_id = id_delete_func_mapping["id"]
-            if id_delete_func_mapping["id"] is not None and _ != "db":
+            if id_delete_func_mapping["is_add"] and id_delete_func_mapping["id"] is not None and _ != "db":
                 id_delete_func_mapping["delete_func"](user_id)
-        raise e
+        if is_restore:
+            logger.info({
+                "api": "user restore",
+                "id": args.get('id'),
+                "login": args.get("login"),
+                "service": _,
+                "error_message": e,
+            })
+        else:
+            raise e
     return server_user_id_mapping
 
 
@@ -855,11 +911,27 @@ def create_user_in_key_cloak(args: dict[str, Any], is_admin: bool) -> int:
     return key_cloak_id
 
 
+def get_user_id_in_key_cloak(user_name: str) -> int or None:
+    kc_list = key_cloak.get_users({"username": user_name})
+    for kc in kc_list:
+        if kc.get("username") == user_name:
+            return kc.get("id")
+    return None
+
+
 def create_user_in_redmine(args: dict[str, Any], is_admin: bool) -> int:
     red_user = redmine.rm_create_user(args, args["password"], is_admin=is_admin)
     redmine_user_id = red_user["user"]["id"]
     logger.info(f"Redmine user created, id={redmine_user_id}")
     return redmine_user_id
+
+
+def get_user_id_in_redmine(user_name: str) -> int or None:
+    rm_list = redmine.rm_get_user_list({"name": user_name}).get("users")
+    for rm in rm_list:
+        if rm.get("login") == user_name:
+            return rm.get("id")
+    return None
 
 
 def create_user_in_gitlab(args: dict[str, Any], is_admin: bool) -> int:
@@ -875,6 +947,16 @@ def create_user_in_gitlab(args: dict[str, Any], is_admin: bool) -> int:
     return gitlab_user_id
 
 
+def get_user_id_in_gitlab(user_name: str, user_email: str) -> int or None:
+    gl_list = gitlab.gl_get_user_list({"username": user_name}).json()
+    if len(gl_list) == 0:
+        gl_list = gitlab.gl_get_user_list({"search": user_email}).json()
+    for gl in gl_list:
+        if gl.get("username") == user_name or gl.get("email") == user_email:
+            return gl.get("id")
+    return None
+
+
 def create_user_in_k8s(args: dict[str, Any], is_admin: bool) -> int:
     login_sa_name = util.encode_k8s_sa(args["login"])
     kubernetes_sa = kubernetesClient.create_service_account(login_sa_name)
@@ -883,11 +965,28 @@ def create_user_in_k8s(args: dict[str, Any], is_admin: bool) -> int:
     return kubernetes_sa_name
 
 
+def get_sa_name_in_k8s(user_name: str) -> str or None:
+    login_sa_name = util.encode_k8s_sa(user_name)
+    sa_list = kubernetesClient.list_service_account()
+    for sa in sa_list:
+        if sa == login_sa_name:
+            return sa
+    return None
+
+
 def create_user_in_sonarqube(args: dict[str, Any]) -> str:
     sonarqube.sq_create_user(args)
     sonarqube.sq_update_identity_provider(args)
     logger.info(f"Sonarqube user created.")
     return args["login"]
+
+
+def get_login_in_sonarqube(user_name: str) -> str or None:
+    sq_list = sonarqube.sq_list_user({}).json().get("users")
+    for sq in sq_list:
+        if sq.get("login") == user_name:
+            return sq.get("login")
+    return None
 
 
 def create_user_in_db(args: dict[str, Any]) -> int:
@@ -921,38 +1020,52 @@ def create_user_in_db(args: dict[str, Any]) -> int:
         user.last_login = args.get("last_login")
     db.session.add(user)
     db.session.commit()
-
     user_id = user.id
     logger.info(f"Nexus user created, id={user_id}")
     return user_id
 
 
-def create_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]], role_id: int):
+def create_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]], role_id: int, is_restore: bool = False):
     # insert user_plugin_relation table
     user_id = server_user_id_mapping["db"]["id"]
-
-    rel = model.UserPluginRelation(
-        user_id=user_id,
-        plan_user_id=server_user_id_mapping["redmine"]["id"],
-        repository_user_id=server_user_id_mapping["gitlab"]["id"],
-        kubernetes_sa_name=server_user_id_mapping["k8s"]["id"],
-        key_cloak_user_id=server_user_id_mapping["key_cloak"]["id"],
-    )
-    db.session.add(rel)
+    rel = None
+    if is_restore:
+        rel = model.UserPluginRelation.query.filter_by(user_id=user_id).first()
+    if rel:
+        rel.plan_user_id = server_user_id_mapping["redmine"]["id"]
+        rel.repository_user_id = server_user_id_mapping["gitlab"]["id"]
+        rel.kubernetes_sa_name = server_user_id_mapping["k8s"]["id"]
+        rel.key_cloak_user_id = server_user_id_mapping["key_cloak"]["id"]
+    else:
+        rel = model.UserPluginRelation(
+            user_id=user_id,
+            plan_user_id=server_user_id_mapping["redmine"]["id"],
+            repository_user_id=server_user_id_mapping["gitlab"]["id"],
+            kubernetes_sa_name=server_user_id_mapping["k8s"]["id"],
+            key_cloak_user_id=server_user_id_mapping["key_cloak"]["id"],
+        )
+        db.session.add(rel)
     db.session.commit()
     logger.info(f"Nexus user_plugin built.")
 
     # insert project_user_role
-    rol = model.ProjectUserRole(project_id=-1, user_id=user_id, role_id=role_id)
-    db.session.add(rol)
+    rol = None
+    if is_restore:
+        rol = model.ProjectUserRole.query.filter_by(project_id=-1, user_id=user_id).first()
+    if rol:
+        rol.role_id = role_id
+    else:
+        rol = model.ProjectUserRole(project_id=-1, user_id=user_id, role_id=role_id)
+        db.session.add(rol)
     db.session.commit()
     logger.info(f"Nexus user project_user_role created.")
 
     # insert user_message_type
-    row = model.UserMessageType(user_id=user_id, teams=False, notification=True, mail=False)
-    db.session.add(row)
-    db.session.commit()
-    logger.info(f"Nexus user_message_type created.")
+    if not is_restore:
+        row = model.UserMessageType(user_id=user_id, teams=False, notification=True, mail=False)
+        db.session.add(row)
+        db.session.commit()
+        logger.info(f"Nexus user_message_type created.")
 
 
 ########## Create User End ##########

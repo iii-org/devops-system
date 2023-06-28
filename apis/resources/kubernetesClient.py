@@ -872,6 +872,10 @@ def list_namespace_resource_quota(namespace):
             raise e
 
 
+def check_quota_in_namespace(namespace: str, name: str = "project-quota") -> bool:
+    return name in list_namespace_resource_quota(namespace)
+
+
 def create_namespace_quota(namespace):
     try:
         resource_quota = k8s_client.V1ResourceQuota(
@@ -924,6 +928,10 @@ def create_namespace_limitrange(namespace):
             raise e
 
 
+def check_limitrange_in_namespace(namespace: str, name: str = "project-limitrange") -> bool:
+    return name in list_limitrange_in_namespace(namespace)
+
+
 def list_limitrange_in_namespace(namespace):
     try:
         list_limitranges = []
@@ -950,6 +958,11 @@ def create_role_in_namespace(namespace):
     except apiError.DevOpsError as e:
         if e.status_code != 404:
             raise e
+
+
+def check_role_in_namespace(namespace: str, name: str = "user-role") -> bool:
+    role_list = list_role_in_namespace(namespace)
+    return name in role_list
 
 
 def list_role_in_namespace(namespace):

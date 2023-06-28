@@ -139,10 +139,6 @@ def backup_project_to_json():
                 project_json["creator_login"] = project_json["owner_login"]
             else:
                 project_json["creator_login"] = get_user_login_by_user_id(project.creator_id)
-        # 依 project_id 取得 Alert 的資訊列表
-        alerts = get_alert_by_project_id(project.id)
-        if alerts:
-            project_json["alert"] = rows_to_list(alerts)
         # 取得專案資源存儲存級別資訊列表
         prs_list = get_project_resource_storagelevel_by_project_id(project.id)
         if prs_list:

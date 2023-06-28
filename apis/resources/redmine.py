@@ -167,6 +167,12 @@ class Redmine:
     def rm_get_project(self, plan_project_id):
         return self.__api_get("/projects/{0}".format(plan_project_id)).json()
 
+    def rm_get_project_by_name(self, project_name: str) -> dict:
+        projects = self.__api_get("/projects", params={"name": project_name}).json().get("projects")
+        if len(projects) > 0:
+            return projects[0]
+        return None
+
     def rm_create_project(self, args):
         param = {
             "project": {

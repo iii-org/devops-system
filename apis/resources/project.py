@@ -329,7 +329,8 @@ def get_project_rows_by_user(user_id, disable, args={}):
 ##### Project #####
 ####### create project ########
 @record_activity(ActionType.CREATE_PROJECT)
-def create_project(user_id, args):
+def create_project(user_id, args, is_restore: bool = False):
+    print(args)
     args["description"] = args["description"] or ""
     args["display"] = args["display"] or args["name"]
     project_name = args["name"]
@@ -339,18 +340,50 @@ def create_project(user_id, args):
         parent_plan_project_id = get_plan_project_id(args.get("parent_id"))
         args["parent_plan_project_id"] = parent_plan_project_id
 
-    create_project_k8s_items(project_name)
-    pj_id_mapping = create_project_in_servers(args)
-    ret_pj_id_mapping = create_project_main(user_id, args, pj_id_mapping)
+    create_project_k8s_items(project_name, is_restore)
+    pj_id_mapping, services, helper = create_project_in_servers(args, is_restore)
+    ret_pj_id_mapping = create_project_main(user_id, args, pj_id_mapping, services, helper)
     return ret_pj_id_mapping
 
 
-def create_project_k8s_items(project_name: str) -> None:
+def create_project_k8s_items(project_name: str, is_restore: bool = False) -> None:
+    namespace = None
+    if is_restore:
+        try:
+            namespace = kubernetesClient.get_namespace(project_name)
+        except Exception as ex:
+            print(ex)
+            pass
     try:
-        kubernetesClient.create_namespace(project_name)
-        kubernetesClient.create_role_in_namespace(project_name)
-        kubernetesClient.create_namespace_quota(project_name)
-        kubernetesClient.create_namespace_limitrange(project_name)
+        if namespace is None:
+            kubernetesClient.create_namespace(project_name)
+        has_role = False
+        if is_restore:
+            try:
+                has_role = kubernetesClient.check_role_in_namespace(project_name)
+            except Exception as ex:
+                print(ex)
+                pass
+        if not has_role:
+            kubernetesClient.create_role_in_namespace(project_name)
+        has_quota = False
+        if is_restore:
+            try:
+                has_quota = kubernetesClient.check_quota_in_namespace(project_name)
+            except Exception as ex:
+                print(ex)
+                pass
+        if not has_quota:
+            kubernetesClient.create_namespace_quota(project_name)
+        has_limitrange = False
+        if is_restore:
+            try:
+                has_limitrange = kubernetesClient.check_limitrange_in_namespace(project_name)
+            except Exception as ex:
+                print(ex)
+                pass
+        if not has_limitrange:
+            kubernetesClient.create_namespace_limitrange(project_name)
     except ApiException as e:
         if e.status == 409:
             raise DevOpsError(
@@ -362,26 +395,13 @@ def create_project_k8s_items(project_name: str) -> None:
         raise e
 
 
-def create_project_in_servers(args: dict[str, Any]) -> dict[str : dict[str, Any]]:
+def create_project_in_servers(
+        args: dict[str, Any], is_restore: bool = False
+) -> (dict[str: dict[str, Any]], list[str], util.ServiceBatchOpHelper):
     # 使用 multi-thread 建立各專案
-    services = ["redmine", "gitlab", "harbor", "sonarqube", "key_cloak"]
-    targets = {
-        "redmine": redmine.rm_create_project,
-        "gitlab": gitlab.create_project,
-        "harbor": harbor.hb_create_project,
-        "sonarqube": sonarqube.sq_create_project,
-        "key_cloak": key_cloak.create_group,
-    }
-    service_args = {
-        "redmine": (args,),
-        "gitlab": (args,),
-        "harbor": (args["name"],),
-        "sonarqube": (args["name"], args.get("display")),
-        "key_cloak": (args,),
-    }
-    helper = util.ServiceBatchOpHelper(services, targets, service_args)
-    helper.run()
-
+    services = []
+    targets = {}
+    service_args = {}
     # 先取出已成功的專案建立 id，以便之後可能的回溯需求
     pj_id_mapping = {
         "redmine": {"id": None},
@@ -389,10 +409,78 @@ def create_project_in_servers(args: dict[str, Any]) -> dict[str : dict[str, Any]
         "harbor": {"id": None},
         "key_cloak": {"id": None},
     }
+
+    rm_json = None
+    if is_restore:
+        rm_json = redmine.rm_get_project_by_name(args["name"])
+        print(f'redmine: {rm_json}')
+    if rm_json:
+        pj_id_mapping["redmine"]["id"] = rm_json["id"]
+    else:
+        services.append("redmine")
+        targets["redmine"] = redmine.rm_create_project
+        service_args["redmine"] = (args,)
+
+    gl_json = None
+    if is_restore:
+        gl_json = gitlab.gl_get_project_by_name(args["name"])
+    if gl_json:
+        pj_id_mapping["gitlab"]["id"] = gl_json["id"]
+        pj_id_mapping["gitlab"]["name"] = gl_json["name"]
+        pj_id_mapping["gitlab"]["ssh_url"] = gl_json["ssh_url_to_repo"]
+        pj_id_mapping["gitlab"]["http_url"] = gl_json["http_url_to_repo"]
+    else:
+        services.append("gitlab")
+        targets["gitlab"] = gitlab.create_project
+        service_args["gitlab"] = (args,)
+
+    hb_json = None
+    if is_restore:
+        try:
+            hb_json = harbor.hb_get_id_by_name(args["name"])
+        except Exception as ex:
+            print(ex)
+    if hb_json:
+        pj_id_mapping["harbor"]["id"] = hb_json
+    else:
+        services.append("harbor")
+        targets["harbor"] = harbor.hb_create_project
+        service_args["harbor"] = (args["name"],)
+
+    sq_json = None
+    if is_restore:
+        try:
+            sq_json = sonarqube.sq_list_project({"projects": args["name"], "p": 1, "ps": 1}).json().get("components")
+            print(f'sonarqube: {sq_json}')
+        except Exception as ex:
+            print(ex)
+    if not sq_json:
+        services.append("sonarqube")
+        targets["sonarqube"] = sonarqube.sq_create_project
+        service_args["sonarqube"] = (args["name"], args.get("display"))
+
+    kc_json = None
+    if is_restore:
+        kc_groups = key_cloak.get_groups()
+        for kc_group in kc_groups:
+            if kc_group["name"] == args["name"]:
+                kc_json = kc_group["id"]
+    if kc_json:
+        pj_id_mapping["key_cloak"]["id"] = kc_json
+    else:
+        services.append("key_cloak")
+        targets["key_cloak"] = key_cloak.create_group
+        service_args["key_cloak"] = (args,)
+
+    helper = util.ServiceBatchOpHelper(services, targets, service_args)
+    helper.run()
+
     project_name = args["name"]
 
     for service in services:
+        print(f"service: {service}, error:{helper.errors[service]}")
         if helper.errors[service] is None:
+            print(helper.outputs[service])
             output = helper.outputs[service]
             if service == "redmine":
                 pj_id_mapping["redmine"]["id"] = output["project"]["id"]
@@ -410,7 +498,7 @@ def create_project_in_servers(args: dict[str, Any]) -> dict[str : dict[str, Any]
     if any(helper.errors.values()):
         roll_back_all_created_projects(project_name, services, helper, pj_id_mapping)
 
-    return pj_id_mapping
+    return pj_id_mapping, services, helper
 
 
 def roll_back_all_created_projects(
@@ -476,7 +564,13 @@ def roll_back_all_created_projects_raise_error(
                 raise e
 
 
-def create_project_main(user_id: int, args: dict[str, Any], pj_id_mapping: dict[str : dict[str, Any]]):
+def create_project_main(
+        user_id: int,
+        args: dict[str, Any],
+        pj_id_mapping: dict[str: dict[str, Any]],
+        services: list[str],
+        helper: util.ServiceBatchOpHelper
+):
     owner_id = args["owner_id"] or user_id
     redmine_pj_id = pj_id_mapping["redmine"]["id"]
     gitlab_pj_id = pj_id_mapping["gitlab"]["id"]
@@ -525,14 +619,15 @@ def create_project_main(user_id: int, args: dict[str, Any], pj_id_mapping: dict[
         return ret_pi_id_mapping
 
     except Exception as e:
-        redmine.rm_delete_project(redmine_pj_id)
-        gitlab.gl_delete_project(gitlab_pj_id)
-        harbor_param = [harbor_pj_id, project_name]
-        harbor.hb_delete_project(harbor_param)
-        kubernetesClient.delete_namespace(project_name)
-        sonarqube.sq_delete_project(project_name)
-        kubernetesClient.delete_namespace(project_name)
-        key_cloak.delete_group(key_cloak_group_id)
+        # redmine.rm_delete_project(redmine_pj_id)
+        # gitlab.gl_delete_project(gitlab_pj_id)
+        # harbor_param = [harbor_pj_id, project_name]
+        # harbor.hb_delete_project(harbor_param)
+        # kubernetesClient.delete_namespace(project_name)
+        # sonarqube.sq_delete_project(project_name)
+        # kubernetesClient.delete_namespace(project_name)
+        # key_cloak.delete_group(key_cloak_group_id)
+        roll_back_all_created_projects_delete_process(project_name, services, helper, pj_id_mapping)
 
         if project_id is not None:
             delete_bot(project_id)
@@ -543,8 +638,8 @@ def create_project_main(user_id: int, args: dict[str, Any], pj_id_mapping: dict[
 
 
 def create_project_store_in_db(
-    user_id: int, uuids: str, args: dict[str, Any], pj_id_mapping: dict[str : dict[str, Any]]
-) -> None:
+    user_id: int, uuids: str, args: dict[str, Any], pj_id_mapping: dict[str: dict[str, Any]], is_restore: bool = False
+) -> dict[str: Any]:
     owner_id = args["owner_id"] or user_id
     # get base_example
     redmine_pj_id = pj_id_mapping["redmine"]["id"]
@@ -575,7 +670,7 @@ def create_project_store_in_db(
         create_at=str(datetime.utcnow()),
         owner_id=owner_id,
         creator_id=user_id,
-        base_example=template_pj_path,
+        base_example=template_pj_path or args["base_template"],
         example_tag=args["tag_name"],
         uuid=uuids,
         is_inheritance_member=args.pop("is_inheritance_member", False),
@@ -687,10 +782,29 @@ def create_bot(project_id):
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
-def pm_update_project(project_id, args):
+def pm_update_project(project_id, args, is_restore: bool = False):
     is_inherit_members = args.get("is_inheritance_member") or False
 
     plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
+
+    if is_restore:
+        create_project_k8s_items(args.get("name"), is_restore)
+        pj_id_mapping, service, helper = create_project_in_servers(args, is_restore)
+        if plugin_relation:
+            plugin_relation.plan_project_id = pj_id_mapping["redmine"]["id"],
+            plugin_relation.git_repository_id = pj_id_mapping["gitlab"]["id"],
+            plugin_relation.harbor_project_id = pj_id_mapping["harbor"]["id"],
+            plugin_relation.key_cloak_group_id = pj_id_mapping["key_cloak"]["id"],
+        else:
+            plugin_relation = model.ProjectPluginRelation(
+                project_id=project_id,
+                plan_project_id=pj_id_mapping["redmine"]["id"],
+                git_repository_id=pj_id_mapping["gitlab"]["id"],
+                harbor_project_id=pj_id_mapping["harbor"]["id"],
+                key_cloak_group_id=pj_id_mapping["key_cloak"]["id"],
+            )
+            db.session.add(plugin_relation)
+        db.session.commit()
     if args["description"] is not None:
         gitlab.gl_update_project(plugin_relation.git_repository_id, args["description"])
     if args.get("parent_id", None) is not None:
@@ -918,6 +1032,8 @@ def project_add_member(project_id, user_id):
     user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
     project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
     redmine_role_id = user.to_redmine_role_id(role_id)
+    print(f"user_id: {user_id}, role_id: {role_id}, redmine_role_id: {redmine_role_id}" +
+          f", plan_project_id:{project_relation.plan_project_id}")
 
     # get project name
     pj_row = model.Project.query.filter_by(id=project_id).one()
