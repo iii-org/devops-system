@@ -250,7 +250,6 @@ def run():
     current = current_version()
     try:
         # Upgrade alembic no matter what, run only once before version upgrade
-        alembic_upgrade()
         for version in VERSIONS:
             if needs_upgrade(current, version):
                 current, deploy_version = version, config.get("DEPLOY_VERSION")
@@ -260,6 +259,8 @@ def run():
                 row.api_version = current
                 db.session.commit()
                 logger.info("Upgrade to {0}".format(version))
+                if alembic_need_upgrade():
+                    alembic_upgrade()
                 _upgrade(version)
     except Exception as e:
         logger.exception(str(e))

@@ -30,7 +30,6 @@ COPY . .
 #RUN git describe --tags `git rev-list --tags --max-count=1` > git_tag
 RUN git rev-parse HEAD > git_commit
 RUN git log -1 --date=iso8601 --format="%ad" > git_date
-# RUN ls -la && ls -laR /root && cat /root/.kube/config
 
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]

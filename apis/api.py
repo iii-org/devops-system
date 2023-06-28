@@ -716,6 +716,7 @@ def start_prod() -> Flask:
             db.session.commit()
             logger.logger.info(f"Alembic revision set to {head}.")
 
+        migrate.alembic_upgrade()
         inject_initial_data()
 
     try:
