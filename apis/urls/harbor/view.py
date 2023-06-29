@@ -28,6 +28,7 @@ from resources.harbor import (
     hb_put_replication_policy,
     hb_update_repository,
     harbor_scan,
+    hb_auto_del_artifact_tag,
 )
 
 from . import router_model
@@ -387,22 +388,22 @@ KEEP_IMAGE_COUNT = 3
 
 @doc(tags=["Harbor Delete Image"], description="harbor image auto del")
 class HarborImageAutoDel(MethodResource):
-    @jwt_required
-    def delete(self):
-        projects = nexus.nx_get_project_image_auto_del()
-        for project in projects:
-            if project.id <= 0:
-                continue
-            repositories = hb_list_repositories(project.name)
-            for repository in repositories:
-                artifact_count = repository.get("artifact_count", 0)
-                names = repository["name"].split("/")
-                if len(names) == 2 and names[0] == names[1]:
+    @use_kwargs(router_model.HarborImageAutoDel, location="query")
+    def delete(self, **kwargs):
+        project_name = kwargs.get('project_name')
+        keep_image_count = kwargs.get("keep_image_count")
+        if project_name:
+            if keep_image_count and keep_image_count > 0:
+                hb_auto_del_artifact_tag(project_name, keep_image_count)
+            else:
+                hb_auto_del_artifact_tag(project_name)
+        else:
+            projects = nexus.nx_get_project_image_auto_del()
+            for project in projects:
+                if project.id <= 0:
                     continue
-                while artifact_count > KEEP_IMAGE_COUNT:
-                    artifacts = hb_list_artifacts(names[0], "/".join(names[1:]))
-                    artifacts_count = len(artifacts)
-                    for i in range(KEEP_IMAGE_COUNT, artifacts_count):
-                        hb_delete_artifact_tag(names[0], "/".join(names[1:]), artifacts[i]["digest"], artifacts[i]["name"])
-                        artifact_count -= 1
+                if keep_image_count and keep_image_count > 0:
+                    hb_auto_del_artifact_tag(project.name, keep_image_count)
+                else:
+                    hb_auto_del_artifact_tag(project.name)
         return util.success()
