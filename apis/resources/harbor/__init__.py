@@ -335,7 +335,7 @@ def hb_get_artifacts_with_tag(project_name, repository_name, tag):
 def hb_list_artifacts(project_name, repository_name, pages: int = 10):
     artifacts = __api_get(
         f"/projects/{project_name}/repositories" f"/{__encode(repository_name)}/artifacts",
-        params={"with_scan_overview": True, "pages": pages},
+        params={"with_scan_overview": True, "page_size": pages},
     ).json()
     ret = []
     for art in artifacts:
