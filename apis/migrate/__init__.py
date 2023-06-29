@@ -92,8 +92,6 @@ def _upgrade(version):
         db.session.commit()
     elif version == "1.26.0.2":
         recreate_ui_route()
-    elif version == "1.27.0.1":
-        pass
     elif version == "1.28.0.3":
         recreate_ui_route()
     elif version == "1.28.0.5":

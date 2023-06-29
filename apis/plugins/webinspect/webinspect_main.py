@@ -292,7 +292,7 @@ class WIESCC(Request):
             if self.wie_get_report_status(report_id):
                 self.wie_remove_report(report_id)
         except Exception as e:
-            logger.info("Fail to delete report_id {report_id}, error_msg: {e}")
+            logger.info(f"Fail to delete report_id {report_id}, error_msg: {e}")
             return
 
 
@@ -313,7 +313,6 @@ class WIEDAST(Request):
         if not is_valid:
             WIE_DAST_TOKEN = self.__generate_token()
             self.headers = {"Authorization": WIE_DAST_TOKEN, "Content-Type": "application/json"}
-            return
 
     def __generate_token(self) -> str:
         ret = self.api_request(

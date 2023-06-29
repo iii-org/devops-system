@@ -2016,7 +2016,6 @@ def create_cron_job_token_in_secret():
     token = key_cloak.get_token_by_account_pwd(
         config.get("ADMIN_INIT_LOGIN"), config.get("ADMIN_INIT_PASSWORD"), scope="openid offline_access"
     )
-
     create_namespace_secret(
         DEFAULT_NAMESPACE, "cornjob-bot", {"cornjob-token": token["refresh_token"]}, use_system_context=True
     )

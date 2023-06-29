@@ -127,7 +127,6 @@ def get_basic_mail_info():
     smtp_server_port = mail_config_info.get("smtp_port")
     smtp_server_account = mail_config_info.get("smtp_user")
     smtp_server_password = mail_config_info.get("smtp_password")
-    smtp_emission_address = smtp_emission_address
     return (
         smtp_server,
         smtp_server_port,

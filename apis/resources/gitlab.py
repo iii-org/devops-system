@@ -720,7 +720,7 @@ class GitLab(object):
             out_list = self.__get_projects_commit(pjs, out_list, branch_name, days_ago)
         return out_list
 
-    def gl_count_each_pj_commits_by_days(self, days=30, timezone_hours_number=8):
+    def gl_count_each_pj_commits_by_days(self, timezone_hours_number=8):
         for pj in self.gl.projects.list(all=True):
             if pj.path_with_namespace.split("/")[0] not in iiidevops_system_group:
                 commit_number = 0
@@ -918,7 +918,7 @@ class GitLab(object):
         branch: str = None,
         sort: str = "desc",
         with_pagination: bool = False,
-    ) -> list[dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], dict[str, int]]:
         params = {"page": self.__gl_start_convert_page(start, limit), "per_page": limit, "sort": sort}
         if branch is not None:
             params["ref"] = branch

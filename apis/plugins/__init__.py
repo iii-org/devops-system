@@ -212,7 +212,6 @@ def get_plugin_config(plugin_name):
 
 
 def update_plugin_config(plugin_name, args):
-    patch_secret = False
     config = get_plugin_config_file(plugin_name)
     system_variables = get_plugin_global_variable_from_gitlab(plugin_name)
 
