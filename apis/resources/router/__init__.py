@@ -186,7 +186,7 @@ def update_plugin_hidden(plugin_name: str, hidden: Boolean) -> None:
         "sbom": "Sbom",
         "sonarqube": "Sonarqube",
         "sideex": "Sideex",
-        "excalidraw": "Whiteboard",
+        "excalidraw": "Whiteboards",
     }
     plugin_name = plugin_name_mapping.get(plugin_name)
     if plugin_name is None:
