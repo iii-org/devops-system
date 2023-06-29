@@ -336,3 +336,8 @@ class HarborCopyImageReTag(Schema):
 
 class HarborCopyImageReTagResponse(CommonBasicResponse):
     data = None
+
+
+class HarborImageAutoDel(Schema):
+    project_name = fields.Str(required=False, description="project_name", example="project-name")
+    keep_image_count = fields.Int(required=False, description="keep_image_count", example="3")
