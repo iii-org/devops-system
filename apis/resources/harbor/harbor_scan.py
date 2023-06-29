@@ -4,7 +4,7 @@ from datetime import datetime
 import resources.yaml_OO as pipeline_yaml_OO
 from model import HarborScan, Project, db
 from nexus import nx_get_project_plugin_relation, nx_get_project
-from resources.template import gl, tm_get_git_pipeline_json
+from resources.template import gl, tm_get_git_pipeline_json, FILTER_OUT_PIPELINE_FILE_INFO_CONDITION
 from resources.gitlab import commit_id_to_url
 from . import hb_get_artifact_scan_overview, hb_get_artifact_scan_vulnerabilities_detail
 from sqlalchemy import or_
@@ -20,13 +20,15 @@ def create_harbor_scan(project_name, branch, commit_id):
         git_repository_id = nx_get_project_plugin_relation(nexus_project_id=row.id).git_repository_id
         pj = gl.projects.get(git_repository_id)
         pipe_dicts = tm_get_git_pipeline_json(pj, commit_id=commit_id)
-        for pipe_dict in pipe_dicts.get("stages"):
+        for stage_name, pipe_info in pipe_dicts.items():
+            if not FILTER_OUT_PIPELINE_FILE_INFO_CONDITION(stage_name):
+                continue
             if (
-                pipe_dict.get("iiidevops") == "deployed-environments"
-                and "publishImageConfig" in pipe_dict.get("steps")[0]
+                pipe_info.get("variables", {}).get("iiidevops") == "deployed-environments"
+                and "Build--Scan" in stage_name
             ):
-                stage_when = pipeline_yaml_OO.RancherPipelineWhen(pipe_dict.get("when").get("branch"))
-                if branch in stage_when.branch.include:
+                running_branch = pipe_info.get("only", [])
+                if branch in running_branch:
                     scan = HarborScan(
                         project_id=row.id,
                         branch=branch,
