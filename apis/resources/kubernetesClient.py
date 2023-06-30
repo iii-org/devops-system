@@ -815,12 +815,12 @@ class K8sPodExec(object):
             if self.resp.peek_stdout():
                 output_mess = self.resp.read_stdout()
                 print("STDOUT: %s" % output_mess)
-                emit("get_cmd_response", {"output": output_mess})
+                emit("get_cmd_response", {"code": 200, "output": output_mess})
                 break
             elif self.resp.peek_stderr():
                 output_err = self.resp.read_stderr()
                 print("STDERR: %s" % output_err)
-                emit("get_cmd_response", output_err)
+                emit("get_cmd_response", {"code": 200, "output": output_err})
                 break
 
         self.resp.close()

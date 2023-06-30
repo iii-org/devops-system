@@ -1269,5 +1269,5 @@ def update_user_message_types(user_id, args):
 
 def get_user_deployment_env_info(user_account: str) -> dict[str, str]:
     token = generate_service_account_token(user_account)
-    host = f'wss://{config.get("DEPLOYER_NODE_IP")}:6443'
+    host = f'https://{config.get("DEPLOYER_NODE_IP")}:6443'
     return {"token": token, "host": host}
