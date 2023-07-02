@@ -24,12 +24,12 @@ from resources.activity import record_activity
 from resources.apiError import DevOpsError
 from resources.gitlab import gitlab
 from resources.logger import logger
-from resources.redmine import redmine, update_user_mail_mail_notification_option
+from resources.redmine import redmine
 from resources.project import get_project_list
 
 from resources.keycloak import key_cloak
 from resources.handler.jwt import get_jwt_identity
-from resources.kubernetesClient import generate_service_account_token, list_node_info
+from resources.kubernetesClient import generate_service_account_token, ApiK8sClient
 from sqlalchemy import desc, nullslast
 import gitlab as gitlab_pack
 from resources.mail import mail_server_is_open
@@ -1274,6 +1274,6 @@ def update_user_message_types(user_id, args):
 
 
 def get_user_deployment_env_info(user_account: str) -> dict[str, str]:
+    cluster_host = ApiK8sClient().cluster_host
     token = generate_service_account_token(user_account)
-    host = f'https://{config.get("DEPLOYER_NODE_IP")}:6443'
-    return {"token": token, "host": host}
+    return {"token": token, "host": cluster_host}

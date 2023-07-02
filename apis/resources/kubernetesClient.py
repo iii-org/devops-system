@@ -75,6 +75,10 @@ class ApiK8sClient:
                 return True
         return False
 
+    @property
+    def cluster_host(self) -> str:
+        return self.api_k8s_client.configuration.host
+
     # api  version
     def get_api_resources(self):
         try:
