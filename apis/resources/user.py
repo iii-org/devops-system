@@ -29,7 +29,7 @@ from resources.project import get_project_list
 
 from resources.keycloak import key_cloak
 from resources.handler.jwt import get_jwt_identity
-from resources.kubernetesClient import generate_service_account_token
+from resources.kubernetesClient import generate_service_account_token, list_node_info
 from sqlalchemy import desc, nullslast
 import gitlab as gitlab_pack
 from resources.mail import mail_server_is_open
@@ -627,7 +627,7 @@ def recreate_user(args: dict[str, Any], recreate_server_list: list) -> dict[str,
     """Recreate user."""
     logger.info("Recreating user...")
     check_create_user_args(args, recreate_server_list, from_ad=args.get("from_ad", False))
-    server_user_id_mapping = recreate_user_in_servers(args)
+    server_user_id_mapping = recreate_user_in_servers(args, recreate_server_list)
     logger.info("User recreated.")
 
     return {
@@ -858,7 +858,7 @@ def recreate_user_in_servers(args: dict[str, Any], server_list: list[str] = None
     logger.info(f"is_admin is {is_admin}")
 
     server_user_func_info_mapping = {
-        "db": {"create_func": create_user_in_db, "create_func_args": (args, is_admin), "delete_func": delete_db_user},
+        "db": {"create_func": create_user_in_db, "create_func_args": (args,), "delete_func": delete_db_user},
         "key_cloak": {
             "create_func": create_user_in_key_cloak,
             "create_func_args": (args, is_admin),
@@ -881,7 +881,7 @@ def recreate_user_in_servers(args: dict[str, Any], server_list: list[str] = None
         },
         "sonarqube": {
             "create_func": create_user_in_sonarqube,
-            "create_func_args": (args),
+            "create_func_args": (args,),
             "delete_func": sonarqube.sq_deactivate_user,
         },
     }
@@ -889,16 +889,27 @@ def recreate_user_in_servers(args: dict[str, Any], server_list: list[str] = None
         server_list = list(server_user_func_info_mapping.keys())
     ret = {server: {"id": None} for server in server_list}
 
-    for server in server_list:
-        server_user_func_info = server_user_func_info_mapping[server]
-        ret[server][id] = server_user_func_info["create_func"](*server_user_func_info["create_func_args"])
+    # when is ad first login, key_cloak_user_id is created.
+    if "key_cloak_user_id" in args:
+        ret["key_cloak"] = {"id": args["key_cloak_user_id"]}
 
-    if "db" not in ret:
-        user_obj = model.User.query.filter_by(login=args["login"]).one()
-        ret["db"] = {"id": user_obj.id}
+    try:
+        for server in server_list:
+            server_user_func_info = server_user_func_info_mapping[server]
+            ret[server]["id"] = server_user_func_info["create_func"](*server_user_func_info["create_func_args"])
 
-    recreate_user_in_other_dbs(ret, role_id)
-    return ret
+        if "db" not in ret:
+            user_obj = model.User.query.filter_by(login=args["login"]).one()
+            ret["db"] = {"id": user_obj.id}
+
+        recreate_user_in_other_dbs(ret, role_id)
+        return ret
+    except Exception as e:
+        for server, user_id_info in ret.items():
+            user_id = user_id_info["id"]
+            if user_id is not None:
+                server_user_func_info_mapping[server]["delete_func"](user_id)
+        raise e
 
 
 def create_user_in_servers(args: dict[str, Any]) -> dict[str, dict[str:Any]]:
@@ -981,25 +992,20 @@ def create_user_in_sonarqube(args: dict[str, Any]) -> str:
 
 
 def create_user_in_db(args: dict[str, Any]) -> int:
-    title = department = ""
     h = SHA256.new()
     h.update(args["password"].encode())
     args["password"] = h.hexdigest()
     disabled = False
 
-    if args["status"] == "disable":
+    if args.get("status") == "disable":
         disabled = True
-    if "title" in args:
-        title = args["title"]
-    if "department" in args:
-        department = args["department"]
     user = model.User(
         name=args["name"],
         email=args["email"],
-        phone=args["phone"],
+        phone=args.get("phone"),
         login=args["login"],
-        title=title,
-        department=department,
+        title=args.get("title", ""),
+        department=args.get("department", ""),
         password=h.hexdigest(),
         create_at=datetime.datetime.utcnow(),
         disabled=disabled,
@@ -1025,7 +1031,7 @@ def recreate_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]]
 
     user_id = server_user_id_mapping["db"]["id"]
 
-    user_plugin_rel_obj = model.UserPluginRelation.filter_by(user_id=user_id)
+    user_plugin_rel_obj = model.UserPluginRelation.query.filter_by(user_id=user_id)
     user_plugin_rel = user_plugin_rel_obj.first()
 
     if user_plugin_rel is None:
@@ -1063,7 +1069,7 @@ def create_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]], 
         plan_user_id=server_user_id_mapping["redmine"]["id"],
         repository_user_id=server_user_id_mapping["gitlab"]["id"],
         kubernetes_sa_name=server_user_id_mapping["k8s"]["id"],
-        key_cloak_user_id=server_user_id_mapping["key_cloak"]["id"],
+        key_cloak_user_id=server_user_id_mapping.get("key_cloak", {}).get("id", ""),
     )
     db.session.add(rel)
     db.session.commit()

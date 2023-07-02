@@ -11,6 +11,7 @@ from resources.keycloak import (
 
 from resources import apiError
 from typing import Any
+from util import get_random_alphanumeric_string
 
 
 # def __calculate_token_expired_datetime(sec: int):
@@ -28,43 +29,66 @@ def return_jwt_token_if_exist():
     return token
 
 
+def ad_login_if_not_exist_then_create_user(token_info: dict[str, Any]) -> dict[str, Any]:
+    account = token_info.get("preferred_username")
+    user_model = User.query.filter_by(login=account).first()
+    if user_model is None:
+        from resources.user import recreate_user
+
+        # Login by AD, but not exist in DB.
+        depart, title, key_clock_id, email = (
+            token_info.get("department"),
+            token_info.get("title"),
+            token_info.get("sid"),
+            token_info.get("email"),
+        )
+
+        """
+        if ad login, keycloack must provide the following key: name / email / department / title.
+        """
+        args = {
+            "name": account,
+            "password": get_random_alphanumeric_string(6, 3),
+            "email": email,
+            "department": depart,
+            "title": title,
+            "login": account,
+            "from_ad": True,
+            "role_id": role.PM.id,
+            "key_cloak_user_id": key_clock_id,
+        }
+        server_user_ids_mapping = recreate_user(args, ["db", "redmine", "gitlab", "k8s", "sonarqube"])
+        user_id = server_user_ids_mapping["user_id"]
+    else:
+        user_id = user_model.id
+    return user_id
+
+
 def __generate_jwt_identity_info_by_access_token(access_token: str) -> dict[str, Any]:
     key_cloak_token_info = key_cloak.get_user_info_by_token(access_token)
     account = key_cloak_token_info.get("preferred_username")
     user_model = User.query.filter_by(login=account).first()
+
     if user_model is None:
-        depart, title = key_cloak_token_info.get("department"), key_cloak_token_info.get("title")
-        is_ad_login_condition = depart is not None and depart != ""
-        if is_ad_login_condition:
-            from resources.user import recreate_user
+        source = key_cloak_token_info.get("source")
+        is_ad_login_condition = source == "LDAP"
+        if not is_ad_login_condition:
+            raise apiError.DevOpsError(
+                401, "Invalid token.", error=apiError.decode_token_user_not_found(access_token, account)
+            )
+        user_id, from_ad = ad_login_if_not_exist_then_create_user(key_cloak_token_info), is_ad_login_condition
+    else:
+        user_id, from_ad = user_model.id, user_model.from_ad
 
-            """
-            if ad login, keycloack must provide the following key: name / email / department / title.
-            """
-            args = {
-                "name": account,
-                "email": key_cloak_token_info.get("email"),
-                "department": depart,
-                "title": title,
-                "login": account,
-                "from_ad": True,
-                "role_id": role.PM.id,
-            }
-            recreate_user(args, ["db", "redmine", "gitlab", "k8s", "sonarqube"])
-
-        raise apiError.DevOpsError(
-            401, "Invalid token.", error=apiError.decode_token_user_not_found(access_token, account)
-        )
-
-    project_user_role = db.session.query(ProjectUserRole).filter(ProjectUserRole.user_id == user_model.id).first()
+    project_user_role = db.session.query(ProjectUserRole).filter(ProjectUserRole.user_id == user_id).first()
     role_id = project_user_role.role_id
 
     jwt_identity = {
-        "user_id": user_model.id,
+        "user_id": user_id,
         "user_account": account,
         "role_id": role_id,
         "role_name": role.get_role_name(role_id),
-        "from_ad": user_model.from_ad,
+        "from_ad": from_ad,
     }
     return jwt_identity
 
@@ -99,12 +123,12 @@ def jwt_required(fn):
 
         token_info = check_login_status_and_return_refresh_token(access_token)
 
-        if not token_info["account_exist"]:
+        if not token_info["account_exist"] or token_info["from_ad"]:
             if token_info["token_invalid"]:
                 resp = make_response(apiError.invalid_token(access_token, key_cloak.generate_login_url()), 401)
                 return set_ui_origin_in_cookie_and_return_response(resp)
 
-            jwt_identity = __generate_jwt_identity_info_by_access_token(token_info["access_token"])
+            jwt_identity = __generate_jwt_identity_info_by_access_token(token_info.get("access_token", access_token))
             _request_ctx_stack.top.jwt = jwt_identity
 
             response_content = fn(*args, **kwargs)
@@ -124,7 +148,7 @@ def check_login_status_and_return_refresh_token(access_token: str) -> dict[str, 
     user_info = key_cloak.get_user_info_by_token(access_token)
     account = user_info.get("preferred_username")
     account_exist = account is not None
-    ret = {"account_exist": account_exist, "token_invalid": False}
+    ret = {"account_exist": account_exist, "token_invalid": False, "from_ad": user_info.get("source") == "LDAP"}
 
     if not account_exist:
         refresh_token = request.cookies.get(REFRESH_TOKEN)
