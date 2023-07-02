@@ -29,18 +29,19 @@ def return_jwt_token_if_exist():
     return token
 
 
-def ad_login_if_not_exist_then_create_user(token_info: dict[str, Any]) -> dict[str, Any]:
-    account = token_info.get("preferred_username")
+def ad_login_if_not_exist_then_create_user(user_info: dict[str, Any]) -> dict[str, Any]:
+    # token_info = key_cloak.get_user_info_by_token(access_token)
+    account = user_info.get("preferred_username")
     user_model = User.query.filter_by(login=account).first()
     if user_model is None:
         from resources.user import recreate_user
 
         # Login by AD, but not exist in DB.
         depart, title, key_clock_id, email = (
-            token_info.get("department"),
-            token_info.get("title"),
-            token_info.get("sid"),
-            token_info.get("email"),
+            user_info.get("department"),
+            user_info.get("title"),
+            user_info.get("sub"),
+            user_info.get("email"),
         )
 
         """
@@ -70,15 +71,11 @@ def __generate_jwt_identity_info_by_access_token(access_token: str) -> dict[str,
     user_model = User.query.filter_by(login=account).first()
 
     if user_model is None:
-        source = key_cloak_token_info.get("source")
-        is_ad_login_condition = source == "LDAP"
-        if not is_ad_login_condition:
-            raise apiError.DevOpsError(
-                401, "Invalid token.", error=apiError.decode_token_user_not_found(access_token, account)
-            )
-        user_id, from_ad = ad_login_if_not_exist_then_create_user(key_cloak_token_info), is_ad_login_condition
-    else:
-        user_id, from_ad = user_model.id, user_model.from_ad
+        raise apiError.DevOpsError(
+            401, "Invalid token.", error=apiError.decode_token_user_not_found(access_token, account)
+        )
+
+    user_id, from_ad = user_model.id, user_model.from_ad
 
     project_user_role = db.session.query(ProjectUserRole).filter(ProjectUserRole.user_id == user_id).first()
     role_id = project_user_role.role_id
@@ -121,19 +118,25 @@ def jwt_required(fn):
             resp = make_response(apiError.authorization_not_found(key_cloak.generate_login_url()), 401)
             return set_ui_origin_in_cookie_and_return_response(resp)
 
-        token_info = check_login_status_and_return_refresh_token(access_token)
+        user_info = key_cloak.get_user_info_by_token(access_token)
+        login_status_info = check_login_status_and_return_refresh_token(user_info)
 
-        if not token_info["account_exist"] or token_info["from_ad"]:
-            if token_info["token_invalid"]:
+        if login_status_info["from_ad"]:
+            ad_login_if_not_exist_then_create_user(user_info)
+
+        if not login_status_info["account_exist"]:
+            if login_status_info["token_invalid"]:
                 resp = make_response(apiError.invalid_token(access_token, key_cloak.generate_login_url()), 401)
                 return set_ui_origin_in_cookie_and_return_response(resp)
 
-            jwt_identity = __generate_jwt_identity_info_by_access_token(token_info.get("access_token", access_token))
+            jwt_identity = __generate_jwt_identity_info_by_access_token(
+                login_status_info.get("access_token", access_token)
+            )
             _request_ctx_stack.top.jwt = jwt_identity
 
             response_content = fn(*args, **kwargs)
             return set_tokens_in_cookies_and_return_response(
-                token_info["access_token"], token_info["refresh_token"], response_content
+                login_status_info["access_token"], login_status_info["refresh_token"], response_content
             )
 
         jwt_identity = __generate_jwt_identity_info_by_access_token(access_token)
@@ -144,10 +147,10 @@ def jwt_required(fn):
     return wrapper
 
 
-def check_login_status_and_return_refresh_token(access_token: str) -> dict[str, Any]:
-    user_info = key_cloak.get_user_info_by_token(access_token)
+def check_login_status_and_return_refresh_token(user_info: dict[str, Any]) -> dict[str, Any]:
     account = user_info.get("preferred_username")
     account_exist = account is not None
+
     ret = {"account_exist": account_exist, "token_invalid": False, "from_ad": user_info.get("source") == "LDAP"}
 
     if not account_exist:

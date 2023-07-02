@@ -43,9 +43,9 @@ class KeyCloak:
 
     ##### auth url ######
     def generate_login_url(self):
-        server_origin  = request.referrer or config.get("III_BASE_URL")
+        server_origin = request.referrer or config.get("III_BASE_URL")
         server_origin = server_origin.rstrip("/")
-        redirect_url = f'{server_origin}/prod-api/v2/user/generate_token'
+        redirect_url = f"{server_origin}/prod-api/v2/user/generate_token"
         random_string = generate_random_state()
         keycloak_login_url = self.keycloak_openid.auth_url(
             redirect_uri=redirect_url, scope="openid", state=random_string
@@ -129,7 +129,7 @@ class KeyCloak:
     ##### token ######
     def get_token_by_code(self, code: str, scope: str = "openid") -> dict[str, Any]:
         iii_base_url = request.cookies.get(UI_ORIGIN) or config.get("III_BASE_URL")
-        redirect_url = f'{iii_base_url}/prod-api/v2/user/generate_token'
+        redirect_url = f"{iii_base_url}/prod-api/v2/user/generate_token"
         logger.info(f"Keycloack authorization url: {redirect_url}")
         try:
             token = self.keycloak_openid.token(code=code, grant_type="authorization_code", redirect_uri=redirect_url)
@@ -137,7 +137,6 @@ class KeyCloak:
             logger.exception("Fail to authorize token, error_msg: {str(e)}")
             token = {}
         return token
-
 
     def get_token_by_account_pwd(self, account: str, pwd: str, scope: str = "openid") -> dict[str, Any]:
         try:
@@ -159,7 +158,7 @@ class KeyCloak:
         try:
             token = self.keycloak_openid.refresh_token(refresh_token)
         except Exception as e:
-            logger.exception("Fail to refresh token, error_msg: {str(e)}")
+            logger.exception(f"Fail to refresh token, error_msg: {str(e)}")
             token = {}
         return token
 
@@ -242,26 +241,27 @@ key_cloak = KeyCloak()
 
 
 def generate_random_state():
-    '''
+    """
     Generate random string to match xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    '''
+    """
     uuid_string = str(uuid.uuid4())
-    pattern = r'(\w{8})(\w{4})(\w{4})(\w{4})(\w{12})'
-    formatted_uuid = re.sub(pattern, r'\1-\2-\3-\4-\5', uuid_string)
+    pattern = r"(\w{8})(\w{4})(\w{4})(\w{4})(\w{12})"
+    formatted_uuid = re.sub(pattern, r"\1-\2-\3-\4-\5", uuid_string)
     return formatted_uuid
 
 
 def set_tokens_in_cookies_and_return_response(access_token: str, refresh_token: str, response_content: Any) -> Response:
-    '''
+    """
     - Need to return make_response object. otherwse cookie might not set successuflly.
     - Set the UI origin in this API in order to redirect to the correct UI URL after logging in.
-    '''    
+    """
     resp = make_response(response_content)
     resp.set_cookie(TOKEN, access_token)
     resp.set_cookie(REFRESH_TOKEN, refresh_token)
 
     logger.info(f"Setting cookie successfully.")
     return resp
+
 
 def set_ui_origin_in_cookie_and_return_response(resp: Response) -> Response:
     ui_origin = request.referrer or config.get("III_BASE_URL")
@@ -280,6 +280,5 @@ def generate_token_by_code_and_set_cookie(code: str) -> Response:
 
     response_content = redirect(iii_base_url)
     logger.info(f"Actually redirect url ({iii_base_url}).")
-    
-    return set_tokens_in_cookies_and_return_response(access_token, refresh_token, response_content)
 
+    return set_tokens_in_cookies_and_return_response(access_token, refresh_token, response_content)

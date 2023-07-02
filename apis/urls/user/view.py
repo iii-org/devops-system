@@ -309,20 +309,20 @@ class UserCheckStatusV2(MethodResource):
             resp = make_response(apiError.authorization_not_found(key_cloak.generate_login_url()), 401)
             return set_ui_origin_in_cookie_and_return_response(resp)
 
-        login_info = check_login_status_and_return_refresh_token(access_token)
+        user_info = key_cloak.get_user_info_by_token(access_token)
+        login_status_info = check_login_status_and_return_refresh_token(user_info)
 
-        if login_info["account_exist"]:
-            if login_info["from_ad"]:
-                token_info = key_cloak.get_user_info_by_token(access_token)
-                ad_login_if_not_exist_then_create_user(token_info)
+        if login_status_info["account_exist"]:
+            if login_status_info["from_ad"]:
+                ad_login_if_not_exist_then_create_user(user_info)
             return util.success()
 
-        if login_info["token_invalid"]:
+        if login_status_info["token_invalid"]:
             resp = make_response(apiError.invalid_token(access_token, key_cloak.generate_login_url()), 401)
             return set_ui_origin_in_cookie_and_return_response(resp)
 
         return set_tokens_in_cookies_and_return_response(
-            login_info["access_token"], login_info["refresh_token"], util.success()
+            login_status_info["access_token"], login_status_info["refresh_token"], util.success()
         )
 
 
