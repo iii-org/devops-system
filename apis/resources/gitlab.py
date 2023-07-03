@@ -205,6 +205,18 @@ class GitLab(object):
     def gl_get_all_project(self):
         return self.gl.projects.list(all=True)
 
+    def gl_get_project_by_name(self, project_name: str) -> dict:
+        project_list = self.__api_get(
+            "/projects",
+            params={"search": project_name},
+        ).json()
+        result = None
+        for project in project_list:
+            if project.get("name") == project_name:
+                result = project
+                break
+        return result
+
     def gl_create_project(self, args):
         """
         params: args:
@@ -239,6 +251,9 @@ class GitLab(object):
     def gl_update_project(self, repo_id, description):
         params = {"description": description}
         return self.__api_put(f"/projects/{repo_id}", params=params)
+
+    def gl_update_project_attributes(self, repo_id, attributes: dict):
+        return self.__api_put(f"/projects/{repo_id}", params=attributes)
 
     def gl_delete_project(self, repo_id):
         return self.__api_delete(f"/projects/{repo_id}")

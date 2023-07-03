@@ -28,7 +28,6 @@ import config
 security_params = [{"bearer": []}]
 
 
-
 def base64decode(value):
     return str(base64.b64decode(str(value)).decode("utf-8"))
 
@@ -445,7 +444,7 @@ def read_txt(path):
 
 
 def read_json_file(path, return_obj=False):
-    with open(path, "r") as f:
+    with open(path, "r", encoding="utf-8") as f:
         if return_obj:
             f_info = json.load(f, object_hook=obj)
         else:
@@ -494,4 +493,3 @@ class CommonResponse(Schema):
 
 class CommonBasicResponse(CommonResponse):
     datetime = fields.Str(required=True, example="1970-01-01T00:00:00.000000")
-

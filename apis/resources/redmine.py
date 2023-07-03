@@ -27,8 +27,8 @@ DEFAULT_MAIL_CONFIG = {
         "smtp_host": "smtp_domain",
         "smtp_user": "smtp_username",
         "smtp_password": "smtp_password",
-        "smtp_protocol": "tls", # or ssl
-        "auth": "login", # or plain or cram_md5
+        "smtp_protocol": "tls",  # or ssl
+        "auth": "login",  # or plain or cram_md5
     },
     "emission_email_address": "smtp_username",
 }
@@ -177,6 +177,24 @@ class Redmine:
 
     def rm_get_project(self, plan_project_id):
         return self.__api_get("/projects/{0}".format(plan_project_id)).json()
+
+    def rm_get_project_by_name(self, project_name: str) -> dict or None:
+        offset = 0
+        limit = 100
+        param = {"q": project_name, "scope": "my_project", "offset": offset, "limit": limit}
+        rm_project = self.__api_get("/search", params=param).json()
+        rm_total = rm_project.get("total_count")
+        while offset < rm_total:
+            projects = rm_project.get("results")
+            for project in projects:
+                if project.get("type") == "project":
+                    if project_name == project.get("url").split("/")[-1]:
+                        return project
+            offset += limit
+            param["offset"] = offset
+            if offset < rm_total:
+                rm_project = self.__api_get("/search", params=param).json()
+        return None
 
     def rm_create_project(self, args):
         param = {

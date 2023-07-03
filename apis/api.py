@@ -622,16 +622,16 @@ try:
     from apis.urls.backup import backup_url
 
     backup_url(api, add_resource)
-except Exception:
-    pass
+except Exception as ex:
+    logger.logger.error(ex)
 
 # restore
 try:
     from apis.urls.restore import restore_url
 
     restore_url(api, add_resource)
-except Exception:
-    pass
+except Exception as ex:
+    logger.logger.error(ex)
 
 
 def inject_initial_data():

@@ -57,6 +57,7 @@ from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
 import config
 from resources.keycloak import key_cloak
 from typing import Any
+from resources.logger import logger
 
 
 def get_pj_id_by_name(name):
@@ -74,6 +75,13 @@ def get_pj_id_by_name(name):
     ret["plan_id"] = pj_info.plan_project_id
     ret["repo_id"] = pj_info.git_repository_id
     return ret
+
+
+def get_project_id_by_name(project_name: str) -> int:
+    project = Project.query.filter_by(name=project_name).first()
+    if project:
+        return project.id
+    return None
 
 
 def get_project_issue_calculation(user_id, project_ids=[]):
@@ -329,7 +337,7 @@ def get_project_rows_by_user(user_id, disable, args={}):
 ##### Project #####
 ####### create project ########
 @record_activity(ActionType.CREATE_PROJECT)
-def create_project(user_id, args):
+def create_project(user_id, args, is_restore: bool = False):
     args["description"] = args["description"] or ""
     args["display"] = args["display"] or args["name"]
     project_name = args["name"]
@@ -339,18 +347,50 @@ def create_project(user_id, args):
         parent_plan_project_id = get_plan_project_id(args.get("parent_id"))
         args["parent_plan_project_id"] = parent_plan_project_id
 
-    create_project_k8s_items(project_name)
-    pj_id_mapping = create_project_in_servers(args)
-    ret_pj_id_mapping = create_project_main(user_id, args, pj_id_mapping)
+    create_project_k8s_items(project_name, is_restore)
+    pj_id_mapping, services, helper = create_project_in_servers(args, is_restore)
+    ret_pj_id_mapping = create_project_main(user_id, args, pj_id_mapping, services, helper, is_restore)
     return ret_pj_id_mapping
 
 
-def create_project_k8s_items(project_name: str) -> None:
+def create_project_k8s_items(project_name: str, is_restore: bool = False) -> None:
+    namespace = None
+    if is_restore:
+        try:
+            namespace = kubernetesClient.get_namespace(project_name)
+        except Exception as ex:
+            logger.error(ex)
+            pass
     try:
-        kubernetesClient.create_namespace(project_name)
-        kubernetesClient.create_role_in_namespace(project_name)
-        kubernetesClient.create_namespace_quota(project_name)
-        kubernetesClient.create_namespace_limitrange(project_name)
+        if namespace is None:
+            kubernetesClient.create_namespace(project_name)
+        has_role = False
+        if is_restore:
+            try:
+                has_role = kubernetesClient.check_role_in_namespace(project_name)
+            except Exception as ex:
+                logger.error(ex)
+                pass
+        if not has_role:
+            kubernetesClient.create_role_in_namespace(project_name)
+        has_quota = False
+        if is_restore:
+            try:
+                has_quota = kubernetesClient.check_quota_in_namespace(project_name)
+            except Exception as ex:
+                logger.error(ex)
+                pass
+        if not has_quota:
+            kubernetesClient.create_namespace_quota(project_name)
+        has_limitrange = False
+        if is_restore:
+            try:
+                has_limitrange = kubernetesClient.check_limitrange_in_namespace(project_name)
+            except Exception as ex:
+                logger.error(ex)
+                pass
+        if not has_limitrange:
+            kubernetesClient.create_namespace_limitrange(project_name)
     except ApiException as e:
         if e.status == 409:
             raise DevOpsError(
@@ -362,26 +402,13 @@ def create_project_k8s_items(project_name: str) -> None:
         raise e
 
 
-def create_project_in_servers(args: dict[str, Any]) -> dict[str : dict[str, Any]]:
+def create_project_in_servers(
+        args: dict[str, Any], is_restore: bool = False
+) -> (dict[str: dict[str, Any]], list[str], util.ServiceBatchOpHelper):
     # 使用 multi-thread 建立各專案
-    services = ["redmine", "gitlab", "harbor", "sonarqube", "key_cloak"]
-    targets = {
-        "redmine": redmine.rm_create_project,
-        "gitlab": gitlab.create_project,
-        "harbor": harbor.hb_create_project,
-        "sonarqube": sonarqube.sq_create_project,
-        "key_cloak": key_cloak.create_group,
-    }
-    service_args = {
-        "redmine": (args,),
-        "gitlab": (args,),
-        "harbor": (args["name"],),
-        "sonarqube": (args["name"], args.get("display")),
-        "key_cloak": (args,),
-    }
-    helper = util.ServiceBatchOpHelper(services, targets, service_args)
-    helper.run()
-
+    services = []
+    targets = {}
+    service_args = {}
     # 先取出已成功的專案建立 id，以便之後可能的回溯需求
     pj_id_mapping = {
         "redmine": {"id": None},
@@ -389,10 +416,80 @@ def create_project_in_servers(args: dict[str, Any]) -> dict[str : dict[str, Any]
         "harbor": {"id": None},
         "key_cloak": {"id": None},
     }
+
+    rm_json = None
+    if is_restore:
+        rm_json = redmine.rm_get_project_by_name(args["name"])
+        logger.info(f'redmine: {rm_json}')
+    if rm_json:
+        pj_id_mapping["redmine"]["id"] = rm_json["id"]
+    else:
+        services.append("redmine")
+        targets["redmine"] = redmine.rm_create_project
+        service_args["redmine"] = (args,)
+
+    gl_json = None
+    if is_restore:
+        gl_json = gitlab.gl_get_project_by_name(args["name"])
+        logger.info(f'gitlab: {gl_json}')
+    if gl_json:
+        pj_id_mapping["gitlab"]["id"] = gl_json["id"]
+        pj_id_mapping["gitlab"]["name"] = gl_json["name"]
+        pj_id_mapping["gitlab"]["ssh_url"] = gl_json["ssh_url_to_repo"]
+        pj_id_mapping["gitlab"]["http_url"] = gl_json["http_url_to_repo"]
+    else:
+        services.append("gitlab")
+        targets["gitlab"] = gitlab.create_project
+        service_args["gitlab"] = (args,)
+
+    hb_json = None
+    if is_restore:
+        try:
+            hb_json = harbor.hb_get_id_by_name(args["name"])
+            logger.info(f'harbor: {hb_json}')
+        except Exception as ex:
+            logger.error(ex)
+    if hb_json:
+        pj_id_mapping["harbor"]["id"] = hb_json
+    else:
+        services.append("harbor")
+        targets["harbor"] = harbor.hb_create_project
+        service_args["harbor"] = (args["name"],)
+
+    sq_json = None
+    if is_restore:
+        try:
+            sq_json = sonarqube.sq_list_project({"projects": args["name"], "p": 1, "ps": 1}).json().get("components")
+            logger.info(f'sonarqube: {sq_json}')
+        except Exception as ex:
+            logger.error(ex)
+    if not sq_json:
+        services.append("sonarqube")
+        targets["sonarqube"] = sonarqube.sq_create_project
+        service_args["sonarqube"] = (args["name"], str(args.get("display")).replace("#", "%23"))
+
+    kc_json = None
+    if is_restore:
+        kc_groups = key_cloak.get_groups()
+        for kc_group in kc_groups:
+            if kc_group["name"] == args["name"]:
+                kc_json = kc_group["id"]
+    if kc_json:
+        pj_id_mapping["key_cloak"]["id"] = kc_json
+    else:
+        services.append("key_cloak")
+        targets["key_cloak"] = key_cloak.create_group
+        service_args["key_cloak"] = (args,)
+
+    helper = util.ServiceBatchOpHelper(services, targets, service_args)
+    helper.run()
+
     project_name = args["name"]
 
     for service in services:
+        logger.info(f"service: {service}, error:{helper.errors[service]}")
         if helper.errors[service] is None:
+            logger.error(helper.outputs[service])
             output = helper.outputs[service]
             if service == "redmine":
                 pj_id_mapping["redmine"]["id"] = output["project"]["id"]
@@ -410,7 +507,7 @@ def create_project_in_servers(args: dict[str, Any]) -> dict[str : dict[str, Any]
     if any(helper.errors.values()):
         roll_back_all_created_projects(project_name, services, helper, pj_id_mapping)
 
-    return pj_id_mapping
+    return pj_id_mapping, services, helper
 
 
 def roll_back_all_created_projects(
@@ -476,7 +573,14 @@ def roll_back_all_created_projects_raise_error(
                 raise e
 
 
-def create_project_main(user_id: int, args: dict[str, Any], pj_id_mapping: dict[str : dict[str, Any]]):
+def create_project_main(
+        user_id: int,
+        args: dict[str, Any],
+        pj_id_mapping: dict[str: dict[str, Any]],
+        services: list[str],
+        helper: util.ServiceBatchOpHelper,
+        is_restore: bool = False
+):
     owner_id = args["owner_id"] or user_id
     redmine_pj_id = pj_id_mapping["redmine"]["id"]
     gitlab_pj_id = pj_id_mapping["gitlab"]["id"]
@@ -502,9 +606,10 @@ def create_project_main(user_id: int, args: dict[str, Any], pj_id_mapping: dict[
             db.session.commit()
 
         # 加關聯project_user_role
-        project_add_member(project_id, owner_id)
-        if owner_id != user_id:
-            project_add_subadmin(project_id, user_id)
+        project_add_member(project_id, owner_id, is_restore)
+        if user_id is not None and owner_id != user_id:
+            project_add_subadmin(project_id, user_id, is_restore)
+        # 建立機器人帳號
         create_bot(project_id)
 
         # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
@@ -525,14 +630,15 @@ def create_project_main(user_id: int, args: dict[str, Any], pj_id_mapping: dict[
         return ret_pi_id_mapping
 
     except Exception as e:
-        redmine.rm_delete_project(redmine_pj_id)
-        gitlab.gl_delete_project(gitlab_pj_id)
-        harbor_param = [harbor_pj_id, project_name]
-        harbor.hb_delete_project(harbor_param)
-        kubernetesClient.delete_namespace(project_name)
-        sonarqube.sq_delete_project(project_name)
-        kubernetesClient.delete_namespace(project_name)
-        key_cloak.delete_group(key_cloak_group_id)
+        # redmine.rm_delete_project(redmine_pj_id)
+        # gitlab.gl_delete_project(gitlab_pj_id)
+        # harbor_param = [harbor_pj_id, project_name]
+        # harbor.hb_delete_project(harbor_param)
+        # kubernetesClient.delete_namespace(project_name)
+        # sonarqube.sq_delete_project(project_name)
+        # kubernetesClient.delete_namespace(project_name)
+        # key_cloak.delete_group(key_cloak_group_id)
+        roll_back_all_created_projects_delete_process(project_name, services, helper, pj_id_mapping)
 
         if project_id is not None:
             delete_bot(project_id)
@@ -543,8 +649,8 @@ def create_project_main(user_id: int, args: dict[str, Any], pj_id_mapping: dict[
 
 
 def create_project_store_in_db(
-    user_id: int, uuids: str, args: dict[str, Any], pj_id_mapping: dict[str : dict[str, Any]]
-) -> None:
+    user_id: int, uuids: str, args: dict[str, Any], pj_id_mapping: dict[str: dict[str, Any]], is_restore: bool = False
+) -> dict[str: Any]:
     owner_id = args["owner_id"] or user_id
     # get base_example
     redmine_pj_id = pj_id_mapping["redmine"]["id"]
@@ -575,7 +681,7 @@ def create_project_store_in_db(
         create_at=str(datetime.utcnow()),
         owner_id=owner_id,
         creator_id=user_id,
-        base_example=template_pj_path,
+        base_example=template_pj_path or args["base_template"],
         example_tag=args["tag_name"],
         uuid=uuids,
         is_inheritance_member=args.pop("is_inheritance_member", False),
@@ -631,35 +737,37 @@ def create_project_add_nfs_folder(uuids: str, project_name: str):
         os.chmod(project_nfs_file_path, 0o777)
 
 
-def project_add_subadmin(project_id, user_id):
+def project_add_subadmin(project_id, user_id, is_restore: bool = False):
     role_id = user.get_role_id(user_id)
 
     # Check ProjectUserRole table has relationship or not
     row = model.ProjectUserRole.query.filter_by(user_id=user_id, project_id=project_id, role_id=role_id).first()
     # if ProjectUserRole table not has relationship
-    if row is not None:
+    if row is not None and not is_restore:
         raise DevOpsError(
             422,
             "Error while adding user to project.",
             error=apiError.already_in_project(user_id, project_id),
         )
-    # insert one relationship
-    new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
-    db.session.add(new)
-    db.session.commit()
+    if not is_restore:
+        # insert one relationship
+        new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
+        db.session.add(new)
+        db.session.commit()
 
 
-def create_bot(project_id):
+def create_bot(project_id, is_restore: bool = False):
     """
     Since the user's account won't be created in the harbor,
     an alternative solution is to create a robot account that can perform the necessary image pull and push operations during the pipeline.
     """
-    login = f"project_bot_{project_id}"
+    login = f"project_bot_{project_id + 10000}"
     password = util.get_random_alphanumeric_string(6, 3)
     project_name = model.Project.query.get(project_id).name
+    # 目前測試避免重覆所以增加 10000
     args = {
-        "name": f"專案管理機器人{project_id}號",
-        "email": f"project_bot_{project_id}@nowhere.net",
+        "name": f"專案管理機器人{project_id + 10000}號",
+        "email": f"project_bot_{project_id + 10000}@nowhere.net",
         "phone": "BOTRingRing",
         "login": login,
         "password": password,
@@ -667,7 +775,8 @@ def create_bot(project_id):
         "status": "enable",
         "project_name": project_name,
     }
-    u = user.create_user(args)
+    logger.info(f'created robot: {args}')
+    u = user.create_user(args, is_restore)
     hb_robot_info = hb_create_project_robot_account(args)
 
     user_id = u["user_id"]
@@ -678,19 +787,46 @@ def create_bot(project_id):
 
     # Add bot secrets to gitlab pj env
     pj_repo_id = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first().git_repository_id
+    gl_project = gitlab.gl_get_project(pj_repo_id)
+    # is_archived = gl_project.get("archived")
+    # if is_archived:
+    #     gitlab.gl_update_project_attributes(pj_repo_id, {"archived": False})
+    if gl_project.get("builds_access_level") != "enabled":
+        gitlab.gl_update_project_attributes(pj_repo_id, {"builds_access_level": "enabled"})
     gitlab.create_pj_variable(pj_repo_id, "GITLAB_TOKEN", git_access_token)
     gitlab.create_pj_variable(pj_repo_id, "SONAR_TOKEN", sonar_access_token)
     gitlab.create_pj_variable(pj_repo_id, "BOT_USERNAME", login)
     gitlab.create_pj_variable(pj_repo_id, "BOT_PASSWORD", password)
     gitlab.create_pj_variable(pj_repo_id, "HARBOR_ROBOT", hb_robot_info["name"])
     gitlab.create_pj_variable(pj_repo_id, "HARBOR_ROBOT_SECRET", hb_robot_info["secret"])
+    # if is_archived:
+    #     gitlab.gl_update_project_attributes(pj_repo_id, {"archived": True})
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
-def pm_update_project(project_id, args):
+def pm_update_project(project_id, args, is_restore: bool = False):
     is_inherit_members = args.get("is_inheritance_member") or False
 
     plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
+
+    if is_restore:
+        create_project_k8s_items(args.get("name"), is_restore)
+        pj_id_mapping, service, helper = create_project_in_servers(args, is_restore)
+        if plugin_relation:
+            plugin_relation.plan_project_id = pj_id_mapping["redmine"]["id"],
+            plugin_relation.git_repository_id = pj_id_mapping["gitlab"]["id"],
+            plugin_relation.harbor_project_id = pj_id_mapping["harbor"]["id"],
+            plugin_relation.key_cloak_group_id = pj_id_mapping["key_cloak"]["id"],
+        else:
+            plugin_relation = model.ProjectPluginRelation(
+                project_id=project_id,
+                plan_project_id=pj_id_mapping["redmine"]["id"],
+                git_repository_id=pj_id_mapping["gitlab"]["id"],
+                harbor_project_id=pj_id_mapping["harbor"]["id"],
+                key_cloak_group_id=pj_id_mapping["key_cloak"]["id"],
+            )
+            db.session.add(plugin_relation)
+        db.session.commit()
     if args["description"] is not None:
         gitlab.gl_update_project(plugin_relation.git_repository_id, args["description"])
     if args.get("parent_id", None) is not None:
@@ -702,6 +838,9 @@ def pm_update_project(project_id, args):
     # Update project template
     project = model.Project.query.filter_by(id=project_id).first()
     project_name = project.name
+    if is_restore:
+        args["ssh_url"] = pj_id_mapping["gitlab"]["ssh_url"]
+        args["http_url"] = pj_id_mapping["gitlab"]["http_url"]
     if project.is_empty_project and args.get("template_id") is not None:
         # Because it needs force push, so remove master from protected branch list
         unprotect_project(plugin_relation.git_repository_id, "master")
@@ -898,58 +1037,95 @@ def get_project_info(project_id):
 
 
 @record_activity(ActionType.ADD_MEMBER)
-def project_add_member(project_id, user_id):
+def project_add_member(project_id, user_id, is_restore: bool = False):
     role_id = user.get_role_id(user_id)
 
     # Check ProjectUserRole table has relationship or not
     row = model.ProjectUserRole.query.filter_by(user_id=user_id, project_id=project_id, role_id=role_id).first()
     # if ProjectUserRole table not has relationship
-    if row is not None:
+    if row is not None and not is_restore:
         raise DevOpsError(
             422,
             "Error while adding user to project.",
             error=apiError.already_in_project(user_id, project_id),
         )
-    # insert one relationship
-    new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
-    db.session.add(new)
-    db.session.commit()
+    if row is None:
+        # insert one relationship
+        new = model.ProjectUserRole(project_id=project_id, user_id=user_id, role_id=role_id)
+        db.session.add(new)
+        db.session.commit()
 
     user_relation = nexus.nx_get_user_plugin_relation(user_id=user_id)
     project_relation = nx_get_project_plugin_relation(nexus_project_id=project_id)
     redmine_role_id = user.to_redmine_role_id(role_id)
+    logger.info(
+        f'user_id: {user_id}, '
+        f'role_id: {role_id}, '
+        f'redmine_role_id: {redmine_role_id}, '
+        f'plan_project_id:{project_relation.plan_project_id}'
+    )
 
     # get project name
     pj_row = model.Project.query.filter_by(id=project_id).one()
     # get user name
     ur_row = model.User.query.filter_by(id=user_id).one()
 
-    services = ["key_cloak", "redmine", "gitlab", "harbor", "kubernetes_role_binding", "sonarqube"]
-    targets = {
-        "key_cloak": key_cloak.assign_group,
-        "redmine": redmine.rm_create_memberships,
-        "gitlab": gitlab.gl_project_add_member,
-        "harbor": harbor.hb_add_group_if_not_exist,
-        # "harbor": harbor.hb_add_member,
-        "kubernetes_role_binding": kubernetesClient.create_role_binding,
-        "sonarqube": sonarqube.sq_add_member,
-    }
-    service_args = {
-        "key_cloak": (project_relation.key_cloak_group_id, user_relation.key_cloak_user_id),
-        "redmine": (
+    services = []
+    targets = {}
+    service_args = {}
+    services.append("key_cloak")
+    targets["key_cloak"] = key_cloak.assign_group
+    service_args["key_cloak"] = (project_relation.key_cloak_group_id, user_relation.key_cloak_user_id)
+
+    rm_json = None
+    if is_restore:
+        rm_users = redmine.rm_get_memberships_list(project_relation.plan_project_id).get("memberships")
+        for rm_user in rm_users:
+            if user_relation.plan_user_id == rm_user.get("user").get("id"):
+                rm_json = rm_user.get("user")
+                break
+    logger.info(f'redmine member: {rm_json}')
+    if rm_json is None:
+        services.append("redmine")
+        targets["redmine"] = redmine.rm_create_memberships
+        service_args["redmine"] = (
             project_relation.plan_project_id,
             user_relation.plan_user_id,
             redmine_role_id,
-        ),
-        "gitlab": (
-            project_relation.git_repository_id,
-            user_relation.repository_user_id,
-        ),
-        "harbor": (project_relation.harbor_project_id, pj_row.name),
-        # "harbor": (project_relation.harbor_project_id, user_relation.harbor_user_id),
-        "kubernetes_role_binding": (pj_row.name, util.encode_k8s_sa(ur_row.login)),
-        "sonarqube": (pj_row.name, ur_row.login),
-    }
+        )
+
+    gl_json = None
+    if is_restore:
+        logger.info(
+            f'git_repository_id: {project_relation.git_repository_id}, '
+            f'repository_user_id: {user_relation.repository_user_id}'
+        )
+        gl_members = gitlab.gl_project_list_member(project_relation.git_repository_id, {}).json()
+        for gl_member in gl_members:
+            if user_relation.repository_user_id == gl_member.get("id"):
+                gl_json = gl_member
+                break
+    logger.info(f'gitlab member: {gl_json}')
+    if gl_json is None:
+        services.append("gitlab")
+        targets["gitlab"] = gitlab.gl_project_add_member
+        service_args["gitlab"] = (
+                project_relation.git_repository_id,
+                user_relation.repository_user_id,
+            )
+
+    services.append("harbor")
+    targets["harbor"] = harbor.hb_add_group_if_not_exist
+    service_args["harbor"] = (project_relation.harbor_project_id, pj_row.name)
+    logger.info(f'pj_row name: {pj_row.name}')
+    services.append("kubernetes_role_binding")
+    targets["kubernetes_role_binding"] = kubernetesClient.create_role_binding
+    service_args["kubernetes_role_binding"] = (pj_row.name, util.encode_k8s_sa(ur_row.login))
+
+    services.append("sonarqube")
+    targets["sonarqube"] = sonarqube.sq_add_member
+    service_args["sonarqube"] = (pj_row.name, ur_row.login)
+
     helper = util.ServiceBatchOpHelper(services, targets, service_args)
     helper.run()
     for e in helper.errors.values():

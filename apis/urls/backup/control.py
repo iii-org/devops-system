@@ -15,14 +15,14 @@ from model import (
     Tag,
     TraceOrder,
     TraceResult,
+    DefaultAlertDays,
 )
 
 
 def get_backup_user_all() -> list:
-    # 取得除了 sysadmin(在新魕統已經存在的帳號) 及 機器人帳號(建立專案時會自動產生)以外的所有使用者資料。
-    return User.query.filter(not_(or_(User.login == 'sysadmin',
-                                      User.login.like('project_bot_%')))
-                             ).order_by(User.id).all()
+    # 取得除了 sysadmin(在新系統已經存在的帳號) 及 機器人帳號(建立專案時會自動產生)以外的所有使用者資料。
+    # 因為 USER_PLUGIN_RELATION 在新系統各服務的sysadmin帳號之ID有可能會改變，故又將 sysadmin 加入備份資料中(20230630)。
+    return User.query.filter(not_(User.login.like('project_bot_%'))).order_by(User.id).all()
 
 
 def get_project_user_role_by_user_id(user_id: int) -> ProjectUserRole:
@@ -126,9 +126,14 @@ def get_trace_result_by_project_id(project_id: int) -> list:
 
 
 def backup_project_to_json():
-    projects_result = []
+    dads_result = []
+    dads = DefaultAlertDays.query.all()
+    for dad in dads:
+        dads_result.append(row_to_dict(dad))
+    write_backup_json("backup_default_alert_days", dads_result)
     # 取得以專案 id 排序的所有專案資料列表
     projects = get_backup_project_all()
+    projects_result = []
     for project in projects:
         project_json = row_to_dict(project)
         # 取得專案的 creator_id 及 owner_id 使用者的 login 欄位資訊
@@ -139,10 +144,6 @@ def backup_project_to_json():
                 project_json["creator_login"] = project_json["owner_login"]
             else:
                 project_json["creator_login"] = get_user_login_by_user_id(project.creator_id)
-        # 依 project_id 取得 Alert 的資訊列表
-        alerts = get_alert_by_project_id(project.id)
-        if alerts:
-            project_json["alert"] = rows_to_list(alerts)
         # 取得專案資源存儲存級別資訊列表
         prs_list = get_project_resource_storagelevel_by_project_id(project.id)
         if prs_list:
