@@ -216,7 +216,7 @@ def get_release_image_list(project_id, args):
         since=last_push_time,
     )
     if only_image:
-        commit_images = {commit["short_id"][:-1]: commit["title"] for commit in commits}
+        commit_images = {commit["short_id"]: commit["title"] for commit in commits}
         ret = [
             {
                 "image": image["digest"],

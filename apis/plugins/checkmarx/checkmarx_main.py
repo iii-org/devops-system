@@ -472,8 +472,8 @@ class GetCheckmarxReportStatusV2(MethodResource):
     # @use_kwargs(router_model.CreateCheckmarxScan)
     @marshal_with(router_model.GetCheckmarxReportStatusResponse)  # marshalling
     @jwt_required
-    def get(self, scan_id):
-        status_id, value = checkmarx.get_report_status(scan_id)
+    def get(self, report_id):
+        status_id, value = checkmarx.get_report_status(report_id)
         return util.success({"id": status_id, "value": value})
 
 
