@@ -59,7 +59,7 @@ from resources.redis import (
     update_issue_pj_user_relation,
     get_single_issue_pj_user_relation,
     check_user_has_permission_to_see_issue,
-    set_user_issue_watcher_list
+    set_user_issue_watcher_list,
 )
 from resources.user import user_list_by_project, get_user_id_from_redmine_id
 
@@ -165,7 +165,6 @@ class NexusIssue:
         users_info=None,
         with_point=False,
     ):
-
         self.data = {
             "id": redmine_issue.id,
             "name": redmine_issue.subject,
@@ -1226,20 +1225,20 @@ def delete_issue(issue_id, delete_excalidraw=False):
     return "success"
 
 
-def get_issue_datetime_status(project_id:str) -> dict[str, int]:
+def get_issue_datetime_status(project_id: str) -> dict[str, int]:
     kwargs = {}
-    no_due_date_num, expire_num, normal_num= 0, 0, 0
+    no_due_date_num, expire_num, normal_num = 0, 0, 0
     issues_list = get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
-    issue_info={'id':[], 'start_date':[], 'due_date':[]}
+    issue_info = {"id": [], "start_date": [], "due_date": []}
     for issue_ in issues_list:
-        if issue_['is_closed'] == False:
-            issue_info['id'].append(issue_['id'])
-            issue_info['start_date'].append(issue_['start_date'])
-            issue_info['due_date'].append(issue_['due_date'])
+        if issue_["is_closed"] == False:
+            issue_info["id"].append(issue_["id"])
+            issue_info["start_date"].append(issue_["start_date"])
+            issue_info["due_date"].append(issue_["due_date"])
 
-    total_num = len(issue_info['id'])
-    for issue_due_date in issue_info.get('due_date', []):
-        if issue_due_date is None :
+    total_num = len(issue_info["id"])
+    for issue_due_date in issue_info.get("due_date", []):
+        if issue_due_date is None:
             no_due_date_num += 1
         if issue_due_date is not None:
             expire_num += 1 if issue_due_date < str(date.today()) else None
@@ -1262,14 +1261,14 @@ def remove_issue_watcher(issue_id: int, user_id: dict):
     return redmine.rm_remove_watcher(issue_id, user_id)
 
 
-def sync_issue_watcher_list(): # %%%
+def sync_issue_watcher_list():  # %%%
     set_user_issue_watcher_list(defaultdict())
     user_watcher_list = defaultdict()
     try:
         for issue in redmine_lib.rm_get_all_issue():
             issue_watcher_info = issue.watchers._resources
             for info in issue_watcher_info:
-                user_id = get_user_id_from_redmine_id(info.get('id'))
+                user_id = get_user_id_from_redmine_id(info.get("id"))
                 if user_watcher_list.get(str(user_id), None) is None:
                     user_watcher_list[str(user_id)] = [issue.id]
                 else:
@@ -1277,7 +1276,7 @@ def sync_issue_watcher_list(): # %%%
     except Exception as e:
         logging.info(e)
     set_user_issue_watcher_list(user_watcher_list)
-    logging.info('Success sync watcher list to redis.')
+    logging.info("Success sync watcher list to redis.")
 
 
 def get_issue_by_project(project_id, args):
@@ -1566,12 +1565,16 @@ def get_issue_list_by_user(user_id, args):
             nx_issue_params["relationship_bool"] = True
 
         nx_issue_params["users_info"] = user.get_all_user_info()
-        for redmine_issue in all_issues:
-            nx_issue_params["redmine_issue"] = redmine_issue
-            issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
-            output.append(issue)
-
-        total_count += all_issues.total_count
+        try:
+            for redmine_issue in all_issues:
+                nx_issue_params["redmine_issue"] = redmine_issue
+                issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
+                output.append(issue)
+            total_count += all_issues.total_count
+        except redminelibError.ForbiddenError:
+            logger.logger.exception(
+                f"User {user_name} has no permission to get issues or user does not belong to any project."
+            )
 
     if args["limit"] and args["offset"] is not None:
         page_dict = util.get_pagination(total_count, args["limit"], args["offset"])
@@ -1960,14 +1963,14 @@ def calculate_issue_progress(filters, issue_status, output, args=None):
                 if bool_no_due_date:
                     continue
                 else:
-                    df_check = dt_due_date['due_date'] > dt_due_date["now"]
+                    df_check = dt_due_date["due_date"] > dt_due_date["now"]
                     if df_check:
                         continue
             elif due_date == "normal":
                 if bool_no_due_date:
                     continue
                 else:
-                    df_check = dt_due_date['due_date'] < dt_due_date["now"]
+                    df_check = dt_due_date["due_date"] < dt_due_date["now"]
                     if df_check:
                         continue
         if issue.status.id in issue_status:
@@ -1977,12 +1980,12 @@ def calculate_issue_progress(filters, issue_status, output, args=None):
 
 
 def has_or_no_due_date(issue):
-    dt = dict (issue)
-    dt_due_date = {'due_date': None, 'now':None}
-    dt_due_date['due_date'] = dt['due_date']
-    dt_due_date['now'] = str(date.today())
-    bool_has_due_date = True if  dt_due_date['due_date'] is not None else False
-    bool_no_due_date = True if dt_due_date['due_date'] is None else False
+    dt = dict(issue)
+    dt_due_date = {"due_date": None, "now": None}
+    dt_due_date["due_date"] = dt["due_date"]
+    dt_due_date["now"] = str(date.today())
+    bool_has_due_date = True if dt_due_date["due_date"] is not None else False
+    bool_no_due_date = True if dt_due_date["due_date"] is None else False
     return dt_due_date, bool_has_due_date, bool_no_due_date
 
 
