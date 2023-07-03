@@ -915,8 +915,8 @@ def recreate_user_in_servers(args: dict[str, Any], server_list: list[str] = None
 def create_user_in_servers(args: dict[str, Any]) -> dict[str, dict[str:Any]]:
     """
     Create user in servers. If create failed, rollback. The following is rollback rules:
-        - k8s: Use name to delete instead of id
-        - Sonarqube: Can not be delete, can only deactivate(and use name instead)
+        - k8s: Use username to delete user, not id
+        - Sonarqube: User can only be deactivate(and also use username to deactivate)
     """
     server_user_id_mapping = {
         "db": {"id": None, "delete_func": delete_db_user},
@@ -1275,5 +1275,6 @@ def update_user_message_types(user_id, args):
 
 def get_user_deployment_env_info(user_account: str) -> dict[str, str]:
     cluster_host = ApiK8sClient().cluster_host
-    token = generate_service_account_token(user_account)
+    encode_user_account = util.encode_k8s_sa(user_account)
+    token = generate_service_account_token(encode_user_account)
     return {"token": token, "host": cluster_host}

@@ -29,23 +29,23 @@ def return_jwt_token_if_exist():
     return token
 
 
-def ad_login_if_not_exist_then_create_user(user_info: dict[str, Any]) -> dict[str, Any]:
-    # token_info = key_cloak.get_user_info_by_token(access_token)
+def ad_login_if_not_exist_then_create_user(user_info: dict[str, Any]) -> int:
     account = user_info.get("preferred_username")
     user_model = User.query.filter_by(login=account).first()
     if user_model is None:
         from resources.user import recreate_user
 
         # Login by AD, but not exist in DB.
-        depart, title, key_clock_id, email = (
+        depart, title, key_clock_id, email, phone = (
             user_info.get("department"),
             user_info.get("title"),
             user_info.get("sub"),
             user_info.get("email"),
+            user_info.get("phone"),
         )
 
         """
-        if ad login, keycloack must provide the following key: name / email / department / title.
+        if ad login, keycloack must provide the following key: name / email / department / title / phone
         """
         args = {
             "name": account,
@@ -54,6 +54,7 @@ def ad_login_if_not_exist_then_create_user(user_info: dict[str, Any]) -> dict[st
             "department": depart,
             "title": title,
             "login": account,
+            "phone": phone,
             "from_ad": True,
             "role_id": role.PM.id,
             "key_cloak_user_id": key_clock_id,
@@ -63,6 +64,30 @@ def ad_login_if_not_exist_then_create_user(user_info: dict[str, Any]) -> dict[st
     else:
         user_id = user_model.id
     return user_id
+
+
+def update_ad_user_info(user_info: dict[str, Any]) -> None:
+    account = user_info.get("preferred_username")
+    user_model = User.query.filter_by(login=account)
+    user_model_info = user_model.first()
+    if user_model_info is not None:
+        from resources.user import update_user
+
+        depart, title, email, phone = (
+            user_info.get("department"),
+            user_info.get("title"),
+            user_info.get("email"),
+            user_info.get("phone"),
+        )
+        user_model.update(
+            {
+                "department": depart,
+                "title": title,
+                "phone": phone,
+                "email": email,
+            }
+        )
+        db.session.commit()
 
 
 def __generate_jwt_identity_info_by_access_token(access_token: str) -> dict[str, Any]:

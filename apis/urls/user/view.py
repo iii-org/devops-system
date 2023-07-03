@@ -9,6 +9,7 @@ from resources.handler.jwt import (
     check_login_status_and_return_refresh_token,
     return_jwt_token_if_exist,
     ad_login_if_not_exist_then_create_user,
+    update_ad_user_info,
 )
 from flask_restful import Resource, reqparse
 import util
@@ -315,6 +316,8 @@ class UserCheckStatusV2(MethodResource):
         if login_status_info["account_exist"]:
             if login_status_info["from_ad"]:
                 ad_login_if_not_exist_then_create_user(user_info)
+                # Only update user info when user login from AD
+                update_ad_user_info(user_info)
             return util.success()
 
         if login_status_info["token_invalid"]:
