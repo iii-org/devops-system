@@ -1,4 +1,4 @@
-from resources.handler.jwt import jwt_required_cronjob
+from resources.handler.jwt import jwt_required_cronjob, jwt_required
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
 from .control import restore_user_from_json, restore_project_from_json

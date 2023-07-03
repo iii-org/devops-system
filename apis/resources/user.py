@@ -192,8 +192,11 @@ def get_sysadmin_info(login):
 @record_activity(ActionType.UPDATE_USER)
 def update_user(user_id, args, from_ad=False, is_restore: bool = False):
     if is_restore:
-        server_user_id_mapping = create_user_in_servers(args, is_restore)
+        server_user_id_mapping = restore_user_in_servers(args, is_restore)
+        print(server_user_id_mapping)
+    print(user_id)
     user = model.User.query.filter_by(id=user_id).first()
+    print(args)
     if "role_id" in args:
         update_user_role(user_id, args.get("role_id"))
     user_role_id = -1
@@ -628,7 +631,10 @@ def create_user(args: dict[str, Any], is_restore: bool = False) -> dict[str, Any
     logger.info("Creating user...")
     if not is_restore:
         check_create_user_args(args)
-    server_user_id_mapping = create_user_in_servers(args, is_restore)
+    if is_restore:
+        server_user_id_mapping = restore_user_in_servers(args, is_restore)
+    else:
+        server_user_id_mapping = create_user_in_servers(args)
     logger.info("User created.")
 
     return {
@@ -816,7 +822,41 @@ def check_create_user_login_email_unique_sonarqube(login_name: str, force: bool)
     logger.info("Account name not used in SonarQube or force is True.")
 
 
-def create_user_in_servers(args: dict[str, Any], is_restore: bool = False) -> dict[str, dict[str:Any]]:
+def create_user_in_servers(args: dict[str, Any]) -> dict[str, dict[str:Any]]:
+    """
+    k8s: Use name to delete instead of id
+    Sonarqube: Can not be delete, can only deactivate(and use name instead)
+    """
+    server_user_id_mapping = {
+        "redmine": {"id": None, "delete_func": redmine.rm_delete_user, "is_add": True},
+        "gitlab": {"id": None, "delete_func": gitlab.gl_delete_user, "is_add": True},
+        "k8s": {"id": None, "delete_func": kubernetesClient.delete_service_account, "is_add": True},
+        "key_cloak": {"id": None, "delete_func": key_cloak.delete_user, "is_add": True},
+        "sonarqube": {"id": None, "delete_func": sonarqube.sq_deactivate_user, "is_add": True},
+        "db": {"id": None, "delete_func": delete_db_user, "is_add": True},
+    }
+    role_id = args["role_id"]
+    is_admin = role_id == role.ADMIN.id
+    logger.info(f"is_admin is {is_admin}")
+    try:
+        server_user_id_mapping["key_cloak"]["id"] = create_user_in_key_cloak(args, is_admin)
+        server_user_id_mapping["redmine"]["id"] = create_user_in_redmine(args, is_admin)
+        server_user_id_mapping["gitlab"]["id"] = create_user_in_gitlab(args, is_admin)
+        server_user_id_mapping["k8s"]["id"] = create_user_in_k8s(args, is_admin)
+        server_user_id_mapping["sonarqube"]["id"] = create_user_in_sonarqube(args)
+        server_user_id_mapping["db"] = {"id": create_user_in_db(args)}
+        create_user_in_other_dbs(server_user_id_mapping, role_id)
+    except Exception as e:
+        for _, id_delete_func_mapping in server_user_id_mapping.items():
+            user_id = id_delete_func_mapping["id"]
+            if id_delete_func_mapping["is_add"] and id_delete_func_mapping["id"] is not None and _ != "db":
+                id_delete_func_mapping["delete_func"](user_id)
+        raise e
+    return server_user_id_mapping
+
+
+
+def restore_user_in_servers(args: dict[str, Any], is_restore: bool = False) -> dict[str, dict[str:Any]]:
     """
     k8s: Use name to delete instead of id
     Sonarqube: Can not be delete, can only deactivate(and use name instead)
@@ -841,15 +881,16 @@ def create_user_in_servers(args: dict[str, Any], is_restore: bool = False) -> di
             server_user_id_mapping["key_cloak"]["is_add"] = False
         else:
             server_user_id_mapping["key_cloak"]["id"] = create_user_in_key_cloak(args, is_admin)
+
         rm_id = None
         if is_restore:
             rm_id = get_user_id_in_redmine(args.get("login"))
-            print(rm_id)
         if rm_id:
             server_user_id_mapping["redmine"]["id"] = rm_id
             server_user_id_mapping["redmine"]["is_add"] = False
         else:
             server_user_id_mapping["redmine"]["id"] = create_user_in_redmine(args, is_admin)
+
         gl_id = None
         if is_restore:
             gl_id = get_user_id_in_gitlab(args.get("login"), args.get("email"))
@@ -858,17 +899,18 @@ def create_user_in_servers(args: dict[str, Any], is_restore: bool = False) -> di
             server_user_id_mapping["gitlab"]["is_add"] = False
         else:
             server_user_id_mapping["gitlab"]["id"] = create_user_in_gitlab(args, is_admin)
+
         sa_name = None
         if is_restore:
             sa_name = get_sa_name_in_k8s(args.get("login"))
-            print(sa_name)
         if sa_name:
             server_user_id_mapping["k8s"]["id"] = sa_name
             server_user_id_mapping["k8s"]["is_add"] = False
         else:
             server_user_id_mapping["k8s"]["id"] = create_user_in_k8s(args, is_admin)
+
         sq_login = None
-        if is_restore:
+        if sq_login:
             sq_login = get_login_in_sonarqube(args.get("login"))
         if sq_login:
             server_user_id_mapping["sonarqube"]["id"] = sq_login
@@ -883,7 +925,8 @@ def create_user_in_servers(args: dict[str, Any], is_restore: bool = False) -> di
             server_user_id_mapping["db"] = {"id": user_id, "is_add": False}
         else:
             server_user_id_mapping["db"] = {"id": create_user_in_db(args)}
-        create_user_in_other_dbs(server_user_id_mapping, role_id, is_restore)
+
+        create_user_in_other_dbs(server_user_id_mapping, is_restore)
     except Exception as e:
         for _, id_delete_func_mapping in server_user_id_mapping.items():
             user_id = id_delete_func_mapping["id"]
@@ -1031,11 +1074,13 @@ def create_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]], 
     rel = None
     if is_restore:
         rel = model.UserPluginRelation.query.filter_by(user_id=user_id).first()
+        print(rel)
     if rel:
         rel.plan_user_id = server_user_id_mapping["redmine"]["id"]
         rel.repository_user_id = server_user_id_mapping["gitlab"]["id"]
         rel.kubernetes_sa_name = server_user_id_mapping["k8s"]["id"]
         rel.key_cloak_user_id = server_user_id_mapping["key_cloak"]["id"]
+        db.session.commit()
     else:
         rel = model.UserPluginRelation(
             user_id=user_id,
@@ -1045,7 +1090,7 @@ def create_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]], 
             key_cloak_user_id=server_user_id_mapping["key_cloak"]["id"],
         )
         db.session.add(rel)
-    db.session.commit()
+        db.session.commit()
     logger.info(f"Nexus user_plugin built.")
 
     # insert project_user_role
