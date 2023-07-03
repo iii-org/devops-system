@@ -13,7 +13,7 @@ from flask_restful import Resource, Api, reqparse
 from flask_socketio import SocketIO
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import NoResultFound, OperationalError
-from sqlalchemy_utils import database_exists, create_database
+from sqlalchemy_utils import database_exists, create_database, drop_database
 from werkzeug.routing import IntegerConverter
 
 import config
@@ -670,21 +670,20 @@ def start_prod() -> Flask:
     # TODO: Remove outside app and merge code into this function, so app will be created only once.
     # app: Flask = Flask(__name__)
 
-    # Check database connection is available
     db.init_app(app)
     db.app = app
-    engine: Engine = db.get_engine()
     db_uri: str = config.get("SQLALCHEMY_DATABASE_URI")
+    # engine: Engine = db.get_engine()
 
-    try:
-        engine.begin()
+    # try:
+    #     engine.begin()
 
-    except OperationalError as e:
-        logger.logger.critical(f"Database connection failed: \n {e}")
-        exit(1)
+    # except OperationalError as e:
+    #     logger.logger.critical(f"Database connection failed: \n {e}")
+    #     exit(1)
 
-    finally:
-        engine.dispose()
+    # finally:
+    #     engine.dispose()
 
     # Check 'runner' cluster exist
     if not config.get("DEBUG", False, convert=True):
@@ -698,26 +697,36 @@ def start_prod() -> Flask:
 
     # Create database
     if not database_exists(db_uri):
-        # Do create databases and return
-        logger.logger.info("Database not exists, creating...")
-        logger.logger.info(f"Database URI: {db_uri}")
-        logger.logger.debug("Creating database...")
+        database_is_exist = False
+        try:
+            # Do create databases and return
+            logger.logger.info("Database not exists, creating...")
+            logger.logger.info(f"Database URI: {db_uri}")
+            logger.logger.debug("Creating database...")
 
-        create_database(db_uri)
-        db.create_all()
-        logger.logger.info("Database created.")
+            create_database(db_uri)
+            database_is_exist = True
+            logger.logger.info("Database created.")
 
-        head: str = migrate.alembic_get_head()
+            db.create_all()
+            logger.logger.info("Database created.")
 
-        if head:
-            _ = model.AlembicVersion()
-            _.version_num = head
-            db.session.add(_)
-            db.session.commit()
-            logger.logger.info(f"Alembic revision set to {head}.")
+            head: str = migrate.alembic_get_head()
 
-        migrate.alembic_upgrade()
-        inject_initial_data()
+            if head:
+                _ = model.AlembicVersion()
+                _.version_num = head
+                db.session.add(_)
+                db.session.commit()
+                logger.logger.info(f"Alembic revision set to {head}.")
+
+            migrate.alembic_upgrade()
+            inject_initial_data()
+        except Exception as e:
+            logger.logger.info(f"Database creation failed: \n {e}")
+            if database_is_exist:
+                drop_database(db_uri)
+            exit(1)
 
     try:
         # jsonwebtoken.init_app(app)
