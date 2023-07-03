@@ -11,8 +11,7 @@ from flask_apispec.extension import FlaskApiSpec
 from flask_cors import CORS
 from flask_restful import Resource, Api, reqparse
 from flask_socketio import SocketIO
-from sqlalchemy.engine import Engine
-from sqlalchemy.exc import NoResultFound, OperationalError
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database, drop_database
 from werkzeug.routing import IntegerConverter
 
@@ -59,6 +58,7 @@ from resources.handler.jwt import jwt_required
 from resources.redis import should_update_template_cache
 from resources.template import fetch_and_update_template_cache
 from urls import monitoring
+from urls.gitlab import gitlab_url
 from urls.harbor import harbor_url
 from urls.issue import issue_url
 from urls.lock import lock_url
@@ -72,7 +72,6 @@ from urls.system_parameter import sync_system_parameter_url
 from urls.tag import tag_url
 from urls.template import template_url
 from urls.user import user_url
-from urls.gitlab import gitlab_url
 
 if config.get("DEBUG", False, convert=True):
     urllib3.disable_warnings()
@@ -258,7 +257,6 @@ api.add_resource(
 
 # Gitlab project
 gitlab_url(api, add_resource)
-
 
 api.add_resource(
     gitlab.GitProjectTag,
@@ -673,17 +671,6 @@ def start_prod() -> Flask:
     db.init_app(app)
     db.app = app
     db_uri: str = config.get("SQLALCHEMY_DATABASE_URI")
-    # engine: Engine = db.get_engine()
-
-    # try:
-    #     engine.begin()
-
-    # except OperationalError as e:
-    #     logger.logger.critical(f"Database connection failed: \n {e}")
-    #     exit(1)
-
-    # finally:
-    #     engine.dispose()
 
     # Check 'runner' cluster exist
     if not config.get("DEBUG", False, convert=True):
@@ -697,19 +684,16 @@ def start_prod() -> Flask:
 
     # Create database
     if not database_exists(db_uri):
-        database_is_exist = False
+        # Do create databases and return
+        logger.logger.info("Database not exists, creating...")
+        logger.logger.info(f"Database URI: {db_uri}")
+        logger.logger.debug("Creating database...")
+
+        create_database(db_uri)
+
         try:
-            # Do create databases and return
-            logger.logger.info("Database not exists, creating...")
-            logger.logger.info(f"Database URI: {db_uri}")
-            logger.logger.debug("Creating database...")
-
-            create_database(db_uri)
-            database_is_exist = True
-            logger.logger.info("Database created.")
-
             db.create_all()
-            logger.logger.info("Database created.")
+            logger.logger.info("Database schema created.")
 
             head: str = migrate.alembic_get_head()
 
@@ -722,10 +706,10 @@ def start_prod() -> Flask:
 
             migrate.alembic_upgrade()
             inject_initial_data()
+
         except Exception as e:
             logger.logger.info(f"Database creation failed: \n {e}")
-            if database_is_exist:
-                drop_database(db_uri)
+            drop_database(db_uri)
             exit(1)
 
     try:
