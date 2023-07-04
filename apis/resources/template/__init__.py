@@ -767,6 +767,9 @@ def tm_get_pipeline_default_branch(repository_id: int, is_default_branch: bool =
     for _, stage_info in file_stages.items():
         if isinstance(stage_info, list):
             continue
+        # initial 沒有 variables 這個 KEY
+        if "variables" not in stage_info:
+            continue
         tool = stage_info["variables"]['iiidevops']
         if tool in skip_record_tools:
             continue
