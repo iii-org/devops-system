@@ -2,15 +2,19 @@ import util
 from flask_apispec import doc, marshal_with, use_kwargs
 from flask_apispec.views import MethodResource
 from flask_restful import Resource
+from flask import request
 from resources.system import (
     send_merge_request_notification,
     system_git_commit_id,
     system_info_report,
 )
+from resources import logger
 
 
 class SystemInfoReport(Resource):
     def put(self):
+        print(request.headers)
+        logger.logger.info(request.headers)
         system_info_report()
         return util.success()
 
