@@ -196,10 +196,7 @@ def get_sysadmin_info(login):
 def update_user(user_id, args, from_ad=False, is_restore: bool = False):
     if is_restore:
         server_user_id_mapping = restore_user_in_servers(args, is_restore)
-        print(server_user_id_mapping)
-    print(user_id)
     user = model.User.query.filter_by(id=user_id).first()
-    print(args)
     if "role_id" in args:
         update_user_role(user_id, args.get("role_id"))
     user_role_id = -1
@@ -499,7 +496,6 @@ def update_newpassword(user_id, kwargs):
                 valid = True
         if valid:
             encode_password = base64.b64encode(f"{kwargs.get('new_pwd')}".encode("UTF-8"))
-            print(encode_password.decode("UTF-8"))
             update = {"password": encode_password.decode("UTF-8")}
             db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server=kwargs.get("server")).update(
                 update
@@ -973,62 +969,53 @@ def restore_user_in_servers(args: dict[str, Any], is_restore: bool = False) -> d
     is_admin = role_id == role.ADMIN.id
     logger.info(f"is_admin is {is_admin}")
     try:
-        kc_id = None
-        if is_restore:
-            kc_id = get_user_id_in_key_cloak(args.get("login"))
+        kc_id = get_user_id_in_key_cloak(args.get("login"))
         if kc_id:
             server_user_id_mapping["key_cloak"]["id"] = kc_id
             server_user_id_mapping["key_cloak"]["is_add"] = False
         else:
             server_user_id_mapping["key_cloak"]["id"] = create_user_in_key_cloak(args, is_admin)
 
-        rm_id = None
-        if is_restore:
-            rm_id = get_user_id_in_redmine(args.get("login"))
+        rm_id = get_user_id_in_redmine(args.get("login"))
         if rm_id:
             server_user_id_mapping["redmine"]["id"] = rm_id
             server_user_id_mapping["redmine"]["is_add"] = False
         else:
             server_user_id_mapping["redmine"]["id"] = create_user_in_redmine(args, is_admin)
 
-        gl_id = None
-        if is_restore:
-            gl_id = get_user_id_in_gitlab(args.get("login"), args.get("email"))
+        gl_id = get_user_id_in_gitlab(args.get("login"), args.get("email"))
         if gl_id:
             server_user_id_mapping["gitlab"]["id"] = gl_id
             server_user_id_mapping["gitlab"]["is_add"] = False
         else:
             server_user_id_mapping["gitlab"]["id"] = create_user_in_gitlab(args, is_admin)
 
-        sa_name = None
-        if is_restore:
-            sa_name = get_sa_name_in_k8s(args.get("login"))
+        sa_name = get_sa_name_in_k8s(args.get("login"))
         if sa_name:
             server_user_id_mapping["k8s"]["id"] = sa_name
             server_user_id_mapping["k8s"]["is_add"] = False
         else:
             server_user_id_mapping["k8s"]["id"] = create_user_in_k8s(args, is_admin)
 
-        sq_login = None
-        if sq_login:
-            sq_login = get_login_in_sonarqube(args.get("login"))
+        sq_login = get_login_in_sonarqube(args.get("login"))
         if sq_login:
             server_user_id_mapping["sonarqube"]["id"] = sq_login
             server_user_id_mapping["sonarqube"]["is_add"] = False
         else:
             server_user_id_mapping["sonarqube"]["id"] = create_user_in_sonarqube(args)
         user_id = None
-        if is_restore:
-            if args.get("id"):
-                user_id = args.get("id")
+
+        if args.get("id"):
+            user_id = args.get("id")
         if user_id:
             server_user_id_mapping["db"] = {"id": user_id, "is_add": False}
         else:
             server_user_id_mapping["db"] = {"id": create_user_in_db(args)}
 
-        create_user_in_other_dbs(server_user_id_mapping, is_restore)
+        create_user_in_other_dbs(server_user_id_mapping, role_id, is_restore)
     except Exception as e:
         for _, id_delete_func_mapping in server_user_id_mapping.items():
+            logger.info(f'key:{_}, value: {id_delete_func_mapping}')
             user_id = id_delete_func_mapping["id"]
             if id_delete_func_mapping["is_add"] and id_delete_func_mapping["id"] is not None and _ != "db":
                 id_delete_func_mapping["delete_func"](user_id)
@@ -1127,10 +1114,17 @@ def create_user_in_sonarqube(args: dict[str, Any]) -> str:
 
 
 def get_login_in_sonarqube(user_name: str) -> str or None:
-    sq_list = sonarqube.sq_list_user({}).json().get("users")
-    for sq in sq_list:
-        if sq.get("login") == user_name:
-            return sq.get("login")
+    page = 1
+    page_size = 50
+    total_size = 20
+    while total_size > 0:
+        params = {"p": page, "ps": page_size}
+        output = sonarqube.sq_list_user(params).json()
+        for user in output["users"]:
+            if user["login"] == user_name:
+                return user["login"]
+        total_size = int(output["paging"]["total"]) - (page * page_size)
+        page += 1
     return None
 
 
@@ -1208,7 +1202,6 @@ def create_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]], 
     rel = None
     if is_restore:
         rel = model.UserPluginRelation.query.filter_by(user_id=user_id).first()
-        print(rel)
     if rel:
         rel.plan_user_id = server_user_id_mapping["redmine"]["id"]
         rel.repository_user_id = server_user_id_mapping["gitlab"]["id"]
