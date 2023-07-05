@@ -343,6 +343,7 @@ custom_errors = {
     },
 }
 
+
 # 31: Authorization validation
 def authorization_not_found(redirect_url: str) -> dict[str, Any]:
     return build(3101, "Missing Authorization Header", {"redirect_url": redirect_url})
@@ -354,6 +355,10 @@ def invalid_token(token: str, redirect_url: str):
 
 def decode_token_user_not_found(token: str, user: str):
     return build(3103, "User from decode token not found", {"token": token, "user": user})
+
+
+def not_a_valid_origin(host: str, user_agent: str):
+    return build(3104, "Not a valid origin", {"host": host, "user_agent": user_agent})
 
 
 # 4: Redmine Issue/Wiki/... errors

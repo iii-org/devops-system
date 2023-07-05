@@ -12,6 +12,7 @@ from resources.keycloak import (
 from resources import apiError
 from typing import Any
 from util import get_random_alphanumeric_string
+import config
 
 
 # def __calculate_token_expired_datetime(sec: int):
@@ -90,15 +91,10 @@ def update_ad_user_info(user_info: dict[str, Any]) -> None:
         db.session.commit()
 
 
-def __generate_jwt_identity_info_by_access_token(access_token: str) -> dict[str, Any]:
-    key_cloak_token_info = key_cloak.get_user_info_by_token(access_token)
-    account = key_cloak_token_info.get("preferred_username")
+def __generate_jwt_identity_info_by_account(account: str) -> dict[str, Any]:
     user_model = User.query.filter_by(login=account).first()
-
     if user_model is None:
-        raise apiError.DevOpsError(
-            401, "Invalid token.", error=apiError.decode_token_user_not_found(access_token, account)
-        )
+        return {}
 
     user_id, from_ad = user_model.id, user_model.from_ad
 
@@ -115,20 +111,33 @@ def __generate_jwt_identity_info_by_access_token(access_token: str) -> dict[str,
     return jwt_identity
 
 
+def __generate_jwt_identity_info_by_access_token(access_token: str) -> dict[str, Any]:
+    key_cloak_token_info = key_cloak.get_user_info_by_token(access_token)
+    account = key_cloak_token_info.get("preferred_username")
+
+    jwt_identity = __generate_jwt_identity_info_by_account(account)
+    if not jwt_identity:
+        raise apiError.DevOpsError(
+            401, "Invalid token.", error=apiError.decode_token_user_not_found(access_token, account)
+        )
+
+    return jwt_identity
+
+
 def jwt_required_cronjob(fn):
     def wrapper(*args, **kwargs):
-        refresh_token = return_jwt_token_if_exist()
+        """
+        Check server is from cronjob by host and user_agent.
+        But it still has security issue, because host and user_agent can be faked.
+        """
+        host, user_agent = request.host, request.user_agent.string
 
-        token = key_cloak.get_token_by_refresh_token(refresh_token)
-        if not token or token.get("access_token") is None:
-            raise apiError.DevOpsError(
-                401,
-                "Invalid refresh token.",
-                error=apiError.invalid_token(refresh_token, key_cloak.generate_login_url()),
-            )
+        if host != "devops-api:10009" or user_agent != "curl/7.76.1-DEV":
+            raise apiError.DevOpsError(401, "Not a valid source", error=apiError.not_a_valid_origin(host, user_agent))
 
-        access_token = token.get("access_token")
-        jwt_identity = __generate_jwt_identity_info_by_access_token(access_token)
+        account = config.get("ADMIN_INIT_LOGIN")
+        jwt_identity = __generate_jwt_identity_info_by_account(account)
+
         _request_ctx_stack.top.jwt = jwt_identity
 
         return fn(*args, **kwargs)

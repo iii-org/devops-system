@@ -13,8 +13,6 @@ from resources import logger
 
 class SystemInfoReport(Resource):
     def put(self):
-        print(request.headers)
-        logger.logger.info(request.headers)
         system_info_report()
         return util.success()
 
