@@ -19,5 +19,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request GET 'http://devopsapi-service:10009/sync_rancher/count_each_pj_piplines_by_days'
+            - curl --location --request GET 'http://devops-api:10009/sync_rancher/count_each_pj_piplines_by_days'
           restartPolicy: OnFailure

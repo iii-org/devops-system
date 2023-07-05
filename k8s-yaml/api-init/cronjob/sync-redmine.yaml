@@ -23,5 +23,5 @@ spec:
                     name: cornjob-bot
                     key: cornjob-token
             command: ["/bin/sh"]
-            args: ["-c", "curl -H \"Authorization: Bearer $TOKEN\" --location --request GET 'http://devopsapi-service:10009/sync_redmine'"]
+            args: ["-c", "curl -H \"Authorization: Bearer $TOKEN\" --location --request GET 'http://devops-api:10009/sync_redmine'"]
           restartPolicy: OnFailure

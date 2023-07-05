@@ -23,5 +23,5 @@ spec:
                     name: cornjob-bot
                     key: cornjob-token
             command: ["/bin/sh"]
-            args: ["-c", "curl -H \"Authorization: Bearer $TOKEN\" --location --request POST 'http://devopsapi-service:10009/v2/monitoring/check_alive'"]
+            args: ["-c", "curl -H \"Authorization: Bearer $TOKEN\" --location --request POST 'http://devops-api:10009/v2/monitoring/check_alive'"]
           restartPolicy: OnFailure

@@ -23,5 +23,5 @@ spec:
                     name: cornjob-bot
                     key: cornjob-token
             command: ["/bin/sh"]
-            args: ["-c", "curl -H \"Authorization: Bearer $TOKEN\" --location --request POST 'http://devopsapi-service:10009/cmas/apk_remove'"]
+            args: ["-c", "curl -H \"Authorization: Bearer $TOKEN\" --location --request POST 'http://devops-api:10009/cmas/apk_remove'"]
           restartPolicy: OnFailure

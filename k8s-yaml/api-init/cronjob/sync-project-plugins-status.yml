@@ -19,5 +19,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request GET 'http://devopsapi-service:10009/plugins/cronjob'
+            - curl --location --request GET 'http://devops-api:10009/plugins/cronjob'
           restartPolicy: OnFailure

@@ -19,5 +19,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request POST 'http://devopsapi-service:10009/monitoring/k8s/remove_extra_executions'
+            - curl --location --request POST 'http://devops-api:10009/monitoring/k8s/remove_extra_executions'
           restartPolicy: OnFailure

@@ -19,5 +19,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request POST 'http://devopsapi-service:10009/sync_issue_alert'
+            - curl --location --request POST 'http://devops-api:10009/sync_issue_alert'
           restartPolicy: OnFailure

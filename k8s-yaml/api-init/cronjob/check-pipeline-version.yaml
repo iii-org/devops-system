@@ -19,5 +19,5 @@ spec:
             command:
             - /bin/sh
             - -c
-            - curl --location --request POST 'http://devopsapi-service:10009/pipeline/check_update'
+            - curl --location --request POST 'http://devops-api:10009/pipeline/check_update'
           restartPolicy: OnFailure

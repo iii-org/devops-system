@@ -19,5 +19,5 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - curl -i -X PATCH http://devopsapi-service:10009/deploy/applications/cronjob
+                - curl -i -X PATCH http://devops-api:10009/deploy/applications/cronjob
           restartPolicy: OnFailure

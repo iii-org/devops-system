@@ -19,5 +19,5 @@ spec:
               command: ["/bin/sh"]
               args:
                 - "-c"
-                - "curl -H 'Content-Type: application/json' --data-raw '{\"batch\": true, \"ad_type\": \"iii\"}' --location --request POST 'http://devopsapi-service:10009/plugins/ad/users'"
+                - "curl -H 'Content-Type: application/json' --data-raw '{\"batch\": true, \"ad_type\": \"iii\"}' --location --request POST 'http://devops-api:10009/plugins/ad/users'"
           restartPolicy: OnFailure
