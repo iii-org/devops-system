@@ -1957,7 +1957,7 @@ def identify_external_url(public_endpoint, node_port, service_type="", namespace
         else:
             if service_type != "db-server":
                 external_url_format = http_base
-            for address in public_endpoint["addresses"]:
+            for address in public_endpoint.get("addresses", []):
                 url.append(f"{external_url_format}{address}:{node_port}")
         return url
     except apiError.DevOpsError as e:
