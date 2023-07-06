@@ -1031,7 +1031,7 @@ class GitLab(object):
         return self.__api_delete(f"/admin/ci/variables/{key}").json()
 
     def gl_get_pj_variable(self, repo_id: int):
-        return self.__api_get(f"/projects/{repo_id}/variables").json
+        return self.__api_get(f"/projects/{repo_id}/variables").json()
 
     def gl_create_pj_variable(self, repo_id: int, data: dict[str, str]):
         """

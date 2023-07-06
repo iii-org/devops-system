@@ -47,7 +47,12 @@ from plugins.cmas import cmas_main as cmas
 from .gitlab import gitlab, unprotect_project
 from .redmine import redmine
 from resources.monitoring import Monitoring
-from resources.harbor import harbor_scan, hb_create_project_robot_account, delete_project_robot_account
+from resources.harbor import (
+    harbor_scan,
+    hb_create_project_robot_account,
+    delete_project_robot_account,
+    hb_get_project_robot_accounts,
+)
 from resources import sync_project
 from resources.project_relation import get_all_sons_project, get_plan_id
 from flask_apispec import doc
@@ -219,6 +224,31 @@ def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disabl
             nexus_project["children"] = son.get("children", [])
         ret.append(nexus_project)
     logging.info("Successful get all project")
+    if limit is not None and offset is not None:
+        page_dict = util.get_pagination(counts, limit, offset)
+        return {"project_list": ret, "page": page_dict}
+
+    return ret
+
+
+def get_project_simple_list(user_id: int, args: dict = {}, disable: bool = None):
+    """
+    List all project when role is equal to simple, so avoid do something if role == simple.
+    """
+    limit = args.get("limit")
+    offset = args.get("offset")
+    # extra_data = args.get("test_result", "false") == "true"
+    # pj_members_count = args.get("pj_members_count", "false") == "true"
+    # parent_son = args.get("parent_son", False)
+    # user_name = model.User.query.get(user_id).login
+
+    rows, counts = get_project_rows_by_user(user_id, disable, args=args)
+    ret = []
+    for row in rows:
+        if row not in db.session:
+            row = db.session.merge(row)
+        ret.append({"id": row.id, "name": row.name, "display": row.display})
+    logging.info("Successful get all project simple")
     if limit is not None and offset is not None:
         page_dict = util.get_pagination(counts, limit, offset)
         return {"project_list": ret, "page": page_dict}
@@ -761,13 +791,14 @@ def create_bot(project_id, is_restore: bool = False):
     Since the user's account won't be created in the harbor,
     an alternative solution is to create a robot account that can perform the necessary image pull and push operations during the pipeline.
     """
-    login = f"project_bot_{project_id + 10000}"
+    robot_id = project_id + 10000
+    login = f"project_bot_{robot_id}"
     password = util.get_random_alphanumeric_string(6, 3)
     project_name = model.Project.query.get(project_id).name
     # 目前測試避免重覆所以增加 10000
     args = {
-        "name": f"專案管理機器人{project_id + 10000}號",
-        "email": f"project_bot_{project_id + 10000}@nowhere.net",
+        "name": f"專案管理機器人{robot_id}號",
+        "email": f"project_bot_{robot_id}@nowhere.net",
         "phone": "BOTRingRing",
         "login": login,
         "password": password,
@@ -777,12 +808,16 @@ def create_bot(project_id, is_restore: bool = False):
     }
     logger.info(f'created robot: {args}')
     u = user.create_user(args, is_restore)
+    if is_restore:
+        delete_project_robot_account(robot_id)
     hb_robot_info = hb_create_project_robot_account(args)
 
     user_id = u["user_id"]
-    project_add_member(project_id, user_id)
+    project_add_member(project_id, user_id, is_restore)
     git_user_id = u["repository_user_id"]
     git_access_token = gitlab.gl_create_access_token(git_user_id)
+    if is_restore:
+        sonarqube.sq_revoke_access_token(login)
     sonar_access_token = sonarqube.sq_create_access_token(login)
 
     # Add bot secrets to gitlab pj env
@@ -793,6 +828,11 @@ def create_bot(project_id, is_restore: bool = False):
     #     gitlab.gl_update_project_attributes(pj_repo_id, {"archived": False})
     if gl_project.get("builds_access_level") != "enabled":
         gitlab.gl_update_project_attributes(pj_repo_id, {"builds_access_level": "enabled"})
+    if is_restore:
+        gl_pj_variables = gitlab.gl_get_pj_variable(pj_repo_id)
+        for variable in gl_pj_variables:
+            print(f'{variable}')
+            gitlab.gl_delete_pj_variable(pj_repo_id, variable.get("key"))
     gitlab.create_pj_variable(pj_repo_id, "GITLAB_TOKEN", git_access_token)
     gitlab.create_pj_variable(pj_repo_id, "SONAR_TOKEN", sonar_access_token)
     gitlab.create_pj_variable(pj_repo_id, "BOT_USERNAME", login)
@@ -827,6 +867,8 @@ def pm_update_project(project_id, args, is_restore: bool = False):
             )
             db.session.add(plugin_relation)
         db.session.commit()
+        # 建立機器人帳號
+        create_bot(project_id, is_restore)
     if args["description"] is not None:
         gitlab.gl_update_project(plugin_relation.git_repository_id, args["description"])
     if args.get("parent_id", None) is not None:
@@ -1118,13 +1160,22 @@ def project_add_member(project_id, user_id, is_restore: bool = False):
     targets["harbor"] = harbor.hb_add_group_if_not_exist
     service_args["harbor"] = (project_relation.harbor_project_id, pj_row.name)
     logger.info(f'pj_row name: {pj_row.name}')
-    services.append("kubernetes_role_binding")
-    targets["kubernetes_role_binding"] = kubernetesClient.create_role_binding
-    service_args["kubernetes_role_binding"] = (pj_row.name, util.encode_k8s_sa(ur_row.login))
 
-    services.append("sonarqube")
-    targets["sonarqube"] = sonarqube.sq_add_member
-    service_args["sonarqube"] = (pj_row.name, ur_row.login)
+    krb_exist = False
+    if is_restore:
+        krb_exist = kubernetesClient.check_role_in_namespace(pj_row.name)
+    if not krb_exist:
+        services.append("kubernetes_role_binding")
+        targets["kubernetes_role_binding"] = kubernetesClient.create_role_binding
+        service_args["kubernetes_role_binding"] = (pj_row.name, util.encode_k8s_sa(ur_row.login))
+
+    sq_login = None
+    if is_restore:
+        sq_login = sonarqube.check_project_member(pj_row.name, ur_row.login)
+    if sq_login is None:
+        services.append("sonarqube")
+        targets["sonarqube"] = sonarqube.sq_add_member
+        service_args["sonarqube"] = (pj_row.name, ur_row.login)
 
     helper = util.ServiceBatchOpHelper(services, targets, service_args)
     helper.run()

@@ -113,10 +113,29 @@ def sq_delete_project(project_name):
 
 def sq_list_member(project_name, params):
     # The 'permission' parameter must be one of admin, profileadmin, gateadmin, scan, provisioning.
+    # &permission=scan， 因為所有的使用者的 permission 皆為 [] 若加了 permission 會找不到
     return __api_get(
-        f"/permissions/users?projectKey={project_name}&permission=scan",
+        f"/permissions/users?projectKey={project_name}",
         params=params,
     )
+
+
+def check_project_member(project_name: str, user_login: str) -> str or None:
+    page = 1
+    pages = 100
+    params = {"p": page, "ps": pages}
+    sq_pm = sq_list_member(project_name, params).json()
+    total = sq_pm.get("paging").get("total")
+    count = 0
+    while total > count:
+        for sq in sq_pm.get("users"):
+            if sq.get("login") == user_login:
+                return sq.get("login")
+        count = page * pages
+        page += 1
+        params = {"p": page, "ps": pages}
+        sq_pm = sq_list_member(project_name, params).json()
+    return None
 
 
 def sq_add_member(project_name, user_login):
@@ -139,6 +158,12 @@ def sq_create_access_token(login):
     # name 依實際建立機器人帳號時的名稱而改變
     params = {"login": login, "name": "iiidevops-bot"}
     return __api_post("/user_tokens/generate", params=params).json()["token"]
+
+
+def sq_revoke_access_token(login):
+    # name 依實際建立機器人帳號時的名稱而改變
+    params = {"login": login, "name": "iiidevops-bot"}
+    __api_post("/user_tokens/revoke", params=params)
 
 
 def sq_update_password(login, new_password):
