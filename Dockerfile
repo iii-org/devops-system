@@ -23,6 +23,8 @@ RUN git rev-parse HEAD > git_commit && \
 
 FROM python:3.9.16-slim AS base
 
+RUN apt-get update && apt-get install -y --no-install-recommends git curl
+
 COPY --from=buildler /depends/kubectl /usr/local/bin/kubectl
 COPY --from=buildler /depends/helm /usr/local/bin/helm
 COPY iiidevops/bin/pict /usr/local/bin/pict
