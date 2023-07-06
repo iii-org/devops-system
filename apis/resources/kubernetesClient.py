@@ -812,22 +812,35 @@ class K8sPodExec(object):
 
     def exec_namespace_pod(self, data):
         command = data["command"]
+        num = 0
         while self.resp.is_open():
             self.resp.update(timeout=1)
-            print("Running command... %s\n" % command)
-            self.resp.write_stdin(command + "\n")
+            sleep(0.5)
+            num += 1
+
+            if command:
+                print("Running command... %s\n" % command)
+                self.resp.write_stdin(command + "\n")
+                command = None
+                continue
+
             if self.resp.peek_stdout():
                 output_mess = self.resp.read_stdout()
                 print("STDOUT: %s" % output_mess)
-                emit("get_cmd_response", {"code": 200, "output": output_mess})
-                break
+                emit("get_cmd_response", {"code": 200, "output": output_mess}, broadcast=True)
+                continue
+
             elif self.resp.peek_stderr():
                 output_err = self.resp.read_stderr()
                 print("STDERR: %s" % output_err)
                 emit("get_cmd_response", {"code": 200, "output": output_err})
+                continue
+
+            elif num > 3:
                 break
 
         self.resp.close()
+
 
 
 # 20230118 為取得 storage class 資訊而新增下列一段程式
