@@ -13,6 +13,7 @@ from resources.project import (
     create_project,
     pm_update_project,
     get_project_id_by_name,
+    project_add_member,
 )
 from resources import (
     alert,
@@ -135,18 +136,19 @@ def restore_project_from_json():
                 for pur in pur_list:
                     user_id = get_user_json_by_login(pur.get("user_login")).get("id")
                     logger.info(f'pur user :[{user_id}]')
-                    if user_id:
-                        new_pur = model.ProjectUserRole.query.filter_by(project_id=project_id, user_id=user_id).first()
-                        if new_pur:
-                            new_pur.role_id = pur.get("role_id")
-                        else:
-                            new_pur = model.ProjectUserRole(
-                                user_id=user_id,
-                                project_id=project_id,
-                                role_id=pur.get("role_id")
-                            )
-                        model.db.session.add(new_pur)
-                        model.db.session.commit()
+                    project_add_member(project_id, user_id, True)
+                    # if user_id:
+                    #     new_pur = model.ProjectUserRole.query.filter_by(project_id=project_id, user_id=user_id).first()
+                    #     if new_pur:
+                    #         new_pur.role_id = pur.get("role_id")
+                    #     else:
+                    #         new_pur = model.ProjectUserRole(
+                    #             user_id=user_id,
+                    #             project_id=project_id,
+                    #             role_id=pur.get("role_id")
+                    #         )
+                    #     model.db.session.add(new_pur)
+                    #     model.db.session.commit()
             if pce_list:
                 for pce in pce_list:
                     logger.info(f'pce commitr :[{pce.get("commit_id")}]')

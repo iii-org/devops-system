@@ -850,6 +850,8 @@ def pm_update_project(project_id, args, is_restore: bool = False):
     plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
 
     if is_restore:
+        user_id = args.get("creator_id")
+        owner_id = args["owner_id"] or user_id
         create_project_k8s_items(args.get("name"), is_restore)
         pj_id_mapping, service, helper = create_project_in_servers(args, is_restore)
         if plugin_relation:
@@ -867,6 +869,10 @@ def pm_update_project(project_id, args, is_restore: bool = False):
             )
             db.session.add(plugin_relation)
         db.session.commit()
+        # 加關聯project_user_role
+        project_add_member(project_id, owner_id, is_restore)
+        if user_id is not None and owner_id != user_id:
+            project_add_subadmin(project_id, user_id, is_restore)
         # 建立機器人帳號
         create_bot(project_id, is_restore)
     if args["description"] is not None:
@@ -947,7 +953,7 @@ def pm_update_project(project_id, args, is_restore: bool = False):
                 and not row.User.login.startswith("project_bot")
                 and row.ProjectUserRole.role_id != 7
             ):
-                project_add_member(project_id, row.User.id)
+                project_add_member(project_id, row.User.id, is_restore)
 
     # 檢查是否要變更 DISPLAY，若有要一起變更 SONARQUBE 的 PROJECT NAME
     if args.get("display") is not None:
